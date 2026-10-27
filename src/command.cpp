@@ -506,7 +506,7 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
 {
     if (error != 0)
         return error;
-    if (max_source_size > (size_t) -1 / 2 || max_file_size > (size_t) -1 / 2)
+    if (max_source_size > (size_t)-1 / 2 || max_file_size > (size_t)-1 / 2)
     {
         NCNN_LOGE("weight cache size overflow");
         return -1;
@@ -533,7 +533,7 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
         new_host_size = 0;
     else if (max_file_size && !new_host_size)
         new_host_size = max_file_size * 2;
-    if (new_device_size > (size_t) -1 - alignment || new_host_size > (size_t) -1 - alignment)
+    if (new_device_size > (size_t)-1 - alignment || new_host_size > (size_t)-1 - alignment)
     {
         NCNN_LOGE("weight cache alignment overflow");
         return -1;
@@ -581,11 +581,11 @@ int VkWeightCache::binding_source(const buffer_binding& binding, const VkBufferM
     if (!src)
         return 0;
     if (!is_deferred_buffer(src) || binding.view_offset > src->source_size
-        || binding.descriptor.range > src->source_size - binding.view_offset
-        || src->source_size > (size_t) -1 - alignment
-        || (src->storage_type != 2 && src->storage_type != 1)
-        || (needs_host_copy(src) && !src->source_ptr)
-        || (!needs_host_copy(src) && alignSize(src->source_size, 4) > src->capacity))
+            || binding.descriptor.range > src->source_size - binding.view_offset
+            || src->source_size > (size_t)-1 - alignment
+            || (src->storage_type != 2 && src->storage_type != 1)
+            || (needs_host_copy(src) && !src->source_ptr)
+            || (!needs_host_copy(src) && alignSize(src->source_size, 4) > src->capacity))
     {
         NCNN_LOGE("invalid deferred buffer binding");
         return -1;
@@ -681,7 +681,7 @@ int VkWeightCache::plan_batches(const std::vector<const VkBufferMemory*>& depend
             if (is_pinned(src, candidate.weights))
                 continue;
             const size_t size = aligned_size(src);
-            if (size > (size_t) -1 - candidate_size)
+            if (size > (size_t)-1 - candidate_size)
                 return -1;
             candidate_size += size;
             candidate.weights.push_back(src);
@@ -789,15 +789,15 @@ bool VkWeightCache::is_pinned(const VkBufferMemory* src, const std::vector<const
 }
 
 int VkWeightCache::plan_device_cache_range(const VkBufferMemory* src, const std::vector<const VkBufferMemory*>& pinned, std::vector<VkWeightCache::weight_entry>& planned_device_entries, size_t& head,
-                                           std::vector<VkWeightCache::weight_entry>& evicted) const
+        std::vector<VkWeightCache::weight_entry>& evicted) const
 {
     const int recorded = find_source_entry(src);
     if (recorded < 0)
         return -1;
     const size_t size = alignSize(src->source_size, alignment);
     size_t offset = 0;
-    size_t best_batch = (size_t) -1;
-    size_t best_bytes = (size_t) -1;
+    size_t best_batch = (size_t)-1;
+    size_t best_bytes = (size_t)-1;
     bool found = false;
     for (size_t candidate = 0; candidate < planned_device_entries.size() + 2; candidate++)
     {
@@ -1537,7 +1537,7 @@ int VkWeightCacheTransfer::wait_fence(VkFence fence)
         NCNN_LOGE("vkGetFenceStatus failed %d", ret);
         return ret;
     }
-    ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, (uint64_t) -1);
+    ret = vkWaitForFences(vkdev->vkdevice(), 1, &fence, VK_TRUE, (uint64_t)-1);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkWaitForFences failed %d", ret);
@@ -2230,7 +2230,7 @@ void VkComputePrivate::clear_records()
 }
 
 int VkComputePrivate::create_descriptorset(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template,
-                                           const unsigned char* descriptor_infos, VkDescriptorSet* descriptorset)
+        const unsigned char* descriptor_infos, VkDescriptorSet* descriptorset)
 {
     int buffer_binding_count = 0;
     int image_binding_count = 0;
@@ -2451,7 +2451,7 @@ int VkComputePrivate::submit_managed()
         for (size_t j = 0; j < sources.size(); j++)
         {
             const size_t size = weight_cache->aligned_size(sources[j]);
-            if (size > (size_t) -1 - total)
+            if (size > (size_t)-1 - total)
             {
                 NCNN_LOGE("weight binding size overflow");
                 return -1;
@@ -4249,7 +4249,7 @@ int VkCompute::submit_and_wait()
 
         // wait
         {
-            VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &d->compute_command_fence, VK_TRUE, (uint64_t) -1);
+            VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &d->compute_command_fence, VK_TRUE, (uint64_t)-1);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkWaitForFences failed %d", ret);
@@ -4587,7 +4587,7 @@ void VkCompute::barrier_readwrite(const VkImageMat& binding)
 void VkCompute::barrier_readonly(const VkImageMat& binding)
 {
     if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
     {
         // image layout transform any @ any to shader-readonly-optimal @ compute
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
@@ -5028,7 +5028,7 @@ void VkTransfer::record_upload(const Mat& src, const VkMat& dst, const Option& o
     if (d->upload_error || src.empty())
         return;
     if (dst.empty() || !dst.allocator || dst.allocator->vkdev != vkdev || src.n != dst.n
-        || dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
+            || dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
     {
         d->upload_error = -1;
         return;
@@ -5046,7 +5046,7 @@ void VkTransfer::record_upload(const Mat& src, const VkMat& dst, const Option& o
     if (dst.data->storage_type == 2)
     {
         if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.data->source_ptr
-            || dst.offset > dst.data->source_size || dst.buffer_capacity() > dst.data->source_size - dst.offset)
+                || dst.offset > dst.data->source_size || dst.buffer_capacity() > dst.data->source_size - dst.offset)
         {
             NCNN_LOGE("disk weight requires a writable source range during upload");
             d->upload_error = -1;
@@ -5064,7 +5064,7 @@ void VkTransfer::record_upload(const Mat& src, const VkMat& dst, const Option& o
         }
         return;
     }
-    if (dst.buffer_capacity() > (uint64_t) -1 - d->queued_upload_total)
+    if (dst.buffer_capacity() > (uint64_t)-1 - d->queued_upload_total)
     {
         d->upload_error = -1;
         return;
@@ -5385,7 +5385,7 @@ int VkTransferPrivate::finish_upload(int error)
         fences[count++] = compute_command_fence;
     if (count)
     {
-        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), count, fences, VK_TRUE, (uint64_t) -1);
+        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), count, fences, VK_TRUE, (uint64_t)-1);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkWaitForFences failed %d", ret);

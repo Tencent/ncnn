@@ -354,9 +354,9 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 VkAllocator::VkAllocator(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
-    buffer_memory_type_index = (uint32_t) -1;
-    image_memory_type_index = (uint32_t) -1;
-    reserved_type_index = (uint32_t) -1;
+    buffer_memory_type_index = (uint32_t)-1;
+    image_memory_type_index = (uint32_t)-1;
+    reserved_type_index = (uint32_t)-1;
     mappable = false;
     coherent = false;
     cached = false;
@@ -760,7 +760,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), block->buffer, &memoryRequirements);
 
     // setup memory type and alignment
-    if (buffer_memory_type_index == (uint32_t) -1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
         if (vkdev->info.type() == 1)
         {
@@ -1042,7 +1042,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     }
 
     // setup memory type and alignment
-    if (image_memory_type_index == (uint32_t) -1)
+    if (image_memory_type_index == (uint32_t)-1)
     {
         if (vkdev->info.type() == 1)
         {
@@ -1258,7 +1258,7 @@ static bool unified_weight_memory(const VulkanDevice* vkdev)
 
 static size_t weight_buffer_size_limit(const VulkanDevice* vkdev, bool host = false)
 {
-    VkDeviceSize limit = (size_t) -1;
+    VkDeviceSize limit = (size_t)-1;
     if (vkdev->info.max_buffer_size())
         limit = std::min(limit, vkdev->info.max_buffer_size());
     if (vkdev->info.max_memory_allocation_size())
@@ -1286,14 +1286,14 @@ static size_t weight_buffer_size_limit(const VulkanDevice* vkdev, bool host = fa
 static int create_weight_buffer_handle(const VulkanDevice* vkdev, size_t size, bool concurrent, VkBuffer* buffer, VkMemoryRequirements* requirements)
 {
     const size_t alignment = weight_buffer_alignment(vkdev);
-    if (!size || size > (size_t) -1 - alignment || alignSize(size, alignment) > weight_buffer_size_limit(vkdev, concurrent))
+    if (!size || size > (size_t)-1 - alignment || alignSize(size, alignment) > weight_buffer_size_limit(vkdev, concurrent))
         return -1;
     const VkBufferUsageFlags usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     *buffer = create_weight_buffer_object(vkdev, alignSize(size, alignment), usage, 0, concurrent);
     if (!*buffer)
         return -100;
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), *buffer, requirements);
-    if (requirements->size > (size_t) -1)
+    if (requirements->size > (size_t)-1)
     {
         vkDestroyBuffer(vkdev->vkdevice(), *buffer, 0);
         *buffer = 0;
@@ -1350,7 +1350,7 @@ int fit_weight_capacity(const VulkanDevice* vkdev, size_t memory_limit, bool aut
             return -1;
         }
         const size_t excess = allocation - limit;
-        if (excess > (size_t) -1 - alignment)
+        if (excess > (size_t)-1 - alignment)
             return -1;
         const size_t shrink = alignSize(excess, alignment);
         if (shrink >= capacity)
@@ -1446,8 +1446,7 @@ VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int
     }
     const uint32_t memory_type = vkdev->find_memory_index(requirements.memoryTypeBits, required, preferred, avoided);
     const VkPhysicalDeviceMemoryProperties& properties = vkdev->info.physicalDeviceMemoryProperties();
-    if (memory_type == (uint32_t) -1 || (!unified && (memory_limit || vkdev->info.type() == 0) && storage_type == 1
-                                         && (properties.memoryHeaps[properties.memoryTypes[memory_type].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
+    if (memory_type == (uint32_t)-1 || (!unified && (memory_limit || vkdev->info.type() == 0) && storage_type == 1 && (properties.memoryHeaps[properties.memoryTypes[memory_type].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
     {
         NCNN_LOGE("no suitable weight memory type for storage %d", storage_type);
         destroy_weight_buffer(vkdev, ptr);
@@ -1631,7 +1630,7 @@ struct weight_record
 struct VkWeightBufferMemory : public VkBufferMemory
 {
     VkWeightBufferMemory()
-        : clear_generation(0), record_index((size_t) -1), upload_view(false)
+        : clear_generation(0), record_index((size_t)-1), upload_view(false)
     {
     }
     uint64_t clear_generation;
@@ -2013,7 +2012,7 @@ int VkWeightAllocatorPrivate::weight_layout_size(const std::vector<uint32_t>& id
             int ret = weight_buffer_memory_size(vkdev, block_size, allocation_size, concurrent);
             if (ret != 0)
                 return ret;
-            if (allocation_size > (uint64_t) -1 - total)
+            if (allocation_size > (uint64_t)-1 - total)
                 return -1;
             total += allocation_size;
             free_size = block_size;
@@ -2080,12 +2079,12 @@ int VkWeightAllocatorPrivate::plan_weights()
         const weight_record& record = weights[i];
         if (!record.memory)
             continue;
-        if (record.memory->storage_type != 2 || record.data_size > (size_t) -1 - alignment)
+        if (record.memory->storage_type != 2 || record.data_size > (size_t)-1 - alignment)
             return -1;
         const size_t size = alignSize(record.data_size, alignment);
         max_size = std::max(max_size, size);
         size_t& group = group_sizes[weights[i].group];
-        if (size > (size_t) -1 - group)
+        if (size > (size_t)-1 - group)
         {
             NCNN_LOGE("weight group size overflow");
             return -1;
@@ -2142,7 +2141,7 @@ int VkWeightAllocatorPrivate::plan_weights()
         const size_t size = alignSize(weights[ids[i]].data_size, alignment);
         max_size = std::max(max_size, size);
         size_t& group = group_sizes[weights[ids[i]].group];
-        if (size > (size_t) -1 - group)
+        if (size > (size_t)-1 - group)
         {
             NCNN_LOGE("weight group size overflow");
             return -1;
@@ -2161,8 +2160,8 @@ int VkWeightAllocatorPrivate::plan_weights()
     }
     if (automatic_device_cache)
     {
-        size_t doubled = (size_t) -1;
-        if (max_size <= (size_t) -1 / 2)
+        size_t doubled = (size_t)-1;
+        if (max_size <= (size_t)-1 / 2)
             doubled = max_size * 2;
         device_cache = std::min(device_memory_limit - resident_sizes[0], std::max(doubled, max_group_size)) / alignment * alignment;
         ret = fit_weight_capacity(vkdev, device_memory_limit - resident_sizes[0], true, false, device_cache);
@@ -2189,8 +2188,8 @@ int VkWeightAllocatorPrivate::plan_weights()
         host_cache = 0;
     else if (!host_cache)
     {
-        size_t doubled = (size_t) -1;
-        if (max_size <= (size_t) -1 / 2)
+        size_t doubled = (size_t)-1;
+        if (max_size <= (size_t)-1 / 2)
             doubled = max_size * 2;
         host_cache = std::min(doubled, std::max(alignment, host_memory_limit / 4 / alignment * alignment));
     }
@@ -2448,7 +2447,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         NCNN_LOGE("weight memory limits require disk storage");
         return 0;
     }
-    if (d->weights.size() >= 0xffffffffu || size > (size_t) -1 - d->buffer_offset_alignment)
+    if (d->weights.size() >= 0xffffffffu || size > (size_t)-1 - d->buffer_offset_alignment)
     {
         NCNN_LOGE("weight allocation overflow");
         return 0;
@@ -2477,7 +2476,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         ptr->capacity = record.allocation_size;
         ptr->memory = 0;
         ptr->mapped_ptr = 0;
-        ptr->memory_type_index = (uint32_t) -1;
+        ptr->memory_type_index = (uint32_t)-1;
         ptr->access_flags = VK_ACCESS_HOST_WRITE_BIT;
         ptr->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
         ptr->storage_type = 2;
@@ -2569,7 +2568,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         if (dedicatedAllocation)
         {
             // setup memory type and alignment
-            if (buffer_memory_type_index == (uint32_t) -1)
+            if (buffer_memory_type_index == (uint32_t)-1)
             {
                 if (vkdev->info.type() == 1)
                 {
@@ -2592,7 +2591,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                     if (vkdev->info.resizable_bar_enabled())
                     {
                         buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                                            VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                                                   VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
                     }
                     else
                     {
@@ -2679,7 +2678,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 }
 
                 // setup memory type and alignment
-                if (buffer_memory_type_index == (uint32_t) -1)
+                if (buffer_memory_type_index == (uint32_t)-1)
                 {
                     buffer_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits & memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -2710,7 +2709,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 #endif // !defined(_WIN32)
         {
             // setup memory type and alignment
-            if (buffer_memory_type_index == (uint32_t) -1)
+            if (buffer_memory_type_index == (uint32_t)-1)
             {
                 buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -2730,14 +2729,14 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         if (!d->prefer_host_memory)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
-            buffer_memory_type_index = (uint32_t) -1;
-            image_memory_type_index = (uint32_t) -1;
+            buffer_memory_type_index = (uint32_t)-1;
+            image_memory_type_index = (uint32_t)-1;
         }
     }
     if (!d->prefer_host_memory)
     {
         // setup memory type and alignment
-        if (buffer_memory_type_index == (uint32_t) -1)
+        if (buffer_memory_type_index == (uint32_t)-1)
         {
             if (vkdev->info.type() == 1)
             {
@@ -2834,7 +2833,7 @@ VkBufferMemory* VkWeightAllocatorPrivate::record_weight(VkBufferMemory* ptr, siz
         deferred_weight_count++;
     VkWeightBufferMemory* memory = static_cast<VkWeightBufferMemory*>(ptr);
     memory->clear_generation = clear_generation;
-    memory->record_index = ptr->storage_type == 2 ? weights.size() - 1 : (size_t) -1;
+    memory->record_index = ptr->storage_type == 2 ? weights.size() - 1 : (size_t)-1;
     update_weight_generation(this);
     return ptr;
 }
@@ -2850,7 +2849,7 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
     update_weight_generation(d);
     //     NCNN_LOGE("VkWeightAllocator F %p", ptr->buffer);
 
-    if (memory->record_index != (size_t) -1)
+    if (memory->record_index != (size_t)-1)
     {
         weight_record& record = d->weights[memory->record_index];
         record.memory = 0;
@@ -2986,7 +2985,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (dedicatedAllocation)
         {
             // setup memory type and alignment
-            if (image_memory_type_index == (uint32_t) -1)
+            if (image_memory_type_index == (uint32_t)-1)
             {
                 if (vkdev->info.type() == 1)
                 {
@@ -3009,7 +3008,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                     if (vkdev->info.resizable_bar_enabled())
                     {
                         image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                                           VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                                                  VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
                     }
                     else
                     {
@@ -3133,7 +3132,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                 }
 
                 // setup memory type and alignment
-                if (image_memory_type_index == (uint32_t) -1)
+                if (image_memory_type_index == (uint32_t)-1)
                 {
                     image_memory_type_index = vkdev->find_memory_index(pointerProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -3164,7 +3163,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
 #endif // !defined(_WIN32)
         {
             // setup memory type and alignment
-            if (image_memory_type_index == (uint32_t) -1)
+            if (image_memory_type_index == (uint32_t)-1)
             {
                 image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
@@ -3185,14 +3184,14 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
         if (!d->prefer_host_memory)
         {
             NCNN_LOGE("weight allocator fallback to device memory");
-            buffer_memory_type_index = (uint32_t) -1;
-            image_memory_type_index = (uint32_t) -1;
+            buffer_memory_type_index = (uint32_t)-1;
+            image_memory_type_index = (uint32_t)-1;
         }
     }
     if (!d->prefer_host_memory)
     {
         // setup memory type and alignment
-        if (image_memory_type_index == (uint32_t) -1)
+        if (image_memory_type_index == (uint32_t)-1)
         {
             if (vkdev->info.type() == 1)
             {
@@ -3371,13 +3370,13 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
 
     // setup memory type
-    if (buffer_memory_type_index == (uint32_t) -1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
         buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    if (buffer_memory_type_index == (uint32_t) -1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
         vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
         delete ptr;
@@ -3450,7 +3449,7 @@ VkImageMemory* VkStagingAllocator::fastMalloc(int w, int h, int c, size_t elemsi
     ptr->bind_capacity = size;
 
     ptr->mapped_ptr = malloc(size);
-    ptr->memory_type_index = (uint32_t) -1;
+    ptr->memory_type_index = (uint32_t)-1;
 
     ptr->imageview = 0;
 
@@ -3511,10 +3510,10 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     vkGetBufferMemoryRequirements(vkdev->vkdevice(), ptr->buffer, &memoryRequirements);
 
     // setup memory type
-    if (buffer_memory_type_index == (uint32_t) -1)
+    if (buffer_memory_type_index == (uint32_t)-1)
     {
         buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                                                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
@@ -3642,7 +3641,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     }
 
     // setup memory type
-    if (image_memory_type_index == (uint32_t) -1)
+    if (image_memory_type_index == (uint32_t)-1)
     {
         image_memory_type_index = vkdev->find_memory_index(bufferProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     }
@@ -3723,7 +3722,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     ptr->memory = memory;
     ptr->imageview = imageview;
     ptr->mapped_ptr = 0;
-    ptr->memory_type_index = (uint32_t) -1;
+    ptr->memory_type_index = (uint32_t)-1;
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

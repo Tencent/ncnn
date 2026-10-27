@@ -37,7 +37,7 @@ static int test_weight_memory_usage(bool host)
     if (first.empty() || second.empty() || image.empty())
         return -1;
     if (weights.get_weight_memory_usage(device_bytes, host_bytes)
-        || device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
+            || device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
     {
         fprintf(stderr, "weight memory usage differs from actual allocations host=%d\n", host);
         return -1;
@@ -47,7 +47,7 @@ static int test_weight_memory_usage(bool host)
     second.release();
     image.release();
     if (weights.get_weight_memory_usage(device_bytes, host_bytes)
-        || device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
+            || device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
         return -1;
     weights.clear();
     if (weights.get_weight_memory_usage(device_bytes, host_bytes) || device_bytes || host_bytes || weights.needs_weight_cache())
@@ -72,7 +72,7 @@ static int test_weight_file_memory_usage()
         return -1;
     }
     if (weights.finalize_weights() || weights.get_weight_memory_usage(device_bytes, host_bytes)
-        || device_bytes || host_bytes || !weights.needs_weight_cache() || !weights.has_disk_weights())
+            || device_bytes || host_bytes || !weights.needs_weight_cache() || !weights.has_disk_weights())
     {
         fprintf(stderr, "file mappings must not count as resident Vulkan allocations\n");
         return -1;

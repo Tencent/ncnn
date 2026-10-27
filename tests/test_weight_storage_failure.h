@@ -29,9 +29,7 @@ public:
     };
 
     explicit VulkanFailure(Failure failure, int fail_at = 1)
-        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory),
-          submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore),
-          reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus)
+        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus)
     {
         calls = 0;
         reused_command = false;

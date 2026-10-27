@@ -115,7 +115,7 @@ static int test_temporary_file()
         CHECK_TEMPORARY_FILE(file.reserve(8) == 0);
         CHECK_TEMPORARY_FILE(file.map(16383, 2, invalid) != 0 && !invalid.base);
         CHECK_TEMPORARY_FILE(file.map(0, 0, invalid) != 0 && !invalid.base);
-        CHECK_TEMPORARY_FILE(file.reserve((uint64_t) -1) != 0);
+        CHECK_TEMPORARY_FILE(file.reserve((uint64_t)-1) != 0);
 
         CHECK_TEMPORARY_FILE(ncnn::TemporaryFile::flush_readonly(first) == 0);
         CHECK_TEMPORARY_FILE(ncnn::TemporaryFile::flush_readonly(second) == 0);
