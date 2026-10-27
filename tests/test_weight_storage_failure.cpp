@@ -283,6 +283,7 @@ static int test_weight_storage_cached_batch()
             VulkanFailure count(VulkanFailure::SUBMIT, 1000000);
             if (cmd.submit_and_wait() != 0)
                 return -1;
+            // Cached weights fit in one batch without an artificial prefix submission.
             if (round == 1 && count.submission_count() != 1)
             {
                 fprintf(stderr, "cached weights split into %d submissions\n", count.submission_count());
@@ -343,7 +344,7 @@ static int test_weight_storage_transfer_wait_failure()
     return staging.frees == 1 ? 0 : -1;
 }
 
-static int test_weight_storage_cache_wait_failure()
+static int test_weight_storage_cache_wait_failure(bool cached_weight)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev);
@@ -362,7 +363,15 @@ static int test_weight_storage_cache_wait_failure()
     opt.blob_vkallocator = &blobs;
     ncnn::Mat output;
     ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev, opt);
-    cmd->record_clone(weight, output, opt);
+    ncnn::VkMat ordinary;
+    ncnn::Mat ordinary_input = RandomMat(256);
+    if (cached_weight)
+        cmd->record_clone(weight, output, opt);
+    else
+    {
+        cmd->record_clone(ordinary_input, ordinary, opt);
+        cmd->record_clone(ordinary, output, opt);
+    }
     const int frees_before = staging.frees;
     VulkanFailure fail(VulkanFailure::FENCE_STATUS, 3);
     const int result = cmd->submit_and_wait();
@@ -372,7 +381,7 @@ static int test_weight_storage_cache_wait_failure()
     delete cmd;
     if (!retained || fail.status_errors != 3 || staging.frees <= frees_before)
     {
-        fprintf(stderr, "cache fence query failure lost pending execution or staging lifetime\n");
+        fprintf(stderr, "compute fence query failure lost pending execution or staging lifetime cached=%d\n", cached_weight);
         return -1;
     }
     return 0;
@@ -461,7 +470,8 @@ int main()
 
     const int ret = 0
                     || test_weight_storage_transfer_wait_failure()
-                    || test_weight_storage_cache_wait_failure()
+                    || test_weight_storage_cache_wait_failure(true)
+                    || test_weight_storage_cache_wait_failure(false)
                     || test_weight_storage_execution_resources(VulkanFailure::TRACK_COMMANDS)
                     || test_weight_storage_execution_resources(VulkanFailure::ALLOCATE_COMMAND)
                     || test_weight_storage_execution_resources(VulkanFailure::CREATE_FENCE)

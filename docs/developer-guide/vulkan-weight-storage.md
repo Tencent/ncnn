@@ -132,7 +132,14 @@ reload a model, use `clear()`, `load_param()` and `load_model()`. Repeated
 a loading error, clear and reload the model before inference. A GPU submission
 failure can discard the affected command cache; retaining it is not guaranteed.
 
-Each execution allocates independent upload and compute command buffers and
+`VkCompute` owns compute recording, submission and completion; the weight-cache
+uploader only stages and uploads weights. Ordinary work before the first paged
+operation joins the first compute batch and waits for its uploads, unless a
+cross-queue cache-ownership release must precede those uploads. There is no
+artificial empty preliminary submission. Commands without paged weights retain
+the normal recording path.
+
+Each paged execution uses independent upload and compute command buffers and
 synchronization objects. They are not recycled while that execution is running.
 Staging-range and cache-overwrite dependencies still wait for their actual users.
 Execution resources are released only after all submissions and semaphore waits

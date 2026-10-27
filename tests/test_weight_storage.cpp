@@ -390,6 +390,148 @@ static int test_weight_storage_automatic_cache()
     return 0;
 }
 
+#if NCNN_BENCHMARK
+static bool weight_storage_has_timestamps(const ncnn::VulkanDevice* vkdev)
+{
+    uint32_t count = 0;
+    ncnn::vkGetPhysicalDeviceQueueFamilyProperties(vkdev->info.physical_device(), &count, 0);
+    std::vector<VkQueueFamilyProperties> properties(count);
+    ncnn::vkGetPhysicalDeviceQueueFamilyProperties(vkdev->info.physical_device(), &count, properties.data());
+    const uint32_t family = vkdev->info.compute_queue_family_index();
+    return family < count && properties[family].timestampValidBits != 0;
+}
+
+static int check_weight_storage_timestamps(ncnn::VkCompute& cmd)
+{
+    std::vector<uint64_t> timestamps(2, (uint64_t)-1);
+    if (cmd.get_query_pool_results(0, 2, timestamps) || timestamps[0] == (uint64_t)-1 || timestamps[1] == (uint64_t)-1)
+    {
+        fprintf(stderr, "test_weight_storage_mixed_recording timestamp results unavailable\n");
+        return -1;
+    }
+    return 0;
+}
+#endif
+
+static int test_weight_storage_mixed_recording()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat input = RandomMat(64);
+    ncnn::Mat weight_values = RandomMat(64);
+    ncnn::VkMat weight;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(weight_values, weight, opt);
+    if (upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    opt.blob_vkallocator = &blobs;
+    const char shader[] = "#version 450\n"
+                          "layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n"
+                          "layout(binding = 0) readonly buffer A { float a[]; };\n"
+                          "layout(binding = 1) readonly buffer B { float b[]; };\n"
+                          "layout(binding = 2) writeonly buffer C { float c[]; };\n"
+                          "void main() { uint i = gl_GlobalInvocationID.x; if (i < 64) c[i] = a[i] + b[i]; }\n";
+    std::vector<uint32_t> spirv;
+    if (ncnn::compile_spirv_module(shader, opt, spirv))
+        return -1;
+    ncnn::Pipeline pipeline(vkdev);
+    pipeline.set_local_size_xyz(1, 1, 1);
+    if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
+        return -1;
+    ncnn::Mat expected_prefix(64);
+    ncnn::Mat expected_result(64);
+    for (int i = 0; i < 64; i++)
+    {
+        ((float*)expected_prefix.data)[i] = ((const float*)input.data)[i] * 2.f;
+        ((float*)expected_result.data)[i] = ((const float*)expected_prefix.data)[i] + ((const float*)weight_values.data)[i];
+    }
+    ncnn::VkCompute cmd(vkdev, opt);
+#if NCNN_BENCHMARK
+    const bool timestamps = weight_storage_has_timestamps(vkdev);
+    if (timestamps && cmd.create_query_pool(2))
+        return -1;
+#endif
+    // No weights, a late weight after ordinary copies/dispatch, a weight first,
+    // and ordinary work again on the same reset command.
+    const int modes[] = {0, 1, 2, 0};
+    for (int round = 0; round < 4; round++)
+    {
+#if NCNN_BENCHMARK
+        if (timestamps)
+            cmd.record_write_timestamp(0);
+#endif
+        ncnn::Mat early_weight;
+        if (modes[round] == 2)
+            cmd.record_clone(weight, early_weight, opt);
+        ncnn::VkMat x;
+        ncnn::VkMat copied;
+        ncnn::VkMat prefix(64, (size_t)4u, &blobs);
+        ncnn::VkMat result(64, (size_t)4u, &blobs);
+        ncnn::VkMat ordinary_weight;
+        if (prefix.empty() || result.empty())
+            return -1;
+        cmd.record_clone(input, x, opt);
+        cmd.record_clone(x, copied, opt);
+        std::vector<ncnn::VkMat> bindings(3);
+        bindings[0] = x;
+        bindings[1] = copied;
+        bindings[2] = prefix;
+        cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), prefix);
+        ncnn::Mat prefix_output;
+        cmd.record_clone(prefix, prefix_output, opt);
+        if (modes[round] == 0)
+            cmd.record_clone(weight_values, ordinary_weight, opt);
+        bindings[0] = prefix;
+        bindings[1] = modes[round] == 0 ? ordinary_weight : weight;
+        bindings[2] = result;
+        cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
+        ncnn::Mat output;
+        cmd.record_clone(result, output, opt);
+#if NCNN_BENCHMARK
+        if (timestamps)
+            cmd.record_write_timestamp(1);
+#endif
+        if (cmd.submit_and_wait() || CompareMat(expected_prefix, prefix_output, 0.0001f) || CompareMat(expected_result, output, 0.0001f)
+                || (modes[round] == 2 && CompareMat(weight_values, early_weight, 0.f)))
+        {
+            fprintf(stderr, "test_weight_storage_mixed_recording failed round=%d mode=%d push_descriptors=%d\n", round, modes[round], vkdev->info.support_VK_KHR_push_descriptor());
+            return -1;
+        }
+#if NCNN_BENCHMARK
+        if (timestamps && check_weight_storage_timestamps(cmd))
+            return -1;
+#endif
+        if (cmd.reset())
+            return -1;
+#if NCNN_BENCHMARK
+        std::vector<uint64_t> stale_timestamps(2);
+        if (timestamps && cmd.get_query_pool_results(0, 2, stale_timestamps) == 0)
+        {
+            fprintf(stderr, "test_weight_storage_mixed_recording reset left timestamp results ready\n");
+            return -1;
+        }
+#endif
+    }
+#if NCNN_BENCHMARK
+    if (timestamps)
+    {
+        // Query-only recording must not be mistaken for an empty command.
+        cmd.record_write_timestamp(0);
+        cmd.record_write_timestamp(1);
+        if (cmd.submit_and_wait() || check_weight_storage_timestamps(cmd) || cmd.reset())
+            return -1;
+    }
+#endif
+    return 0;
+}
+
 static int test_weight_storage_recorded_weight_lifetime()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
@@ -967,6 +1109,7 @@ int main()
                     || test_weight_storage_allocation_failure(true)
                     || test_weight_storage_residents()
                     || test_weight_storage_automatic_cache()
+                    || test_weight_storage_mixed_recording()
                     || test_weight_storage_recorded_weight_lifetime()
                     || test_weight_storage_recorded_subview()
                     || test_weight_storage_allocator_address_reuse();
