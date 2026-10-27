@@ -323,7 +323,7 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
         if (embed_dim > (int)__riscv_vsetvlmax_e32m8())
         {
             /* Workers write the same flag concurrently: an omp barrier cannot make
-             * the concurrent writes race-free, so use an atomic write. */
+                                     * the concurrent writes race-free, so use an atomic write. */
             #pragma omp atomic write
             team_vl_bad = 1;
         }
@@ -333,143 +333,143 @@ int SDPA_riscv::forward_rvv_decode(const std::vector<Mat>& bottom_blobs, std::ve
             #pragma omp for
             for (int q = 0; q < num_heads; q++)
             {
-        const Mat query_head = query.channel(q); // [E, 1]
-        const Mat key_head = cached_key.channel(q / num_heads_per_group);
-        const Mat value_head = cached_value.channel(q / num_heads_per_group);
-        Mat top_blob_head = top_blob.channel(q);
+                const Mat query_head = query.channel(q); // [E, 1]
+                const Mat key_head = cached_key.channel(q / num_heads_per_group);
+                const Mat value_head = cached_value.channel(q / num_heads_per_group);
+                Mat top_blob_head = top_blob.channel(q);
 
-        const float* qptr = query_head.row(0);
-        float* outptr = top_blob_head.row(0);
-        const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(q) : attn_mask_blob;
-        const float* mptr = maskm.row(0);
+                const float* qptr = query_head.row(0);
+                float* outptr = top_blob_head.row(0);
+                const Mat& maskm = attn_mask_blob.c > 1 ? attn_mask_blob.channel(q) : attn_mask_blob;
+                const float* mptr = maskm.row(0);
 
-        float* scores = score_slab + (size_t)get_omp_thread_num() * dst_seqlen;
+                float* scores = score_slab + (size_t)get_omp_thread_num() * dst_seqlen;
 
-        const bool dprof = (getenv("NCNN_SDPA_DECODE_PROF") != nullptr);
-        const double dt0 = dprof ? sdpa_dec_now() : 0.0;
+                const bool dprof = (getenv("NCNN_SDPA_DECODE_PROF") != nullptr);
+                const double dt0 = dprof ? sdpa_dec_now() : 0.0;
 
-        // QK^T: scores[j] = (q · k_j) * scale + mask[j]
-        for (int j = 0; j < dst_seqlen; j++)
-        {
-            const float* kptr = key_head.row(j);
-            scores[j] = rvv_dot_f32(qptr, kptr, embed_dim) * _scale + mptr[j];
-        }
+                // QK^T: scores[j] = (q · k_j) * scale + mask[j]
+                for (int j = 0; j < dst_seqlen; j++)
+                {
+                    const float* kptr = key_head.row(j);
+                    scores[j] = rvv_dot_f32(qptr, kptr, embed_dim) * _scale + mptr[j];
+                }
 
-        const double dt1 = dprof ? sdpa_dec_now() : 0.0;
+                const double dt1 = dprof ? sdpa_dec_now() : 0.0;
 
-        // softmax (same order as the naive path: max → expf → sum → multiply by reciprocal)
-        const float mx = rvv_max_f32(scores, dst_seqlen);
-        float sum = 0.f;
+                // softmax (same order as the naive path: max → expf → sum → multiply by reciprocal)
+                const float mx = rvv_max_f32(scores, dst_seqlen);
+                float sum = 0.f;
 #if __riscv_vector
-        /* Vectorized exp (was per-element expf calls, 44.7 ns/element → ~363 µs per layer at 507 tokens) */
-        {
-            /* The summation grouping must be VLEN-agnostic: the lane count
-             * follows VLEN (A100 e32m1 = 32 lanes, X100 = 16 lanes), so
-             * lane-grouped accumulate + unordered reduction would make sum
-             * differ across clusters. Fixed 8-lane grouping (every supported
-             * VLEN has VLMAX≥8), reduction via vfredosum (ordered, fixed
-             * sequential semantics) — byte-identical on both clusters. The
-             * accumulate structure of exp itself matches upstream
-             * Softmax_riscv verbatim (e32m8 bulk groups + _tu tail group +
-             * vfredusum finish): if the small terms all landed on the lane
-             * holding the maximum they would be dropped one by one
-             * (1 + 2.5e-8 == 1); bulk-group striding spreads the small terms
-             * across independent per-lane accumulators, which preserves the
-             * aggregation quality — the premise of bit-parity with the
-             * fallback path. */
-            vfloat32m8_t vsum = __riscv_vfmv_v_f_f32m8(0.f, __riscv_vsetvlmax_e32m8());
-            {
-                const size_t vlfull = __riscv_vsetvlmax_e32m8();
-                float* ptr = scores;
-                int n = dst_seqlen / (int)vlfull * (int)vlfull;
-                while (n > 0)
+                /* Vectorized exp (was per-element expf calls, 44.7 ns/element → ~363 µs per layer at 507 tokens) */
                 {
-                    vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlfull);
-                    v = __riscv_vfsub_vf_f32m8(v, mx, vlfull);
-                    /* m8 decode exp: the wide version with the same construction as exp_ps (below) */
-                    v = sdpa_vexp_f32m8(v, vlfull);
-                    __riscv_vse32_v_f32m8(ptr, v, vlfull);
-                    vsum = __riscv_vfadd_vv_f32m8(vsum, v, vlfull);
-                    ptr += vlfull;
-                    n -= (int)vlfull;
+                    /* The summation grouping must be VLEN-agnostic: the lane count
+                    * follows VLEN (A100 e32m1 = 32 lanes, X100 = 16 lanes), so
+                    * lane-grouped accumulate + unordered reduction would make sum
+                    * differ across clusters. Fixed 8-lane grouping (every supported
+                    * VLEN has VLMAX≥8), reduction via vfredosum (ordered, fixed
+                    * sequential semantics) — byte-identical on both clusters. The
+                    * accumulate structure of exp itself matches upstream
+                    * Softmax_riscv verbatim (e32m8 bulk groups + _tu tail group +
+                    * vfredusum finish): if the small terms all landed on the lane
+                    * holding the maximum they would be dropped one by one
+                    * (1 + 2.5e-8 == 1); bulk-group striding spreads the small terms
+                    * across independent per-lane accumulators, which preserves the
+                    * aggregation quality — the premise of bit-parity with the
+                    * fallback path. */
+                    vfloat32m8_t vsum = __riscv_vfmv_v_f_f32m8(0.f, __riscv_vsetvlmax_e32m8());
+                    {
+                        const size_t vlfull = __riscv_vsetvlmax_e32m8();
+                        float* ptr = scores;
+                        int n = dst_seqlen / (int)vlfull * (int)vlfull;
+                        while (n > 0)
+                        {
+                            vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlfull);
+                            v = __riscv_vfsub_vf_f32m8(v, mx, vlfull);
+                            /* m8 decode exp: the wide version with the same construction as exp_ps (below) */
+                            v = sdpa_vexp_f32m8(v, vlfull);
+                            __riscv_vse32_v_f32m8(ptr, v, vlfull);
+                            vsum = __riscv_vfadd_vv_f32m8(vsum, v, vlfull);
+                            ptr += vlfull;
+                            n -= (int)vlfull;
+                        }
+                        int remain = dst_seqlen % (int)vlfull;
+                        if (remain > 0)
+                        {
+                            const size_t vlr = __riscv_vsetvl_e32m8(remain);
+                            vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlr);
+                            v = __riscv_vfsub_vf_f32m8(v, mx, vlr);
+                            v = sdpa_vexp_f32m8(v, vlr);
+                            __riscv_vse32_v_f32m8(ptr, v, vlr);
+                            vsum = __riscv_vfadd_vv_f32m8_tu(vsum, vsum, v, vlr);
+                        }
+                        /* Same as upstream: vfredusum (unordered but deterministic on the same implementation) */
+                        sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m8_f32m1(vsum, __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1()), __riscv_vsetvlmax_e32m8()));
+                    }
                 }
-                int remain = dst_seqlen % (int)vlfull;
-                if (remain > 0)
-                {
-                    const size_t vlr = __riscv_vsetvl_e32m8(remain);
-                    vfloat32m8_t v = __riscv_vle32_v_f32m8(ptr, vlr);
-                    v = __riscv_vfsub_vf_f32m8(v, mx, vlr);
-                    v = sdpa_vexp_f32m8(v, vlr);
-                    __riscv_vse32_v_f32m8(ptr, v, vlr);
-                    vsum = __riscv_vfadd_vv_f32m8_tu(vsum, vsum, v, vlr);
-                }
-                /* Same as upstream: vfredusum (unordered but deterministic on the same implementation) */
-                sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m8_f32m1(vsum, __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1()), __riscv_vsetvlmax_e32m8()));
-            }
-        }
 #else
-        for (int j = 0; j < dst_seqlen; j++)
-        {
-            scores[j] = (float)expf(scores[j] - mx);
-            sum += scores[j];
-        }
-#endif
-        const float inv_sum = 1.f / sum;
-        for (int j = 0; j < dst_seqlen; j++)
-            scores[j] *= inv_sum;
-
-        const double dt2 = dprof ? sdpa_dec_now() : 0.0;
-
-        // P·V: out[e] += p_j * v_j[e]; the output row stays resident in registers.
-        // Note: whether the whole row can be written in one pass must be judged by
-        // the **VLMAX** of e32m8 (varies with VLEN: VLEN=1024 → 256, VLEN=256 → 64);
-        // otherwise on small-VLEN clusters like X100 only the first vl elements get
-        // written and the rest stay uninitialized → garbage output (this bug was
-        // masked by the "the X100 leg never actually took effect" gate).
-        if (out_embed_dim <= (int)__riscv_vsetvlmax_e32m8())
-        {
-            size_t vl = __riscv_vsetvl_e32m8(out_embed_dim);
-            vfloat32m8_t acc = __riscv_vfmv_v_f_f32m8(0.f, vl);
-            for (int j = 0; j < dst_seqlen; j++)
-            {
-                const float* vptr = value_head.row(j);
-                acc = __riscv_vfmacc_vf_f32m8(acc, scores[j], __riscv_vle32_v_f32m8(vptr, vl), vl);
-            }
-            __riscv_vse32_v_f32m8(outptr, acc, vl);
-        }
-        else
-        {
-            for (int e = 0; e < out_embed_dim; e++)
-                outptr[e] = 0.f;
-            for (int j = 0; j < dst_seqlen; j++)
-            {
-                const float* vptr = value_head.row(j);
-                const float p = scores[j];
-                int e = 0;
-                while (e < out_embed_dim)
+                for (int j = 0; j < dst_seqlen; j++)
                 {
-                    size_t vl = __riscv_vsetvl_e32m8(out_embed_dim - e);
-                    vfloat32m8_t acc = __riscv_vle32_v_f32m8(outptr + e, vl);
-                    acc = __riscv_vfmacc_vf_f32m8(acc, p, __riscv_vle32_v_f32m8(vptr + e, vl), vl);
-                    __riscv_vse32_v_f32m8(outptr + e, acc, vl);
-                    e += (int)vl;
+                    scores[j] = (float)expf(scores[j] - mx);
+                    sum += scores[j];
+                }
+#endif
+                const float inv_sum = 1.f / sum;
+                for (int j = 0; j < dst_seqlen; j++)
+                    scores[j] *= inv_sum;
+
+                const double dt2 = dprof ? sdpa_dec_now() : 0.0;
+
+                // P·V: out[e] += p_j * v_j[e]; the output row stays resident in registers.
+                // Note: whether the whole row can be written in one pass must be judged by
+                // the **VLMAX** of e32m8 (varies with VLEN: VLEN=1024 → 256, VLEN=256 → 64);
+                // otherwise on small-VLEN clusters like X100 only the first vl elements get
+                // written and the rest stay uninitialized → garbage output (this bug was
+                // masked by the "the X100 leg never actually took effect" gate).
+                if (out_embed_dim <= (int)__riscv_vsetvlmax_e32m8())
+                {
+                    size_t vl = __riscv_vsetvl_e32m8(out_embed_dim);
+                    vfloat32m8_t acc = __riscv_vfmv_v_f_f32m8(0.f, vl);
+                    for (int j = 0; j < dst_seqlen; j++)
+                    {
+                        const float* vptr = value_head.row(j);
+                        acc = __riscv_vfmacc_vf_f32m8(acc, scores[j], __riscv_vle32_v_f32m8(vptr, vl), vl);
+                    }
+                    __riscv_vse32_v_f32m8(outptr, acc, vl);
+                }
+                else
+                {
+                    for (int e = 0; e < out_embed_dim; e++)
+                        outptr[e] = 0.f;
+                    for (int j = 0; j < dst_seqlen; j++)
+                    {
+                        const float* vptr = value_head.row(j);
+                        const float p = scores[j];
+                        int e = 0;
+                        while (e < out_embed_dim)
+                        {
+                            size_t vl = __riscv_vsetvl_e32m8(out_embed_dim - e);
+                            vfloat32m8_t acc = __riscv_vle32_v_f32m8(outptr + e, vl);
+                            acc = __riscv_vfmacc_vf_f32m8(acc, p, __riscv_vle32_v_f32m8(vptr + e, vl), vl);
+                            __riscv_vse32_v_f32m8(outptr + e, acc, vl);
+                            e += (int)vl;
+                        }
+                    }
+                }
+
+                if (dprof && q < 2)
+                {
+                    const double dt3 = sdpa_dec_now();
+                    #pragma omp critical
+                    {
+                        static int pc = 0;
+                        if (pc++ < 6)
+                            fprintf(stderr, "[dec-prof] head=%d dst=%d | QK=%.3fms softmax=%.3fms PV=%.3fms\n",
+                                    q, dst_seqlen, dt1 - dt0, dt2 - dt1, dt3 - dt2);
+                    }
                 }
             }
-        }
-
-        if (dprof && q < 2)
-        {
-            const double dt3 = sdpa_dec_now();
-            #pragma omp critical
-            {
-                static int pc = 0;
-                if (pc++ < 6)
-                    fprintf(stderr, "[dec-prof] head=%d dst=%d | QK=%.3fms softmax=%.3fms PV=%.3fms\n",
-                            q, dst_seqlen, dt1 - dt0, dt2 - dt1, dt3 - dt2);
-            }
-        }
-    }
-        }   // omp for
+        } // omp for
     }     // omp parallel (per-worker VLEN validation + work in the same region)
 
     if (team_vl_bad)
@@ -742,16 +742,16 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 && q0.elembits() == 32 && q0.elempack == 1 && q0.h == 1
 #if __riscv_vector
                 /* Multi-chunk heads cannot match the fallback accumulation order:
-                                                                                                                                                                         * the composed GEMM accumulates k sequentially per key (the
-                                                                                                                                                                         * gemm_transB_packed_tile scalar kk loop), while any lane-grouped
-                                                                                                                                                                         * chunk reduction reorders the dot product for extreme values
-                                                                                                                                                                         * (both directions of the divergence were demonstrated in review).
-                                                                                                                                                                         * Gate the RVV decode path to heads that fit one e32m8 vector. */
+                                                                                                                                                                                 * the composed GEMM accumulates k sequentially per key (the
+                                                                                                                                                                                 * gemm_transB_packed_tile scalar kk loop), while any lane-grouped
+                                                                                                                                                                                 * chunk reduction reorders the dot product for extreme values
+                                                                                                                                                                                 * (both directions of the divergence were demonstrated in review).
+                                                                                                                                                                                 * Gate the RVV decode path to heads that fit one e32m8 vector. */
                 /* Gate on the WORST worker's e32m8 VLMAX, not the caller's: an OMP
-                         * head iteration may run on an X100 (vlenb 32 -> VLMAX 64) even when
-                         * the dispatching thread is on an A100 (VLMAX 256), and multi-chunk
-                         * reduction there reorders the dot product for E in 129..256.
-                         * Walk the caller's affinity mask once per forward (per-CPU vlenb). */
+                                 * head iteration may run on an X100 (vlenb 32 -> VLMAX 64) even when
+                                 * the dispatching thread is on an A100 (VLMAX 256), and multi-chunk
+                                 * reduction there reorders the dot product for E in 129..256.
+                                 * Walk the caller's affinity mask once per forward (per-CPU vlenb). */
                 && q0.w <= sdpa_decode_vlmax_cap()
 #endif
            )
