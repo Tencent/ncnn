@@ -1280,11 +1280,26 @@ static int ime2_flash_head_tiles(const ime2_fp16* QT, const ime2_fp16* KT, const
         /* Normalize only after the scan completes (one multiply); li·32768 compensates the pre-packing scale-up of P */
         for (int r = 0; r < rows; r++)
         {
-            /* li is already in packed (2^15-scaled) units */
-            const float inv = 1.f / li[r];
-            ime2_row_scale(acc + r * Ev, Ev, inv);
-            const float* arow = acc + r * Ev;
+            const float l = li[r];
             float* o = Out + (size_t)(m0 + r) * ldo;
+            const float* arow = acc + r * Ev;
+            /* Zero-mass / overflowed rows: the fallback's softmax-sum overflows
+             * to inf and every normalized weight becomes 0, so the row output is
+             * zeros; dividing here would give 0*inf=NaN. A NaN li means the
+             * fallback's row is NaN -- acc is already NaN, leave it. */
+            if (!(l > 0.f) || l >= 3.4028234663852886e+38f)
+            {
+                if (l == l) /* not NaN: zero or +inf mass -> zeros */
+                    for (int e = 0; e < Ev; e++)
+                        o[e] = 0.f;
+                else /* NaN: propagate the fallback's NaN row */
+                    for (int e = 0; e < Ev; e++)
+                        o[e] = arow[e];
+                continue;
+            }
+            /* li is already in packed (2^15-scaled) units */
+            const float inv = 1.f / l;
+            ime2_row_scale(acc + r * Ev, Ev, inv);
             for (int e = 0; e < Ev; e++)
                 o[e] = arow[e];
         }

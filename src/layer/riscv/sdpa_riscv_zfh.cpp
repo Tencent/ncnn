@@ -554,7 +554,15 @@ int SDPA_riscv::forward_ime2_prefill(const std::vector<Mat>& bottom_blobs, std::
                     for (int i = 0; i < src_seqlen; i++)
                     {
                         /* pack layout: row-tile stride ktP*64 fp16 (end slack only) */
-                        const float inv = 1.f / ncnn_ime2_sdpa::ime2_packed_row_sum_fp16((const ime2_fp16*)A2T, (size_t)ktP * 64, i, ktP);
+                        const float psum = ncnn_ime2_sdpa::ime2_packed_row_sum_fp16((const ime2_fp16*)A2T, (size_t)ktP * 64, i, ktP);
+                        /* Zero-mass row (softmax sum overflowed to inf, so every
+                         * normalized weight is 0): psum is 0, PV gave exact zeros,
+                         * and the fallback's output is zeros -- dividing by 0 would
+                         * turn them into NaN (0*inf). NaN psum: the fallback gives
+                         * NaN and acc is already NaN; skip the divide either way. */
+                        if (!(psum > 0.f))
+                            continue;
+                        const float inv = 1.f / psum;
                         float* orow = out + (size_t)i * out_embed_dim;
                         for (int e = 0; e < out_embed_dim; e++)
                             orow[e] *= inv;
