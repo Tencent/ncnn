@@ -23,7 +23,8 @@ static int test_weight_memory_usage(bool host)
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
     ncnn::VkWeightAllocator weights(vkdev, host, 4096);
     uint64_t device_bytes, host_bytes;
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || device_bytes || host_bytes)
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes || host_bytes)
         return -1;
 
     allocated_bytes[0] = allocated_bytes[1] = 0;
@@ -36,8 +37,8 @@ static int test_weight_memory_usage(bool host)
     ncnn::vkAllocateMemory = original_allocate_memory;
     if (first.empty() || second.empty() || image.empty())
         return -1;
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes)
-            || device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
     {
         fprintf(stderr, "weight memory usage differs from actual allocations host=%d\n", host);
         return -1;
@@ -46,11 +47,12 @@ static int test_weight_memory_usage(bool host)
     first.release();
     second.release();
     image.release();
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes)
-            || device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
         return -1;
     weights.clear();
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || device_bytes || host_bytes || weights.needs_weight_cache())
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes || host_bytes || weights.needs_weight_cache())
         return -1;
     return 0;
 }
@@ -66,25 +68,30 @@ static int test_weight_file_memory_usage()
     if (weight.empty())
         return -1;
     uint64_t device_bytes, host_bytes;
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || device_bytes || host_bytes)
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes || host_bytes)
     {
         fprintf(stderr, "file mappings counted as resident Vulkan allocations\n");
         return -1;
     }
-    if (weights.finalize_weights() || weights.get_weight_memory_usage(device_bytes, host_bytes)
-            || device_bytes || host_bytes || !weights.needs_weight_cache() || !weights.has_disk_weights())
+    if (weights.finalize_weights())
+        return -1;
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes || host_bytes || !weights.needs_weight_cache() || !weights.has_disk_weights())
     {
         fprintf(stderr, "file mappings must not count as resident Vulkan allocations\n");
         return -1;
     }
     weight.release();
     weights.clear();
-    weights.set_weight_memory_limit(8192, 8192, 4096, 4096);
+    if (weights.set_weight_memory_limit(8192, 8192, 4096, 4096))
+        return -1;
     weight.create(64, (size_t)4u, &weights);
     if (weight.empty() || weights.finalize_weights())
         return -1;
     // Residents are allocated directly while loading, with space reserved for exchange.
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || !device_bytes || device_bytes > 4096 || host_bytes)
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (!device_bytes || device_bytes > 4096 || host_bytes)
     {
         fprintf(stderr, "resident weights must report actual allocation bytes within the reserved budget\n");
         return -1;
@@ -93,9 +100,35 @@ static int test_weight_file_memory_usage()
     return 0;
 }
 
+static int test_weight_memory_configuration()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev, false, 4096);
+    weights.set_weights_in_disk(true);
+    if (weights.set_weight_memory_limit(8192, 8192, 4096, 4096))
+        return -1;
+    if (weights.set_weight_memory_limit(4096, 4096, (size_t)-1, 4096) == 0)
+    {
+        fprintf(stderr, "weight cache overflow was not reported by configuration\n");
+        return -1;
+    }
+    if (vkdev->info.type() != 1 && vkdev->info.type() != 3
+        && weights.set_weight_memory_limit(4096, 8192, 1024, (size_t)-1) == 0)
+        return -1;
+    // A rejected configuration leaves the previous budgets usable.
+    ncnn::VkMat weight(64, (size_t)4u, &weights);
+    if (weight.empty() || weight.data->storage_type != 0)
+        return -1;
+    uint64_t device_bytes, host_bytes;
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (!device_bytes || device_bytes > 4096 || host_bytes)
+        return -1;
+    return 0;
+}
+
 int main()
 {
     if (ncnn::get_gpu_count() == 0)
         return 0;
-    return test_weight_memory_usage(false) || test_weight_memory_usage(true) || test_weight_file_memory_usage();
+    return test_weight_memory_usage(false) || test_weight_memory_usage(true) || test_weight_file_memory_usage() || test_weight_memory_configuration();
 }

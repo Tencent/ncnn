@@ -4,6 +4,34 @@
 #include "test_weight_storage.h"
 #include "test_weight_storage_failure.h"
 
+static int test_weight_storage_allocator_failure(VulkanFailure::Failure failure)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    if (weights.set_weight_memory_limit(16384, 16384, 4096, 4096))
+        return -1;
+    {
+        VulkanFailure fail(failure);
+        ncnn::VkMat rejected(256, (size_t)4u, &weights);
+        if (!rejected.empty() || !fail.triggered)
+        {
+            fprintf(stderr, "resident allocation failure was not returned to the caller\n");
+            return -1;
+        }
+    }
+    uint64_t device_bytes, host_bytes;
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes || host_bytes)
+        return -1;
+    // One failed allocation does not disable later independent allocations.
+    ncnn::VkMat weight(256, (size_t)4u, &weights);
+    if (weight.empty() || weight.data->storage_type != 0 || weights.finalize_weights())
+        return -1;
+    return 0;
+}
+
 static int test_weight_storage_cache_failure(VulkanFailure::Failure failure)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
@@ -141,7 +169,8 @@ static int test_weight_storage_resident_batches()
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
-    weights.set_weight_memory_limit(65536, 65536, 8192, 4096);
+    if (weights.set_weight_memory_limit(65536, 65536, 8192, 4096))
+        return -1;
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
@@ -187,7 +216,8 @@ static int test_weight_storage_resident_failure()
     UnmappedWeightAllocator weights(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
-    weights.set_weight_memory_limit(16384, 16384, 4096, 4096);
+    if (weights.set_weight_memory_limit(16384, 16384, 4096, 4096))
+        return -1;
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.weight_host_memory_limit = 1024;
@@ -865,6 +895,8 @@ int main()
     }
 
     const int ret = 0
+                    || test_weight_storage_allocator_failure(VulkanFailure::ALLOCATE_MEMORY)
+                    || test_weight_storage_allocator_failure(VulkanFailure::BIND_MEMORY)
                     || test_weight_storage_transfer_wait_failure()
                     || test_weight_storage_cache_wait_failure(true)
                     || test_weight_storage_cache_wait_failure(false)

@@ -192,7 +192,8 @@ static int test_weight_storage_residents()
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
-    weights.set_weight_memory_limit(16384, 16384, 8192, 4096);
+    if (weights.set_weight_memory_limit(16384, 16384, 8192, 4096))
+        return -1;
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &upload_staging;
@@ -211,7 +212,8 @@ static int test_weight_storage_residents()
         return -1;
     }
     uint64_t device_bytes, host_bytes;
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || device_bytes >= 16384 || host_bytes > 16384 || !weights.needs_weight_cache())
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes >= 16384 || host_bytes > 16384 || !weights.needs_weight_cache())
     {
         fprintf(stderr, "test_weight_storage_residents allocation budget exceeded\n");
         return -1;

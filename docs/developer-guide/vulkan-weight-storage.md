@@ -180,17 +180,23 @@ error keeps work pending and prevents reset. Destruction waits for completion
 For direct allocator use, configure `VkWeightAllocator` before allocation with
 `set_weights_in_disk()`, `set_weight_memory_limit(device_limit, host_limit,
 device_cache_size, host_cache_size)` and optionally `set_weight_file_directory()`.
+Check the return value of `set_weight_memory_limit()` before allocating weights;
+an invalid configuration returns an error and leaves the previous settings intact.
+Allocation failures return a null buffer, observed as an empty `VkMat`.
 Record each transformed weight with `VkTransfer::record_upload()`, check errors,
 and submit and wait before calling `finalize_weights()`. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
 work have been released. Uploads use bounded staging and batch small copies
-together. Net submits disk-storage uploads after each layer, so pending
-transformed upload snapshots do not accumulate across the whole model.
+together. Net submits when pending uploads exceed 256 MiB, including retained
+CPU snapshots. The check runs after each layer, so the pending total can exceed
+the threshold by one layer's uploads. File-backed weights are copied directly
+into their mappings and do not retain pending upload snapshots.
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
-allocation bytes, including padding, and any allocator error. It excludes file
-mappings and command caches; it does not certify that uploads have completed.
+allocation bytes, including padding. It excludes file mappings and command
+caches; it does not report past errors or certify that uploads have completed.
+Check allocation results and the return value of `finalize_weights()` directly.
 Cache capacities come from the command's options. An internal command subtracts
 resident allocation usage from positive memory limits before allocating its
 cache. Zero limits remain unbounded; exhausted positive limits are not converted

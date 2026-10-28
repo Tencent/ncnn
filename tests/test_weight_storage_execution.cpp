@@ -283,6 +283,14 @@ static int test_weight_storage_load_failure()
 
     opt.weight_device_memory_limit = 256;
     opt.weight_host_memory_limit = 256;
+    opt.weight_device_cache_size = 4096;
+    if (load_weight_storage_net(net, opt, 1.f, 12) == 0)
+    {
+        fprintf(stderr, "test_weight_storage_load_failure invalid cache configuration accepted\n");
+        return -1;
+    }
+    net.clear();
+    opt.weight_device_cache_size = 0;
     if (load_weight_storage_net(net, opt, 1.f, 12) == 0)
     {
         // The dispatch checks its complete working set against the fixed cache.
