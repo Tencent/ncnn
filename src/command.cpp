@@ -60,13 +60,15 @@ class VkWeightCacheAllocator : public VkAllocator
 public:
     struct Region : VkBufferMemory
     {
-        Region() : allocation(0)
+        Region()
+            : allocation(0)
         {
         }
         VkMat backing;
         VkBufferMemory* allocation;
     };
-    explicit VkWeightCacheAllocator(const VulkanDevice* device) : VkAllocator(device)
+    explicit VkWeightCacheAllocator(const VulkanDevice* device)
+        : VkAllocator(device)
     {
     }
     virtual VkBufferMemory* fastMalloc(size_t)
@@ -313,11 +315,11 @@ int VkWeightCache::binding_source(const buffer_binding& binding, VkMat& source) 
         return -1;
     const VkBufferMemory* src = source.data;
     if (!is_deferred_buffer(src) || binding.view_offset > src->source_size
-        || binding.descriptor.range > src->source_size - binding.view_offset
-        || src->source_size > (size_t)-1 - alignment
-        || (src->storage_type != 2 && src->storage_type != 1)
-        || (needs_host_copy(source) && !src->source_ptr)
-        || (!needs_host_copy(source) && alignSize(src->source_size, 4) > src->capacity))
+            || binding.descriptor.range > src->source_size - binding.view_offset
+            || src->source_size > (size_t)-1 - alignment
+            || (src->storage_type != 2 && src->storage_type != 1)
+            || (needs_host_copy(source) && !src->source_ptr)
+            || (!needs_host_copy(source) && alignSize(src->source_size, 4) > src->capacity))
     {
         NCNN_LOGE("invalid deferred buffer binding");
         return -1;

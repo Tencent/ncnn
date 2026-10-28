@@ -153,8 +153,7 @@ static int test_weight_storage_resident_batches()
         VulkanFailure count(VulkanFailure::SUBMIT, 1000000);
         for (int i = 0; i < 24; i++)
         {
-            input[i] = RandomMat(i % 3 == 0 ? 4 : i % 3 == 1 ? 256
-                                                             : 1024);
+            input[i] = RandomMat(i % 3 == 0 ? 4 : i % 3 == 1 ? 256 : 1024);
             upload.record_upload(input[i], weight[i], opt);
         }
         if (count.submission_count() != 0 || weight[0].empty() || weight[0].data->storage_type != 0)

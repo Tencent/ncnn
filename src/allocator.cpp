@@ -1617,7 +1617,8 @@ int WeightFile::finalize()
 // The allocator owns backing blocks; VkMat references own only their views.
 struct VkWeightBufferMemory : public VkBufferMemory
 {
-    VkWeightBufferMemory() : file_index((size_t)-1)
+    VkWeightBufferMemory()
+        : file_index((size_t)-1)
     {
     }
     size_t file_index;
