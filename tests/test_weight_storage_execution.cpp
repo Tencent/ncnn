@@ -160,7 +160,9 @@ static int test_weight_storage_model_chain(const ncnn::Option& first_opt, const 
     opt.staging_vkallocator = &staging;
     opt.weight_device_cache_size = 4096;
     opt.weight_host_cache_size = 256;
-    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+        return -1;
     ncnn::Mat input = RandomMat(16, 8);
     for (int i = 0; i < 3; i++)
     {
@@ -223,7 +225,9 @@ static int test_weight_storage_model_reload()
     ncnn::Option command_opt = opt;
     command_opt.blob_vkallocator = &blobs;
     command_opt.staging_vkallocator = &staging;
-    ncnn::VkCompute cmd(vkdev, command_opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(command_opt.weight_device_memory_limit, command_opt.weight_host_memory_limit, command_opt.weight_device_cache_size, command_opt.weight_host_cache_size) != 0)
+        return -1;
     ncnn::Mat input = RandomMat(16, 8);
     for (int i = 0; i < 5; i++)
     {
@@ -363,7 +367,7 @@ static int test_weight_storage_extractor_reload()
         fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
         return -1;
     }
-    // Clearing an old Extractor destroys only its own command, not the new model's cache configuration.
+    // Clearing an old Extractor must not change the new model's cache configuration.
     old.clear();
     ncnn::Extractor current = net.create_extractor();
     if (current.extract("b2", output) || output.total() != 1536)
@@ -380,7 +384,7 @@ static int test_weight_storage_extractor_reload()
     return 0;
 }
 
-// Discard cached results so every round records and submits work on the Extractor's command.
+// Discard cached results so every round records and submits a new local command.
 static int run_weight_storage_extractor(ncnn::Extractor& ex, const ncnn::Mat& input)
 {
     if (ex.input("b0", ncnn::Mat()) || ex.input("b0", ncnn::VkMat())
@@ -425,7 +429,7 @@ static int test_weight_storage_extractor_commands()
     configure_weight_storage_extractor(assigned, opt);
     if (run_weight_storage_extractor(assigned, RandomMat(16, 8)))
         return -1;
-    // Assignment must release the destination's old command without sharing the source's.
+    // Assignment preserves the source's results and allocator settings.
     assigned = copied;
     copied.clear();
     if (run_weight_storage_extractor(assigned, RandomMat(16, 8)))

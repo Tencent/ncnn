@@ -44,10 +44,10 @@ int inference(const ncnn::Mat& input, ncnn::Mat& output)
 ```
 
 The input and output names depend on the model. Keep the Net loaded when running
-inference repeatedly. Each Extractor owns its internal command and weight cache;
-reuse the Extractor to retain its cache allocations. Clearing or destroying the Extractor
-releases it. Net retains model weights and finalized storage settings, not idle
-execution caches.
+inference repeatedly. Each `Mat` extraction uses a local command and releases its
+weight cache when the call returns. Net retains model weights and finalized
+storage settings. Applications that need to reuse cache allocations across
+submissions can manage an external command.
 
 ## memory settings
 
@@ -87,9 +87,8 @@ it is not replaced by an automatic size.
 
 Once recording references the backing, its capacity is fixed. A later operation
 whose simultaneous bindings exceed that capacity fails instead of reallocating
-referenced storage or exceeding the budget. Clear the cache after resetting the
-command, then recreate the command with a larger explicit cache for such
-workloads. Loading-time
+referenced storage or exceeding the budget. Reset the command, clear its weight
+cache, then configure a larger explicit cache for such workloads. Loading-time
 maximum working-set derivation is not implemented. Upload order and layer
 boundaries do not imply simultaneous use; the actual dispatch bindings determine
 which weights must fit together. Loading reserves the configured cache capacity
@@ -124,16 +123,21 @@ Normal `Mat` extraction manages the cache automatically. Applications that recor
 several Extractors into one command can configure that command directly:
 
 ```cpp
-ncnn::Option opt;
-opt.weight_device_cache_size = (size_t)64 * 1024 * 1024;
-opt.weight_host_cache_size = (size_t)8 * 1024 * 1024;
-ncnn::VkCompute cmd(net.vulkan_device(), opt);
+ncnn::VkCompute cmd(net.vulkan_device());
+int ret = cmd.set_weight_memory_limit(0, 0, (size_t)64 * 1024 * 1024,
+                                    (size_t)8 * 1024 * 1024);
+if (ret != 0)
+    return ret;
 ```
 
 Continue to set the Extractors' usual blob, workspace and staging allocators.
 All participating Nets use the same Vulkan device. An external command has its
 own cache settings; options passed to clone or download operations do not change
-them.
+them. Call `set_weight_memory_limit(device_limit, host_limit, device_cache_size,
+host_cache_size)` before recording. It saves the settings without allocating
+exchange buffers. To change settings after use, call `reset()` and
+`clear_weight_cache()` first. A rejected configuration leaves the previous
+settings intact.
 
 `cmd.reset()` discards the recording and all weight-content hits while retaining
 successful exchange allocations for reuse. The next recording uploads its
@@ -197,7 +201,7 @@ into their mappings and do not retain pending upload snapshots.
 allocation bytes, including padding. It excludes file mappings and command
 caches; it does not report past errors or certify that uploads have completed.
 Check allocation results and the return value of `finalize_weights()` directly.
-Cache capacities come from the command's options. An internal command subtracts
+Cache capacities come from the command's weight settings. An internal command subtracts
 resident allocation usage from positive memory limits before allocating its
 cache. Zero limits remain unbounded; exhausted positive limits are not converted
 into an unbounded cache budget.
@@ -208,9 +212,8 @@ into an unbounded cache budget.
   device. Leave room for activations, KV caches and the rest of the application.
 - Use a writable application cache directory on a disk filesystem. A temporary
   directory backed by tmpfs still consumes memory.
-- Reuse the Net and Extractor to retain model storage and the internal weight
-  cache. For external command recording, reuse the command with `reset()` between
-  submissions.
+- Reuse the Net to retain model storage. For external command recording, reuse
+  the command with `reset()` between submissions to retain cache allocations.
 - Measure on the target device. File speed, host bandwidth and Vulkan queue
   support affect the benefit of disk weights.
 
@@ -223,8 +226,8 @@ read, bytes uploaded and elapsed time.
 ## limitations
 
 Memory limits cover Vulkan weight allocations, including allocation alignment.
-They are not a process or device-wide quota. Concurrent commands and live
-Extractors with internal commands each retain their own cache. Activations, KV
+They are not a process or device-wide quota. Concurrent commands and active
+extractions each use their own cache. Activations, KV
 caches, CPU model preparation, OS file cache and driver allocations are outside
 these limits.
 

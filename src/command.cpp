@@ -453,7 +453,7 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
 class VkComputePrivate
 {
 public:
-    VkComputePrivate(const VulkanDevice* _vkdev, const Option* opt);
+    explicit VkComputePrivate(const VulkanDevice* _vkdev);
     ~VkComputePrivate();
 
     int init();
@@ -1347,13 +1347,13 @@ int VkComputePrivate::submit_immediate()
     return finish_execution();
 }
 
-VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev, const Option* opt)
+VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
-    weight_device_cache_size = opt ? opt->weight_device_cache_size : 0;
-    weight_host_cache_size = opt ? opt->weight_host_cache_size : 0;
-    weight_device_memory_limit = opt ? opt->weight_device_memory_limit : 0;
-    weight_host_memory_limit = opt ? opt->weight_host_memory_limit : 0;
+    weight_device_cache_size = 0;
+    weight_host_cache_size = 0;
+    weight_device_memory_limit = 0;
+    weight_host_memory_limit = 0;
     weight_cache = 0;
     weight_deferred = false;
     record_error = 0;
@@ -2002,18 +2002,28 @@ int VkComputePrivate::execute_actions()
 }
 
 VkCompute::VkCompute(const VulkanDevice* _vkdev)
-    : vkdev(_vkdev), d(new VkComputePrivate(_vkdev, 0))
-{
-}
-
-VkCompute::VkCompute(const VulkanDevice* _vkdev, const Option& opt)
-    : vkdev(_vkdev), d(new VkComputePrivate(_vkdev, &opt))
+    : vkdev(_vkdev), d(new VkComputePrivate(_vkdev))
 {
 }
 
 VkCompute::~VkCompute()
 {
     delete d;
+}
+
+int VkCompute::set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit, size_t device_cache_size, size_t host_cache_size)
+{
+    if (d->weight_cache || d->executing || d->execution_error == VK_ERROR_DEVICE_LOST || !d->deferred_records.empty() || d->pending_dispatch_total)
+    {
+        NCNN_LOGE("configure weight memory before recording; reset and clear the weight cache before reconfiguration");
+        return -1;
+    }
+
+    d->weight_device_memory_limit = device_memory_limit;
+    d->weight_host_memory_limit = host_memory_limit;
+    d->weight_device_cache_size = device_cache_size;
+    d->weight_host_cache_size = host_cache_size;
+    return 0;
 }
 
 void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
@@ -3844,8 +3854,8 @@ int VkCompute::clear_weight_cache()
         NCNN_LOGE("cannot clear a weight cache while recording or executing");
         return -1;
     }
-    if (d->weight_cache)
-        d->weight_cache->clear();
+    delete d->weight_cache;
+    d->weight_cache = 0;
     d->weight_deferred = false;
     return 0;
 }

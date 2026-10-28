@@ -55,7 +55,9 @@ static int test_weight_storage_cache_failure(VulkanFailure::Failure failure)
     }
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
-    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+        return -1;
     ncnn::Mat output;
     {
         // Cache allocation now happens while encoding the first cached record.
@@ -137,7 +139,9 @@ static int test_weight_storage_midflight_failure(int fail_at)
     opt.blob_vkallocator = &blobs;
     opt.weight_device_cache_size = 8192;
     opt.weight_host_cache_size = 256;
-    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+        return -1;
     ncnn::Mat output[count];
     for (int i = 0; i < count; i++)
         cmd.record_clone(weight[i], output[i], opt);
@@ -259,7 +263,9 @@ static int test_weight_storage_cached_batch()
     if (upload.submit_and_wait() != 0 || weights.finalize_weights() != 0)
         return -1;
     opt.blob_vkallocator = &blobs;
-    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+        return -1;
     ncnn::Mat output[96];
     for (int round = 0; round < 2; round++)
     {
@@ -326,7 +332,9 @@ static int test_weight_storage_dispatch_pinning()
     pipeline.set_local_size_xyz(1, 1, 1);
     if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
         return -1;
-    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+        return -1;
     const int indices[8][3] = {{3, 0, 1}, {4, 1, 3}, {5, 3, 4}, {0, 4, 5}, {1, 5, 0}, {2, 0, 1}, {3, 1, 2}, {0, 2, 3}};
     for (int round = 0; round < 2; round++)
     {
@@ -554,7 +562,9 @@ static int test_weight_storage_record_time_encoding()
     // including a failed submit whose work still needs to be drained.
     ncnn::VkMat ordinary_devices[2];
     ncnn::VkMat first_devices[2];
-    ncnn::VkCompute cmd(vkdev, opt);
+    ncnn::VkCompute cmd(vkdev);
+    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+        return -1;
     for (int round = 0; round < 2; round++)
     {
         ncnn::Mat ordinary(64);
@@ -613,7 +623,9 @@ static int test_weight_storage_record_time_encoding()
     ncnn::Option small_opt = opt;
     small_opt.weight_device_cache_size = 2 * mib;
     ncnn::VkMat first_device;
-    ncnn::VkCompute small(vkdev, small_opt);
+    ncnn::VkCompute small(vkdev);
+    if (small.set_weight_memory_limit(small_opt.weight_device_memory_limit, small_opt.weight_host_memory_limit, small_opt.weight_device_cache_size, small_opt.weight_host_cache_size) != 0)
+        return -1;
     {
         WeightRecordingProbe probe(vkdev);
         small.record_clone(weight[0], first_device, small_opt);
@@ -699,7 +711,9 @@ static int test_weight_storage_automatic_allocation_budget()
     }
     {
         WeightRecordingProbe probe(vkdev);
-        ncnn::VkCompute ordinary(vkdev, opt);
+        ncnn::VkCompute ordinary(vkdev);
+        if (ordinary.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+            return -1;
         ordinary.record_clone(native, target, opt);
         if (ordinary.submit_and_wait() || probe.allocations != 0)
         {
@@ -709,7 +723,9 @@ static int test_weight_storage_automatic_allocation_budget()
     }
     {
         WeightRecordingProbe probe(vkdev);
-        ncnn::VkCompute cached(vkdev, opt);
+        ncnn::VkCompute cached(vkdev);
+        if (cached.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+            return -1;
         cached.record_clone(weight, target, opt);
         if (cached.submit_and_wait() || probe.allocations == 0 || probe.peak_device_bytes > limit || probe.peak_host_bytes > limit)
         {
@@ -787,7 +803,12 @@ static int test_weight_storage_cache_wait_failure(bool cached_weight)
         return -1;
     opt.blob_vkallocator = &blobs;
     ncnn::Mat output;
-    ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev, opt);
+    ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev);
+    if (cmd->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+    {
+        delete cmd;
+        return -1;
+    }
     ncnn::VkMat ordinary;
     ncnn::Mat ordinary_input = RandomMat(256);
     if (cached_weight)
@@ -845,7 +866,9 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
     opt.weight_device_cache_size = 16384;
     int ret = 0;
     {
-        ncnn::VkCompute cmd(vkdev, opt);
+        ncnn::VkCompute cmd(vkdev);
+        if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
+            return -1;
         {
             // Command/fence/semaphore allocation is part of record-time encoding.
             VulkanFailure check(failure, 5);

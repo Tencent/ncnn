@@ -23,10 +23,12 @@ class NCNN_EXPORT VkCompute
 {
 public:
     explicit VkCompute(const VulkanDevice* vkdev);
-    VkCompute(const VulkanDevice* vkdev, const Option& opt);
     virtual ~VkCompute();
 
 public:
+    // configure before recording; reset and clear the weight cache before reconfiguration
+    int set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit, size_t device_cache_size = 0, size_t host_cache_size = 0);
+
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
@@ -73,7 +75,7 @@ public:
     // discard recording and cached contents, retaining exchange allocations for reuse
     int reset();
     // release the weight cache when no recorded commands use it
-    // command options are retained; model-owned resident weights are unaffected
+    // weight settings are retained; model-owned resident weights are unaffected
     int clear_weight_cache();
 
     uint64_t pending_dispatch_total() const;
