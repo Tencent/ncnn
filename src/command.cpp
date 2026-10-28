@@ -4837,11 +4837,6 @@ int VkTransfer::reset()
     return ret;
 }
 
-int VkTransfer::error() const
-{
-    return d->upload_error;
-}
-
 int VkTransferPrivate::submit_and_wait()
 {
     if (upload_error)

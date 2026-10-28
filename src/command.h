@@ -108,9 +108,6 @@ public:
 
     int reset();
 
-    // first recording or submission failure, zero on success
-    int error() const;
-
     uint64_t pending_upload_total() const;
 
 protected:

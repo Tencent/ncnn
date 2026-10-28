@@ -228,10 +228,10 @@ static int test_weight_storage_resident_failure()
     ncnn::VkMat weight;
     ncnn::VkTransfer upload(vkdev);
     upload.record_upload(RandomMat(2048), weight, opt);
-    if (upload.error() || weight.empty() || weight.data->storage_type != 0)
+    if (weight.empty() || weight.data->storage_type != 0)
         return -1;
     VulkanFailure fail(VulkanFailure::SECOND_SUBMIT);
-    if (upload.submit_and_wait() == 0 || !fail.triggered || upload.error() == 0 || upload.reset() == 0)
+    if (upload.submit_and_wait() == 0 || !fail.triggered || upload.reset() == 0)
     {
         fprintf(stderr, "resident upload midflight failure was lost\n");
         return -1;

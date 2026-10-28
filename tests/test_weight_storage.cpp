@@ -958,7 +958,7 @@ static int test_weight_storage_upload_snapshot()
         ncnn::VkMat target;
         ncnn::VkTransfer rejected(vkdev);
         rejected.record_upload(bytes, target, bad);
-        if (rejected.submit_and_wait() == 0 || rejected.error() == 0 || rejected.reset() == 0 || failing.allocations != 1)
+        if (rejected.submit_and_wait() == 0 || rejected.reset() == 0 || failing.allocations != 1)
         {
             fprintf(stderr, "test_weight_storage_upload_snapshot staging failure missing unmapped=%d\n", unmapped);
             return -1;

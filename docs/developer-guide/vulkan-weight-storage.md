@@ -187,14 +187,17 @@ device_cache_size, host_cache_size)` and optionally `set_weight_file_directory()
 Check the return value of `set_weight_memory_limit()` before allocating weights;
 an invalid configuration returns an error and leaves the previous settings intact.
 Allocation failures return a null buffer, observed as an empty `VkMat`.
-Record each transformed weight with `VkTransfer::record_upload()`, check errors,
-and submit and wait before calling `finalize_weights()`. Finalization flushes
+Record each transformed weight with `VkTransfer::record_upload()`, then check
+`submit_and_wait()` before calling `finalize_weights()`. Recording and submission
+errors are returned by `submit_and_wait()`. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
 work have been released. Uploads use bounded staging and batch small copies
 together. Net submits when pending uploads exceed 256 MiB, including retained
 CPU snapshots. The check runs after each layer, so the pending total can exceed
-the threshold by one layer's uploads. File-backed weights are copied directly
+the threshold by one layer's uploads. Recording errors are reported at the next
+threshold submission or the final submission, so loading may read later layers
+before reporting a recording failure. File-backed weights are copied directly
 into their mappings and do not retain pending upload snapshots.
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
