@@ -1775,6 +1775,8 @@ int MultiHeadAttention::check_input_shapes(const std::vector<Mat>& bottom_blobs)
     }
 
     const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
+    // Match forward: a populated cross-attention cache does not read current k/v.
+    // Self-attention and an empty cache still require valid current k/v.
     const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
     if (append_kv)
     {

@@ -80,7 +80,7 @@ static int test_multiheadattention_shape(int naive, int q_w, int k_w, int v_w, i
     return 0;
 }
 
-static int test_multiheadattention_kv_cache_cross(int naive)
+static int test_multiheadattention_kv_cache_cross(int naive, int mask, int same_kv, int copy_cache)
 {
     const int embed_dim = 16;
     const int num_heads = 2;
@@ -94,6 +94,7 @@ static int test_multiheadattention_kv_cache_cross(int naive)
     pd.set(2, embed_dim * qdim);
     pd.set(3, kdim);
     pd.set(4, vdim);
+    pd.set(5, mask);
     pd.set(7, 1);
 
     std::vector<ncnn::Mat> weights(8);
@@ -108,6 +109,7 @@ static int test_multiheadattention_kv_cache_cross(int naive)
 
     ncnn::Layer* op = naive ? ncnn::create_layer_naive("MultiHeadAttention") : ncnn::create_layer_cpu("MultiHeadAttention");
 
+    ncnn::PoolAllocator cache_allocator;
     ncnn::Option opt;
     opt.num_threads = 1;
     opt.use_packing_layout = false;
@@ -128,23 +130,55 @@ static int test_multiheadattention_kv_cache_cross(int naive)
 
     if (ret == 0)
     {
-        std::vector<ncnn::Mat> prefill_inputs(5);
+        const int current_count = same_kv ? 2 : 3;
+        const int cache_index = current_count + mask;
+        std::vector<ncnn::Mat> prefill_inputs(cache_index + 2);
         prefill_inputs[0] = RandomMat(qdim, 2);
         prefill_inputs[1] = RandomMat(kdim, 5);
-        prefill_inputs[2] = RandomMat(vdim, 5);
+        if (!same_kv)
+            prefill_inputs[2] = RandomMat(vdim, 5);
+        if (mask)
+            prefill_inputs[current_count] = RandomMat(5, 2);
 
         std::vector<ncnn::Mat> prefill_tops(3);
         ret = op->forward(prefill_inputs, prefill_tops, opt);
         if (ret == 0)
         {
-            // cross-attention can reuse kvcache without passing live k and v
-            std::vector<ncnn::Mat> decode_inputs(5);
+            std::vector<ncnn::Mat> decode_inputs = prefill_inputs;
             decode_inputs[0] = RandomMat(qdim, 1);
-            decode_inputs[3] = prefill_tops[1];
-            decode_inputs[4] = prefill_tops[2];
+            if (mask)
+                decode_inputs[current_count] = RandomMat(5, 1);
+            // Exercise both in-place reuse and a copy into opt.kvcache_allocator.
+            decode_inputs[cache_index] = copy_cache ? prefill_tops[1].clone(&cache_allocator) : prefill_tops[1];
+            decode_inputs[cache_index + 1] = copy_cache ? prefill_tops[2].clone(&cache_allocator) : prefill_tops[2];
 
-            std::vector<ncnn::Mat> decode_tops(3);
-            ret = op->forward(decode_inputs, decode_tops, opt);
+            std::vector<ncnn::Mat> reference_tops(3);
+            ret = op->forward(decode_inputs, reference_tops, opt);
+            if (ret == 0)
+            {
+                // Populated cross-attention caches ignore even nonempty current k/v.
+                // Removing them must preserve the output and every cache element.
+                decode_inputs[1] = ncnn::Mat();
+                if (!same_kv)
+                    decode_inputs[2] = ncnn::Mat();
+                std::vector<ncnn::Mat> decode_tops(3);
+                ret = op->forward(decode_inputs, decode_tops, opt);
+                if (ret == 0)
+                {
+                    ret = CompareMat(reference_tops[0], decode_tops[0], 0.001f)
+                          || CompareMat(prefill_tops[1], decode_tops[1], 0.f)
+                          || CompareMat(prefill_tops[2], decode_tops[2], 0.f);
+                }
+
+                // Without a past cache, these empty current k/v must be rejected.
+                if (ret == 0)
+                {
+                    decode_inputs[cache_index] = ncnn::Mat();
+                    decode_inputs[cache_index + 1] = ncnn::Mat();
+                    if (op->forward(decode_inputs, decode_tops, opt) != -1)
+                        ret = -1;
+                }
+            }
         }
     }
 
@@ -153,20 +187,18 @@ static int test_multiheadattention_kv_cache_cross(int naive)
 
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention_kv_cache_cross failed naive=%d ret=%d\n", naive, ret);
+        fprintf(stderr, "test_multiheadattention_kv_cache_cross failed naive=%d mask=%d same_kv=%d copy_cache=%d ret=%d\n", naive, mask, same_kv, copy_cache, ret);
         return -1;
     }
 
     return 0;
 }
 
-static int test_multiheadattention_kv_cache_shape(int naive, const ncnn::Mat& past_k, const ncnn::Mat& past_v, int expected_ret)
+static int test_multiheadattention_kv_cache_shape(int naive, const ncnn::Mat& past_k, const ncnn::Mat& past_v, int expected_ret, int kdim = 16, int vdim = 16, bool self_attention = false)
 {
     const int embed_dim = 16;
     const int num_heads = 2;
     const int qdim = 16;
-    const int kdim = 16;
-    const int vdim = 16;
 
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
@@ -186,12 +218,15 @@ static int test_multiheadattention_kv_cache_shape(int naive, const ncnn::Mat& pa
     weights[6] = RandomMat(qdim * embed_dim);
     weights[7] = RandomMat(qdim);
 
-    std::vector<ncnn::Mat> inputs(5);
+    std::vector<ncnn::Mat> inputs(self_attention ? 3 : 5);
     inputs[0] = RandomMat(qdim, 2);
-    inputs[1] = RandomMat(kdim, 3);
-    inputs[2] = RandomMat(vdim, 3);
-    inputs[3] = past_k;
-    inputs[4] = past_v;
+    if (!self_attention)
+    {
+        inputs[1] = RandomMat(16, 3);
+        inputs[2] = RandomMat(16, 3);
+    }
+    inputs[self_attention ? 1 : 3] = past_k;
+    inputs[self_attention ? 2 : 4] = past_v;
 
     int ret = run_layer(naive, "MultiHeadAttention", pd, weights, inputs, 3);
     if (ret != expected_ret)
@@ -255,7 +290,19 @@ static int test_multiheadattention_invalid_0(int naive)
            || test_multiheadattention_shape(naive, 16, 1, 16, 5, 5, -1)
            || test_multiheadattention_shape(naive, 16, 16, 1, 5, 5, -1)
            || test_multiheadattention_shape(naive, 16, 16, 16, 64, 1, -1)
-           || test_multiheadattention_kv_cache_cross(naive)
+           || test_multiheadattention_kv_cache_cross(naive, 0, 0, 0)
+           || test_multiheadattention_kv_cache_cross(naive, 0, 0, 1)
+           || test_multiheadattention_kv_cache_cross(naive, 0, 1, 0)
+           || test_multiheadattention_kv_cache_cross(naive, 0, 1, 1)
+           || test_multiheadattention_kv_cache_cross(naive, 1, 0, 0)
+           || test_multiheadattention_kv_cache_cross(naive, 1, 0, 1)
+           || test_multiheadattention_kv_cache_cross(naive, 1, 1, 0)
+           || test_multiheadattention_kv_cache_cross(naive, 1, 1, 1)
+           || test_multiheadattention_kv_cache_shape(naive, ncnn::Mat(), ncnn::Mat(), -1, 8, 16)
+           || test_multiheadattention_kv_cache_shape(naive, ncnn::Mat(), ncnn::Mat(), -1, 16, 8)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, valid_past, 0, 16, 16, true)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, valid_past, -1, 8, 16, true)
+           || test_multiheadattention_kv_cache_shape(naive, valid_past, valid_past, -1, 16, 8, true)
            || test_multiheadattention_kv_cache_shape(naive, valid_past, valid_past, 0)
            || test_multiheadattention_kv_cache_shape(naive, valid_past, ncnn::Mat(), -1)
            || test_multiheadattention_kv_cache_shape(naive, valid_past, RandomMat(head_dim, 3, num_heads), -1)
