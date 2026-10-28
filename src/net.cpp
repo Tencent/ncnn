@@ -3307,6 +3307,49 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
 #endif // NCNN_BATCH
 
+#if NCNN_VULKAN
+    const bool use_weight_cache = d->blob_mats[blob_index].dims == 0 && d->opt.use_vulkan_compute && d->net->d->weight_vkallocator->needs_weight_cache();
+    size_t weight_device_memory_limit = 0;
+    size_t weight_host_memory_limit = 0;
+    // Residency budgets apply only to disk storage. Zero remains unbounded.
+    if (use_weight_cache && d->opt.use_weights_in_disk)
+    {
+        const VkWeightAllocator* weights = d->net->d->weight_vkallocator;
+        uint64_t device_used, host_used;
+        weights->get_weight_memory_usage(device_used, host_used);
+        weight_device_memory_limit = d->opt.weight_device_memory_limit;
+        weight_host_memory_limit = d->opt.weight_host_memory_limit;
+        const int device_type = d->net->vulkan_device()->info.type();
+        if (device_type == 1 || device_type == 3)
+        {
+            weight_device_memory_limit = weight_device_memory_limit && weight_host_memory_limit
+                                             ? std::min(weight_device_memory_limit, weight_host_memory_limit)
+                                             : std::max(weight_device_memory_limit, weight_host_memory_limit);
+            weight_host_memory_limit = 0;
+            device_used += host_used;
+            host_used = 0;
+        }
+        if (weight_device_memory_limit)
+        {
+            if (device_used >= weight_device_memory_limit)
+            {
+                NCNN_LOGE("resident weights exhaust the device memory limit");
+                return -1;
+            }
+            weight_device_memory_limit -= (size_t)device_used;
+        }
+        if (weight_host_memory_limit)
+        {
+            if (host_used > weight_host_memory_limit || (host_used == weight_host_memory_limit && weights->has_disk_weights()))
+            {
+                NCNN_LOGE("resident weights exhaust the host memory limit");
+                return -1;
+            }
+            weight_host_memory_limit -= (size_t)host_used;
+        }
+    }
+#endif // NCNN_VULKAN
+
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
@@ -3352,72 +3395,38 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
 
             VkCompute cmd(d->net->vulkan_device());
-            const VkWeightAllocator* weights = d->net->d->weight_vkallocator;
-            if (weights->needs_weight_cache())
+            if (use_weight_cache)
+                cmd.set_weight_memory_limit(weight_device_memory_limit, weight_host_memory_limit, d->opt.weight_device_cache_size, d->opt.weight_host_cache_size);
+
+#if NCNN_BENCHMARK
+            cmd.create_query_pool(d->net->layers().size() * 2);
+#endif // NCNN_BENCHMARK
+            VkMat feat_gpu;
+            ret = extract(blob_index, feat_gpu, cmd);
+
+            if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
             {
-                uint64_t device_used, host_used;
-                weights->get_weight_memory_usage(device_used, host_used);
-                // Residency budgets apply only to disk storage. Zero remains unbounded.
-                size_t device_limit = d->opt.use_weights_in_disk ? d->opt.weight_device_memory_limit : 0;
-                size_t host_limit = d->opt.use_weights_in_disk ? d->opt.weight_host_memory_limit : 0;
-                const int device_type = d->net->vulkan_device()->info.type();
-                const bool unified = device_type == 1 || device_type == 3;
-                if (unified)
-                {
-                    device_limit = device_limit && host_limit ? std::min(device_limit, host_limit) : std::max(device_limit, host_limit);
-                    host_limit = 0;
-                    device_used += host_used;
-                    host_used = 0;
-                }
-                if (device_limit)
-                {
-                    if (device_used >= device_limit)
-                        ret = -1;
-                    else
-                        device_limit -= (size_t)device_used;
-                }
-                if (host_limit)
-                {
-                    if (host_used > host_limit || (host_used == host_limit && weights->has_disk_weights()))
-                        ret = -1;
-                    else
-                        host_limit -= (size_t)host_used;
-                }
+                cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
+
+                ret = cmd.submit_and_wait();
+
+#if NCNN_BENCHMARK
                 if (ret == 0)
-                    ret = cmd.set_weight_memory_limit(device_limit, host_limit, d->opt.weight_device_cache_size, d->opt.weight_host_cache_size);
-            }
-            if (ret == 0)
-            {
-#if NCNN_BENCHMARK
-                cmd.create_query_pool(d->net->layers().size() * 2);
-#endif // NCNN_BENCHMARK
-                VkMat feat_gpu;
-                ret = extract(blob_index, feat_gpu, cmd);
-
-                if (ret == 0 && d->blob_mats[blob_index].dims == 0 && feat_gpu.dims != 0)
                 {
-                    cmd.record_download(feat_gpu, d->blob_mats[blob_index], d->opt);
-
-                    ret = cmd.submit_and_wait();
-
-#if NCNN_BENCHMARK
-                    if (ret == 0)
+                    std::vector<uint64_t> results(d->net->layers().size() * 2);
+                    cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
+                    for (size_t i = 0; i < d->net->layers().size(); i++)
                     {
-                        std::vector<uint64_t> results(d->net->layers().size() * 2);
-                        cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
-                        for (size_t i = 0; i < d->net->layers().size(); i++)
-                        {
-                            uint64_t start = results[i * 2];
-                            uint64_t end = results[i * 2 + 1];
-                            if (start == 0 || end == 0)
-                                continue;
+                        uint64_t start = results[i * 2];
+                        uint64_t end = results[i * 2 + 1];
+                        if (start == 0 || end == 0)
+                            continue;
 
-                            double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
-                            NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
-                        }
+                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
+                        NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
                     }
-#endif // NCNN_BENCHMARK
                 }
+#endif // NCNN_BENCHMARK
             }
         }
         else
