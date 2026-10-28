@@ -5032,31 +5032,6 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
     return queue;
 }
 
-VkQueue VulkanDevice::try_acquire_queue(uint32_t queue_family_index) const
-{
-    if (queue_family_index != info.compute_queue_family_index() && queue_family_index != info.transfer_queue_family_index())
-        return 0;
-
-    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock : d->transfer_queue_lock;
-    MutexLockGuard lock(queue_lock);
-    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count : d->free_transfer_queue_count;
-    if (!free_queue_count)
-        return 0;
-
-    std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues : d->transfer_queues;
-    for (size_t i = 0; i < queues.size(); i++)
-    {
-        if (queues[i])
-        {
-            VkQueue queue = queues[i];
-            queues[i] = 0;
-            free_queue_count--;
-            return queue;
-        }
-    }
-    return 0;
-}
-
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
 {
     if (queue_family_index != info.compute_queue_family_index() && queue_family_index != info.transfer_queue_family_index())
