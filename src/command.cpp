@@ -123,9 +123,7 @@ public:
         size_t reader;
     };
     VkWeightCache(const VulkanDevice* device, size_t device_cache_size, size_t host_cache_size, size_t device_memory_limit, size_t host_memory_limit)
-        : vkdev(device), weight_device_cache_size(device_cache_size), weight_host_cache_size(host_cache_size), weight_device_memory_limit(device_memory_limit), weight_host_memory_limit(host_memory_limit),
-          automatic_device_size(!device_cache_size), automatic_host_size(!host_cache_size), view_allocator(device), host_size(0), device_size(0), alignment(weight_buffer_alignment(device)), device_head(0),
-          host_head(0), device_reader(0), host_reader(0), unified(false), initialized(false)
+        : vkdev(device), weight_device_cache_size(device_cache_size), weight_host_cache_size(host_cache_size), weight_device_memory_limit(device_memory_limit), weight_host_memory_limit(host_memory_limit), automatic_device_size(!device_cache_size), automatic_host_size(!host_cache_size), view_allocator(device), host_size(0), device_size(0), alignment(weight_buffer_alignment(device)), device_head(0), host_head(0), device_reader(0), host_reader(0), unified(false), initialized(false)
     {
     }
     ~VkWeightCache()
@@ -735,7 +733,7 @@ int VkComputePrivate::begin_upload_command_buffer(size_t task)
 }
 
 void VkComputePrivate::record_copy_buffer(VkCommandBuffer command_buffer, VkBuffer src, VkBuffer dst, const VkBufferCopy& region,
-                                        VkPipelineStageFlags src_stage, const VkBufferMemoryBarrier* src_barrier)
+        VkPipelineStageFlags src_stage, const VkBufferMemoryBarrier* src_barrier)
 {
     if (command_buffer)
     {
@@ -1721,7 +1719,7 @@ int VkComputePrivate::prepare_weights(const VkMat* bindings, size_t count, weigh
         if (found)
             continue;
         const size_t size = weight_cache->aligned_size(source);
-        if (size > (size_t) -1 - required)
+        if (size > (size_t)-1 - required)
             return -1;
         required += size;
         max_source_size = std::max(max_source_size, size);
@@ -3204,7 +3202,7 @@ int VkComputePrivate::record_deferred(VkCommandBuffer command_buffer, const reco
     {
         VkDescriptorSet descriptorset;
         int ret = create_descriptorset(r.bind_descriptorsets.binding_count, r.bind_descriptorsets.binding_types, r.bind_descriptorsets.descriptorset_layout,
-                                   r.bind_descriptorsets.update_template, r.bind_descriptorsets.data, &descriptorset);
+                                       r.bind_descriptorsets.update_template, r.bind_descriptorsets.data, &descriptorset);
         if (ret != 0)
             return ret;
         vkCmdBindDescriptorSets(command_buffer, r.bind_descriptorsets.bind_point, r.bind_descriptorsets.pipeline_layout, 0, 1, &descriptorset, 0, 0);
@@ -3632,7 +3630,7 @@ void VkCompute::barrier_readonly(const VkImageMat& binding)
         return;
 
     if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-        || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+            || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
     {
         // image layout transform any @ any to shader-readonly-optimal @ compute
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];

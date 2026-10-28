@@ -377,8 +377,7 @@ static int test_weight_storage_dispatch_pinning()
         {
             ncnn::Mat expected(256);
             for (int i = 0; i < 256; i++)
-                ((float*)expected)[i] = (((const float*)input[indices[dispatch][0]])[i] + ((const float*)input[indices[dispatch][1]])[i] + ((const float*)input[indices[dispatch][2]])[i]) * (0.5f * (dispatch + 1)) +
-                                        (float)round;
+                ((float*)expected)[i] = (((const float*)input[indices[dispatch][0]])[i] + ((const float*)input[indices[dispatch][1]])[i] + ((const float*)input[indices[dispatch][2]])[i]) * (0.5f * (dispatch + 1)) + (float)round;
             if (CompareMat(expected, output[dispatch], 0.0001f))
             {
                 fprintf(stderr, "dispatch pinning corrupted pending reader round=%d dispatch=%d\n", round, dispatch);
@@ -398,9 +397,7 @@ class WeightRecordingProbe
 {
 public:
     explicit WeightRecordingProbe(const ncnn::VulkanDevice* vkdev)
-        : copies(0), dispatches(0), submissions(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), copy(ncnn::vkCmdCopyBuffer),
-          dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory),
-          properties(vkdev->info.physicalDeviceMemoryProperties())
+        : copies(0), dispatches(0), submissions(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), copy(ncnn::vkCmdCopyBuffer), dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), properties(vkdev->info.physicalDeviceMemoryProperties())
     {
         g_weight_recording_probe = this;
         ncnn::vkCmdCopyBuffer = record_copy;
@@ -621,7 +618,7 @@ static int test_weight_storage_record_time_preparation()
             const int copies = probe.copies;
             const int dispatches = probe.dispatches;
             if (cmd.submit_and_wait() || probe.submissions == 0
-                || (vkdev->info.support_VK_KHR_push_descriptor() ? (probe.copies != copies || probe.dispatches != dispatches) : (probe.copies < copies || probe.dispatches != dispatches + 1)))
+                    || (vkdev->info.support_VK_KHR_push_descriptor() ? (probe.copies != copies || probe.dispatches != dispatches) : (probe.copies < copies || probe.dispatches != dispatches + 1)))
             {
                 fprintf(stderr, "cached submit failed to execute recorded commands round=%d\n", round);
                 return -1;
