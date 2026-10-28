@@ -3411,20 +3411,17 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 ret = cmd.submit_and_wait();
 
 #if NCNN_BENCHMARK
-                if (ret == 0)
+                std::vector<uint64_t> results(d->net->layers().size() * 2);
+                cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
+                for (size_t i = 0; i < d->net->layers().size(); i++)
                 {
-                    std::vector<uint64_t> results(d->net->layers().size() * 2);
-                    cmd.get_query_pool_results(0, d->net->layers().size() * 2, results);
-                    for (size_t i = 0; i < d->net->layers().size(); i++)
-                    {
-                        uint64_t start = results[i * 2];
-                        uint64_t end = results[i * 2 + 1];
-                        if (start == 0 || end == 0)
-                            continue;
+                    uint64_t start = results[i * 2];
+                    uint64_t end = results[i * 2 + 1];
+                    if (start == 0 || end == 0)
+                        continue;
 
-                        double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
-                        NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
-                    }
+                    double duration_us = (end - start) * d->net->vulkan_device()->info.timestamp_period() / 1000;
+                    NCNN_LOGE("%-24s %-30s %8.2lfus    |", d->net->layers()[i]->type.c_str(), d->net->layers()[i]->name.c_str(), duration_us);
                 }
 #endif // NCNN_BENCHMARK
             }
