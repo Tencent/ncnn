@@ -213,7 +213,6 @@ public:
     void set_staging_vkallocator(VkAllocator* allocator);
 
     void set_kvcache_vkallocator(VkAllocator* allocator);
-
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

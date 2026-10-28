@@ -725,7 +725,6 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
             ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
-
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -818,7 +817,6 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     ptr->capacity = aligned_size;
     ptr->mapped_ptr = block->mapped_ptr;
     ptr->memory_type_index = block->memory_type_index;
-
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -955,8 +953,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
     VkImageMemory* ptr = new VkImageMemory;
 
-    ptr->image = create_image(width, height, depth, format, VK_IMAGE_TILING_OPTIMAL,
-                              VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+    ptr->image = create_image(width, height, depth, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
 
     ptr->width = width;
     ptr->height = height;
@@ -1637,6 +1634,7 @@ public:
     std::vector<size_t> image_memory_block_free_spaces;
     std::vector<VkDeviceMemory> image_memory_blocks;
     std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
+
     bool prefer_host_memory;
     const VulkanDevice* vkdev;
     bool use_weights_in_disk;
@@ -1690,6 +1688,7 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_ho
 VkWeightAllocator::~VkWeightAllocator()
 {
     clear();
+
     delete d;
 }
 
@@ -2114,8 +2113,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                     // discrete gpu, device local
                     if (vkdev->info.resizable_bar_enabled())
                     {
-                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                   VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
                     }
                     else
                     {
@@ -2515,8 +2513,7 @@ VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsiz
                     // discrete gpu, device local
                     if (vkdev->info.resizable_bar_enabled())
                     {
-                        image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                                                  VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
+                        image_memory_type_index = vkdev->find_memory_index(memoryRequirements2.memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT);
                     }
                     else
                     {
@@ -2880,8 +2877,7 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     // setup memory type
     if (buffer_memory_type_index == (uint32_t)-1)
     {
-        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     if (buffer_memory_type_index == (uint32_t)-1)
@@ -3020,8 +3016,7 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     // setup memory type
     if (buffer_memory_type_index == (uint32_t)-1)
     {
-        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT,
-                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);

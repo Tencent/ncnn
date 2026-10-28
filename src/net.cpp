@@ -3401,6 +3401,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
 #if NCNN_BENCHMARK
             cmd.create_query_pool(d->net->layers().size() * 2);
 #endif // NCNN_BENCHMARK
+
             VkMat feat_gpu;
             ret = extract(blob_index, feat_gpu, cmd);
 
