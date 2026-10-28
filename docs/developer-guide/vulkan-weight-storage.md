@@ -85,9 +85,10 @@ Sizes are aligned to Vulkan requirements and checked against the memory limits.
 An explicit device cache smaller than the weights needed by one operation fails;
 it is not replaced by an automatic size.
 
-The first submission sizes the cache from the largest simultaneous working set
-in its recorded commands. Once allocated, its capacity is fixed. A later
-submission whose simultaneous bindings exceed that capacity fails instead of
+The first operation that needs the cache allocates it while recording, using its
+complete simultaneous working set and the configured capacity or automatic target.
+Once allocated, its capacity is fixed. A later operation, even in the same
+recording, whose simultaneous bindings exceed that capacity fails instead of
 reallocating referenced storage or exceeding the budget. Reset the command, clear
 its weight cache, then configure a larger explicit cache for such workloads. Loading-time
 maximum working-set derivation is not implemented. Upload order and layer
@@ -156,17 +157,24 @@ a loading error, clear and reload the model before inference. A GPU submission
 failure can discard the affected command cache; retaining it is not guaranteed.
 
 `VkCompute` owns both upload and compute recording, submission and completion.
-Recording retains the individual bind, descriptor, push-constant, and dispatch
-records. Descriptor payloads use the native Vulkan layouts in each record's
-`data`; paged bindings additionally retain their `VkMat` views and the byte
-offsets to patch at submission. Ordinary bindings need no weight-reference arrays.
-`submit_and_wait()` validates their dependencies and capacity, allocates the
-exchange buffers, and prepares all Vulkan tasks before any GPU submission.
-Preparation errors return directly; they are not saved as a recording error.
-Call `reset()` before recording
-again after a failed submission. A pipeline bind through its dispatch is prepared
-as one contiguous range, so a cache switch cannot split pipeline state across
-command buffers.
+`prepare_weights()` validates each operation's complete weight working set and
+reserves cache buffer ranges. It returns local bindings with cache misses and
+the previous reader of any reused range; it does not record copies or barriers.
+`record_weights()` records the missing copies and their dependencies separately.
+Ordinary buffer clones and weight uploads share a copy recorder that uses the
+given source and destination ranges without allocating a new destination.
+Descriptors and copy regions receive the actual cache buffer and view offset at
+this point. Devices with push descriptors encode Vulkan commands immediately.
+Other devices retain individual command records with native descriptor payloads;
+these are replayed before switching compute batches or ending the final batch.
+There is no submission-time descriptor patching. A pipeline bind through its
+dispatch remains in one batch, so a cache switch cannot split pipeline state.
+
+Preparation failures are retained by the command and returned by
+`submit_and_wait()` without submitting the earlier recorded work. Call `reset()`
+before recording again after an error. Recording does not submit GPU work or
+fill exchange memory; `submit_and_wait()` closes the final batch and executes the
+prepared tasks.
 
 Execution fills and flushes bounded staging regions only after their previous
 GPU readers have completed, then submits the prepared tasks. It does not copy

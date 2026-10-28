@@ -59,10 +59,10 @@ static int test_weight_storage_cache_failure(VulkanFailure::Failure failure)
     if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
         return -1;
     ncnn::Mat output;
-    cmd.record_clone(weight, output, opt);
     {
-        // Cache allocation and task preparation happen at submission.
+        // Cache and task failures are latched while recording and reported by submit.
         VulkanFailure fail(failure);
+        cmd.record_clone(weight, output, opt);
         if (cmd.submit_and_wait() == 0 || !fail.triggered)
         {
             fprintf(stderr, "test_weight_storage_cache_failure error missing failure=%d\n", failure);
@@ -377,7 +377,8 @@ static int test_weight_storage_dispatch_pinning()
         {
             ncnn::Mat expected(256);
             for (int i = 0; i < 256; i++)
-                ((float*)expected)[i] = (((const float*)input[indices[dispatch][0]])[i] + ((const float*)input[indices[dispatch][1]])[i] + ((const float*)input[indices[dispatch][2]])[i]) * (0.5f * (dispatch + 1)) + (float)round;
+                ((float*)expected)[i] = (((const float*)input[indices[dispatch][0]])[i] + ((const float*)input[indices[dispatch][1]])[i] + ((const float*)input[indices[dispatch][2]])[i]) * (0.5f * (dispatch + 1)) +
+                                        (float)round;
             if (CompareMat(expected, output[dispatch], 0.0001f))
             {
                 fprintf(stderr, "dispatch pinning corrupted pending reader round=%d dispatch=%d\n", round, dispatch);
@@ -397,7 +398,9 @@ class WeightRecordingProbe
 {
 public:
     explicit WeightRecordingProbe(const ncnn::VulkanDevice* vkdev)
-        : copies(0), dispatches(0), submissions(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), copy(ncnn::vkCmdCopyBuffer), dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), properties(vkdev->info.physicalDeviceMemoryProperties())
+        : copies(0), dispatches(0), submissions(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), copy(ncnn::vkCmdCopyBuffer),
+          dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory),
+          properties(vkdev->info.physicalDeviceMemoryProperties())
     {
         g_weight_recording_probe = this;
         ncnn::vkCmdCopyBuffer = record_copy;
@@ -513,7 +516,7 @@ private:
     std::vector<VkBuffer> buffers;
 };
 
-static int test_weight_storage_submit_time_preparation()
+static int test_weight_storage_record_time_preparation()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev);
@@ -584,12 +587,12 @@ static int test_weight_storage_submit_time_preparation()
         ncnn::VkMat& first_device = first_devices[round];
         {
             WeightRecordingProbe probe(vkdev);
-            bool cached_copy_deferred = false;
+            bool cached_copy_recorded = false;
             if (round == 1)
             {
                 const int before = probe.copies;
                 cmd.record_clone(weight[0], first_device, opt);
-                cached_copy_deferred = probe.copies == before;
+                cached_copy_recorded = probe.copies > before;
             }
             cmd.record_clone(ordinary, ordinary_device, opt);
             ordinary.fill(-1.f);
@@ -598,35 +601,37 @@ static int test_weight_storage_submit_time_preparation()
             {
                 const int before = probe.copies;
                 cmd.record_clone(weight[0], first_device, opt);
-                cached_copy_deferred = probe.copies == before;
+                cached_copy_recorded = probe.copies > before;
             }
-            if (!cached_copy_deferred || probe.submissions != 0)
+            if ((vkdev->info.support_VK_KHR_push_descriptor() && !cached_copy_recorded) || probe.submissions != 0)
             {
-                fprintf(stderr, "cached clone was encoded or submitted while recording\n");
+                fprintf(stderr, "cached clone was not recorded immediately or was submitted while recording\n");
                 return -1;
             }
             cmd.record_clone(first_device, first_output, opt);
             const int before_dispatch = probe.dispatches;
             cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-            if (probe.dispatches != before_dispatch || probe.submissions != 0 || probe.destroyed_recorded_buffer)
+            const int expected_dispatches = before_dispatch + (vkdev->info.support_VK_KHR_push_descriptor() ? 1 : 0);
+            if (probe.dispatches != expected_dispatches || probe.submissions != 0 || probe.destroyed_recorded_buffer)
             {
-                fprintf(stderr, "cached dispatch was encoded or its backing destroyed before submission round=%d\n", round);
+                fprintf(stderr, "cached dispatch recording or backing lifetime was incorrect round=%d\n", round);
                 return -1;
             }
             cmd.record_clone(result, output, opt);
             const int copies = probe.copies;
             const int dispatches = probe.dispatches;
-            if (cmd.submit_and_wait() || probe.copies <= copies || probe.dispatches != dispatches + 1 || probe.submissions == 0)
+            if (cmd.submit_and_wait() || probe.submissions == 0
+                || (vkdev->info.support_VK_KHR_push_descriptor() ? (probe.copies != copies || probe.dispatches != dispatches) : (probe.copies < copies || probe.dispatches != dispatches + 1)))
             {
-                fprintf(stderr, "cached submit failed to prepare and execute commands round=%d\n", round);
+                fprintf(stderr, "cached submit failed to execute recorded commands round=%d\n", round);
                 return -1;
             }
         }
         if (CompareMat(ordinary_expected, ordinary_output, 0.f) || CompareMat(input[0], first_output, 0.f) || CompareMat(expected, output, 0.f) || cmd.reset())
             return -1;
     }
-    // Insufficient fixed capacity rejects the whole sequence before any
-    // cache allocation, command encoding, or GPU submission.
+    // A later oversized working set latches an error without submitting earlier
+    // recorded work or destroying backing referenced by those commands.
     ncnn::Option small_opt = opt;
     small_opt.weight_device_cache_size = 2 * mib;
     ncnn::VkMat first_device(elements, (size_t)4u, &blobs);
@@ -636,10 +641,12 @@ static int test_weight_storage_submit_time_preparation()
     {
         WeightRecordingProbe probe(vkdev);
         small.record_clone(weight[0], first_device, small_opt);
-        if (probe.copies != 0 || probe.allocations != 0)
+        if (probe.allocations == 0 || probe.submissions != 0)
             return -1;
+        const int copies = probe.copies;
+        const int allocations = probe.allocations;
         small.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-        if (small.submit_and_wait() == 0 || probe.submissions != 0 || probe.copies != 0 || probe.allocations != 0 || probe.destroyed_recorded_buffer)
+        if (small.submit_and_wait() == 0 || probe.submissions != 0 || probe.copies != copies || probe.allocations != allocations || probe.destroyed_recorded_buffer)
         {
             fprintf(stderr, "insufficient cache submitted work or destroyed recorded backing\n");
             return -1;
@@ -734,9 +741,14 @@ static int test_weight_storage_automatic_allocation_budget()
         if (cached.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
             return -1;
         cached.record_clone(weight, target, opt);
-        if (probe.allocations != 0 || probe.copies != 0 || probe.submissions != 0)
+        if (probe.allocations == 0 || probe.submissions != 0)
         {
-            fprintf(stderr, "weight recording allocated or prepared the cache\n");
+            fprintf(stderr, "weight recording did not allocate the cache or submitted work\n");
+            return -1;
+        }
+        if (cached.clear_weight_cache() == 0)
+        {
+            fprintf(stderr, "cache backing was released while a recorded copy still used it\n");
             return -1;
         }
         if (cached.submit_and_wait() || probe.allocations == 0 || probe.peak_device_bytes > limit || probe.peak_host_bytes > limit)
@@ -939,13 +951,13 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
         if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
             return -1;
         {
-            // Command/fence/semaphore allocation is part of submission preparation.
+            // Command/fence/semaphore allocation happens while recording.
             VulkanFailure check(failure, 5);
             for (int i = 0; i < count; i++)
                 cmd.record_clone(weight[i], output[i], opt);
-            if (check.triggered || check.submission_count() != 0)
+            if (check.submission_count() != 0 || (failure != VulkanFailure::TRACK_COMMANDS && !check.triggered))
             {
-                fprintf(stderr, "execution resources were prepared while recording\n");
+                fprintf(stderr, "recording did not prepare execution resources or submitted work\n");
                 return -1;
             }
             ret = cmd.submit_and_wait();
@@ -1010,7 +1022,7 @@ int main()
                     || test_weight_storage_transfer_failure(VulkanFailure::SECOND_SUBMIT)
                     || test_weight_storage_cached_batch()
                     || test_weight_storage_dispatch_pinning()
-                    || test_weight_storage_submit_time_preparation()
+                    || test_weight_storage_record_time_preparation()
                     || test_weight_storage_automatic_allocation_budget()
                     || test_weight_storage_resident_batches()
                     || test_weight_storage_resident_failure()
