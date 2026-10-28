@@ -3323,8 +3323,8 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         if (device_type == 1 || device_type == 3)
         {
             weight_device_memory_limit = weight_device_memory_limit && weight_host_memory_limit
-                                             ? std::min(weight_device_memory_limit, weight_host_memory_limit)
-                                             : std::max(weight_device_memory_limit, weight_host_memory_limit);
+                                         ? std::min(weight_device_memory_limit, weight_host_memory_limit)
+                                         : std::max(weight_device_memory_limit, weight_host_memory_limit);
             weight_host_memory_limit = 0;
             device_used += host_used;
             host_used = 0;
