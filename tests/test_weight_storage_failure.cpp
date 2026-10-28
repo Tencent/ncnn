@@ -135,14 +135,13 @@ static int test_weight_storage_midflight_failure(int fail_at)
 
 static int test_weight_storage_resident_batches()
 {
-    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
-    ncnn::VkWeightAllocator weights(vkdev);
-    ncnn::VkWeightAllocator ordinary(vkdev);
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    UnmappedWeightAllocator weights(vkdev);
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
-    weights.set_weight_memory_limit(65536, 65536);
+    weights.set_weight_memory_limit(65536, 65536, 8192, 4096);
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
@@ -150,106 +149,60 @@ static int test_weight_storage_resident_batches()
     ncnn::Mat input[24];
     ncnn::VkMat weight[24];
     ncnn::VkTransfer upload(vkdev);
-    for (int i = 0; i < 24; i++)
-    {
-        input[i] = RandomMat(i % 3 == 0 ? 4 : i % 3 == 1 ? 256 : 1024);
-        upload.record_upload(input[i], weight[i], opt);
-    }
-    if (upload.submit_and_wait() != 0 || weights.finalize_weights() != 0 || upload.reset() != 0)
-        return -1;
-    // A freed record must not be dereferenced while allocating or publishing residents.
-    weight[2].release();
-    opt.blob_vkallocator = &ordinary;
-    ncnn::Mat extra_input[2] = {RandomMat(64), RandomMat(128)};
-    ncnn::VkMat extra[2];
-    upload.record_upload(extra_input[0], extra[0], opt);
     {
         VulkanFailure count(VulkanFailure::SUBMIT, 1000000);
-        if (record_weight_storage_resident_tier(weights, upload, 0, opt, true) != 0)
-            return -1;
-        if (count.submission_count() != 0 || weight[0].data->storage_type != 2)
+        for (int i = 0; i < 24; i++)
         {
-            fprintf(stderr, "resident record_upload submitted or published weights early\n");
-            return -1;
+            input[i] = RandomMat(i % 3 == 0 ? 4 : i % 3 == 1 ? 256
+                                                             : 1024);
+            upload.record_upload(input[i], weight[i], opt);
         }
-        upload.record_upload(extra_input[1], extra[1], opt);
-        const int ret = upload.submit_and_wait();
-        weights.finish_resident_uploads(0, ret);
-        if (ret != 0 || count.submission_count() > 100)
+        if (count.submission_count() != 0 || weight[0].empty() || weight[0].data->storage_type != 0)
+            return -1;
+        if (upload.submit_and_wait() || count.submission_count() < 2 || count.submission_count() > 100)
         {
-            fprintf(stderr, "resident upload did not batch small weights: %d submits\n", count.submission_count());
+            fprintf(stderr, "bounded resident upload did not batch weights: %d submits\n", count.submission_count());
             return -1;
         }
     }
-    if (upload.reset() != 0 || record_weight_storage_resident_tier(weights, upload, 1, opt) != 0)
-        return -1;
-    const int host_ret = upload.submit_and_wait();
-    weights.finish_resident_uploads(1, host_ret);
-    if (host_ret != 0)
+    weight[2].release();
+    if (weights.finalize_weights() || upload.reset())
         return -1;
     opt.blob_vkallocator = &blobs;
     ncnn::VkCompute cmd(vkdev);
     ncnn::Mat output[24];
-    ncnn::Mat extra_output[2];
     for (int i = 0; i < 24; i++)
         if (i != 2)
             cmd.record_clone(weight[i], output[i], opt);
-    for (int i = 0; i < 2; i++)
-        cmd.record_clone(extra[i], extra_output[i], opt);
-    if (cmd.submit_and_wait() != 0)
+    if (cmd.submit_and_wait())
         return -1;
     for (int i = 0; i < 24; i++)
-        if (i != 2 && CompareMat(input[i], output[i], 0.f) != 0)
-            return -1;
-    for (int i = 0; i < 2; i++)
-        if (CompareMat(extra_input[i], extra_output[i], 0.f) != 0)
+        if (i != 2 && CompareMat(input[i], output[i], 0.f))
             return -1;
     return 0;
 }
 
 static int test_weight_storage_resident_failure()
 {
-    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
-    ncnn::VkWeightAllocator first(vkdev);
-    ncnn::VkWeightAllocator second(vkdev);
-    ncnn::VkWeightAllocator* weights[2] = {&first, &second};
-    ncnn::VkMat weight[2];
-    ncnn::VkTransfer upload(vkdev);
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    UnmappedWeightAllocator weights(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    weights.set_weight_memory_limit(16384, 16384, 4096, 4096);
     ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
     opt.weight_host_memory_limit = 1024;
-    for (int i = 0; i < 2; i++)
-    {
-        weights[i]->set_weights_in_disk(true);
-        weights[i]->set_weight_file_directory(weight_storage_test_directory());
-        weights[i]->set_weight_memory_limit(8192, 8192);
-        opt.blob_vkallocator = weights[i];
-        upload.record_upload(RandomMat(1024), weight[i], opt);
-        if (upload.error() != 0 || weights[i]->finalize_weights() != 0)
-            return -1;
-        if (record_weight_storage_resident_tier(*weights[i], upload, 0, opt, true) != 0)
-            return -1;
-    }
-    {
-        VulkanFailure fail(VulkanFailure::SECOND_SUBMIT);
-        const int ret = upload.submit_and_wait();
-        for (int i = 0; i < 2; i++)
-            weights[i]->finish_resident_uploads(0, ret);
-        if (ret == 0 || !fail.triggered || upload.error() == 0 || upload.reset() == 0)
-        {
-            fprintf(stderr, "resident upload midflight failure was lost\n");
-            return -1;
-        }
-    }
-    // Publication must follow successful upload, and the allocator retains its error.
-    for (int i = 0; i < 2; i++)
-    {
-        weights[i]->finish_resident_uploads(0, 0);
-        weights[i]->finish_resident_uploads(1, 0);
-        if (weight[i].data->storage_type != 2)
-            return -1;
-    }
-    if (first.finalize_weights() == 0 && second.finalize_weights() == 0)
+    ncnn::VkMat weight;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(RandomMat(2048), weight, opt);
+    if (upload.error() || weight.empty() || weight.data->storage_type != 0)
         return -1;
+    VulkanFailure fail(VulkanFailure::SECOND_SUBMIT);
+    if (upload.submit_and_wait() == 0 || !fail.triggered || upload.error() == 0 || upload.reset() == 0)
+    {
+        fprintf(stderr, "resident upload midflight failure was lost\n");
+        return -1;
+    }
     return 0;
 }
 
@@ -287,10 +240,9 @@ static int test_weight_storage_cached_batch()
             VulkanFailure count(VulkanFailure::SUBMIT, 1000000);
             if (cmd.submit_and_wait() != 0)
                 return -1;
-            // Cache hits need no boundary. On unified memory, cold CPU fills
-            // into unused ranges also need only barriers, not extra submissions.
+            // reset discards content hits; cold unified fills still share one compute submission.
             const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
-            if ((round == 1 || unified) && count.submission_count() != 1)
+            if (unified && count.submission_count() != 1)
             {
                 fprintf(stderr, "cached weights split into %d submissions round=%d unified=%d\n", count.submission_count(), round, unified);
                 return -1;
@@ -765,21 +717,18 @@ public:
 static int test_weight_storage_transfer_wait_failure()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
-    ncnn::VkWeightAllocator weights(vkdev);
+    UnmappedWeightAllocator weights(vkdev);
     CountingWeightStagingAllocator staging(vkdev);
     ncnn::Option opt = weight_storage_option();
     opt.staging_vkallocator = &staging;
+    opt.blob_vkallocator = &weights;
     ncnn::Mat input = RandomMat(256);
-    ncnn::VkMat target(256, (size_t)4u, &weights);
-    if (target.empty())
-        return -1;
-    void* mapping = target.data->mapped_ptr;
-    target.data->mapped_ptr = 0;
+    ncnn::VkMat target;
     {
         VulkanFailure fail(VulkanFailure::FENCE_WAIT, 3);
         {
             ncnn::VkTransfer upload(vkdev);
-            upload.record_upload(input, (const ncnn::VkMat&)target, opt);
+            upload.record_upload(input, target, opt);
             if (upload.submit_and_wait() == 0 || !fail.triggered || staging.frees != 0 || upload.reset() == 0)
             {
                 fprintf(stderr, "failed fence wait prematurely released transfer staging\n");
@@ -788,7 +737,6 @@ static int test_weight_storage_transfer_wait_failure()
         }
         // The destructor retries two more transient errors before the real wait.
     }
-    target.data->mapped_ptr = mapping;
     return staging.frees == 1 ? 0 : -1;
 }
 

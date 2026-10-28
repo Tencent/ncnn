@@ -2367,7 +2367,7 @@ int Net::load_model(const DataReader& dr)
             d->weight_vkallocator->set_weight_file_directory(d->weight_file_directory.c_str());
             d->weight_vkallocator->set_weights_in_disk(opt.use_weights_in_disk);
             if (opt.use_weights_in_disk)
-                d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit);
+                d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size);
         }
         if (!d->weight_staging_vkallocator)
         {
@@ -2379,6 +2379,11 @@ int Net::load_model(const DataReader& dr)
         opt_upload.blob_vkallocator = d->weight_vkallocator;
         opt_upload.workspace_vkallocator = d->weight_vkallocator;
         opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
+        if (opt.use_weights_in_disk && opt.weight_host_memory_limit)
+        {
+            const size_t staging_limit = opt.weight_host_cache_size ? opt.weight_host_cache_size : (size_t)16 * 1024 * 1024;
+            opt_upload.weight_host_memory_limit = std::min(opt.weight_host_memory_limit, staging_limit);
+        }
     }
 #endif // NCNN_VULKAN
 
@@ -2438,8 +2443,8 @@ int Net::load_model(const DataReader& dr)
                 break;
             }
 
-            // commit as soon as we collect 256M pending
-            if (cmd_upload->pending_upload_total() > 256 * 1024 * 1024)
+            // Finish each disk-storage layer before retaining the next layer's transformed upload data.
+            if (opt.use_weights_in_disk || cmd_upload->pending_upload_total() > 256 * 1024 * 1024)
             {
                 uret = cmd_upload->submit_and_wait();
                 if (uret != 0)
@@ -2484,26 +2489,7 @@ int Net::load_model(const DataReader& dr)
     {
         ret = cmd_upload->submit_and_wait();
         if (ret == 0)
-            ret = d->weight_vkallocator->finalize_weights(opt.weight_device_cache_size, opt.weight_host_cache_size);
-        if (ret == 0)
-            ret = cmd_upload->reset();
-        for (int storage_type = 0; ret == 0 && storage_type < 2; storage_type++)
-        {
-            std::vector<Mat> sources;
-            std::vector<VkMat> destinations;
-            ret = d->weight_vkallocator->get_resident_uploads(storage_type, sources, destinations);
-            for (size_t i = 0; ret == 0 && i < sources.size(); i++)
-            {
-                const VkMat& destination = destinations[i];
-                cmd_upload->record_upload(sources[i], destination, opt);
-                ret = cmd_upload->error();
-            }
-            if (ret == 0)
-                ret = cmd_upload->submit_and_wait();
-            if (ret == 0)
-                ret = cmd_upload->reset();
-            d->weight_vkallocator->finish_resident_uploads(storage_type, ret);
-        }
+            ret = d->weight_vkallocator->finalize_weights();
     }
 
     if (cmd_upload)

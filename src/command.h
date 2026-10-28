@@ -70,7 +70,7 @@ public:
 
     int submit_and_wait();
 
-    // discard recorded commands, retaining the weight cache for reuse
+    // discard recording and cached contents, retaining exchange allocations for reuse
     int reset();
     // release the weight cache when no recorded commands use it
     // command options are retained; model-owned resident weights are unaffected
@@ -104,11 +104,6 @@ public:
 
 public:
     void record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten = true);
-
-    // Copy bytes into an existing destination, padding its unused capacity with zero.
-    // Source bytes must remain unchanged and their storage and the destination allocator
-    // must remain alive until submission completes.
-    void record_upload(const Mat& src, const VkMat& dst, const Option& opt);
 
     int submit_and_wait();
 

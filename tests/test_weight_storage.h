@@ -103,39 +103,22 @@ static ncnn::Option weight_storage_option()
     return opt;
 }
 
-// Record only: preparing resident views must not submit unrelated queued uploads.
-static int record_weight_storage_resident_tier(ncnn::VkWeightAllocator& weights, ncnn::VkTransfer& upload, int storage_type, const ncnn::Option& opt, bool force_staging = false)
+// Exercise staging transfers even on a device with host-visible device memory.
+class UnmappedWeightAllocator : public ncnn::VkWeightAllocator
 {
-    std::vector<ncnn::Mat> sources;
-    std::vector<ncnn::VkMat> destinations;
-    int ret = weights.get_resident_uploads(storage_type, sources, destinations);
-    for (size_t i = 0; ret == 0 && i < sources.size(); i++)
+public:
+    explicit UnmappedWeightAllocator(const ncnn::VulkanDevice* vkdev)
+        : ncnn::VkWeightAllocator(vkdev)
     {
-        // Exercise bounded staging even on a unified-memory Vulkan device.
-        if (force_staging)
-            destinations[i].data->mapped_ptr = 0;
-        const ncnn::VkMat& destination = destinations[i];
-        upload.record_upload(sources[i], destination, opt);
-        ret = upload.error();
     }
-    return ret;
-}
-
-static int upload_weight_storage_residents(ncnn::VkWeightAllocator& weights, ncnn::VkTransfer& upload, const ncnn::Option& opt)
-{
-    for (int storage_type = 0; storage_type < 2; storage_type++)
+    virtual ncnn::VkBufferMemory* fastMalloc(size_t size)
     {
-        int ret = record_weight_storage_resident_tier(weights, upload, storage_type, opt);
-        if (ret == 0)
-            ret = upload.submit_and_wait();
-        weights.finish_resident_uploads(storage_type, ret);
-        if (ret != 0)
-            return ret;
-        if (upload.reset() != 0)
-            return upload.error();
+        ncnn::VkBufferMemory* memory = ncnn::VkWeightAllocator::fastMalloc(size);
+        if (memory)
+            memory->mapped_ptr = 0;
+        return memory;
     }
-    return 0;
-}
+};
 
 static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, float scale, int layer_count, bool distinct = false, bool use_test_directory = true)
 {

@@ -45,7 +45,7 @@ int inference(const ncnn::Mat& input, ncnn::Mat& output)
 
 The input and output names depend on the model. Keep the Net loaded when running
 inference repeatedly. Each Extractor owns its internal command and weight cache;
-reuse the Extractor to retain that cache. Clearing or destroying the Extractor
+reuse the Extractor to retain its cache allocations. Clearing or destroying the Extractor
 releases it. Net retains model weights and finalized storage settings, not idle
 execution caches.
 
@@ -60,9 +60,11 @@ execution caches.
 | `weight_host_cache_size` | host cache capacity; zero selects it automatically |
 
 With both memory limits set to zero, disk weights use the cache without retaining
-an additional resident subset. With explicit limits, loading keeps smaller
-weights in device memory, then host memory, and leaves the rest in the file.
-A model that fits entirely in device memory needs no weight cache.
+an additional resident subset. With explicit limits, loading first reserves the
+configured exchange capacities, then places weights in loading order: device
+memory, host memory, and finally the file. Placement uses the remaining budget
+and never sorts or relocates the complete model. A model that fits in the
+remaining device budget needs no weight cache allocation.
 
 Discrete GPUs require both memory limits when enabling resident placement.
 Integrated GPUs and CPU Vulkan devices use one device allocation accessible by
@@ -90,8 +92,12 @@ command, then recreate the command with a larger explicit cache for such
 workloads. Loading-time
 maximum working-set derivation is not implemented. Upload order and layer
 boundaries do not imply simultaneous use; the actual dispatch bindings determine
-which weights must fit together. Resident placement reserves cache space using
-individual weight sizes, without upload groups.
+which weights must fit together. Loading reserves the configured cache capacity
+before allocating residents. Automatic reservation uses the 128 MiB device and
+16 MiB host defaults, clamped to the limits. When a limit is smaller than its
+default, the exchange reservation can consume the entire budget for that tier.
+Use an explicit smaller cache to leave room for residents. Capacity errors may
+be reported at inference when the actual dispatch bindings are known.
 
 ## file directory
 
@@ -129,15 +135,15 @@ All participating Nets use the same Vulkan device. An external command has its
 own cache settings; options passed to clone or download operations do not change
 them.
 
-`cmd.reset()` discards the recording and normally retains a completed cache for
-reuse. Abandoning a recording that changed cache placement can discard its
-backing, because its planned writes and ownership transfers did not execute.
-`cmd.clear_weight_cache()` releases the cache after work has completed and the
-recording has been reset. Model-owned resident weights remain available.
-Cache backing allocations and byte-range views are refcounted `VkMat` resources.
-Recorded commands retain source handles, but their allocators must remain alive
-until execution completes. Cached identities do not retain a model allocator
-after the recording is reset.
+`cmd.reset()` discards the recording and all weight-content hits while retaining
+successful exchange allocations for reuse. The next recording uploads its
+weights again. `cmd.clear_weight_cache()` releases the allocations after work
+has completed and the recording has been reset. Model-owned resident weights
+remain available. Cache allocations and byte-range views are refcounted `VkMat`
+resources. Recorded commands retain source handles, but the model backing must
+remain valid and immutable until execution completes and the recording is reset.
+Allocators must outlive all their views. Destroying or clearing a model allocator
+while recorded work refers to it is unsupported.
 Clearing a Net invalidates its weights and existing Extractors. To replace or
 reload a model, use `clear()`, `load_param()` and `load_model()`. Repeated
 `load_model()` calls on finalized weights are not a hot reload interface. After
@@ -156,11 +162,12 @@ waits for its uploads, unless a cross-queue cache-ownership release must precede
 those uploads. There is no artificial empty preliminary submission. Commands
 without paged weights retain the normal recording path.
 
-Cache reservations use owning `VkMat` references. Releasing the last reservation
-reference returns an aligned region to a bounded pool; recorded tasks retain the
-backing without preventing logical region reuse. Dependencies still order each
-old compute read before an overwrite and each upload before its next compute
-read. Reference counting does not replace GPU completion checks.
+Exchange ranges are assigned in execution order. When the remaining space cannot
+hold the next complete dispatch working set, allocation wraps to the start and
+discards all prior content hits. The previous readers finish before those bytes
+are overwritten. Uploads into unused space can overlap earlier compute work.
+Recorded tasks retain owning `VkMat` views of the exchange allocation; reference
+counting does not replace GPU completion checks.
 
 Each paged execution uses independent upload and compute command buffers and
 synchronization objects. They are not recycled while that execution is running.
@@ -171,27 +178,23 @@ error keeps work pending and prevents reset. Destruction waits for completion
 (or device loss), so persistent driver errors can block destruction.
 
 For direct allocator use, configure `VkWeightAllocator` before allocation with
-`set_weights_in_disk()`, `set_weight_memory_limit()` and optionally
-`set_weight_file_directory()`. After the initial uploads complete,
-`finalize_weights()` flushes the file and plans resident placement. Reset the
-`VkTransfer`, then process device residents (storage type 0) before host residents
-(type 1). For each tier, `get_resident_uploads()` returns CPU `Mat` source views and
-preallocated `VkMat` destination views. Record each pair with the
-`record_upload(const Mat&, const VkMat&, const Option&)` overload, check `error()`,
-submit and wait, and reset the transfer. Pass the resulting status to
-`finish_resident_uploads()` to publish the completed tier or preserve its failure.
-Do not publish before the copies complete, and do not continue after an error.
-Keep the allocator alive until the views and recorded work have been released.
-Recording does not submit or reset other pending commands. Uploads use bounded
-staging and batch small copies together. Net performs this sequence automatically.
+`set_weights_in_disk()`, `set_weight_memory_limit(device_limit, host_limit,
+device_cache_size, host_cache_size)` and optionally `set_weight_file_directory()`.
+Record each transformed weight with `VkTransfer::record_upload()`, check errors,
+and submit and wait before calling `finalize_weights()`. Finalization flushes
+and seals file mappings; resident weights have already been uploaded directly
+to their final locations. Keep the allocator alive until its views and recorded
+work have been released. Uploads use bounded staging and batch small copies
+together. Net submits disk-storage uploads after each layer, so pending
+transformed upload snapshots do not accumulate across the whole model.
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
-allocation bytes, including padding. It also returns an error while resident
-uploads are unfinished or failed; the byte counts still describe allocations
-already made. It excludes file mappings and command caches. Cache capacities come directly from the command's
-options; an internal command subtracts resident allocation usage from positive
-memory limits before allocating its cache. Zero limits remain unbounded; exhausted
-positive limits are not converted into an unbounded cache budget.
+allocation bytes, including padding, and any allocator error. It excludes file
+mappings and command caches; it does not certify that uploads have completed.
+Cache capacities come from the command's options. An internal command subtracts
+resident allocation usage from positive memory limits before allocating its
+cache. Zero limits remain unbounded; exhausted positive limits are not converted
+into an unbounded cache budget.
 
 ## best practice
 

@@ -66,9 +66,9 @@ static int test_weight_file_memory_usage()
     if (weight.empty())
         return -1;
     uint64_t device_bytes, host_bytes;
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) == 0)
+    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || device_bytes || host_bytes)
     {
-        fprintf(stderr, "unfinished disk weights reported ready memory usage\n");
+        fprintf(stderr, "file mappings counted as resident Vulkan allocations\n");
         return -1;
     }
     if (weights.finalize_weights() || weights.get_weight_memory_usage(device_bytes, host_bytes)
@@ -79,14 +79,14 @@ static int test_weight_file_memory_usage()
     }
     weight.release();
     weights.clear();
-    weights.set_weight_memory_limit(8192, 8192);
+    weights.set_weight_memory_limit(8192, 8192, 4096, 4096);
     weight.create(64, (size_t)4u, &weights);
     if (weight.empty() || weights.finalize_weights())
         return -1;
-    // Device residents are allocated by planning, but not ready before upload.
-    if (weights.get_weight_memory_usage(device_bytes, host_bytes) == 0 || !device_bytes || host_bytes)
+    // Residents are allocated directly while loading, with space reserved for exchange.
+    if (weights.get_weight_memory_usage(device_bytes, host_bytes) || !device_bytes || device_bytes > 4096 || host_bytes)
     {
-        fprintf(stderr, "unpublished residents must report actual allocation bytes and unfinished status\n");
+        fprintf(stderr, "resident weights must report actual allocation bytes within the reserved budget\n");
         return -1;
     }
 #endif

@@ -285,8 +285,14 @@ static int test_weight_storage_load_failure()
     opt.weight_host_memory_limit = 256;
     if (load_weight_storage_net(net, opt, 1.f, 12) == 0)
     {
-        fprintf(stderr, "test_weight_storage_load_failure insufficient memory limit accepted\n");
-        return -1;
+        // The dispatch checks its complete working set against the fixed cache.
+        ncnn::Extractor ex = net.create_extractor();
+        ncnn::Mat output;
+        if (ex.input("b0", RandomMat(16, 8)) || ex.extract("b12", output) == 0)
+        {
+            fprintf(stderr, "test_weight_storage_load_failure insufficient memory limit accepted\n");
+            return -1;
+        }
     }
     net.clear();
     opt.weight_device_memory_limit = 0;
