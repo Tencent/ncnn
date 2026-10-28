@@ -54,7 +54,9 @@ static void hardswish_bf16s(Mat& bottom_top_blob, float alpha, float beta, float
             float v = bfloat16_to_float32(ptr[i]);
             if (v < lower)
                 ptr[i] = 0;
-            else if (v <= upper)
+            else if (v > upper)
+                ;
+            else
                 ptr[i] = float32_to_bfloat16(v * (v * alpha + beta));
         }
 #endif
