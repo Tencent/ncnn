@@ -213,7 +213,7 @@ class NCNN_EXPORT VkBufferMemory
 {
 public:
     VkBufferMemory()
-        : mapped_ptr(0), source_ptr(0), source_size(0), storage_type(0), usage_flags(0)
+        : mapped_ptr(0), source_ptr(0), source_size(0), storage_type(0)
     {
     }
 
@@ -243,7 +243,6 @@ public:
     // storage type
     // 0 = device, 1 = host, 2 = disk
     int storage_type;
-    VkBufferUsageFlags usage_flags;
 };
 
 class NCNN_EXPORT VkImageMemory

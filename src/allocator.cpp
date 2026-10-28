@@ -1464,7 +1464,6 @@ VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int
     ptr->storage_type = storage_type;
     if (unified)
         ptr->storage_type = 0;
-    ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     {
         ret = allocate_weight_buffer_memory(vkdev, ptr);
         if (ret != 0)
@@ -2036,7 +2035,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             ptr->storage_type = 0;
             if (!vkdev->is_device_local(ptr->memory_type_index))
                 ptr->storage_type = 1;
-            ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -2149,8 +2147,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             if (!vkdev->is_device_local(block->memory_type_index))
                 block->storage_type = 1;
 
-            block->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
             d->dedicated_buffer_blocks.push_back(block);
             d->allocated_sizes[block->storage_type] += memoryRequirements2.memoryRequirements.size;
 
@@ -2166,7 +2162,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             ptr->storage_type = 0;
             if (!vkdev->is_device_local(ptr->memory_type_index))
                 ptr->storage_type = 1;
-            ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
@@ -2317,7 +2312,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     block->storage_type = 0;
     if (!vkdev->is_device_local(block->memory_type_index))
         block->storage_type = 1;
-    block->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     d->buffer_blocks.push_back(block);
     d->allocated_sizes[block->storage_type] += memoryRequirements.size;
@@ -2336,7 +2330,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     ptr->storage_type = 0;
     if (!vkdev->is_device_local(ptr->memory_type_index))
         ptr->storage_type = 1;
-    ptr->usage_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 

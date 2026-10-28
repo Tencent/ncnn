@@ -756,8 +756,6 @@ int VkComputePrivate::record_device_cache_copy(int task, const VkMat& source, co
 {
     const VkBufferMemory* src = source.data;
     int ret;
-    if (!(src->usage_flags & VK_BUFFER_USAGE_TRANSFER_SRC_BIT))
-        return -1;
     ret = begin_upload_command_buffer(task);
     if (ret != 0)
         return ret;
