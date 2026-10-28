@@ -113,7 +113,7 @@ static int test_weight_memory_configuration()
         return -1;
     }
     if (vkdev->info.type() != 1 && vkdev->info.type() != 3
-        && weights.set_weight_memory_limit(4096, 8192, 1024, (size_t)-1) == 0)
+            && weights.set_weight_memory_limit(4096, 8192, 1024, (size_t)-1) == 0)
         return -1;
     // A rejected configuration leaves the previous budgets usable.
     ncnn::VkMat weight(64, (size_t)4u, &weights);
