@@ -3175,7 +3175,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             r.bind_descriptorsets.descriptorset_layout = pipeline->descriptorset_layout();
             r.bind_descriptorsets.update_template = pipeline->descriptor_update_template();
             r.bind_descriptorsets.binding_count = 3;
-            r.bind_descriptorsets.binding_types = new int[3]{3, 1, 1};
+            r.bind_descriptorsets.binding_types = new int[3] {3, 1, 1};
             r.bind_descriptorsets.data = data;
             r.bind_descriptorsets.weight_count = 0;
             r.bind_descriptorsets.weights = 0;
