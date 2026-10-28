@@ -619,7 +619,11 @@ static int test_weight_storage_recorded_subview()
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &store;
     opt.staging_vkallocator = &staging;
-    ncnn::Mat input = RandomMat(257);
+    int first = 0;
+#if NCNN_BATCH
+    first = std::max(4, (int)(vkdev->info.buffer_offset_alignment() / sizeof(float)));
+#endif
+    ncnn::Mat input = RandomMat(first + 257);
     ncnn::VkMat weight;
     ncnn::VkTransfer upload(vkdev);
     upload.record_upload(input, weight, opt);
@@ -632,9 +636,7 @@ static int test_weight_storage_recorded_subview()
     // A legitimate borrowed tensor view is smaller than its backing source.
     // Recording it first must not truncate the cached allocation or its padding.
     ncnn::VkMat view(7, weight.data, (size_t)4u, &store);
-    int first = 0;
 #if NCNN_BATCH
-    first = 4;
     view.offset = first * sizeof(float);
 #endif
     const size_t logical_bytes = (size_t)input.w * input.elemsize;
@@ -646,6 +648,22 @@ static int test_weight_storage_recorded_subview()
     ncnn::Mat expected_view(7);
     memcpy(expected_view.data, (const float*)input.data + first, 7 * sizeof(float));
     opt.blob_vkallocator = &blobs;
+    const char shader[] = "#version 450\n"
+                          "layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n"
+                          "layout(binding = 0) readonly buffer A { float a[]; };\n"
+                          "layout(binding = 1) readonly buffer B { float b[]; };\n"
+                          "layout(binding = 2) writeonly buffer C { float c[]; };\n"
+                          "void main() { uint i = gl_GlobalInvocationID.x; if (i < 7) c[i] = a[i] + b[i]; }\n";
+    std::vector<uint32_t> spirv;
+    if (ncnn::compile_spirv_module(shader, opt, spirv))
+        return -1;
+    ncnn::Pipeline pipeline(vkdev);
+    pipeline.set_local_size_xyz(1, 1, 1);
+    if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
+        return -1;
+    ncnn::VkMat result(7, (size_t)4u, &blobs);
+    if (result.empty())
+        return -1;
     ncnn::VkCompute cmd(vkdev);
     if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
         return -1;
@@ -658,8 +676,8 @@ static int test_weight_storage_recorded_subview()
         fprintf(stderr, "test_weight_storage_recorded_subview lost source extent or view offset\n");
         return -1;
     }
-    // Unlike the borrowed view, this narrowed view retains the allocation.
-    // It must remain valid after both caller-owned handles are released.
+    // Descriptor records retain two owning views of the same allocation.
+    // Each view must resolve its own offset after caller handles are released.
     ncnn::VkMat owning_view = weight;
     owning_view.w = view.w;
     owning_view.cstep = view.cstep;
@@ -667,12 +685,20 @@ static int test_weight_storage_recorded_subview()
     owning_view.nstep = view.nstep;
     owning_view.offset = view.offset;
 #endif
-    cmd.record_clone(owning_view, small_output, opt);
-    cmd.record_clone(weight, full_output, opt);
+    std::vector<ncnn::VkMat> bindings(3);
+    bindings[0] = owning_view;
+    bindings[1] = weight;
+    bindings[2] = result;
+    cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
+    cmd.record_clone(result, small_output, opt);
+    bindings.clear();
+    ncnn::Mat expected(7);
+    for (int i = 0; i < 7; i++)
+        ((float*)expected)[i] = ((const float*)input)[first + i] + ((const float*)input)[i];
     owning_view.release();
     weight.release();
     view.release();
-    if (cmd.submit_and_wait() || CompareMat(expected_view, small_output, 0.f) || CompareMat(input, full_output, 0.f) || cmd.reset())
+    if (cmd.submit_and_wait() || CompareMat(expected, small_output, 0.0001f) || cmd.reset())
     {
         fprintf(stderr, "test_weight_storage_recorded_subview failed to retain owning views\n");
         return -1;
@@ -724,11 +750,11 @@ public:
     void* mapping;
 };
 
-static int check_weight_storage_failure(ncnn::VkCompute& cmd, const ncnn::VkMat& weight, const ncnn::Mat& input, const ncnn::Option& opt, const char* operation, int allocations = 0)
+static int check_weight_storage_failure(ncnn::VkCompute& cmd, const ncnn::VkMat& weight, const ncnn::Mat& input, const ncnn::Option& opt, const char* operation, bool output_empty, int allocations = 0)
 {
-    if (cmd.submit_and_wait() == 0 || allocations > 1)
+    if (!output_empty || allocations > 1)
     {
-        fprintf(stderr, "test_weight_storage_allocation_failure error missing operation=%s\n", operation);
+        fprintf(stderr, "test_weight_storage_allocation_failure output not empty operation=%s\n", operation);
         return -1;
     }
     if (cmd.reset() != 0)
@@ -792,20 +818,13 @@ static int test_weight_storage_allocation_failure(bool disk)
     ncnn::Mat output;
     ncnn::VkMat device_output;
 
-    cmd.record_clone(ncnn::VkMat(), output, opt);
-    if (check_weight_storage_failure(cmd, src, input, opt, "clone empty") != 0)
-        return -1;
-    cmd.record_download(ncnn::VkMat(), output, opt);
-    if (check_weight_storage_failure(cmd, src, input, opt, "download empty") != 0)
-        return -1;
-
     ncnn::Option bad = opt;
     bad.blob_allocator = &cpu;
     cmd.record_clone(src, output, bad);
-    if (check_weight_storage_failure(cmd, src, input, opt, "clone cpu allocation") != 0)
+    if (check_weight_storage_failure(cmd, src, input, opt, "clone cpu allocation", output.empty()) != 0)
         return -1;
     cmd.record_download(src, output, bad);
-    if (check_weight_storage_failure(cmd, src, input, opt, "download cpu allocation") != 0)
+    if (check_weight_storage_failure(cmd, src, input, opt, "download cpu allocation", output.empty()) != 0)
         return -1;
 
     {
@@ -813,7 +832,7 @@ static int test_weight_storage_allocation_failure(bool disk)
         bad = opt;
         bad.staging_vkallocator = &failing;
         cmd.record_upload(input, device_output, bad);
-        if (check_weight_storage_failure(cmd, src, input, opt, "upload staging allocation", failing.allocations) != 0)
+        if (check_weight_storage_failure(cmd, src, input, opt, "upload staging allocation", device_output.empty(), failing.allocations) != 0)
             return -1;
     }
     {
@@ -825,7 +844,7 @@ static int test_weight_storage_allocation_failure(bool disk)
         src.data->mapped_ptr = 0;
         cmd.record_clone(src, output, bad);
         src.data->mapped_ptr = mapping;
-        if (check_weight_storage_failure(cmd, src, input, opt, "clone staging allocation", failing.allocations) != 0)
+        if (check_weight_storage_failure(cmd, src, input, opt, "clone staging allocation", output.empty(), failing.allocations) != 0)
             return -1;
     }
     {
@@ -833,7 +852,7 @@ static int test_weight_storage_allocation_failure(bool disk)
         bad = opt;
         bad.staging_vkallocator = &failing;
         cmd.record_upload(input, device_output, bad);
-        if (check_weight_storage_failure(cmd, src, input, opt, "upload staging mapping", failing.allocations) != 0)
+        if (check_weight_storage_failure(cmd, src, input, opt, "upload staging mapping", device_output.empty(), failing.allocations) != 0)
             return -1;
     }
     {
@@ -845,7 +864,7 @@ static int test_weight_storage_allocation_failure(bool disk)
         src.data->mapped_ptr = 0;
         cmd.record_clone(src, output, bad);
         src.data->mapped_ptr = mapping;
-        if (check_weight_storage_failure(cmd, src, input, opt, "clone staging mapping", failing.allocations) != 0)
+        if (check_weight_storage_failure(cmd, src, input, opt, "clone staging mapping", output.empty(), failing.allocations) != 0)
             return -1;
     }
     {
@@ -853,7 +872,7 @@ static int test_weight_storage_allocation_failure(bool disk)
         bad = opt;
         bad.blob_vkallocator = &failing;
         cmd.record_clone(src, device_output, bad);
-        if (check_weight_storage_failure(cmd, src, input, opt, "clone device allocation", failing.allocations) != 0)
+        if (check_weight_storage_failure(cmd, src, input, opt, "clone device allocation", device_output.empty(), failing.allocations) != 0)
             return -1;
     }
     {
@@ -864,7 +883,7 @@ static int test_weight_storage_allocation_failure(bool disk)
         bad.use_packing_layout = true;
         ncnn::VkMat packable(128, (size_t)4u, &blobs);
         cmd.record_download(packable, output, bad);
-        if (check_weight_storage_failure(cmd, src, input, opt, "download packing allocation", failing.allocations) != 0)
+        if (check_weight_storage_failure(cmd, src, input, opt, "download packing allocation", output.empty(), failing.allocations) != 0)
             return -1;
     }
     return 0;

@@ -85,10 +85,11 @@ Sizes are aligned to Vulkan requirements and checked against the memory limits.
 An explicit device cache smaller than the weights needed by one operation fails;
 it is not replaced by an automatic size.
 
-Once recording references the backing, its capacity is fixed. A later operation
-whose simultaneous bindings exceed that capacity fails instead of reallocating
-referenced storage or exceeding the budget. Reset the command, clear its weight
-cache, then configure a larger explicit cache for such workloads. Loading-time
+The first submission sizes the cache from the largest simultaneous working set
+in its recorded commands. Once allocated, its capacity is fixed. A later
+submission whose simultaneous bindings exceed that capacity fails instead of
+reallocating referenced storage or exceeding the budget. Reset the command, clear
+its weight cache, then configure a larger explicit cache for such workloads. Loading-time
 maximum working-set derivation is not implemented. Upload order and layer
 boundaries do not imply simultaneous use; the actual dispatch bindings determine
 which weights must fit together. Loading reserves the configured cache capacity
@@ -155,11 +156,23 @@ a loading error, clear and reload the model before inference. A GPU submission
 failure can discard the affected command cache; retaining it is not guaranteed.
 
 `VkCompute` owns both upload and compute recording, submission and completion.
-Cached dependencies and Vulkan commands are prepared incrementally while
-recording, without a speculative whole-command plan or a GPU submission.
-Submission fills and flushes bounded staging regions only after their previous
-GPU readers have completed, then submits the already-recorded tasks. It does not
-copy every weight into a separate retained staging allocation.
+Recording retains the individual bind, descriptor, push-constant, and dispatch
+records. Descriptor payloads use the native Vulkan layouts in each record's
+`data`; paged bindings additionally retain their `VkMat` views and the byte
+offsets to patch at submission. Ordinary bindings need no weight-reference arrays.
+`submit_and_wait()` validates their dependencies and capacity, allocates the
+exchange buffers, and prepares all Vulkan tasks before any GPU submission.
+Preparation errors return directly; they are not saved as a recording error.
+Call `reset()` before recording
+again after a failed submission. A pipeline bind through its dispatch is prepared
+as one contiguous range, so a cache switch cannot split pipeline state across
+command buffers.
+
+Execution fills and flushes bounded staging regions only after their previous
+GPU readers have completed, then submits the prepared tasks. It does not copy
+every weight into a separate retained staging allocation. Ordinary upload staging
+is also flushed in `submit_and_wait()`. Ordinary output allocation failures keep
+the existing empty-output convention; callers check outputs before using them.
 
 Ordinary work before the first paged operation joins the first compute task and
 waits for its uploads, unless a cross-queue cache-ownership release must precede
