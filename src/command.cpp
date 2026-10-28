@@ -522,7 +522,6 @@ public:
     VkCommandPool compute_command_pool;
 
     VkCommandBuffer compute_command_buffer;
-    VkCommandBuffer recording_command_buffer;
 
     VkFence compute_command_fence;
     bool compute_command_pending;
@@ -565,6 +564,7 @@ public:
 
         int type;
         VkCommandBuffer command_buffer;
+
         union
         {
             struct
@@ -625,12 +625,14 @@ public:
                 uint32_t size;
                 const void* values;
             } push_constants;
+
             struct
             {
                 uint32_t group_count_x;
                 uint32_t group_count_y;
                 uint32_t group_count_z;
             } dispatch;
+
             struct
             {
                 VkPipelineStageFlags src_stage;
@@ -704,9 +706,9 @@ int VkComputePrivate::allocate_upload_command_buffer(size_t task)
     VkCommandBufferAllocateInfo commandBufferAllocateInfo;
     commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     commandBufferAllocateInfo.pNext = 0;
-    commandBufferAllocateInfo.commandBufferCount = 1;
     commandBufferAllocateInfo.commandPool = pool;
     commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandBufferCount = 1;
     ret = vkAllocateCommandBuffers(device, &commandBufferAllocateInfo, command_buffer);
     if (ret != VK_SUCCESS)
     {
@@ -745,8 +747,8 @@ void VkComputePrivate::record_buffer_barrier(VkCommandBuffer command_buffer, VkP
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0] = barrier;
         record r;
-        r.command_buffer = command_buffer;
         r.type = record::TYPE_buffer_barrers;
+        r.command_buffer = command_buffer;
         r.buffer_barrers.src_stage = src_stage;
         r.buffer_barrers.dst_stage = dst_stage;
         r.buffer_barrers.barrier_count = 1;
@@ -770,8 +772,8 @@ void VkComputePrivate::record_copy_buffer(VkCommandBuffer command_buffer, VkBuff
         VkBufferCopy* regions = new VkBufferCopy[1];
         regions[0] = region;
         record r;
-        r.command_buffer = command_buffer;
         r.type = record::TYPE_copy_buffer;
+        r.command_buffer = command_buffer;
         r.copy_buffer.src = src;
         r.copy_buffer.dst = dst;
         r.copy_buffer.region_count = 1;
@@ -1119,7 +1121,7 @@ int VkComputePrivate::begin_compute_batch()
     const bool first = compute_command_buffers.empty();
     int task = create_compute_task(first);
     if (task >= 0)
-        recording_command_buffer = compute_command_buffers[task];
+        compute_command_buffer = compute_command_buffers[task];
     return task;
 }
 
@@ -1254,6 +1256,8 @@ void VkComputePrivate::drain_execution()
 void VkComputePrivate::clear_execution()
 {
     // All compute producers/consumers and uploads are proven complete.
+    if (!compute_command_buffers.empty())
+        compute_command_buffer = compute_command_buffers[0];
     for (size_t i = 0; i < compute_fences.size(); i++)
     {
         if (compute_fences[i] != compute_command_fence)
@@ -1295,7 +1299,6 @@ void VkComputePrivate::clear_execution()
     active_upload_waits.clear();
     active_compute_task = -1;
     weight_recording = false;
-    recording_command_buffer = compute_command_buffer;
 #if NCNN_BENCHMARK
     if (weight_start_time)
         NCNN_LOGE("weight cache read=%llu upload=%llu time=%.2fms", (unsigned long long)bytes_read, (unsigned long long)bytes_uploaded, get_current_time() - weight_start_time);
@@ -1348,7 +1351,6 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
 
     compute_command_pool = 0;
     compute_command_buffer = 0;
-    recording_command_buffer = 0;
     compute_command_fence = 0;
     compute_command_pending = false;
 
@@ -1366,8 +1368,9 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
 VkComputePrivate::~VkComputePrivate()
 {
     drain_execution();
-    if (compute_command_buffer)
-        vkResetCommandBuffer(compute_command_buffer, 0);
+    const VkCommandBuffer command_buffer = compute_command_buffers.empty() ? compute_command_buffer : compute_command_buffers[0];
+    if (command_buffer)
+        vkResetCommandBuffer(command_buffer, 0);
     clear_execution();
     clear_records();
     delete weight_cache;
@@ -1441,9 +1444,9 @@ int VkComputePrivate::init()
         VkCommandBufferAllocateInfo commandBufferAllocateInfo;
         commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         commandBufferAllocateInfo.pNext = 0;
-        commandBufferAllocateInfo.commandBufferCount = 1;
         commandBufferAllocateInfo.commandPool = compute_command_pool;
         commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        commandBufferAllocateInfo.commandBufferCount = 1;
 
         VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &compute_command_buffer);
         if (ret != VK_SUCCESS)
@@ -1452,8 +1455,6 @@ int VkComputePrivate::init()
             return -1;
         }
     }
-
-    recording_command_buffer = compute_command_buffer;
 
     // compute_command_fence
     {
@@ -1489,7 +1490,6 @@ int VkComputePrivate::init()
 
 int VkComputePrivate::begin_command_buffer()
 {
-    recording_command_buffer = compute_command_buffer;
     VkCommandBufferBeginInfo commandBufferBeginInfo;
     commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     commandBufferBeginInfo.pNext = 0;
@@ -2071,8 +2071,8 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             d->download_post_mats.push_back(dst);
 
             VkComputePrivate::record r;
-            r.command_buffer = 0;
             r.type = VkComputePrivate::record::TYPE_post_cast_bfloat16_to_float32;
+            r.command_buffer = 0;
             r.post_cast_bfloat16_to_float32.download_post_mat_bf16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_bfloat16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
             r.post_cast_bfloat16_to_float32.num_threads = opt.num_threads;
@@ -2096,8 +2096,8 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             d->download_post_mats.push_back(dst);
 
             VkComputePrivate::record r;
-            r.command_buffer = 0;
             r.type = VkComputePrivate::record::TYPE_post_cast_float16_to_float32;
+            r.command_buffer = 0;
             r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
             r.post_cast_float16_to_float32.num_threads = opt.num_threads;
@@ -2215,14 +2215,14 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -2242,8 +2242,8 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
     // post memcpy device to dst
     {
         VkComputePrivate::record r;
-        r.command_buffer = 0;
         r.type = VkComputePrivate::record::TYPE_post_download;
+        r.command_buffer = 0;
         r.post_download.download_post_buffer_mat_offset = d->download_post_buffers.size() - 1;
         r.post_download.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
         d->delayed_records.push_back(r);
@@ -2325,7 +2325,7 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
     region.srcOffset = source.offset;
     region.dstOffset = dst.buffer_offset();
     region.size = std::min(source.range, dst.buffer_capacity());
-    d->record_copy_buffer(d->recording_command_buffer, source.buffer, dst.buffer(), region, src_stage, src_barrier);
+    d->record_copy_buffer(d->compute_command_buffer, source.buffer, dst.buffer(), region, src_stage, src_barrier);
 }
 
 void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Option& opt)
@@ -2364,14 +2364,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -2408,14 +2408,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -2452,14 +2452,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdCopyImage(d->recording_command_buffer, src.image(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, regions);
+            vkCmdCopyImage(d->compute_command_buffer, src.image(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, regions);
             delete[] regions;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_copy_image;
+            r.command_buffer = d->compute_command_buffer;
             r.copy_image.src = src.image();
             r.copy_image.src_layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             r.copy_image.dst = dst.image();
@@ -2514,14 +2514,14 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -2557,14 +2557,14 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -2632,14 +2632,14 @@ void VkCompute::record_clone(const VkMat& src, VkImageMat& dst, const Option& op
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdCopyBufferToImage(d->recording_command_buffer, source.buffer, dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region_count, regions);
+            vkCmdCopyBufferToImage(d->compute_command_buffer, source.buffer, dst.image(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, region_count, regions);
             delete[] regions;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_copy_buffer_to_image;
+            r.command_buffer = d->compute_command_buffer;
             r.copy_buffer_to_image.src = source.buffer;
             r.copy_buffer_to_image.dst = dst.image();
             r.copy_buffer_to_image.layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -2690,14 +2690,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -2765,14 +2765,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdCopyImageToBuffer(d->recording_command_buffer, src.image(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst.buffer(), region_count, regions);
+            vkCmdCopyImageToBuffer(d->compute_command_buffer, src.image(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, dst.buffer(), region_count, regions);
             delete[] regions;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_copy_image_to_buffer;
+            r.command_buffer = d->compute_command_buffer;
             r.copy_image_to_buffer.src = src.image();
             r.copy_image_to_buffer.layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             r.copy_image_to_buffer.dst = dst.buffer();
@@ -2803,8 +2803,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
     record_pipeline(pipeline, std::vector<VkMat>(), bindings, constants, dispatcher);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants,
-                                const VkMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
 {
     if (d->execution_error)
         return;
@@ -2814,8 +2813,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants,
-                                const VkImageMat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
 {
     if (d->execution_error)
         return;
@@ -2825,8 +2823,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
 
-void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants,
-                                const Mat& dispatcher)
+void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const Mat& dispatcher)
 {
     if (d->execution_error)
         return;
@@ -2866,7 +2863,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (binding_type == 1)
         {
-            const VkMat& binding = buffer_bindings[buffer_index++];
+            const VkMat& binding = buffer_bindings[buffer_index];
+            buffer_index++;
             // Empty descriptors use device-owned placeholders below. They are
             // not accessed by this dispatch and have no mutable command state.
             if (binding.empty())
@@ -2878,7 +2876,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
         else if (binding_type == 2)
         {
-            const VkImageMat& binding = image_bindings[image_index++];
+            const VkImageMat& binding = image_bindings[image_index];
+            image_index++;
             if (binding.empty())
                 continue;
 
@@ -2892,7 +2891,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
         else // if (binding_type == 3)
         {
-            const VkImageMat& binding = image_bindings[image_index++];
+            const VkImageMat& binding = image_bindings[image_index];
+            image_index++;
             if (binding.empty())
                 continue;
 
@@ -2925,16 +2925,16 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdBindPipeline(d->recording_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+            vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
 #if NCNN_COVERAGE
-            vkdev->bind_shader_coverage(d->recording_command_buffer, pipeline->pipeline_layout());
+            vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
 #endif
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_bind_pipeline;
+            r.command_buffer = d->compute_command_buffer;
             r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_pipeline.pipeline = pipeline->pipeline();
 #if NCNN_COVERAGE
@@ -2949,15 +2949,15 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         std::vector<unsigned char> descriptorInfos(sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count);
         unsigned char* p_descriptorInfos = descriptorInfos.data();
-        int bi = 0;
-        int ii = 0;
+        int buffer_index = 0;
+        int image_index = 0;
         for (int i = 0; i < binding_count; i++)
         {
             int binding_type = shader_info.binding_types[i];
             if (binding_type == 1)
             {
-                const VkMat& binding = buffer_bindings[bi].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[bi];
-                bi++;
+                const VkMat& binding = buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[buffer_index];
+                buffer_index++;
                 VkDescriptorBufferInfo descriptorBufferInfo;
                 descriptorBufferInfo.buffer = binding.buffer();
                 descriptorBufferInfo.offset = binding.buffer_offset();
@@ -2973,8 +2973,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             }
             else // if (binding_type == 2 || binding_type == 3)
             {
-                const VkImageMat& binding = image_bindings[ii].empty() ? vkdev->get_dummy_image() : image_bindings[ii];
-                ii++;
+                const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
+                image_index++;
                 // The descriptor layout supplies the immutable nearest sampler.
                 VkDescriptorImageInfo descriptorImageInfo;
                 descriptorImageInfo.sampler = 0;
@@ -2987,17 +2987,17 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(d->recording_command_buffer, pipeline->descriptor_update_template(), pipeline->pipeline_layout(), 0, descriptorInfos.data());
+            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(d->compute_command_buffer, pipeline->descriptor_update_template(), pipeline->pipeline_layout(), 0, descriptorInfos.data());
         }
         else
         {
             unsigned char* data = new unsigned char[descriptorInfos.size()];
             memcpy(data, descriptorInfos.data(), descriptorInfos.size());
-            VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             int* binding_types = new int[binding_count];
             memcpy(binding_types, shader_info.binding_types, binding_count * sizeof(int));
+            VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
+            r.command_buffer = d->compute_command_buffer;
             r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
             r.bind_descriptorsets.descriptorset_layout = pipeline->descriptorset_layout();
@@ -3014,7 +3014,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPushConstants(d->recording_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_count * sizeof(vk_constant_type), constants.data());
+            vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_count * sizeof(vk_constant_type), constants.data());
         }
         else
         {
@@ -3022,8 +3022,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             unsigned char* values = new unsigned char[size];
             memcpy(values, constants.data(), size);
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_push_constants;
+            r.command_buffer = d->compute_command_buffer;
             r.push_constants.pipeline_layout = pipeline->pipeline_layout();
             r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
             r.push_constants.size = size;
@@ -3040,17 +3040,17 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdDispatch(d->recording_command_buffer, group_count_x, group_count_y, group_count_z);
+            vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
 #if NCNN_COVERAGE
             if (d->weight_recording)
-                vkdev->record_shader_coverage_barrier(d->recording_command_buffer);
+                vkdev->record_shader_coverage_barrier(d->compute_command_buffer);
 #endif
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_dispatch;
+            r.command_buffer = d->compute_command_buffer;
             r.dispatch.group_count_x = group_count_x;
             r.dispatch.group_count_y = group_count_y;
             r.dispatch.group_count_z = group_count_z;
@@ -3071,14 +3071,14 @@ void VkCompute::record_write_timestamp(uint32_t query)
     {
         if (d->query_pool)
         {
-            vkCmdWriteTimestamp(d->recording_command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, d->query_pool, query);
+            vkCmdWriteTimestamp(d->compute_command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, d->query_pool, query);
         }
     }
     else
     {
         VkComputePrivate::record r;
-        r.command_buffer = d->recording_command_buffer;
         r.type = VkComputePrivate::record::TYPE_write_timestamp;
+        r.command_buffer = d->compute_command_buffer;
         r.write_timestamp.query = query;
         d->delayed_records.push_back(r);
     }
@@ -3115,14 +3115,14 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -3157,22 +3157,22 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
     const uint32_t group_count_z = (dst.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
     if (vkdev->info.support_VK_KHR_push_descriptor())
     {
-        vkCmdBindPipeline(d->recording_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+        vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
 #if NCNN_COVERAGE
-        vkdev->bind_shader_coverage(d->recording_command_buffer, pipeline->pipeline_layout());
+        vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
 #endif
-        vkdev->vkCmdPushDescriptorSetWithTemplateKHR(d->recording_command_buffer, pipeline->descriptor_update_template(), pipeline->pipeline_layout(), 0, &info);
-        vkCmdDispatch(d->recording_command_buffer, group_count_x, group_count_y, group_count_z);
+        vkdev->vkCmdPushDescriptorSetWithTemplateKHR(d->compute_command_buffer, pipeline->descriptor_update_template(), pipeline->pipeline_layout(), 0, &info);
+        vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
 #if NCNN_COVERAGE
         if (d->weight_recording)
-            vkdev->record_shader_coverage_barrier(d->recording_command_buffer);
+            vkdev->record_shader_coverage_barrier(d->compute_command_buffer);
 #endif
     }
     else
     {
         VkComputePrivate::record r;
-        r.command_buffer = d->recording_command_buffer;
         r.type = VkComputePrivate::record::TYPE_bind_pipeline;
+        r.command_buffer = d->compute_command_buffer;
         r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
         r.bind_pipeline.pipeline = pipeline->pipeline();
 #if NCNN_COVERAGE
@@ -3323,7 +3323,7 @@ int VkCompute::submit_and_wait()
 #if NCNN_BENCHMARK
             if (d->query_pool)
             {
-                vkCmdResetQueryPool(d->recording_command_buffer, d->query_pool, 0, d->query_count);
+                vkCmdResetQueryPool(d->compute_command_buffer, d->query_pool, 0, d->query_count);
             }
 #endif // NCNN_BENCHMARK
 
@@ -3411,7 +3411,8 @@ int VkCompute::reset()
 #endif // NCNN_BENCHMARK
     // Discard command references before releasing their source and exchange views.
     {
-        VkResult ret = vkResetCommandBuffer(d->compute_command_buffer, 0);
+        const VkCommandBuffer command_buffer = d->compute_command_buffers.empty() ? d->compute_command_buffer : d->compute_command_buffers[0];
+        VkResult ret = vkResetCommandBuffer(command_buffer, 0);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
@@ -3486,7 +3487,7 @@ int VkCompute::reset()
 #if NCNN_BENCHMARK
         if (d->query_pool)
         {
-            vkCmdResetQueryPool(d->recording_command_buffer, d->query_pool, 0, d->query_count);
+            vkCmdResetQueryPool(d->compute_command_buffer, d->query_pool, 0, d->query_count);
         }
 #endif // NCNN_BENCHMARK
     }
@@ -3535,7 +3536,7 @@ int VkCompute::create_query_pool(uint32_t _query_count)
     {
         if (d->query_pool)
         {
-            vkCmdResetQueryPool(d->recording_command_buffer, d->query_pool, 0, d->query_count);
+            vkCmdResetQueryPool(d->compute_command_buffer, d->query_pool, 0, d->query_count);
         }
     }
 
@@ -3591,14 +3592,14 @@ void VkCompute::barrier_readwrite(const VkMat& binding)
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -3641,14 +3642,14 @@ void VkCompute::barrier_readwrite(const VkImageMat& binding)
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -3668,8 +3669,7 @@ void VkCompute::barrier_readonly(const VkImageMat& binding)
     if (d->execution_error)
         return;
 
-    if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-            || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+    if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->image_layout != VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
     {
         // image layout transform any @ any to shader-readonly-optimal @ compute
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
@@ -3693,14 +3693,14 @@ void VkCompute::barrier_readonly(const VkImageMat& binding)
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->recording_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
         {
             VkComputePrivate::record r;
-            r.command_buffer = d->recording_command_buffer;
             r.type = VkComputePrivate::record::TYPE_image_barrers;
+            r.command_buffer = d->compute_command_buffer;
             r.image_barrers.src_stage = src_stage;
             r.image_barrers.dst_stage = dst_stage;
             r.image_barrers.barrier_count = 1;
@@ -3852,9 +3852,9 @@ int VkTransferPrivate::init()
         VkCommandBufferAllocateInfo commandBufferAllocateInfo;
         commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
         commandBufferAllocateInfo.pNext = 0;
-        commandBufferAllocateInfo.commandBufferCount = 1;
         commandBufferAllocateInfo.commandPool = compute_command_pool;
         commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        commandBufferAllocateInfo.commandBufferCount = 1;
 
         VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &compute_command_buffer);
         if (ret != VK_SUCCESS)
@@ -3902,9 +3902,9 @@ int VkTransferPrivate::init()
             VkCommandBufferAllocateInfo commandBufferAllocateInfo;
             commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
             commandBufferAllocateInfo.pNext = 0;
-            commandBufferAllocateInfo.commandBufferCount = 1;
             commandBufferAllocateInfo.commandPool = transfer_command_pool;
             commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+            commandBufferAllocateInfo.commandBufferCount = 1;
 
             VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &upload_command_buffer);
             if (ret != VK_SUCCESS)
@@ -4183,9 +4183,9 @@ void VkTransferPrivate::record_copy(const VkBufferMemory& src, const VkBufferMem
     // record staging to device
     {
         VkBufferCopy region;
-        region.size = size;
         region.srcOffset = src.offset;
         region.dstOffset = dst.offset;
+        region.size = size;
 
         vkCmdCopyBuffer(command_buffer, src.buffer, dst.buffer, 1, &region);
     }

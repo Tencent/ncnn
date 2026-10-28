@@ -3392,7 +3392,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
                 d->opt.staging_vkallocator = d->local_staging_vkallocator;
             }
 
-            VkCompute cmd(d->net->vulkan_device());
+            ncnn::VkCompute cmd(d->net->vulkan_device());
             if (use_weight_cache)
                 cmd.set_weight_memory_limit(weight_device_memory_limit, weight_host_memory_limit, d->opt.weight_device_cache_size, d->opt.weight_host_cache_size);
 
