@@ -776,6 +776,7 @@ set(pnnx_SRCS
     ${pnnx_pass_level5_SRCS}
 
     pass_ncnn.cpp
+    ncnn_model.cpp
     save_ncnn.cpp
     ${pnnx_pass_ncnn_SRCS}
 )
