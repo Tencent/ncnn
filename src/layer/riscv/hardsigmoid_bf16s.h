@@ -36,8 +36,8 @@ static void hardsigmoid_bf16s(Mat& bottom_top_blob, float alpha, float beta, flo
             vbool8_t _lower = __riscv_vmflt_vf_f32m4_b8(_p, lower, vl);
             vbool8_t _higher = __riscv_vmfgt_vf_f32m4_b8(_p, upper, vl);
             vbool8_t _apply = __riscv_vmnor_mm_b8(_lower, _higher, vl);
-            _p = __riscv_vfmerge_vfm_f32m4(_p, .0f, _lower, vl);
             _p = __riscv_vfmerge_vfm_f32m4(_p, 1.f, _higher, vl);
+            _p = __riscv_vfmerge_vfm_f32m4(_p, .0f, _lower, vl);
 
             _p = __riscv_vfadd_vf_f32m4_mu(_apply, _p, __riscv_vfmul_vf_f32m4_m(_apply, _p, alpha, vl), beta, vl);
 
