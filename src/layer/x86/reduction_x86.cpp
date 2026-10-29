@@ -27,6 +27,9 @@ namespace ncnn {
 
 int Reduction_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    if (operation == ReductionOp_LogSumExp)
+        return Reduction::forward(bottom_blob, top_blob, opt);
+
     bool reduce_w, reduce_h, reduce_d, reduce_c;
     int outdims, outw, outh, outd, outc;
     resolve_reduce_flags_and_output_shape(bottom_blob, reduce_w, reduce_h, reduce_d, reduce_c, outdims, outw, outh, outd, outc);
