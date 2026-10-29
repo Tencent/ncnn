@@ -6295,6 +6295,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_storage)
     {
         custom_exts += "#extension GL_EXT_shader_8bit_storage: require\n";
+        custom_exts += "#pragma use_storage_buffer\n";
     }
     if (opt.use_int8_arithmetic)
     {
