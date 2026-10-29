@@ -1354,25 +1354,20 @@ static int weight_buffer_memory_size(const VulkanDevice* vkdev, size_t size, siz
     return 0;
 }
 
-// fit cache capacity to memory requirements, including padding
-int fit_weight_capacity(const VulkanDevice* vkdev, size_t memory_limit, bool automatic, bool host, size_t& capacity)
+// fit buffer capacity to memory requirements, including padding
+int fit_weight_buffer_size(const VulkanDevice* vkdev, size_t memory_limit, bool host, size_t& capacity)
 {
     if (!capacity)
         return 0;
+
     size_t limit = weight_buffer_size_limit(vkdev, host);
     if (memory_limit)
         limit = std::min(limit, memory_limit);
     const size_t alignment = weight_buffer_alignment(vkdev);
     limit = limit / alignment * alignment;
     if (capacity > limit)
-    {
-        if (!automatic)
-        {
-            NCNN_LOGE("weight cache capacity %llu exceeds memory limit %llu", (unsigned long long)capacity, (unsigned long long)limit);
-            return -1;
-        }
         capacity = limit;
-    }
+
     while (capacity)
     {
         size_t allocation;
@@ -1381,11 +1376,6 @@ int fit_weight_capacity(const VulkanDevice* vkdev, size_t memory_limit, bool aut
             return ret;
         if (allocation <= limit)
             return 0;
-        if (!automatic)
-        {
-            NCNN_LOGE("weight cache capacity %llu exceeds memory limit %llu", (unsigned long long)capacity, (unsigned long long)limit);
-            return -1;
-        }
         const size_t excess = allocation - limit;
         if (excess > (size_t)-1 - alignment)
             return -1;
@@ -1394,6 +1384,7 @@ int fit_weight_capacity(const VulkanDevice* vkdev, size_t memory_limit, bool aut
             return -1;
         capacity -= shrink;
     }
+
     return -1;
 }
 
@@ -1408,50 +1399,16 @@ void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer)
     delete buffer;
 }
 
-static int allocate_weight_buffer_memory(const VulkanDevice* vkdev, VkBufferMemory* buffer)
-{
-    VkMemoryRequirements requirements;
-    vkGetBufferMemoryRequirements(vkdev->vkdevice(), buffer->buffer, &requirements);
-    VkMemoryAllocateInfo memoryAllocateInfo;
-    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    memoryAllocateInfo.pNext = 0;
-    memoryAllocateInfo.allocationSize = requirements.size;
-    memoryAllocateInfo.memoryTypeIndex = buffer->memory_type_index;
-    VkDeviceMemory memory;
-    VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkAllocateMemory failed %d", ret);
-        return -100;
-    }
-    buffer->memory = memory;
-    ret = vkBindBufferMemory(vkdev->vkdevice(), buffer->buffer, memory, 0);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkBindBufferMemory failed %d", ret);
-        return -100;
-    }
-    if (vkdev->is_mappable(buffer->memory_type_index))
-    {
-        void* mapped_ptr = 0;
-        ret = vkMapMemory(vkdev->vkdevice(), buffer->memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkMapMemory failed %d", ret);
-            return -100;
-        }
-        buffer->mapped_ptr = mapped_ptr;
-    }
-    return 0;
-}
-
 VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t memory_limit, size_t& allocation_size, bool concurrent)
 {
     allocation_size = 0;
+
+    // create buffer
     VkBufferMemory* ptr = new VkBufferMemory;
     ptr->buffer = 0;
     ptr->memory = 0;
     ptr->mapped_ptr = 0;
+
     VkMemoryRequirements requirements;
     int ret = create_weight_buffer_handle(vkdev, size, !unified && storage_type == 1, concurrent, &ptr->buffer, &requirements);
     if (ret != 0)
@@ -1466,6 +1423,8 @@ VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int
         destroy_weight_buffer(vkdev, ptr);
         return 0;
     }
+
+    // find memory type
     VkMemoryPropertyFlags required = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     VkMemoryPropertyFlags preferred = 0;
     VkMemoryPropertyFlags avoided = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
@@ -1481,37 +1440,76 @@ VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int
         preferred = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
         avoided = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
     }
-    const uint32_t memory_type = vkdev->find_memory_index(requirements.memoryTypeBits, required, preferred, avoided);
+
+    const uint32_t memory_type_index = vkdev->find_memory_index(requirements.memoryTypeBits, required, preferred, avoided);
     const VkPhysicalDeviceMemoryProperties& properties = vkdev->info.physicalDeviceMemoryProperties();
-    if (memory_type == (uint32_t)-1 || (!unified && (memory_limit || vkdev->info.type() == 0) && storage_type == 1 && (properties.memoryHeaps[properties.memoryTypes[memory_type].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
+    if (memory_type_index == (uint32_t)-1 || (!unified && (memory_limit || vkdev->info.type() == 0) && storage_type == 1 && (properties.memoryHeaps[properties.memoryTypes[memory_type_index].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
     {
         NCNN_LOGE("no suitable weight memory type for storage %d", storage_type);
         destroy_weight_buffer(vkdev, ptr);
         return 0;
     }
-    if (requirements.size > properties.memoryHeaps[properties.memoryTypes[memory_type].heapIndex].size)
+    if (requirements.size > properties.memoryHeaps[properties.memoryTypes[memory_type_index].heapIndex].size)
     {
         NCNN_LOGE("weight allocation exceeds memory heap size");
         destroy_weight_buffer(vkdev, ptr);
         return 0;
     }
+
     ptr->offset = 0;
     ptr->capacity = alignSize(size, weight_buffer_alignment(vkdev));
-    ptr->memory_type_index = memory_type;
+    ptr->memory_type_index = memory_type_index;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     ptr->refcount = 0;
     ptr->storage_type = storage_type;
     if (unified)
         ptr->storage_type = 0;
+
+    // allocate memory
     {
-        ret = allocate_weight_buffer_memory(vkdev, ptr);
-        if (ret != 0)
+        VkMemoryAllocateInfo memoryAllocateInfo;
+        memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        memoryAllocateInfo.pNext = 0;
+        memoryAllocateInfo.allocationSize = requirements.size;
+        memoryAllocateInfo.memoryTypeIndex = ptr->memory_type_index;
+
+        VkDeviceMemory memory;
+        VkResult ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+        if (ret != VK_SUCCESS)
         {
+            NCNN_LOGE("vkAllocateMemory failed %d", ret);
+            destroy_weight_buffer(vkdev, ptr);
+            return 0;
+        }
+        ptr->memory = memory;
+    }
+
+    // bind buffer memory
+    {
+        VkResult ret = vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkBindBufferMemory failed %d", ret);
             destroy_weight_buffer(vkdev, ptr);
             return 0;
         }
     }
+
+    // map memory
+    if (vkdev->is_mappable(ptr->memory_type_index))
+    {
+        void* mapped_ptr = 0;
+        VkResult ret = vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, VK_WHOLE_SIZE, 0, &mapped_ptr);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkMapMemory failed %d", ret);
+            destroy_weight_buffer(vkdev, ptr);
+            return 0;
+        }
+        ptr->mapped_ptr = mapped_ptr;
+    }
+
     allocation_size = (size_t)requirements.size;
     return ptr;
 }
@@ -1908,7 +1906,7 @@ int VkWeightAllocatorPrivate::allocate_resident(size_t size, int storage_type, V
         if (aligned_size > available)
             return 0;
         size_t capacity = std::min(available, std::max(aligned_size, block_size));
-        int ret = fit_weight_capacity(vkdev, available, true, storage_type == 1, capacity);
+        int ret = fit_weight_buffer_size(vkdev, available, storage_type == 1, capacity);
         if (ret || capacity < aligned_size)
             return 0;
         size_t allocation_size;

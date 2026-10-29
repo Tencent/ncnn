@@ -20,7 +20,7 @@
 namespace ncnn {
 
 size_t weight_buffer_alignment(const VulkanDevice* vkdev);
-int fit_weight_capacity(const VulkanDevice* vkdev, size_t memory_limit, bool automatic, bool host, size_t& capacity);
+int fit_weight_buffer_size(const VulkanDevice* vkdev, size_t memory_limit, bool host, size_t& capacity);
 VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t memory_limit, size_t& allocation_size, bool concurrent);
 void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
 int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size);
@@ -40,31 +40,31 @@ static bool is_deferred_buffer(const VkBufferMemory* memory)
     return memory && memory->storage_type != 0 && memory->source_size != 0;
 }
 
-static bool needs_host_copy(const VkMat& source)
+static bool needs_host_copy(const VkMat& src)
 {
-    return source.data->storage_type == 2 || !source.buffer();
+    return src.data->storage_type == 2 || !src.buffer();
 }
 
-static int validate_weight_binding(const VkMat& source, const VulkanDevice* vkdev)
+static int validate_weight_binding(const VkMat& src, const VulkanDevice* vkdev)
 {
-    const VkBufferMemory* src = source.data;
+    const VkBufferMemory* ptr = src.data;
     const size_t alignment = weight_buffer_alignment(vkdev);
-    if (source.allocator && source.allocator->vkdev != vkdev)
+    if (src.allocator && src.allocator->vkdev != vkdev)
     {
         NCNN_LOGE("weight source and command must use the same Vulkan device");
         return -1;
     }
-    if (src->storage_type == 2 && !(src->access_flags & VK_ACCESS_HOST_READ_BIT))
+    if (ptr->storage_type == 2 && !(ptr->access_flags & VK_ACCESS_HOST_READ_BIT))
     {
         NCNN_LOGE("file weights must be finalized before recording");
         return -1;
     }
-    if (!is_deferred_buffer(src) || source.offset > src->source_size
-            || source.buffer_capacity() > src->source_size - source.offset
-            || src->source_size > (size_t)-1 - alignment
-            || (src->storage_type != 2 && src->storage_type != 1)
-            || (needs_host_copy(source) && !src->source_ptr)
-            || (!needs_host_copy(source) && alignSize(src->source_size, 4) > src->capacity))
+    if (!is_deferred_buffer(ptr) || src.offset > ptr->source_size
+            || src.buffer_capacity() > ptr->source_size - src.offset
+            || ptr->source_size > (size_t)-1 - alignment
+            || (ptr->storage_type != 2 && ptr->storage_type != 1)
+            || (needs_host_copy(src) && !ptr->source_ptr)
+            || (!needs_host_copy(src) && alignSize(ptr->source_size, 4) > ptr->capacity))
     {
         NCNN_LOGE("invalid deferred buffer binding");
         return -1;
@@ -78,13 +78,13 @@ public:
     VkComputePrivate(const VulkanDevice* _vkdev);
     ~VkComputePrivate();
 
-    int init(bool weight_upload = false);
+    int init();
+    int init_weight_upload();
     int begin_command_buffer();
     int end_command_buffer();
 
+    int record_submit_compute();
     int record_resolve(const VkMat& src, VkMat& dst);
-
-    int close_compute_task();
 
     void flush_records();
     void clear_records();
@@ -98,10 +98,40 @@ public:
 
     VkCommandPool compute_command_pool;
 
-    // compute batches are appended in recording order
+    // command buffers are appended in recording order
     std::vector<VkCommandBuffer> compute_command_buffers;
-    std::vector<VkFence> compute_fences;
-    std::vector<bool> compute_pending;
+    std::vector<VkFence> compute_command_fences;
+    std::vector<bool> compute_command_pending;
+    int compute_command_buffer_index;
+
+    std::vector<VkSemaphore> compute_upload_semaphores;
+    std::vector<VkSemaphore> compute_wait_semaphores;
+
+    VkCommandPool transfer_command_pool;
+    uint32_t transfer_queue_family_index;
+
+    std::vector<VkCommandBuffer> upload_command_buffers;
+    std::vector<VkFence> upload_command_fences;
+    std::vector<bool> upload_command_pending;
+    std::vector<VkSemaphore> upload_compute_semaphores;
+
+    // owns all compute and upload synchronization semaphores
+    std::vector<VkSemaphore> execution_semaphores;
+    bool executing;
+    int execution_error;
+
+    VkAllocator* local_weight_vkallocator;
+    VkAllocator* local_staging_vkallocator;
+    VkMat weight_staging_buffer;
+    std::vector<VkMat> weight_buffers;
+    int weight_wait_compute_index;
+    int weight_last_compute_index;
+    VkSemaphore weight_upload_wait_semaphore;
+    bool use_weight_upload_online;
+
+    std::vector<VkMat> upload_src_buffers;
+    // external views with command-owned metadata copies
+    std::vector<VkMat> upload_dst_buffers;
 
     std::vector<VkMat> upload_staging_buffers;
     std::vector<VkMat> download_post_buffers;
@@ -244,18 +274,18 @@ public:
 
             struct
             {
-                size_t source_index;
-                size_t target_index;
-                size_t source_offset;
+                size_t src_index;
+                size_t dst_index;
+                size_t src_offset;
                 size_t size;
             } host_copy;
             struct
             {
-                int task;
+                int command_buffer_index;
             } wait;
             struct
             {
-                int task;
+                int command_buffer_index;
                 uint32_t wait_semaphore_count;
                 const VkSemaphore* wait_semaphores;
                 VkSemaphore signal_semaphore;
@@ -290,37 +320,7 @@ public:
     uint32_t query_count;
     VkQueryPool query_pool;
     bool query_results_ready;
-#endif // NCNN_BENCHMARK
 
-    VkAllocator* local_weight_vkallocator;
-    VkAllocator* local_staging_vkallocator;
-    VkMat weight_staging_buffer;
-    std::vector<VkMat> weight_buffers;
-    int weight_compute_task;
-    int weight_last_compute_task;
-    VkSemaphore weight_upload_wait_semaphore;
-
-    std::vector<VkSemaphore> compute_upload_semaphores;
-    int active_compute_task;
-    bool use_weight_upload_online;
-    std::vector<VkSemaphore> compute_wait_semaphores;
-
-    VkCommandPool transfer_command_pool;
-    uint32_t transfer_queue_family_index;
-    std::vector<VkCommandBuffer> upload_command_buffers;
-    std::vector<VkFence> upload_fences;
-    std::vector<VkSemaphore> upload_compute_semaphores;
-    std::vector<bool> upload_pending;
-    std::vector<VkMat> upload_sources;
-    // external views with command-owned metadata copies
-    std::vector<VkMat> upload_targets;
-
-    // owns all compute and upload synchronization semaphores
-    std::vector<VkSemaphore> execution_semaphores;
-    bool executing;
-    int execution_error;
-
-#if NCNN_BENCHMARK
     uint64_t bytes_read;
     uint64_t bytes_uploaded;
     double weight_start_time;
@@ -332,8 +332,26 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
 {
     compute_command_pool = 0;
     compute_command_buffers.resize(1, 0);
-    compute_fences.resize(1, 0);
-    compute_pending.resize(1, false);
+    compute_command_fences.resize(1, 0);
+    compute_command_pending.resize(1, false);
+    compute_command_buffer_index = -1;
+
+    compute_upload_semaphores.resize(1, 0);
+
+    transfer_command_pool = 0;
+    transfer_queue_family_index = vkdev->info.transfer_queue_family_index();
+
+    executing = false;
+    execution_error = 0;
+
+    local_weight_vkallocator = 0;
+    local_staging_vkallocator = 0;
+    weight_wait_compute_index = -1;
+    weight_last_compute_index = -1;
+    weight_upload_wait_semaphore = 0;
+    use_weight_upload_online = false;
+
+    recorded_count = 0;
 
     pending_dispatch_total = 0;
 
@@ -341,25 +359,11 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
     query_count = 0;
     query_pool = 0;
     query_results_ready = false;
-#endif // NCNN_BENCHMARK
 
-    local_weight_vkallocator = 0;
-    local_staging_vkallocator = 0;
-    recorded_count = 0;
-    compute_upload_semaphores.resize(1, 0);
-    transfer_command_pool = 0;
-    transfer_queue_family_index = vkdev->info.transfer_queue_family_index();
-#if NCNN_BENCHMARK
-    bytes_read = bytes_uploaded = 0;
+    bytes_read = 0;
+    bytes_uploaded = 0;
     weight_start_time = 0;
-#endif
-    active_compute_task = -1;
-    weight_compute_task = -1;
-    weight_last_compute_task = -1;
-    weight_upload_wait_semaphore = 0;
-    use_weight_upload_online = false;
-    executing = false;
-    execution_error = 0;
+#endif // NCNN_BENCHMARK
 
     init();
 }
@@ -418,57 +422,15 @@ VkComputePrivate::~VkComputePrivate()
     }
 #endif // NCNN_BENCHMARK
 
-    vkDestroyFence(vkdev->vkdevice(), compute_fences[0], 0);
+    vkDestroyFence(vkdev->vkdevice(), compute_command_fences[0], 0);
 
     if (compute_command_buffers[0])
         vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffers[0]);
     vkDestroyCommandPool(vkdev->vkdevice(), compute_command_pool, 0);
 }
 
-int VkComputePrivate::init(bool weight_upload)
+int VkComputePrivate::init()
 {
-    if (weight_upload)
-    {
-        if (use_weight_upload_online)
-            return 0;
-
-        use_weight_upload_online = true;
-        if (!vkdev->info.support_VK_KHR_push_descriptor())
-        {
-            int ret = begin_command_buffer();
-            if (ret != 0)
-                return ret;
-#if NCNN_BENCHMARK
-            if (query_pool)
-                vkCmdResetQueryPool(compute_command_buffers[0], query_pool, 0, query_count);
-#endif
-        }
-        transfer_queue_family_index = vkdev->info.transfer_queue_family_index();
-#if NCNN_BENCHMARK
-        bytes_read = bytes_uploaded = 0;
-        weight_start_time = get_current_time();
-#endif
-
-        // transfer command pool
-        {
-            VkCommandPoolCreateInfo commandPoolCreateInfo;
-            commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-            commandPoolCreateInfo.pNext = 0;
-            commandPoolCreateInfo.flags = 0;
-            commandPoolCreateInfo.queueFamilyIndex = transfer_queue_family_index;
-
-            VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &transfer_command_pool);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkCreateCommandPool failed %d", ret);
-                return ret;
-            }
-        }
-
-        active_compute_task = 0;
-        return 0;
-    }
-
     // compute_command_pool
     {
         VkCommandPoolCreateInfo commandPoolCreateInfo;
@@ -502,14 +464,14 @@ int VkComputePrivate::init(bool weight_upload)
         }
     }
 
-    // compute_fences
+    // compute_command_fences
     {
         VkFenceCreateInfo fenceCreateInfo;
         fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
         fenceCreateInfo.pNext = 0;
         fenceCreateInfo.flags = 0;
 
-        VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &compute_fences[0]);
+        VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &compute_command_fences[0]);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateFence failed %d", ret);
@@ -530,6 +492,55 @@ int VkComputePrivate::init(bool weight_upload)
         }
 #endif // NCNN_BENCHMARK
     }
+
+    return 0;
+}
+
+int VkComputePrivate::init_weight_upload()
+{
+    if (use_weight_upload_online)
+        return 0;
+
+    use_weight_upload_online = true;
+    if (!vkdev->info.support_VK_KHR_push_descriptor())
+    {
+        int ret = begin_command_buffer();
+        if (ret != 0)
+            return ret;
+
+#if NCNN_BENCHMARK
+        if (query_pool)
+        {
+            vkCmdResetQueryPool(compute_command_buffers[0], query_pool, 0, query_count);
+        }
+#endif // NCNN_BENCHMARK
+    }
+
+    transfer_queue_family_index = vkdev->info.transfer_queue_family_index();
+
+#if NCNN_BENCHMARK
+    bytes_read = 0;
+    bytes_uploaded = 0;
+    weight_start_time = get_current_time();
+#endif // NCNN_BENCHMARK
+
+    // transfer_command_pool
+    {
+        VkCommandPoolCreateInfo commandPoolCreateInfo;
+        commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+        commandPoolCreateInfo.pNext = 0;
+        commandPoolCreateInfo.flags = 0;
+        commandPoolCreateInfo.queueFamilyIndex = transfer_queue_family_index;
+
+        VkResult ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &transfer_command_pool);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreateCommandPool failed %d", ret);
+            return ret;
+        }
+    }
+
+    compute_command_buffer_index = 0;
 
     return 0;
 }
@@ -938,26 +949,31 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
 {
     if (d->execution_error)
         return;
+
+    // keep the preceding weights live while resolving this operation
     std::vector<VkMat> previous_weights;
     if (is_deferred_buffer(_src.data))
     {
-        d->execution_error = d->init(true);
+        d->execution_error = d->init_weight_upload();
         if (d->execution_error)
             return;
-        const int previous_compute_task = d->active_compute_task;
-        d->execution_error = d->close_compute_task();
+
+        const int previous_compute_index = d->compute_command_buffer_index;
+        d->execution_error = d->record_submit_compute();
         if (d->execution_error)
             return;
-        d->weight_compute_task = d->weight_last_compute_task;
-        d->weight_last_compute_task = d->weight_buffers.empty() ? -1 : previous_compute_task;
+
+        d->weight_wait_compute_index = d->weight_last_compute_index;
+        d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
         std::swap(previous_weights, d->weight_buffers);
-        d->weight_upload_wait_semaphore = d->weight_compute_task < 0 ? 0 : d->compute_upload_semaphores[d->weight_compute_task];
+        d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
     }
 
     VkMat src;
     d->execution_error = d->record_resolve(_src, src);
     if (d->execution_error)
         return;
+
     //     NCNN_LOGE("record_clone buffer to buffer");
 
     // create dst
@@ -965,11 +981,10 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
     if (dst.empty())
         return;
 
-    VkBufferMemoryBarrier barrier;
-    const VkPipelineStageFlags src_stage = src.data->stage_flags;
+    // barrier device any @ compute to transfer-read @ compute
     if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
-        // barrier device any @ compute to transfer-read @ compute
+        VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.pNext = 0;
         barrier.srcAccessMask = src.data->access_flags;
@@ -979,19 +994,24 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
         barrier.buffer = src.buffer();
         barrier.offset = src.data->offset;
         barrier.size = src.data->capacity;
+
+        VkPipelineStageFlags src_stage = src.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(d->compute_command_buffers.back(), src_stage, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
+            vkCmdPipelineBarrier(d->compute_command_buffers.back(), src_stage, dst_stage, 0, 0, 0, 1, &barrier, 0, 0);
         }
         else
         {
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
             barriers[0] = barrier;
+
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_buffer_barrers;
             r.command_buffer = d->compute_command_buffers.back();
             r.buffer_barrers.src_stage = src_stage;
-            r.buffer_barrers.dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
             r.buffer_barrers.barriers = barriers;
             d->delayed_records.push_back(r);
@@ -1006,26 +1026,31 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
     dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
     dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
-    VkBufferCopy region;
-    region.srcOffset = src.buffer_offset();
-    region.dstOffset = dst.buffer_offset();
-    region.size = std::min(src.buffer_capacity(), dst.buffer_capacity());
-    if (vkdev->info.support_VK_KHR_push_descriptor())
+    // record device to device
     {
-        vkCmdCopyBuffer(d->compute_command_buffers.back(), src.buffer(), dst.buffer(), 1, &region);
-    }
-    else
-    {
-        VkBufferCopy* regions = new VkBufferCopy[1];
-        regions[0] = region;
-        VkComputePrivate::record r;
-        r.type = VkComputePrivate::record::TYPE_copy_buffer;
-        r.command_buffer = d->compute_command_buffers.back();
-        r.copy_buffer.src = src.buffer();
-        r.copy_buffer.dst = dst.buffer();
-        r.copy_buffer.region_count = 1;
-        r.copy_buffer.regions = regions;
-        d->delayed_records.push_back(r);
+        VkBufferCopy region;
+        region.srcOffset = src.buffer_offset();
+        region.dstOffset = dst.buffer_offset();
+        region.size = std::min(src.buffer_capacity(), dst.buffer_capacity());
+
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            vkCmdCopyBuffer(d->compute_command_buffers.back(), src.buffer(), dst.buffer(), 1, &region);
+        }
+        else
+        {
+            VkBufferCopy* regions = new VkBufferCopy[1];
+            regions[0] = region;
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_copy_buffer;
+            r.command_buffer = d->compute_command_buffers.back();
+            r.copy_buffer.src = src.buffer();
+            r.copy_buffer.dst = dst.buffer();
+            r.copy_buffer.region_count = 1;
+            r.copy_buffer.regions = regions;
+            d->delayed_records.push_back(r);
+        }
     }
 }
 
@@ -1182,26 +1207,31 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
 {
     if (d->execution_error)
         return;
+
+    // keep the preceding weights live while resolving this operation
     std::vector<VkMat> previous_weights;
     if (is_deferred_buffer(_src.data))
     {
-        d->execution_error = d->init(true);
+        d->execution_error = d->init_weight_upload();
         if (d->execution_error)
             return;
-        const int previous_compute_task = d->active_compute_task;
-        d->execution_error = d->close_compute_task();
+
+        const int previous_compute_index = d->compute_command_buffer_index;
+        d->execution_error = d->record_submit_compute();
         if (d->execution_error)
             return;
-        d->weight_compute_task = d->weight_last_compute_task;
-        d->weight_last_compute_task = d->weight_buffers.empty() ? -1 : previous_compute_task;
+
+        d->weight_wait_compute_index = d->weight_last_compute_index;
+        d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
         std::swap(previous_weights, d->weight_buffers);
-        d->weight_upload_wait_semaphore = d->weight_compute_task < 0 ? 0 : d->compute_upload_semaphores[d->weight_compute_task];
+        d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
     }
 
     VkMat src;
     d->execution_error = d->record_resolve(_src, src);
     if (d->execution_error)
         return;
+
     //     NCNN_LOGE("record_clone buffer to image");
 
     // create dst
@@ -1537,6 +1567,8 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     //     NCNN_LOGE("record_pipeline %p", pipeline);
 
     std::vector<VkMat> buffer_bindings = _buffer_bindings;
+
+    // keep the preceding weights live while resolving this operation
     std::vector<VkMat> previous_weights;
     bool first_weight = true;
 
@@ -1547,17 +1579,19 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
         if (first_weight)
         {
-            d->execution_error = d->init(true);
+            d->execution_error = d->init_weight_upload();
             if (d->execution_error)
                 return;
-            const int previous_compute_task = d->active_compute_task;
-            d->execution_error = d->close_compute_task();
+
+            const int previous_compute_index = d->compute_command_buffer_index;
+            d->execution_error = d->record_submit_compute();
             if (d->execution_error)
                 return;
-            d->weight_compute_task = d->weight_last_compute_task;
-            d->weight_last_compute_task = d->weight_buffers.empty() ? -1 : previous_compute_task;
+
+            d->weight_wait_compute_index = d->weight_last_compute_index;
+            d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
             std::swap(previous_weights, d->weight_buffers);
-            d->weight_upload_wait_semaphore = d->weight_compute_task < 0 ? 0 : d->compute_upload_semaphores[d->weight_compute_task];
+            d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
             first_weight = false;
         }
 
@@ -1565,15 +1599,17 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         if (d->execution_error)
             return;
 
-        // Resolve each allocation once for this dispatch, retaining each view's shape and offset.
+        // resolve each allocation once, preserving each binding view
         for (size_t j = i + 1; j < buffer_bindings.size(); j++)
         {
             if (_buffer_bindings[j].data != _buffer_bindings[i].data)
                 continue;
+
             d->execution_error = validate_weight_binding(_buffer_bindings[j], vkdev);
             if (d->execution_error)
                 return;
-            // Share the resolved storage without changing this binding's shape or offset.
+
+            // share storage without changing the binding shape or offset
             VkMat resolved = buffer_bindings[i];
             std::swap(buffer_bindings[j].data, resolved.data);
             std::swap(buffer_bindings[j].refcount, resolved.refcount);
@@ -2190,7 +2226,7 @@ int VkCompute::submit_and_wait()
     int ret = 0;
     if (d->use_weight_upload_online)
     {
-        ret = d->close_compute_task();
+        ret = d->record_submit_compute();
         if (ret != 0)
         {
             d->execution_error = ret;
@@ -2246,14 +2282,14 @@ int VkCompute::submit_and_wait()
             submitInfo.signalSemaphoreCount = 0;
             submitInfo.pSignalSemaphores = 0;
 
-            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, d->compute_fences[0]);
+            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, d->compute_command_fences[0]);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
                 return ret;
             }
-            d->compute_pending[0] = true;
+            d->compute_command_pending[0] = true;
             d->executing = true;
         }
 
@@ -2339,7 +2375,7 @@ int VkCompute::reset()
 #if NCNN_BENCHMARK
     d->query_results_ready = false;
 #endif // NCNN_BENCHMARK
-    // Discard command references before releasing their source and exchange views.
+    // reset command buffers before releasing upload and weight views
     {
         VkResult ret = vkResetCommandBuffer(d->compute_command_buffers[0], 0);
         if (ret != VK_SUCCESS)
@@ -2393,7 +2429,7 @@ int VkCompute::reset()
 
     // reset command buffer and fence
     {
-        VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->compute_fences[0]);
+        VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->compute_command_fences[0]);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkResetFences failed %d", ret);
@@ -2647,78 +2683,102 @@ int VkComputePrivate::wait_fence(VkFence fence)
 
 int VkComputePrivate::finish_execution(int result)
 {
-    if (result == VK_ERROR_DEVICE_LOST) execution_error = result;
-    if (!executing) return result ? result : execution_error;
+    if (result == VK_ERROR_DEVICE_LOST)
+        execution_error = result;
+    if (!executing)
+        return result ? result : execution_error;
+
     bool incomplete = false;
-    for (size_t i = 0; i < compute_fences.size(); i++)
+
+    for (size_t i = 0; i < compute_command_fences.size(); i++)
     {
-        if (!compute_pending[i]) continue;
-        int ret = wait_fence(compute_fences[i]);
-        if (ret == VK_ERROR_DEVICE_LOST) execution_error = ret;
-        if (ret && result != VK_ERROR_DEVICE_LOST) result = ret;
-        if (!ret || ret == VK_ERROR_DEVICE_LOST)
-            compute_pending[i] = false;
+        if (!compute_command_pending[i])
+            continue;
+
+        int ret = wait_fence(compute_command_fences[i]);
+        if (ret == VK_ERROR_DEVICE_LOST)
+            execution_error = ret;
+        if (ret != 0 && result != VK_ERROR_DEVICE_LOST)
+            result = ret;
+        if (ret == 0 || ret == VK_ERROR_DEVICE_LOST)
+            compute_command_pending[i] = false;
         else
             incomplete = true;
     }
-    for (size_t i = 0; i < upload_fences.size(); i++)
+
+    for (size_t i = 0; i < upload_command_fences.size(); i++)
     {
-        if (!upload_pending[i]) continue;
-        int ret = wait_fence(upload_fences[i]);
-        if (ret == VK_ERROR_DEVICE_LOST) execution_error = ret;
-        if (ret && result != VK_ERROR_DEVICE_LOST) result = ret;
-        if (!ret || ret == VK_ERROR_DEVICE_LOST)
-            upload_pending[i] = false;
+        if (!upload_command_pending[i])
+            continue;
+
+        int ret = wait_fence(upload_command_fences[i]);
+        if (ret == VK_ERROR_DEVICE_LOST)
+            execution_error = ret;
+        if (ret != 0 && result != VK_ERROR_DEVICE_LOST)
+            result = ret;
+        if (ret == 0 || ret == VK_ERROR_DEVICE_LOST)
+            upload_command_pending[i] = false;
         else
             incomplete = true;
     }
-    if (result && !execution_error) execution_error = result;
-    if (incomplete) return execution_error;
+
+    if (result != 0 && !execution_error)
+        execution_error = result;
+    if (incomplete)
+        return execution_error;
+
     executing = false;
     if (use_weight_upload_online)
         clear_execution();
+
     return execution_error;
 }
 
 void VkComputePrivate::clear_execution()
 {
-    // All compute producers/consumers and uploads are proven complete.
+    // release command resources after all compute and upload submissions complete
     for (size_t i = 1; i < compute_command_buffers.size(); i++)
     {
-        vkDestroyFence(vkdev->vkdevice(), compute_fences[i], 0);
+        vkDestroyFence(vkdev->vkdevice(), compute_command_fences[i], 0);
         if (compute_command_buffers[i])
             vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffers[i]);
     }
     compute_command_buffers.resize(1);
-    compute_fences.resize(1);
-    compute_upload_semaphores.assign(1, 0);
-    compute_pending.resize(1);
+    compute_command_fences.resize(1);
+    compute_command_pending.resize(1);
+    compute_command_buffer_index = -1;
 
-    for (size_t i = 0; i < upload_fences.size(); i++)
+    compute_upload_semaphores.assign(1, 0);
+    compute_wait_semaphores.clear();
+
+    for (size_t i = 0; i < upload_command_fences.size(); i++)
     {
-        vkDestroyFence(vkdev->vkdevice(), upload_fences[i], 0);
+        vkDestroyFence(vkdev->vkdevice(), upload_command_fences[i], 0);
     }
     if (transfer_command_pool)
         vkDestroyCommandPool(vkdev->vkdevice(), transfer_command_pool, 0);
     transfer_command_pool = 0;
     upload_command_buffers.clear();
-    upload_fences.clear();
+    upload_command_fences.clear();
+    upload_command_pending.clear();
     upload_compute_semaphores.clear();
-    upload_pending.clear();
-    compute_wait_semaphores.clear();
+
     for (size_t i = 0; i < execution_semaphores.size(); i++)
+    {
         vkDestroySemaphore(vkdev->vkdevice(), execution_semaphores[i], 0);
+    }
     execution_semaphores.clear();
-    active_compute_task = -1;
-    weight_compute_task = -1;
-    weight_last_compute_task = -1;
+
+    weight_wait_compute_index = -1;
+    weight_last_compute_index = -1;
     weight_upload_wait_semaphore = 0;
     use_weight_upload_online = false;
+
 #if NCNN_BENCHMARK
     if (weight_start_time)
         NCNN_LOGE("weight upload read=%llu upload=%llu time=%.2fms", (unsigned long long)bytes_read, (unsigned long long)bytes_uploaded, get_current_time() - weight_start_time);
     weight_start_time = 0;
-#endif
+#endif // NCNN_BENCHMARK
 }
 
 void VkComputePrivate::clear_records()
@@ -2761,16 +2821,18 @@ void VkComputePrivate::clear_records()
         }
     }
     delayed_records.clear();
-    weight_buffers.clear();
-    upload_sources.clear();
-    for (size_t i = 0; i < upload_targets.size(); i++)
-    {
-        VkBufferMemory* target = upload_targets[i].data;
-        upload_targets[i].release();
-        delete target;
-    }
-    upload_targets.clear();
     recorded_count = 0;
+
+    weight_buffers.clear();
+
+    upload_src_buffers.clear();
+    for (size_t i = 0; i < upload_dst_buffers.size(); i++)
+    {
+        VkBufferMemory* ptr = upload_dst_buffers[i].data;
+        upload_dst_buffers[i].release();
+        delete ptr;
+    }
+    upload_dst_buffers.clear();
     weight_staging_buffer.release();
 }
 
@@ -2864,18 +2926,18 @@ void VkComputePrivate::flush_records()
     }
 }
 
-int VkComputePrivate::close_compute_task()
+int VkComputePrivate::record_submit_compute()
 {
-    if (active_compute_task < 0)
+    if (compute_command_buffer_index < 0)
         return 0;
 
     // end command buffer
     {
         flush_records();
 #if NCNN_COVERAGE
-        vkdev->record_shader_coverage_barrier(compute_command_buffers[active_compute_task]);
+        vkdev->record_shader_coverage_barrier(compute_command_buffers[compute_command_buffer_index]);
 #endif
-        VkResult ret = vkEndCommandBuffer(compute_command_buffers[active_compute_task]);
+        VkResult ret = vkEndCommandBuffer(compute_command_buffers[compute_command_buffer_index]);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
@@ -2883,23 +2945,23 @@ int VkComputePrivate::close_compute_task()
         }
     }
 
-    // compute to upload semaphore
+    // compute_upload_semaphores
     {
         VkSemaphoreCreateInfo semaphoreCreateInfo;
         semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
         semaphoreCreateInfo.pNext = 0;
         semaphoreCreateInfo.flags = 0;
 
-        VkResult ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &compute_upload_semaphores[active_compute_task]);
+        VkResult ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &compute_upload_semaphores[compute_command_buffer_index]);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
             return ret;
         }
-        execution_semaphores.push_back(compute_upload_semaphores[active_compute_task]);
+        execution_semaphores.push_back(compute_upload_semaphores[compute_command_buffer_index]);
     }
 
-    // retain the batch and its dependencies until submission
+    // record submit compute
     {
         VkSemaphore* wait_semaphores = 0;
         if (!compute_wait_semaphores.empty())
@@ -2910,15 +2972,16 @@ int VkComputePrivate::close_compute_task()
 
         record r;
         r.type = record::TYPE_submit_compute;
-        r.command_buffer = compute_command_buffers[active_compute_task];
-        r.submit.task = active_compute_task;
+        r.command_buffer = compute_command_buffers[compute_command_buffer_index];
+        r.submit.command_buffer_index = compute_command_buffer_index;
         r.submit.wait_semaphore_count = (uint32_t)compute_wait_semaphores.size();
         r.submit.wait_semaphores = wait_semaphores;
-        r.submit.signal_semaphore = compute_upload_semaphores[active_compute_task];
+        r.submit.signal_semaphore = compute_upload_semaphores[compute_command_buffer_index];
         delayed_records.push_back(r);
     }
-    active_compute_task = -1;
+    compute_command_buffer_index = -1;
     compute_wait_semaphores.clear();
+
     return 0;
 }
 
@@ -2930,67 +2993,72 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         return 0;
     }
 
-    int ret = validate_weight_binding(src, vkdev);
-    if (ret != 0)
-        return ret;
-    // Never share exchange storage with ordinary workspace or other commands.
-    // Concurrent backing keeps pool reuse independent of queue-family ownership.
+    // check source
+    {
+        int ret = validate_weight_binding(src, vkdev);
+        if (ret != 0)
+            return ret;
+    }
+
+    // private concurrent buffers allow reuse across compute and transfer queues
     if (!local_weight_vkallocator)
         local_weight_vkallocator = new VkBlobAllocator(vkdev, 16 * 1024 * 1024, true);
-    VkAllocator* allocator = local_weight_vkallocator;
 
-    // Upload the complete allocation even when the consumer uses a subview.
+    // create dst for the complete allocation, including bytes outside the view
     const size_t size = alignSize(src.data->source_size, 4);
-    dst.release();
-    dst.create(1, size, 1, allocator);
-    if (dst.empty() || dst.data->capacity < size)
-        return -100;
-    dst.dims = src.dims;
-    dst.w = src.w;
-    dst.h = src.h;
-    dst.d = src.d;
-    dst.c = src.c;
-    dst.cstep = src.cstep;
-    dst.elemsize = src.elemsize;
-    dst.elempack = src.elempack;
+    {
+        dst.release();
+        dst.create(1, size, 1, local_weight_vkallocator);
+        if (dst.empty() || dst.data->capacity < size)
+            return -100;
+        dst.dims = src.dims;
+        dst.w = src.w;
+        dst.h = src.h;
+        dst.d = src.d;
+        dst.c = src.c;
+        dst.cstep = src.cstep;
+        dst.elemsize = src.elemsize;
+        dst.elempack = src.elempack;
 #if NCNN_BATCH
-    dst.n = src.n;
-    dst.nstep = src.nstep;
-    dst.offset = src.offset;
+        dst.n = src.n;
+        dst.nstep = src.nstep;
+        dst.offset = src.offset;
 #endif
+    }
 
-    // Non-owning full-storage view: uploads cover the backing, not just dst's subview.
-    VkMat upload_target(1, dst.data, size, 1, allocator);
-    VkMat source = src;
+    // full allocation views for upload; dst retains the consumer shape and offset
+    VkMat dst_upload(1, dst.data, size, 1, local_weight_vkallocator);
+    VkMat src_weight = src;
 #if NCNN_BATCH
-    source.offset = 0;
+    src_weight.offset = 0;
 #endif
 
     if (!vkdev->info.support_VK_KHR_push_descriptor())
     {
         flush_records();
     }
+
     VkAccessFlags upload_access = 0;
     VkPipelineStageFlags upload_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    // Unified memory: wait for older readers; the preceding group is still retained.
-    if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && upload_target.mapped_ptr() && needs_host_copy(source))
+    // host writes wait for older compute; the preceding weight group is still live
+    if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && dst_upload.mapped_ptr() && needs_host_copy(src_weight))
     {
         record r;
         r.type = record::TYPE_wait_compute;
         r.command_buffer = 0;
-        r.wait.task = weight_compute_task;
+        r.wait.command_buffer_index = weight_wait_compute_index;
         delayed_records.push_back(r);
 
-        upload_sources.push_back(source);
-        VkBufferMemory* target_memory = new VkBufferMemory(*upload_target.data);
-        upload_targets.push_back(VkMat(1, target_memory, size, 1, upload_target.allocator));
+        upload_src_buffers.push_back(src_weight);
+        VkBufferMemory* ptr = new VkBufferMemory(*dst_upload.data);
+        upload_dst_buffers.push_back(VkMat(1, ptr, size, 1, dst_upload.allocator));
 
         r.type = record::TYPE_host_copy;
-        r.host_copy.source_index = upload_sources.size() - 1;
-        r.host_copy.target_index = upload_targets.size() - 1;
-        r.host_copy.source_offset = 0;
-        r.host_copy.size = source.data->source_size;
+        r.host_copy.src_index = upload_src_buffers.size() - 1;
+        r.host_copy.dst_index = upload_dst_buffers.size() - 1;
+        r.host_copy.src_offset = 0;
+        r.host_copy.size = src_weight.data->source_size;
         delayed_records.push_back(r);
 
         upload_access = VK_ACCESS_HOST_WRITE_BIT;
@@ -2998,17 +3066,17 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
     }
     else
     {
-        VkMat upload_source;
+        VkMat src_upload;
         size_t chunk_capacity = size;
-        if (!needs_host_copy(source))
+        if (!needs_host_copy(src_weight))
         {
-            // GPU-accessible host VkBuffer -> device, with no CPU staging fill.
-            upload_sources.push_back(source);
-            upload_source = source;
+            // upload directly from host buffer
+            upload_src_buffers.push_back(src_weight);
+            src_upload = src_weight;
         }
         else
         {
-            // Disk mappings and plain host bytes share the bounded staging buffer.
+            // stage file or host bytes in bounded chunks
             if (weight_staging_buffer.empty())
             {
                 if (!local_staging_vkallocator)
@@ -3019,37 +3087,37 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 if (weight_staging_buffer.empty() || !weight_staging_buffer.mapped_ptr())
                     return -100;
             }
-            upload_source = weight_staging_buffer;
-            chunk_capacity = upload_source.buffer_capacity();
+            src_upload = weight_staging_buffer;
+            chunk_capacity = src_upload.buffer_capacity();
         }
 
-        // Record one buffer copy, or a series of deferred staging fills and copies.
-        for (size_t offset = 0; offset < source.data->source_size;)
+        // record upload chunks
+        for (size_t offset = 0; offset < src_weight.data->source_size;)
         {
-            const size_t chunk_size = std::min(chunk_capacity, source.data->source_size - offset);
+            const size_t chunk_size = std::min(chunk_capacity, src_weight.data->source_size - offset);
             const size_t upload_size = alignSize(chunk_size, 4);
-            const bool last = chunk_size == source.data->source_size - offset;
-            if (needs_host_copy(source))
+            const bool last = chunk_size == src_weight.data->source_size - offset;
+            if (needs_host_copy(src_weight))
             {
                 if (!upload_command_buffers.empty())
                 {
                     record r;
                     r.type = record::TYPE_wait_upload;
                     r.command_buffer = 0;
-                    r.wait.task = (int)upload_command_buffers.size() - 1;
+                    r.wait.command_buffer_index = (int)upload_command_buffers.size() - 1;
                     delayed_records.push_back(r);
                 }
 
-                upload_sources.push_back(source);
-                VkBufferMemory* target_memory = new VkBufferMemory(*upload_source.data);
-                upload_targets.push_back(VkMat(1, target_memory, upload_source.elemsize, 1, upload_source.allocator));
+                upload_src_buffers.push_back(src_weight);
+                VkBufferMemory* ptr = new VkBufferMemory(*src_upload.data);
+                upload_dst_buffers.push_back(VkMat(1, ptr, src_upload.elemsize, 1, src_upload.allocator));
 
                 record r;
                 r.type = record::TYPE_host_copy;
                 r.command_buffer = 0;
-                r.host_copy.source_index = upload_sources.size() - 1;
-                r.host_copy.target_index = upload_targets.size() - 1;
-                r.host_copy.source_offset = offset;
+                r.host_copy.src_index = upload_src_buffers.size() - 1;
+                r.host_copy.dst_index = upload_dst_buffers.size() - 1;
+                r.host_copy.src_offset = offset;
                 r.host_copy.size = chunk_size;
                 delayed_records.push_back(r);
             }
@@ -3057,13 +3125,13 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             if (upload_command_buffers.size() >= (size_t)INT_MAX)
                 return -1;
 
-            const int task = (int)upload_command_buffers.size();
+            const int command_buffer_index = (int)upload_command_buffers.size();
             upload_command_buffers.push_back(0);
-            upload_fences.push_back(0);
+            upload_command_fences.push_back(0);
             upload_compute_semaphores.push_back(0);
-            upload_pending.push_back(false);
+            upload_command_pending.push_back(false);
 
-            // upload command buffer
+            // upload_command_buffers
             {
                 VkCommandBufferAllocateInfo commandBufferAllocateInfo;
                 commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -3072,7 +3140,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
                 commandBufferAllocateInfo.commandBufferCount = 1;
 
-                VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &upload_command_buffers[task]);
+                VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &upload_command_buffers[command_buffer_index]);
                 if (ret != VK_SUCCESS)
                 {
                     NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
@@ -3080,14 +3148,14 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 }
             }
 
-            // upload fence
+            // upload_command_fences
             {
                 VkFenceCreateInfo fenceCreateInfo;
                 fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
                 fenceCreateInfo.pNext = 0;
                 fenceCreateInfo.flags = 0;
 
-                VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &upload_fences[task]);
+                VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &upload_command_fences[command_buffer_index]);
                 if (ret != VK_SUCCESS)
                 {
                     NCNN_LOGE("vkCreateFence failed %d", ret);
@@ -3095,7 +3163,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 }
             }
 
-            // upload to compute semaphore
+            // upload_compute_semaphores
             if (last)
             {
                 VkSemaphoreCreateInfo semaphoreCreateInfo;
@@ -3103,13 +3171,13 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 semaphoreCreateInfo.pNext = 0;
                 semaphoreCreateInfo.flags = 0;
 
-                VkResult ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &upload_compute_semaphores[task]);
+                VkResult ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &upload_compute_semaphores[command_buffer_index]);
                 if (ret != VK_SUCCESS)
                 {
                     NCNN_LOGE("vkCreateSemaphore failed %d", ret);
                     return -1;
                 }
-                execution_semaphores.push_back(upload_compute_semaphores[task]);
+                execution_semaphores.push_back(upload_compute_semaphores[command_buffer_index]);
             }
 
             // begin command buffer
@@ -3120,7 +3188,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
                 commandBufferBeginInfo.pInheritanceInfo = 0;
 
-                VkResult ret = vkBeginCommandBuffer(upload_command_buffers[task], &commandBufferBeginInfo);
+                VkResult ret = vkBeginCommandBuffer(upload_command_buffers[command_buffer_index], &commandBufferBeginInfo);
                 if (ret != VK_SUCCESS)
                 {
                     NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
@@ -3128,64 +3196,69 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 }
             }
 
-            // record source buffer to device
+            // barrier upload host-write to transfer-read
             {
                 VkBufferMemoryBarrier barrier;
                 barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
                 barrier.pNext = 0;
-                barrier.srcAccessMask = upload_source.mapped_ptr() ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
+                barrier.srcAccessMask = src_upload.mapped_ptr() ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
                 barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.buffer = upload_source.buffer();
-                barrier.offset = upload_source.buffer_offset();
+                barrier.buffer = src_upload.buffer();
+                barrier.offset = src_upload.buffer_offset();
                 barrier.size = upload_size;
 
-                VkPipelineStageFlags src_stage = upload_source.mapped_ptr() ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
-
-                VkBufferCopy region;
-                region.srcOffset = upload_source.buffer_offset();
-                region.dstOffset = upload_target.buffer_offset() + offset;
-                region.size = upload_size;
+                VkPipelineStageFlags src_stage = src_upload.mapped_ptr() ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
                 if (vkdev->info.support_VK_KHR_push_descriptor())
                 {
-                    vkCmdPipelineBarrier(upload_command_buffers[task], src_stage, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
+                    vkCmdPipelineBarrier(upload_command_buffers[command_buffer_index], src_stage, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
                 }
                 else
                 {
                     VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
                     barriers[0] = barrier;
+
                     record r;
                     r.type = record::TYPE_buffer_barrers;
-                    r.command_buffer = upload_command_buffers[task];
+                    r.command_buffer = upload_command_buffers[command_buffer_index];
                     r.buffer_barrers.src_stage = src_stage;
                     r.buffer_barrers.dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
                     r.buffer_barrers.barrier_count = 1;
                     r.buffer_barrers.barriers = barriers;
                     delayed_records.push_back(r);
                 }
+            }
+
+            // record upload to device
+            {
+                VkBufferCopy region;
+                region.srcOffset = src_upload.buffer_offset();
+                region.dstOffset = dst_upload.buffer_offset() + offset;
+                region.size = upload_size;
 
                 if (vkdev->info.support_VK_KHR_push_descriptor())
                 {
-                    vkCmdCopyBuffer(upload_command_buffers[task], upload_source.buffer(), upload_target.buffer(), 1, &region);
+                    vkCmdCopyBuffer(upload_command_buffers[command_buffer_index], src_upload.buffer(), dst_upload.buffer(), 1, &region);
                 }
                 else
                 {
                     VkBufferCopy* regions = new VkBufferCopy[1];
                     regions[0] = region;
+
                     record r;
                     r.type = record::TYPE_copy_buffer;
-                    r.command_buffer = upload_command_buffers[task];
-                    r.copy_buffer.src = upload_source.buffer();
-                    r.copy_buffer.dst = upload_target.buffer();
+                    r.command_buffer = upload_command_buffers[command_buffer_index];
+                    r.copy_buffer.src = src_upload.buffer();
+                    r.copy_buffer.dst = dst_upload.buffer();
                     r.copy_buffer.region_count = 1;
                     r.copy_buffer.regions = regions;
                     delayed_records.push_back(r);
                 }
             }
 
-            // make transfer writes available before signaling the compute consumer
+            // barrier upload transfer-write before signaling compute
             if (last)
             {
                 VkBufferMemoryBarrier barrier;
@@ -3195,21 +3268,22 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 barrier.dstAccessMask = 0;
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.buffer = upload_target.buffer();
-                barrier.offset = upload_target.buffer_offset();
-                barrier.size = upload_target.buffer_capacity();
+                barrier.buffer = dst_upload.buffer();
+                barrier.offset = dst_upload.buffer_offset();
+                barrier.size = dst_upload.buffer_capacity();
 
                 if (vkdev->info.support_VK_KHR_push_descriptor())
                 {
-                    vkCmdPipelineBarrier(upload_command_buffers[task], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
+                    vkCmdPipelineBarrier(upload_command_buffers[command_buffer_index], VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
                 }
                 else
                 {
                     VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
                     barriers[0] = barrier;
+
                     record r;
                     r.type = record::TYPE_buffer_barrers;
-                    r.command_buffer = upload_command_buffers[task];
+                    r.command_buffer = upload_command_buffers[command_buffer_index];
                     r.buffer_barrers.src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
                     r.buffer_barrers.dst_stage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
                     r.buffer_barrers.barrier_count = 1;
@@ -3221,7 +3295,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             // end command buffer
             {
                 flush_records();
-                VkResult ret = vkEndCommandBuffer(upload_command_buffers[task]);
+                VkResult ret = vkEndCommandBuffer(upload_command_buffers[command_buffer_index]);
                 if (ret != VK_SUCCESS)
                 {
                     NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
@@ -3229,7 +3303,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 }
             }
 
-            // retain the upload and its dependencies until submission
+            // record submit upload
             {
                 VkSemaphore* wait_semaphores = 0;
                 if (weight_upload_wait_semaphore)
@@ -3240,15 +3314,15 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
 
                 record r;
                 r.type = record::TYPE_submit_upload;
-                r.command_buffer = upload_command_buffers[task];
-                r.submit.task = task;
+                r.command_buffer = upload_command_buffers[command_buffer_index];
+                r.submit.command_buffer_index = command_buffer_index;
                 r.submit.wait_semaphore_count = weight_upload_wait_semaphore ? 1 : 0;
                 r.submit.wait_semaphores = wait_semaphores;
-                r.submit.signal_semaphore = last ? upload_compute_semaphores[task] : 0;
+                r.submit.signal_semaphore = last ? upload_compute_semaphores[command_buffer_index] : 0;
                 delayed_records.push_back(r);
                 weight_upload_wait_semaphore = 0;
                 if (last)
-                    compute_wait_semaphores.push_back(upload_compute_semaphores[task]);
+                    compute_wait_semaphores.push_back(upload_compute_semaphores[command_buffer_index]);
             }
 #if NCNN_BENCHMARK
             bytes_uploaded += upload_size;
@@ -3256,18 +3330,19 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             offset += chunk_size;
         }
     }
-    if (active_compute_task < 0)
+
+    if (compute_command_buffer_index < 0)
     {
         if (compute_command_buffers.size() >= (size_t)INT_MAX)
             return -1;
 
-        const int task = (int)compute_command_buffers.size();
+        const int command_buffer_index = (int)compute_command_buffers.size();
         compute_command_buffers.push_back(0);
-        compute_fences.push_back(0);
+        compute_command_fences.push_back(0);
         compute_upload_semaphores.push_back(0);
-        compute_pending.push_back(false);
+        compute_command_pending.push_back(false);
 
-        // compute command buffer
+        // compute_command_buffers
         {
             VkCommandBufferAllocateInfo commandBufferAllocateInfo;
             commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -3276,7 +3351,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
             commandBufferAllocateInfo.commandBufferCount = 1;
 
-            VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &compute_command_buffers[task]);
+            VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &compute_command_buffers[command_buffer_index]);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
@@ -3284,14 +3359,14 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             }
         }
 
-        // compute fence
+        // compute_command_fences
         {
             VkFenceCreateInfo fenceCreateInfo;
             fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
             fenceCreateInfo.pNext = 0;
             fenceCreateInfo.flags = 0;
 
-            VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &compute_fences[task]);
+            VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &compute_command_fences[command_buffer_index]);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkCreateFence failed %d", ret);
@@ -3307,7 +3382,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
             commandBufferBeginInfo.pInheritanceInfo = 0;
 
-            VkResult ret = vkBeginCommandBuffer(compute_command_buffers[task], &commandBufferBeginInfo);
+            VkResult ret = vkBeginCommandBuffer(compute_command_buffers[command_buffer_index], &commandBufferBeginInfo);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
@@ -3315,10 +3390,10 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             }
         }
 
-        active_compute_task = task;
+        compute_command_buffer_index = command_buffer_index;
     }
 
-    // make uploaded or host-filled weights visible to the consumer
+    // barrier uploaded weights to shader-read and transfer-read
     {
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -3327,24 +3402,25 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.buffer = upload_target.buffer();
-        barrier.offset = upload_target.buffer_offset();
-        barrier.size = upload_target.buffer_capacity();
+        barrier.buffer = dst_upload.buffer();
+        barrier.offset = dst_upload.buffer_offset();
+        barrier.size = dst_upload.buffer_capacity();
 
         VkPipelineStageFlags src_stage = upload_stage;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            vkCmdPipelineBarrier(compute_command_buffers[active_compute_task], src_stage, dst_stage, 0, 0, 0, 1, &barrier, 0, 0);
+            vkCmdPipelineBarrier(compute_command_buffers[compute_command_buffer_index], src_stage, dst_stage, 0, 0, 0, 1, &barrier, 0, 0);
         }
         else
         {
             VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
             barriers[0] = barrier;
+
             record r;
             r.type = record::TYPE_buffer_barrers;
-            r.command_buffer = compute_command_buffers[active_compute_task];
+            r.command_buffer = compute_command_buffers[compute_command_buffer_index];
             r.buffer_barrers.src_stage = src_stage;
             r.buffer_barrers.dst_stage = dst_stage;
             r.buffer_barrers.barrier_count = 1;
@@ -3357,8 +3433,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     }
 
-    // Keep this full group live while the next operation allocates its weights.
-    // Later reuse waits for older readers, without serializing the adjacent group.
+    // keep these weights live while the next operation allocates its weights
     weight_buffers.push_back(dst);
 
     return 0;
@@ -3378,15 +3453,15 @@ int VkComputePrivate::submit_records()
         {
         case record::TYPE_host_copy:
         {
-            const VkMat& source = upload_sources[r.host_copy.source_index];
-            const VkMat& target = upload_targets[r.host_copy.target_index];
+            const VkMat& src = upload_src_buffers[r.host_copy.src_index];
+            const VkMat& dst = upload_dst_buffers[r.host_copy.dst_index];
             const size_t size = alignSize(r.host_copy.size, 4);
-            unsigned char* dst = (unsigned char*)target.mapped_ptr();
-            memcpy(dst, (const unsigned char*)source.data->source_ptr + r.host_copy.source_offset, r.host_copy.size);
-            memset(dst + r.host_copy.size, 0, size - r.host_copy.size);
-            ret = flush_weight_buffer(vkdev, target.data, target.offset, size);
+            unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
+            memcpy(ptr, (const unsigned char*)src.data->source_ptr + r.host_copy.src_offset, r.host_copy.size);
+            memset(ptr + r.host_copy.size, 0, size - r.host_copy.size);
+            ret = flush_weight_buffer(vkdev, dst.data, dst.offset, size);
 #if NCNN_BENCHMARK
-            if (source.data->storage_type == 2)
+            if (src.data->storage_type == 2)
                 bytes_read += r.host_copy.size;
 #endif
             break;
@@ -3394,22 +3469,22 @@ int VkComputePrivate::submit_records()
         case record::TYPE_wait_compute:
         case record::TYPE_wait_upload:
         {
-            const int task = r.wait.task;
+            const int command_buffer_index = r.wait.command_buffer_index;
             const bool compute = r.type == record::TYPE_wait_compute;
-            const std::vector<VkFence>& fences = compute ? compute_fences : upload_fences;
-            std::vector<bool>& pending = compute ? compute_pending : upload_pending;
-            if (task >= 0 && (size_t)task < fences.size() && pending[task])
+            const std::vector<VkFence>& fences = compute ? compute_command_fences : upload_command_fences;
+            std::vector<bool>& pending = compute ? compute_command_pending : upload_command_pending;
+            if (command_buffer_index >= 0 && (size_t)command_buffer_index < fences.size() && pending[command_buffer_index])
             {
-                ret = wait_fence(fences[task]);
+                ret = wait_fence(fences[command_buffer_index]);
                 if (ret == 0 || ret == VK_ERROR_DEVICE_LOST)
-                    pending[task] = false;
+                    pending[command_buffer_index] = false;
             }
             break;
         }
         case record::TYPE_submit_compute:
         case record::TYPE_submit_upload:
         {
-            const int task = r.submit.task;
+            const int command_buffer_index = r.submit.command_buffer_index;
             const bool compute = r.type == record::TYPE_submit_compute;
             VkSemaphore& previous_semaphore = compute ? compute_compute_semaphore : upload_upload_semaphore;
             VkSemaphore signal_semaphore = 0;
@@ -3436,15 +3511,15 @@ int VkComputePrivate::submit_records()
                 wait_semaphores[j] = r.submit.wait_semaphores[j];
             if (previous_semaphore)
                 wait_semaphores.push_back(previous_semaphore);
-            std::vector<VkPipelineStageFlags> stages(wait_semaphores.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+            std::vector<VkPipelineStageFlags> wait_stages(wait_semaphores.size(), VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
             std::vector<VkSemaphore> signal_semaphores;
             if (r.submit.signal_semaphore)
                 signal_semaphores.push_back(r.submit.signal_semaphore);
             signal_semaphores.push_back(signal_semaphore);
 
             // acquire queue and reclaim on return
-            const uint32_t family = compute ? vkdev->info.compute_queue_family_index() : transfer_queue_family_index;
-            VkQueue queue = vkdev->acquire_queue(family);
+            const uint32_t queue_family_index = compute ? vkdev->info.compute_queue_family_index() : transfer_queue_family_index;
+            VkQueue queue = vkdev->acquire_queue(queue_family_index);
             if (queue == 0)
             {
                 NCNN_LOGE("out of weight %s queue", compute ? "compute" : "transfer");
@@ -3458,27 +3533,27 @@ int VkComputePrivate::submit_records()
                 submitInfo.pNext = 0;
                 submitInfo.waitSemaphoreCount = (uint32_t)wait_semaphores.size();
                 submitInfo.pWaitSemaphores = wait_semaphores.data();
-                submitInfo.pWaitDstStageMask = stages.data();
+                submitInfo.pWaitDstStageMask = wait_stages.data();
                 submitInfo.commandBufferCount = 1;
                 submitInfo.pCommandBuffers = &r.command_buffer;
                 submitInfo.signalSemaphoreCount = (uint32_t)signal_semaphores.size();
                 submitInfo.pSignalSemaphores = signal_semaphores.data();
 
-                VkResult ret = vkQueueSubmit(queue, 1, &submitInfo, compute ? compute_fences[task] : upload_fences[task]);
+                VkResult ret = vkQueueSubmit(queue, 1, &submitInfo, compute ? compute_command_fences[command_buffer_index] : upload_command_fences[command_buffer_index]);
                 if (ret != VK_SUCCESS)
                 {
                     NCNN_LOGE("vkQueueSubmit failed %d", ret);
-                    vkdev->reclaim_queue(family, queue);
+                    vkdev->reclaim_queue(queue_family_index, queue);
                     return ret;
                 }
             }
-            vkdev->reclaim_queue(family, queue);
+            vkdev->reclaim_queue(queue_family_index, queue);
 
             previous_semaphore = signal_semaphore;
             if (compute)
-                compute_pending[task] = true;
+                compute_command_pending[command_buffer_index] = true;
             else
-                upload_pending[task] = true;
+                upload_command_pending[command_buffer_index] = true;
             break;
         }
         default:
@@ -3511,9 +3586,10 @@ public:
     const VulkanDevice* vkdev;
 
     uint64_t pending_upload_total;
+    uint64_t queued_upload_total;
     int upload_error;
-    bool compute_pending;
-    bool upload_pending;
+    bool compute_command_pending;
+    bool upload_command_pending;
 
     VkCommandPool compute_command_pool;
     VkCommandPool transfer_command_pool;
@@ -3528,13 +3604,12 @@ public:
 
     struct upload_record
     {
-        Mat source;
-        VkMat destination;
+        Mat src;
+        VkMat dst;
         size_t host_memory_limit;
-        VkAllocator* staging_allocator;
+        VkAllocator* staging_vkallocator;
     };
     std::vector<upload_record> uploads;
-    uint64_t queued_upload_total;
     VkMat pending_staging_mat;
     VkBufferMemory* pending_staging_buffer;
 };
@@ -3544,10 +3619,9 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
 {
     pending_upload_total = 0;
     queued_upload_total = 0;
-    pending_staging_buffer = 0;
     upload_error = 0;
-    compute_pending = false;
-    upload_pending = false;
+    compute_command_pending = false;
+    upload_command_pending = false;
 
     compute_command_pool = 0;
     transfer_command_pool = 0;
@@ -3560,6 +3634,8 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     upload_command_fence = 0;
     compute_command_fence = 0;
 
+    pending_staging_buffer = 0;
+
     upload_error = init();
 }
 
@@ -3568,9 +3644,9 @@ VkTransferPrivate::~VkTransferPrivate()
     do
     {
         finish_upload(upload_error);
-        if (compute_pending || upload_pending)
+        if (compute_command_pending || upload_command_pending)
             wait_for_pending_commands();
-    } while (compute_pending || upload_pending);
+    } while (compute_command_pending || upload_command_pending);
     destroy_weight_buffer(vkdev, pending_staging_buffer);
 
     vkDestroyFence(vkdev->vkdevice(), compute_command_fence, 0);
@@ -3927,10 +4003,10 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
         return;
     }
     VkTransferPrivate::upload_record r;
-    r.source = src;
-    r.destination = dst;
+    r.src = src;
+    r.dst = dst;
     r.host_memory_limit = opt.weight_host_memory_limit;
-    r.staging_allocator = opt.staging_vkallocator;
+    r.staging_vkallocator = opt.staging_vkallocator;
     uploads.push_back(r);
     queued_upload_total += dst.buffer_capacity();
 }
@@ -4069,30 +4145,30 @@ int VkTransferPrivate::upload_buffers()
         return upload_error;
     size_t capacity = 0;
     size_t host_memory_limit = 0;
-    const size_t target = 8 * 1024 * 1024;
+    const size_t staging_buffer_size = 8 * 1024 * 1024;
     for (size_t i = 0; i < uploads.size(); i++)
     {
         const upload_record& r = uploads[i];
-        capacity += std::min(alignSize(r.destination.buffer_capacity(), 4), target - capacity);
+        capacity += std::min(alignSize(r.dst.buffer_capacity(), 4), staging_buffer_size - capacity);
         if (r.host_memory_limit)
             host_memory_limit = host_memory_limit ? std::min(host_memory_limit, r.host_memory_limit) : r.host_memory_limit;
     }
     VkBufferMemory* staging = 0;
     VkMat staging_mat;
-    VkAllocator* staging_allocator = 0;
+    VkAllocator* staging_vkallocator = 0;
     int ret = 0;
     if (capacity)
-        ret = fit_weight_capacity(vkdev, host_memory_limit, true, true, capacity);
+        ret = fit_weight_buffer_size(vkdev, host_memory_limit, true, capacity);
     size_t used = 0;
     for (size_t i = 0; ret == 0 && i < uploads.size(); i++)
     {
         const upload_record& r = uploads[i];
-        const VkMat& dst = r.destination;
-        if (!staging || staging_allocator != r.staging_allocator)
+        const VkMat& dst = r.dst;
+        if (!staging || staging_vkallocator != r.staging_vkallocator)
         {
             if (used)
             {
-                ret = staging_allocator ? staging_allocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
+                ret = staging_vkallocator ? staging_vkallocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
                 if (ret == 0)
                     ret = submit_and_wait();
                 if (ret == 0)
@@ -4101,19 +4177,19 @@ int VkTransferPrivate::upload_buffers()
             }
             if (ret != 0)
                 break;
-            if (staging && !staging_allocator)
+            if (staging && !staging_vkallocator)
                 destroy_weight_buffer(vkdev, staging);
             staging_mat.release();
             staging = 0;
-            staging_allocator = r.staging_allocator;
-            if (staging_allocator)
+            staging_vkallocator = r.staging_vkallocator;
+            if (staging_vkallocator)
             {
-                if (staging_allocator->vkdev != vkdev)
+                if (staging_vkallocator->vkdev != vkdev)
                 {
                     ret = -1;
                     break;
                 }
-                staging_mat.create((int)capacity, (size_t)1u, staging_allocator);
+                staging_mat.create((int)capacity, (size_t)1u, staging_vkallocator);
                 staging = staging_mat.data;
             }
             else
@@ -4138,18 +4214,18 @@ int VkTransferPrivate::upload_buffers()
                 }
             }
         }
-        for (int b = 0; ret == 0 && b < r.source.n; b++)
+        for (int b = 0; ret == 0 && b < r.src.n; b++)
         {
-            const Mat src_b = r.source.batch(b);
+            const Mat src_b = r.src.batch(b);
             const VkMat dst_b = dst.batch(b);
-            const size_t source_size = src_b.total() * src_b.elemsize;
-            const size_t end = b + 1 == r.source.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
+            const size_t src_size = src_b.total() * src_b.elemsize;
+            const size_t end = b + 1 == r.src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
             const size_t size = end - dst_b.offset;
             for (size_t offset = 0; ret == 0 && offset < size;)
             {
                 if (used == capacity)
                 {
-                    ret = staging_allocator ? staging_allocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
+                    ret = staging_vkallocator ? staging_vkallocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
                     if (ret == 0)
                         ret = submit_and_wait();
                     if (ret == 0)
@@ -4165,11 +4241,11 @@ int VkTransferPrivate::upload_buffers()
                     ret = -1;
                     break;
                 }
-                const size_t source_bytes = offset < source_size ? std::min(n, source_size - offset) : 0;
+                const size_t src_bytes = offset < src_size ? std::min(n, src_size - offset) : 0;
                 unsigned char* ptr = (unsigned char*)staging->mapped_ptr + staging->offset + used;
-                if (source_bytes)
-                    memcpy(ptr, (const unsigned char*)src_b.data + offset, source_bytes);
-                memset(ptr + source_bytes, 0, copy_size - source_bytes);
+                if (src_bytes)
+                    memcpy(ptr, (const unsigned char*)src_b.data + offset, src_bytes);
+                memset(ptr + src_bytes, 0, copy_size - src_bytes);
                 VkBufferMemory src_buffer = *staging;
                 src_buffer.offset += used;
                 VkBufferMemory dst_buffer = *dst.data;
@@ -4187,19 +4263,19 @@ int VkTransferPrivate::upload_buffers()
         }
     }
     if (ret == 0 && used)
-        ret = staging_allocator ? staging_allocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
+        ret = staging_vkallocator ? staging_vkallocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
     if (ret == 0)
         ret = submit_and_wait();
     // A failed fence wait does not prove completion. Keep staging alive for
     // finish_upload() to drain again during command destruction.
-    if (compute_pending || upload_pending)
+    if (compute_command_pending || upload_command_pending)
     {
-        if (staging_allocator)
+        if (staging_vkallocator)
             pending_staging_mat = staging_mat;
         else
             pending_staging_buffer = staging;
     }
-    else if (staging && !staging_allocator)
+    else if (staging && !staging_vkallocator)
     {
         destroy_weight_buffer(vkdev, staging);
     }
@@ -4217,9 +4293,9 @@ int VkTransferPrivate::finish_upload(int error)
 {
     VkFence fences[2];
     uint32_t count = 0;
-    if (upload_pending)
+    if (upload_command_pending)
         fences[count++] = upload_command_fence;
-    if (compute_pending)
+    if (compute_command_pending)
         fences[count++] = compute_command_fence;
     if (count)
     {
@@ -4231,8 +4307,8 @@ int VkTransferPrivate::finish_upload(int error)
         }
         if (ret == VK_SUCCESS || ret == VK_ERROR_DEVICE_LOST)
         {
-            compute_pending = false;
-            upload_pending = false;
+            compute_command_pending = false;
+            upload_command_pending = false;
         }
     }
     if (error)
@@ -4303,7 +4379,7 @@ int VkTransferPrivate::submit_and_wait()
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
                 return finish_upload(-1);
             }
-            compute_pending = true;
+            compute_command_pending = true;
         }
     }
     else
@@ -4337,7 +4413,7 @@ int VkTransferPrivate::submit_and_wait()
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
                 return finish_upload(-1);
             }
-            upload_pending = true;
+            upload_command_pending = true;
         }
         {
             VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // FIXME
@@ -4361,7 +4437,7 @@ int VkTransferPrivate::submit_and_wait()
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
                 return finish_upload(-1);
             }
-            compute_pending = true;
+            compute_command_pending = true;
         }
 
         vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
