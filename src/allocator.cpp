@@ -425,7 +425,7 @@ int VkAllocator::invalidate(VkBufferMemory* ptr)
     return 0;
 }
 
-VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
+VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage, bool concurrent)
 {
     VkBufferCreateInfo bufferCreateInfo;
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -436,6 +436,13 @@ VkBuffer VkAllocator::create_buffer(size_t size, VkBufferUsageFlags usage)
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     bufferCreateInfo.queueFamilyIndexCount = 0;
     bufferCreateInfo.pQueueFamilyIndices = 0;
+    const uint32_t families[2] = {vkdev->info.compute_queue_family_index(), vkdev->info.transfer_queue_family_index()};
+    if (concurrent && families[0] != families[1])
+    {
+        bufferCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+        bufferCreateInfo.queueFamilyIndexCount = 2;
+        bufferCreateInfo.pQueueFamilyIndices = families;
+    }
 
     VkBuffer buffer = 0;
     VkResult ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
@@ -601,6 +608,12 @@ static inline size_t least_common_multiple(size_t a, size_t b)
 class VkBlobAllocatorPrivate
 {
 public:
+    explicit VkBlobAllocatorPrivate(bool _concurrent)
+        : concurrent(_concurrent)
+    {
+    }
+
+    const bool concurrent;
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
@@ -611,15 +624,21 @@ public:
 };
 
 VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size)
-    : VkAllocator(_vkdev), d(new VkBlobAllocatorPrivate)
+    : VkBlobAllocator(_vkdev, preferred_block_size, false)
+{
+}
+
+VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size, bool concurrent)
+    : VkAllocator(_vkdev), d(new VkBlobAllocatorPrivate(concurrent))
 {
     d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
     d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity();
 
-    if (vkdev->info.type() == 1)
+    if (vkdev->info.type() == 1 || concurrent)
     {
         // on integrated gpu, there may be device local only memory too, eg. AMD APU
         // assuming larger alignment always keeps us safe :)
+        // private weight buffers may also be mapped on other device types
 
         // least common multiple for memory_map_alignment and buffer_offset_alignment and non_coherent_atom_size
         d->buffer_offset_alignment = least_common_multiple(d->buffer_offset_alignment, vkdev->info.memory_map_alignment());
@@ -750,7 +769,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     // create new block
     VkBufferMemory* block = new VkBufferMemory;
 
-    block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+    block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, d->concurrent);
     if (!block->buffer)
     {
         delete block;

@@ -4,6 +4,71 @@
 #include "test_weight_storage.h"
 #include "pipeline.h"
 
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+// Inspect native uploads without exposing the command's private weight pool.
+// On unified devices, hide one successful target mapping to exercise staging;
+// the allocator still owns and unmaps the real mapping when it clears its pool.
+class WeightStorageUploadProbe;
+static WeightStorageUploadProbe* g_weight_storage_upload_probe = 0;
+class WeightStorageUploadProbe
+{
+public:
+    explicit WeightStorageUploadProbe(const ncnn::VulkanDevice* vkdev)
+        : hide_next_map(vkdev->info.type() == 1 || vkdev->info.type() == 3), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer)
+    {
+        g_weight_storage_upload_probe = this;
+        ncnn::vkMapMemory = map_memory;
+        ncnn::vkCmdCopyBuffer = record_copy;
+    }
+    ~WeightStorageUploadProbe()
+    {
+        ncnn::vkMapMemory = map;
+        ncnn::vkCmdCopyBuffer = copy;
+        g_weight_storage_upload_probe = 0;
+    }
+    struct Copy
+    {
+        VkBuffer source;
+        VkBuffer target;
+        VkBufferCopy region;
+    };
+    std::vector<Copy> copies;
+    bool hide_next_map;
+    int hidden_maps;
+
+private:
+    WeightStorageUploadProbe(const WeightStorageUploadProbe&);
+    WeightStorageUploadProbe& operator=(const WeightStorageUploadProbe&);
+    static VKAPI_ATTR VkResult VKAPI_CALL map_memory(VkDevice device, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** data)
+    {
+        WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
+        const VkResult ret = p->map(device, memory, offset, size, flags, data);
+        if (ret == VK_SUCCESS && p->hide_next_map)
+        {
+            *data = 0;
+            p->hide_next_map = false;
+            p->hidden_maps++;
+        }
+        return ret;
+    }
+    static VKAPI_ATTR void VKAPI_CALL record_copy(VkCommandBuffer command, VkBuffer source, VkBuffer target, uint32_t count, const VkBufferCopy* regions)
+    {
+        WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
+        for (uint32_t i = 0; i < count; i++)
+        {
+            Copy entry;
+            entry.source = source;
+            entry.target = target;
+            entry.region = regions[i];
+            p->copies.push_back(entry);
+        }
+        p->copy(command, source, target, count, regions);
+    }
+    PFN_vkMapMemory map;
+    PFN_vkCmdCopyBuffer copy;
+};
+#endif
+
 static int test_weight_storage_bytes(const ncnn::Option& opt, int elempack, bool flatten, int batch, bool host)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
@@ -387,7 +452,7 @@ static int test_weight_storage_mixed_recording()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev);
-    WeightWorkspaceAllocator blobs(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
@@ -423,7 +488,6 @@ static int test_weight_storage_mixed_recording()
         ((float*)expected_result.data)[i] = ((const float*)expected_prefix.data)[i] + ((const float*)weight_values.data)[i];
     }
     ncnn::VkCompute cmd(vkdev);
-    cmd.workspace_weight_allocator = &blobs;
 #if NCNN_BENCHMARK
     const bool timestamps = weight_storage_has_timestamps(vkdev);
     if (timestamps && cmd.create_query_pool(2))
@@ -464,19 +528,12 @@ static int test_weight_storage_mixed_recording()
         bindings[1] = modes[round] == 0 ? ordinary_weight : weight;
         bindings[2] = result;
         cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-        const VkBuffer weight_buffer = blobs.last_buffer;
-        const size_t weight_offset = blobs.last_offset;
-        // An independent ordinary upload may reuse the released weight range.
-        // Its write must follow the preceding dispatch's read of that range.
+        // Ordinary uploads continue in their own pool after the weight dispatch.
+        // They must not affect the command's independent temporary weight storage.
         ncnn::Mat replacement = RandomMat(64);
         ncnn::VkMat reused;
         ncnn::Mat replaced_output;
         cmd.record_clone(replacement, reused, opt);
-        if (modes[round] != 0 && (reused.buffer() != weight_buffer || reused.buffer_offset() != weight_offset))
-        {
-            fprintf(stderr, "shared workspace fixture did not reuse the resolved weight range\n");
-            return -1;
-        }
         cmd.record_clone(reused, replaced_output, opt);
         ncnn::Mat output;
         cmd.record_clone(result, output, opt);
@@ -605,13 +662,42 @@ static int test_weight_storage_recorded_subview()
     if (result.empty())
         return -1;
 
-    WeightWorkspaceAllocator workspace(vkdev);
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    WeightStorageUploadProbe probe(vkdev);
+#endif
     ncnn::VkCompute cmd(vkdev);
-    cmd.workspace_weight_allocator = &workspace;
     ncnn::Mat small_output;
     ncnn::Mat full_output;
     cmd.record_clone(view, small_output, opt);
     cmd.record_clone(weight, full_output, opt);
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    // The preceding full allocation remains leased while the next view is
+    // resolved. Adjacent groups may share a backing buffer, but not its range.
+    if (probe.copies.empty())
+        return -1;
+    const WeightStorageUploadProbe::Copy& first_upload = probe.copies[0];
+    int uploads = 0;
+    for (size_t i = 0; i < probe.copies.size(); i++)
+    {
+        const WeightStorageUploadProbe::Copy& copy = probe.copies[i];
+        if (copy.source != first_upload.source)
+            continue;
+        uploads++;
+        if (copy.region.size != ncnn::alignSize(weight.data->source_size, 4)
+                || (i != 0 && copy.target == first_upload.target
+                    && copy.region.dstOffset < first_upload.region.dstOffset + first_upload.region.size
+                    && first_upload.region.dstOffset < copy.region.dstOffset + copy.region.size))
+        {
+            fprintf(stderr, "adjacent resolved groups overlapped or lost their complete source extent\n");
+            return -1;
+        }
+    }
+    if (uploads != 2)
+    {
+        fprintf(stderr, "adjacent subview resolves did not record two complete uploads\n");
+        return -1;
+    }
+#endif
     if (cmd.submit_and_wait() || CompareMat(expected_view, small_output, 0.f) || CompareMat(input, full_output, 0.f) || cmd.reset())
     {
         fprintf(stderr, "test_weight_storage_recorded_subview lost source extent or view offset\n");
@@ -630,13 +716,17 @@ static int test_weight_storage_recorded_subview()
     bindings[0] = owning_view;
     bindings[1] = weight;
     bindings[2] = result;
-    const int allocations = workspace.allocations;
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    const size_t copies = probe.copies.size();
+#endif
     cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-    if (workspace.allocations != allocations + 1 || workspace.live != 0)
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    if (probe.copies.size() != copies + 1 || probe.copies.back().region.size != ncnn::alignSize(weight.data->source_size, 4))
     {
-        fprintf(stderr, "multiple views did not share one temporary workspace allocation\n");
+        fprintf(stderr, "multiple views did not share one complete temporary weight upload\n");
         return -1;
     }
+#endif
     cmd.record_clone(result, small_output, opt);
     bindings.clear();
     ncnn::Mat expected(7);
@@ -842,14 +932,12 @@ static int test_weight_storage_workspace_chunks()
     ncnn::VkWeightAllocator weights(vkdev);
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
-    WeightWorkspaceAllocator workspace(vkdev);
-    workspace.unmapped = true;
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
-    // Cross the staging chunk boundary even on a unified-memory test device.
+    // Cross the staging chunk boundary; the native probe forces staging on unified devices.
     ncnn::Mat input(16 * 1024 * 1024 / 4 + 17);
     for (int i = 0; i < input.w; i++)
         ((float*)input)[i] = (float)(i % 257);
@@ -859,11 +947,31 @@ static int test_weight_storage_workspace_chunks()
     if (upload.submit_and_wait() || weights.finalize_weights())
         return -1;
     opt.blob_vkallocator = &blobs;
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    WeightStorageUploadProbe probe(vkdev);
+#endif
     ncnn::VkCompute cmd(vkdev);
-    cmd.workspace_weight_allocator = &workspace;
     ncnn::Mat output;
     cmd.record_clone(weight, output, opt);
-    if (workspace.allocations != 1 || workspace.live != 0 || cmd.submit_and_wait() || CompareMat(input, output, 0.f))
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    if (probe.copies.size() < 2)
+    {
+        fprintf(stderr, "temporary weight did not record both staging chunks\n");
+        return -1;
+    }
+    const WeightStorageUploadProbe::Copy& first = probe.copies[0];
+    const WeightStorageUploadProbe::Copy& second = probe.copies[1];
+    const VkDeviceSize chunk_size = (VkDeviceSize)16 * 1024 * 1024;
+    if (first.source != second.source || first.target != second.target
+            || first.region.srcOffset != second.region.srcOffset
+            || first.region.size != chunk_size || second.region.size != ncnn::alignSize(weight.data->source_size - (size_t)chunk_size, 4)
+            || second.region.dstOffset != first.region.dstOffset + chunk_size)
+    {
+        fprintf(stderr, "temporary weight staging chunks lost their complete allocation or reusable staging range\n");
+        return -1;
+    }
+#endif
+    if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
     {
         fprintf(stderr, "temporary weight staging chunks corrupted the complete allocation\n");
         return -1;

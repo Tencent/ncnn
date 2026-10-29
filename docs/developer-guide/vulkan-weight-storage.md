@@ -4,7 +4,8 @@ Vulkan weights normally stay in device memory. `use_weights_in_host_memory`
 prefers host memory. Host and file weights are resolved into temporary Vulkan
 buffers before execution. `use_weights_in_disk` keeps weights in a temporary
 file, reducing resident model storage at the cost of file reads and uploads.
-Temporary weight buffers use the existing `VkBlobAllocator` implementation.
+Temporary weight buffers use a private, command-owned `VkBlobAllocator` pool,
+separate from activation and layer workspace allocations.
 
 ## usage
 
@@ -43,9 +44,9 @@ int inference(const ncnn::Mat& input, ncnn::Mat& output)
 ```
 
 The input and output names depend on the model. Keep the Net loaded when running
-inference repeatedly. Each `Mat` extraction uses a local command. Its default
-weight workspace allocator is acquired lazily from the Vulkan device and returned
-when the command is destroyed; its implementation is `VkBlobAllocator`.
+inference repeatedly. Each `Mat` extraction uses a local command. Its private
+temporary weight pool is created lazily and destroyed with the command. External
+commands retain their own pool across `reset()` calls.
 
 ## memory settings
 
@@ -68,9 +69,11 @@ These limits apply to model-owned resident allocations. They do not include
 activation buffers, temporary weights, staging, or allocator pool reserves.
 There is no separate fixed-capacity weight exchange arena and no
 `weight_device_cache_size` or `weight_host_cache_size` setting. Temporary weights
-are normal workspace allocations: the allocator can grow its pool, and an
-allocation failure is reported by the command. All weights used by one dispatch
-remain referenced together until that dispatch has been recorded.
+are command-owned allocations: the private allocator can grow its pool, and an
+allocation failure is reported by the command. Recording retains the complete
+resolved weight group for the preceding operation while allocating the current
+group. Allow room for both adjacent complete groups, allocation alignment and
+pool reserves, not just the largest individual binding or dispatch.
 
 ## file directory
 
@@ -93,34 +96,29 @@ resident fallback when no explicit directory or memory limits are configured.
 
 ## external commands
 
-Normal `Mat` extraction manages temporary weight storage automatically. An
-external command can use a caller-owned allocator:
+Normal `Mat` extraction and external commands both manage temporary weight
+storage automatically:
 
 ```cpp
-ncnn::VkBlobAllocator weight_workspace(net.vulkan_device());
 ncnn::VkCompute cmd(net.vulkan_device());
-cmd.workspace_weight_allocator = &weight_workspace;
 ```
 
-`workspace_weight_allocator` is a non-owning `VkAllocator*`. Null selects the
-command's independent default blob allocator. An application can instead point
-it to an Extractor's existing `workspace_vkallocator` to share that pool; using
-the same implementation does not require sharing the same instance. Configure
-it before recording. The allocator must use the same Vulkan device and must
-keep pooled backing buffers alive until the recorded work completes. Do not
-clear or destroy it while the command refers to its buffers.
+Each command owns an independent temporary weight pool. It cannot be replaced
+with, or shared with, an Extractor's `workspace_vkallocator`. Continue to
+configure each Extractor's blob, workspace and staging allocators for ordinary
+layer operations; these settings do not select the temporary weight pool.
 
-Continue to configure each Extractor's blob, workspace and staging allocators
-for ordinary layer operations. `cmd.reset()` discards recording state; temporary
-weight views return through the selected allocator's normal `fastFree()` path.
-Allocator pool reserves follow that allocator's lifetime and `clear()` policy.
-There is no `VkCompute::set_weight_memory_limit()` or `clear_weight_cache()`.
+`cmd.reset()` discards recording state. Temporary weight views return to the
+private pool through `fastFree()`; pooled backing allocations remain available
+for that command until destruction. File-upload staging also belongs to the
+command and is not borrowed from ordinary layer staging. There is no
+`VkCompute::set_weight_memory_limit()` or `clear_weight_cache()`.
 Model backing must remain valid and immutable until execution completes and the
 recording is reset. Clearing a Net invalidates its weights and existing
 Extractors. Use `clear()`, `load_param()` and `load_model()` to replace a model.
 
 The private `record_resolve()` validates a deferred source, creates a temporary
-`VkMat` with the selected allocator, records the complete source upload and
+`VkMat` from the private pool, records the complete source upload and
 returns a view with the original shape, packing and offset. Ordinary buffers
 pass through. `record_pipeline()` resolves its local binding array in order.
 Multiple views of the same source allocation within a dispatch share one
@@ -128,22 +126,43 @@ resolved allocation. Later operations upload the source again; there is no
 persistent weight identity cache. `MemoryData` continues to use `record_clone()`
 and owns its independent output.
 
-All upload and compute commands for temporary weights use the compute queue
-family, so an EXCLUSIVE workspace buffer can also be used by ordinary layers
-without queue-family ownership transfers. Queue submissions remain ordered with
-semaphores even when different queues are leased from that family. Before an
-operation uploads weights, the preceding compute batch is closed and its
-completion is connected to the new uploads. This conservatively protects any
-workspace address that the allocator may have reused; the allocator does not
-track GPU reader serials. It may also reduce upload/compute overlap compared to
-a dedicated exchange allocator with per-range dependency tracking.
+There is one private pool, not two alternating pools. After a weight-consuming
+dispatch or clone is recorded, the command retains its complete resolved group
+as owning `VkMat` references. The next such operation keeps that preceding
+group alive while allocating and recording its own group, so adjacent groups
+cannot overlap in storage. At the end of that recording call, the older group
+is released and the command retains the new group. Each retained view keeps its
+whole allocation alive, including when a shader binds only a subview. An
+operation two generations later may reuse a released range. Submission completion
+or reset discards retained references only after pending work is drained.
 
-On unified-memory devices, a mapped target is filled directly after preceding
-compute work completes. An unmapped target uses staging. Other devices copy
-host-resident Vulkan buffers directly or fill a command-owned staging buffer
-from file mappings. File uploads use chunks of at most 16 MiB, waiting for the
-previous upload before overwriting staging. These transfer chunks do not slice
-the weight's mathematical operation or its shader binding.
+Temporary weight uploads reuse the existing device transfer-family selector,
+which prefers a transfer-only family and otherwise selects a transfer-capable
+family. The selected family may be the same as the compute family.
+When the two families differ, temporary weight backing buffers use CONCURRENT
+sharing between them; their reuse therefore does not require queue-family
+ownership transfers. The private file-upload staging buffer is EXCLUSIVE and
+used only by the upload family. Ordinary activation and workspace buffers keep
+their existing sharing and ownership rules.
+
+Queue-family sharing does not replace synchronization. Before recording weight
+group N+1, the preceding compute batch N is closed. The upload of N+1 waits for
+the older compute batch N-1, whose temporary ranges may now be reused, rather
+than waiting for N. Group N is still referenced while N+1 is allocated, so these
+two groups have distinct storage. The compute consumer waits for its own uploads
+and the preceding compute batch. These semaphore dependencies keep computation
+ordered while permitting upload N+1 to overlap compute N. They remain
+conservative batch dependencies, not a per-range reader table or a global
+planner. Actual overlap and performance depend on the selected queues, device
+and workload; a separate transfer family alone is not a performance guarantee.
+
+On unified-memory devices, a mapped target is filled directly after the older
+compute batch N-1 completes, using the same two-generation lifetime rule. An
+unmapped target uses staging. Other devices copy host-resident Vulkan buffers
+directly or fill a command-owned staging buffer from file mappings. File uploads
+use chunks of at most 16 MiB, waiting for the previous upload before overwriting
+staging. These transfer chunks do not slice the weight's mathematical operation
+or its shader binding.
 
 Devices with push descriptors encode Vulkan commands immediately. Other devices
 create descriptor sets while recording and replay their native commands before
@@ -181,18 +200,20 @@ only unmapped destinations need snapshots and staging transfers.
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
 allocation bytes, including padding. It excludes file mappings, temporary
-weights and workspace pool reserves. Check allocation results and the return
+weights and private pool reserves. Check allocation results and the return
 value of `finalize_weights()` directly; memory usage does not certify upload
 completion.
 
 ## best practice
 
-- Set resident limits while leaving room for temporary weights, allocator pool
-  reserves, activations, KV caches and the rest of the application.
+- Set resident limits while leaving room for two adjacent complete temporary
+  weight groups, allocator pool reserves, activations, KV caches and the rest of
+  the application.
 - Use a writable application cache directory on a disk filesystem. A temporary
   directory backed by tmpfs still consumes memory.
 - Reuse the Net to retain model storage. For external command recording, reuse
-  command and workspace allocator with `reset()` between submissions.
+  the command and its private temporary weight pool with `reset()` between
+  submissions.
 - Measure on the target device. File speed, host bandwidth and Vulkan queue
   support affect the benefit of disk weights.
 
@@ -207,8 +228,8 @@ read, bytes uploaded and elapsed time.
 Memory limits cover resident model-weight Vulkan allocations, including padding.
 They are not a process or device-wide quota. Temporary weight workspaces,
 activations, KV caches, CPU model preparation, OS file cache and driver
-allocations are outside these limits. Concurrent commands normally use separate
-workspace allocator instances.
+allocations are outside these limits. Concurrent commands always use separate
+temporary weight pools, even if their Extractors share ordinary allocators.
 
 Disk storage currently supports buffer weights. Weight images are unsupported
 with explicit resident memory limits. The allocator must be able to hold all

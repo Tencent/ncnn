@@ -55,10 +55,7 @@ static int test_weight_storage_workspace_failure(VulkanFailure::Failure failure)
     }
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
-    WeightWorkspaceAllocator workspace(vkdev);
-    ncnn::VkStagingAllocator mapped_workspace(vkdev);
     ncnn::VkCompute cmd(vkdev);
-    cmd.workspace_weight_allocator = failure == VulkanFailure::MAP_MEMORY ? (ncnn::VkAllocator*)&mapped_workspace : &workspace;
     ncnn::Mat output;
     {
         // Workspace and task failures are latched while recording and reported by submit.
@@ -424,6 +421,57 @@ public:
     VkDeviceSize peak_device_bytes;
     VkDeviceSize peak_host_bytes;
 
+    struct Copy
+    {
+        VkCommandBuffer command;
+        VkBuffer source;
+        VkBuffer target;
+        VkBufferCopy region;
+    };
+    std::vector<Copy> copy_regions;
+
+    struct Submission
+    {
+        VkCommandBuffer command;
+        std::vector<VkSemaphore> waits;
+        std::vector<VkSemaphore> signals;
+    };
+    std::vector<Submission> submit_records;
+
+    int submission_index(VkCommandBuffer command) const
+    {
+        for (size_t i = 0; i < submit_records.size(); i++)
+            if (submit_records[i].command == command)
+                return (int)i;
+        return -1;
+    }
+
+    bool depends_on(int consumer, int producer) const
+    {
+        std::vector<bool> visited(submit_records.size(), false);
+        std::vector<int> pending(1, consumer);
+        visited[consumer] = true;
+        for (size_t i = 0; i < pending.size(); i++)
+        {
+            const Submission& current = submit_records[pending[i]];
+            for (size_t w = 0; w < current.waits.size(); w++)
+                for (size_t p = 0; p < submit_records.size(); p++)
+                    for (size_t s = 0; s < submit_records[p].signals.size(); s++)
+                    {
+                        if (current.waits[w] != submit_records[p].signals[s])
+                            continue;
+                        if ((int)p == producer)
+                            return true;
+                        if (!visited[p])
+                        {
+                            visited[p] = true;
+                            pending.push_back((int)p);
+                        }
+                    }
+        }
+        return false;
+    }
+
 private:
     struct Memory
     {
@@ -439,6 +487,15 @@ private:
         p->copies++;
         p->buffers.push_back(src);
         p->buffers.push_back(dst);
+        for (uint32_t i = 0; i < count; i++)
+        {
+            Copy entry;
+            entry.command = command;
+            entry.source = src;
+            entry.target = dst;
+            entry.region = regions[i];
+            p->copy_regions.push_back(entry);
+        }
         p->copy(command, src, dst, count, regions);
     }
     static VKAPI_ATTR void VKAPI_CALL record_dispatch(VkCommandBuffer command, uint32_t x, uint32_t y, uint32_t z)
@@ -451,6 +508,17 @@ private:
     {
         WeightRecordingProbe* p = g_weight_recording_probe;
         p->submissions += count;
+        for (uint32_t i = 0; i < count; i++)
+            for (uint32_t j = 0; j < info[i].commandBufferCount; j++)
+            {
+                Submission entry;
+                entry.command = info[i].pCommandBuffers[j];
+                for (uint32_t w = 0; w < info[i].waitSemaphoreCount; w++)
+                    entry.waits.push_back(info[i].pWaitSemaphores[w]);
+                for (uint32_t s = 0; s < info[i].signalSemaphoreCount; s++)
+                    entry.signals.push_back(info[i].pSignalSemaphores[s]);
+                p->submit_records.push_back(entry);
+            }
         return p->submit(queue, count, info, fence);
     }
     static VKAPI_ATTR void VKAPI_CALL destroy_buffer(VkDevice device, VkBuffer buffer, const VkAllocationCallbacks* callbacks)
@@ -641,30 +709,27 @@ static int test_weight_storage_record_time_preparation()
                 return -1;
         }
     }
-    // A later workspace allocation failure must not submit a partial binding set.
-    WeightWorkspaceAllocator workspace(vkdev);
-    workspace.fail_at = 4;
+    // A later task allocation failure must not submit earlier records or a partial binding set.
     ncnn::VkMat first_device(elements, (size_t)4u, &blobs);
     ncnn::VkCompute rejected(vkdev);
-    rejected.workspace_weight_allocator = &workspace;
     {
         WeightRecordingProbe probe(vkdev);
         rejected.record_clone(weight[0], first_device, opt);
         const int dispatches = probe.dispatches;
+        VulkanFailure failure(VulkanFailure::ALLOCATE_COMMAND);
         rejected.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-        if (rejected.submit_and_wait() == 0 || probe.submissions != 0 || probe.dispatches != dispatches || probe.destroyed_recorded_buffer || workspace.allocations != 4 || workspace.live != 0)
+        if (!failure.triggered || rejected.submit_and_wait() == 0 || probe.submissions != 0 || probe.dispatches != dispatches || probe.destroyed_recorded_buffer)
         {
-            fprintf(stderr, "workspace failure submitted work or lost a pending allocation\n");
+            fprintf(stderr, "weight preparation failure submitted work or lost a pending allocation\n");
             return -1;
         }
     }
     if (rejected.reset())
         return -1;
-    workspace.fail_at = 0;
     ncnn::Mat recovered;
     rejected.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
     rejected.record_clone(result, recovered, opt);
-    if (rejected.submit_and_wait() || CompareMat(expected, recovered, 0.f) || workspace.peak_live < 3 || workspace.live != 0)
+    if (rejected.submit_and_wait() || CompareMat(expected, recovered, 0.f))
         return -1;
 
     return 0;
@@ -676,7 +741,6 @@ static int test_weight_storage_workspace_allocation()
     ncnn::VkWeightAllocator weights(vkdev);
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
-    WeightWorkspaceAllocator workspace(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
     ncnn::Option opt = weight_storage_option();
@@ -698,17 +762,22 @@ static int test_weight_storage_workspace_allocation()
             return -1;
     }
     ncnn::VkCompute cmd(vkdev);
-    cmd.workspace_weight_allocator = &workspace;
-    cmd.record_clone(native, target, opt);
-    if (cmd.submit_and_wait() || workspace.allocations != 0 || cmd.reset())
-        return -1;
+    {
+        WeightRecordingProbe probe(vkdev);
+        cmd.record_clone(native, target, opt);
+        if (cmd.submit_and_wait() || probe.allocations != 0 || cmd.reset())
+        {
+            fprintf(stderr, "ordinary recording allocated temporary weight memory\n");
+            return -1;
+        }
+    }
     for (int round = 0; round < 2; round++)
     {
         WeightRecordingProbe probe(vkdev);
         cmd.record_clone(weight, target, opt);
-        if (workspace.allocations != round + 1 || workspace.frees != round + 1 || workspace.live != 0 || probe.submissions != 0 || probe.destroyed_recorded_buffer)
+        if ((round == 0 ? probe.allocations == 0 : probe.allocations != 0) || probe.submissions != 0 || probe.destroyed_recorded_buffer)
         {
-            fprintf(stderr, "temporary weight did not use and return the supplied workspace\n");
+            fprintf(stderr, "private weight pool was not allocated lazily or reused after reset round=%d\n", round);
             return -1;
         }
         ncnn::Mat output;
@@ -716,7 +785,180 @@ static int test_weight_storage_workspace_allocation()
         if (cmd.submit_and_wait() || CompareMat(input, output, 0.f) || cmd.reset())
             return -1;
     }
+    {
+        WeightRecordingProbe probe(vkdev);
+        {
+            ncnn::VkCompute scoped(vkdev);
+            scoped.record_clone(weight, target, opt);
+            if (scoped.submit_and_wait() || probe.allocations == 0)
+                return -1;
+        }
+        if (probe.device_bytes || probe.host_bytes)
+        {
+            fprintf(stderr, "command destruction retained its private weight pool\n");
+            return -1;
+        }
+    }
     return 0;
+}
+
+// A returned temporary weight range must never enter an activation allocator.
+// The ordinary upload after the weight read previously overwrote the same range
+// when the temporary pool was supplied by the caller.
+static int test_weight_storage_private_pool()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev, 4096);
+    ncnn::VkStagingAllocator staging(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat input = RandomMat(64);
+    ncnn::Mat replacement = RandomMat(64);
+    ncnn::VkMat weight;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(input, weight, opt);
+    if (upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    opt.blob_vkallocator = &blobs;
+    opt.workspace_vkallocator = &blobs;
+    ncnn::VkCompute cmd(vkdev);
+    for (int round = 0; round < 2; round++)
+    {
+        ncnn::VkMat first;
+        ncnn::VkMat ordinary;
+        ncnn::Mat first_output;
+        ncnn::Mat ordinary_output;
+        WeightRecordingProbe probe(vkdev);
+        cmd.record_clone(weight, first, opt);
+        cmd.record_clone(replacement, ordinary, opt);
+        cmd.record_clone(first, first_output, opt);
+        cmd.record_clone(ordinary, ordinary_output, opt);
+        if (probe.submissions != 0 || probe.destroyed_recorded_buffer || cmd.submit_and_wait()
+                || CompareMat(input, first_output, 0.f) || CompareMat(replacement, ordinary_output, 0.f))
+            return -1;
+        bool found_weight_read = false;
+        for (size_t i = 0; i < probe.copy_regions.size(); i++)
+        {
+            const WeightRecordingProbe::Copy& copy = probe.copy_regions[i];
+            if (copy.target != first.buffer() || copy.region.dstOffset != first.buffer_offset())
+                continue;
+            found_weight_read = true;
+            if (copy.source == first.buffer() || copy.source == ordinary.buffer())
+            {
+                fprintf(stderr, "temporary weights shared activation backing\n");
+                return -1;
+            }
+        }
+        if (!found_weight_read || cmd.reset())
+            return -1;
+    }
+    return 0;
+}
+
+// Keep adjacent complete weight groups disjoint, then reuse the older group.
+// GPU-backed deferred sources exercise the upload graph even on unified memory.
+static int test_weight_storage_upload_overlap()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev, true);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat input[3];
+    ncnn::VkMat weight[3];
+    ncnn::VkTransfer upload(vkdev);
+    for (int i = 0; i < 3; i++)
+    {
+        input[i] = RandomMat(64);
+        upload.record_upload(input[i], weight[i], opt);
+    }
+    if (upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    int storage_types[3];
+    for (int i = 0; i < 3; i++)
+    {
+        storage_types[i] = weight[i].data->storage_type;
+        weight[i].data->storage_type = 1;
+        weight[i].data->source_size = weight[i].buffer_capacity();
+    }
+    opt.blob_vkallocator = &blobs;
+    int ret = 0;
+    {
+        ncnn::VkCompute cmd(vkdev);
+        for (int round = 0; round < 2 && ret == 0; round++)
+        {
+            ncnn::VkMat results[3];
+            ncnn::Mat output[3];
+            WeightRecordingProbe probe(vkdev);
+            for (int i = 0; i < 3; i++)
+                cmd.record_clone(weight[i], results[i], opt);
+            for (int i = 0; i < 3; i++)
+                cmd.record_clone(results[i], output[i], opt);
+            if (probe.submissions != 0 || cmd.submit_and_wait())
+            {
+                ret = -1;
+                break;
+            }
+            int uploads[3] = {-1, -1, -1};
+            int computes[3] = {-1, -1, -1};
+            VkBuffer targets[3] = {0, 0, 0};
+            VkDeviceSize offsets[3] = {0, 0, 0};
+            for (size_t c = 0; c < probe.copy_regions.size(); c++)
+            {
+                const WeightRecordingProbe::Copy& copy = probe.copy_regions[c];
+                for (int i = 0; i < 3; i++)
+                {
+                    if (copy.source == weight[i].buffer() && copy.region.srcOffset == weight[i].buffer_offset())
+                    {
+                        uploads[i] = probe.submission_index(copy.command);
+                        targets[i] = copy.target;
+                        offsets[i] = copy.region.dstOffset;
+                    }
+                    if (copy.target == results[i].buffer() && copy.region.dstOffset == results[i].buffer_offset())
+                        computes[i] = probe.submission_index(copy.command);
+                }
+            }
+            for (int i = 0; i < 3; i++)
+                if (uploads[i] < 0 || computes[i] < 0 || CompareMat(input[i], output[i], 0.f)
+                        || !probe.depends_on(computes[i], uploads[i]))
+                    ret = -1;
+            if (ret != 0)
+            {
+                fprintf(stderr, "weight upload graph or output missing round=%d\n", round);
+                break;
+            }
+            const VkDeviceSize size = weight[0].buffer_capacity();
+            if (targets[0] != targets[1] || targets[0] != targets[2]
+                    || (offsets[0] < offsets[1] + size && offsets[1] < offsets[0] + size)
+                    || offsets[2] != offsets[0])
+            {
+                fprintf(stderr, "adjacent weight groups overlapped or older range was not reused round=%d\n", round);
+                ret = -1;
+            }
+            if (probe.depends_on(uploads[1], computes[0])
+                    || !probe.depends_on(uploads[2], computes[0])
+                    || probe.depends_on(uploads[2], computes[1]))
+            {
+                fprintf(stderr, "weight upload waited for the adjacent consumer or missed the older reader round=%d\n", round);
+                ret = -1;
+            }
+            if (cmd.reset())
+                ret = -1;
+        }
+    }
+    for (int i = 0; i < 3; i++)
+    {
+        weight[i].data->storage_type = storage_types[i];
+        if (storage_types[i] == 0)
+            weight[i].data->source_size = 0;
+    }
+    return ret;
 }
 
 class FailingFlushAllocator : public ncnn::VkStagingAllocator
@@ -877,7 +1119,7 @@ static int test_weight_storage_workspace_wait_failure(bool deferred_weight)
 static int test_weight_storage_execution_resources(VulkanFailure::Failure failure)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
-    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkWeightAllocator weights(vkdev, true);
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     ncnn::Option opt = weight_storage_option();
@@ -1009,6 +1251,8 @@ int main()
                     || test_weight_storage_dispatch_pinning()
                     || test_weight_storage_record_time_preparation()
                     || test_weight_storage_workspace_allocation()
+                    || test_weight_storage_private_pool()
+                    || test_weight_storage_upload_overlap()
                     || test_weight_storage_resident_batches()
                     || test_weight_storage_resident_failure()
                     || test_weight_storage_midflight_failure(2)

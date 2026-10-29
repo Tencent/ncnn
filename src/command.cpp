@@ -82,7 +82,7 @@ public:
     int begin_command_buffer();
     int end_command_buffer();
 
-    int record_resolve(const VkMat& src, VkMat& dst, VkAllocator* allocator);
+    int record_resolve(const VkMat& src, VkMat& dst);
 
     int close_compute_task();
 
@@ -292,10 +292,12 @@ public:
     bool query_results_ready;
 #endif // NCNN_BENCHMARK
 
-    VkAllocator* local_workspace_vkallocator;
+    VkAllocator* local_weight_vkallocator;
     VkAllocator* local_staging_vkallocator;
     VkMat weight_staging_buffer;
+    std::vector<VkMat> weight_buffers;
     int weight_compute_task;
+    int weight_last_compute_task;
     VkSemaphore weight_upload_wait_semaphore;
 
     std::vector<VkSemaphore> compute_upload_semaphores;
@@ -341,7 +343,7 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
     query_results_ready = false;
 #endif // NCNN_BENCHMARK
 
-    local_workspace_vkallocator = 0;
+    local_weight_vkallocator = 0;
     local_staging_vkallocator = 0;
     recorded_count = 0;
     compute_upload_semaphores.resize(1, 0);
@@ -353,6 +355,7 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
 #endif
     active_compute_task = -1;
     weight_compute_task = -1;
+    weight_last_compute_task = -1;
     weight_upload_wait_semaphore = 0;
     use_weight_upload_online = false;
     executing = false;
@@ -373,10 +376,8 @@ VkComputePrivate::~VkComputePrivate()
         vkResetCommandBuffer(compute_command_buffers[0], 0);
     clear_execution();
     clear_records();
-    if (local_workspace_vkallocator)
-        vkdev->reclaim_blob_allocator(local_workspace_vkallocator);
-    if (local_staging_vkallocator)
-        vkdev->reclaim_staging_allocator(local_staging_vkallocator);
+    delete local_weight_vkallocator;
+    delete local_staging_vkallocator;
 
     for (size_t i = 0; i < image_blocks_to_destroy.size(); i++)
     {
@@ -442,7 +443,7 @@ int VkComputePrivate::init(bool weight_upload)
                 vkCmdResetQueryPool(compute_command_buffers[0], query_pool, 0, query_count);
 #endif
         }
-        transfer_queue_family_index = vkdev->info.compute_queue_family_index();
+        transfer_queue_family_index = vkdev->info.transfer_queue_family_index();
 #if NCNN_BENCHMARK
         bytes_read = bytes_uploaded = 0;
         weight_start_time = get_current_time();
@@ -569,7 +570,6 @@ int VkComputePrivate::end_command_buffer()
 VkCompute::VkCompute(const VulkanDevice* _vkdev)
     : vkdev(_vkdev), d(new VkComputePrivate(_vkdev))
 {
-    workspace_weight_allocator = 0;
 }
 
 VkCompute::~VkCompute()
@@ -938,20 +938,24 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
 {
     if (d->execution_error)
         return;
+    std::vector<VkMat> previous_weights;
     if (is_deferred_buffer(_src.data))
     {
         d->execution_error = d->init(true);
         if (d->execution_error)
             return;
-        d->weight_compute_task = d->active_compute_task;
+        const int previous_compute_task = d->active_compute_task;
         d->execution_error = d->close_compute_task();
         if (d->execution_error)
             return;
-        d->weight_upload_wait_semaphore = d->compute_upload_semaphores[d->weight_compute_task];
+        d->weight_compute_task = d->weight_last_compute_task;
+        d->weight_last_compute_task = d->weight_buffers.empty() ? -1 : previous_compute_task;
+        std::swap(previous_weights, d->weight_buffers);
+        d->weight_upload_wait_semaphore = d->weight_compute_task < 0 ? 0 : d->compute_upload_semaphores[d->weight_compute_task];
     }
 
     VkMat src;
-    d->execution_error = d->record_resolve(_src, src, workspace_weight_allocator);
+    d->execution_error = d->record_resolve(_src, src);
     if (d->execution_error)
         return;
     //     NCNN_LOGE("record_clone buffer to buffer");
@@ -1178,20 +1182,24 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
 {
     if (d->execution_error)
         return;
+    std::vector<VkMat> previous_weights;
     if (is_deferred_buffer(_src.data))
     {
         d->execution_error = d->init(true);
         if (d->execution_error)
             return;
-        d->weight_compute_task = d->active_compute_task;
+        const int previous_compute_task = d->active_compute_task;
         d->execution_error = d->close_compute_task();
         if (d->execution_error)
             return;
-        d->weight_upload_wait_semaphore = d->compute_upload_semaphores[d->weight_compute_task];
+        d->weight_compute_task = d->weight_last_compute_task;
+        d->weight_last_compute_task = d->weight_buffers.empty() ? -1 : previous_compute_task;
+        std::swap(previous_weights, d->weight_buffers);
+        d->weight_upload_wait_semaphore = d->weight_compute_task < 0 ? 0 : d->compute_upload_semaphores[d->weight_compute_task];
     }
 
     VkMat src;
-    d->execution_error = d->record_resolve(_src, src, workspace_weight_allocator);
+    d->execution_error = d->record_resolve(_src, src);
     if (d->execution_error)
         return;
     //     NCNN_LOGE("record_clone buffer to image");
@@ -1529,6 +1537,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     //     NCNN_LOGE("record_pipeline %p", pipeline);
 
     std::vector<VkMat> buffer_bindings = _buffer_bindings;
+    std::vector<VkMat> previous_weights;
     bool first_weight = true;
 
     for (size_t i = 0; i < buffer_bindings.size(); i++)
@@ -1541,15 +1550,18 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             d->execution_error = d->init(true);
             if (d->execution_error)
                 return;
-            d->weight_compute_task = d->active_compute_task;
+            const int previous_compute_task = d->active_compute_task;
             d->execution_error = d->close_compute_task();
             if (d->execution_error)
                 return;
-            d->weight_upload_wait_semaphore = d->compute_upload_semaphores[d->weight_compute_task];
+            d->weight_compute_task = d->weight_last_compute_task;
+            d->weight_last_compute_task = d->weight_buffers.empty() ? -1 : previous_compute_task;
+            std::swap(previous_weights, d->weight_buffers);
+            d->weight_upload_wait_semaphore = d->weight_compute_task < 0 ? 0 : d->compute_upload_semaphores[d->weight_compute_task];
             first_weight = false;
         }
 
-        d->execution_error = d->record_resolve(_buffer_bindings[i], buffer_bindings[i], workspace_weight_allocator);
+        d->execution_error = d->record_resolve(_buffer_bindings[i], buffer_bindings[i]);
         if (d->execution_error)
             return;
 
@@ -2699,6 +2711,7 @@ void VkComputePrivate::clear_execution()
     execution_semaphores.clear();
     active_compute_task = -1;
     weight_compute_task = -1;
+    weight_last_compute_task = -1;
     weight_upload_wait_semaphore = 0;
     use_weight_upload_online = false;
 #if NCNN_BENCHMARK
@@ -2748,6 +2761,7 @@ void VkComputePrivate::clear_records()
         }
     }
     delayed_records.clear();
+    weight_buffers.clear();
     upload_sources.clear();
     for (size_t i = 0; i < upload_targets.size(); i++)
     {
@@ -2908,7 +2922,7 @@ int VkComputePrivate::close_compute_task()
     return 0;
 }
 
-int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* allocator)
+int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
 {
     if (!is_deferred_buffer(src.data))
     {
@@ -2919,14 +2933,11 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
     int ret = validate_weight_binding(src, vkdev);
     if (ret != 0)
         return ret;
-    if (!allocator)
-    {
-        if (!local_workspace_vkallocator)
-            local_workspace_vkallocator = vkdev->acquire_blob_allocator();
-        allocator = local_workspace_vkallocator;
-    }
-    if (!allocator || allocator->vkdev != vkdev)
-        return -1;
+    // Never share exchange storage with ordinary workspace or other commands.
+    // Concurrent backing keeps pool reuse independent of queue-family ownership.
+    if (!local_weight_vkallocator)
+        local_weight_vkallocator = new VkBlobAllocator(vkdev, 16 * 1024 * 1024, true);
+    VkAllocator* allocator = local_weight_vkallocator;
 
     // Upload the complete allocation even when the consumer uses a subview.
     const size_t size = alignSize(src.data->source_size, 4);
@@ -2962,7 +2973,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
     VkAccessFlags upload_access = 0;
     VkPipelineStageFlags upload_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    // Unified memory: defer the host fill until earlier GPU readers have finished.
+    // Unified memory: wait for older readers; the preceding group is still retained.
     if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && upload_target.mapped_ptr() && needs_host_copy(source))
     {
         record r;
@@ -3001,7 +3012,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
             if (weight_staging_buffer.empty())
             {
                 if (!local_staging_vkallocator)
-                    local_staging_vkallocator = vkdev->acquire_staging_allocator();
+                    local_staging_vkallocator = new VkStagingAllocator(vkdev);
                 if (!local_staging_vkallocator)
                     return -1;
                 weight_staging_buffer.create(1, (size_t)16 * 1024 * 1024, 1, local_staging_vkallocator);
@@ -3174,7 +3185,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
                 }
             }
 
-            // release device transfer-write @ transfer to null @ compute
+            // make transfer writes available before signaling the compute consumer
             if (last)
             {
                 VkBufferMemoryBarrier barrier;
@@ -3345,6 +3356,10 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
         dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
         dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     }
+
+    // Keep this full group live while the next operation allocates its weights.
+    // Later reuse waits for older readers, without serializing the adjacent group.
+    weight_buffers.push_back(dst);
 
     return 0;
 }

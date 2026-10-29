@@ -26,10 +26,6 @@ public:
     virtual ~VkCompute();
 
 public:
-    // temporary weights; null uses a command-owned blob allocator
-    // the allocator must outlive the recorded commands
-    VkAllocator* workspace_weight_allocator;
-
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
     void record_download(const VkMat& src, Mat& dst, const Option& opt);
