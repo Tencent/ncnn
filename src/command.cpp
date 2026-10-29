@@ -104,8 +104,8 @@ public:
     int record_resolve(const VkMat& src, VkMat& dst, VkAllocator* allocator, bool first = true);
 
     int close_compute_task();
-    int record_device_upload(const VkBufferMemory& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last, VkSemaphore& upload_wait_semaphore);
-    void record_host_copy(const VkMat& source, const VkBufferMemory& target, size_t offset, size_t size);
+    int record_device_upload(const VkMat& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last, VkSemaphore& upload_wait_semaphore);
+    void record_host_copy(const VkMat& source, const VkMat& target, size_t offset, size_t size);
 
     void record_buffer_barrier(VkCommandBuffer command_buffer, VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, const VkBufferMemoryBarrier& barrier);
     void record_copy_buffer(VkCommandBuffer command_buffer, VkBuffer src, VkBuffer dst, const VkBufferCopy& region,
@@ -336,7 +336,8 @@ public:
     std::vector<VkSemaphore> upload_compute_semaphores;
     std::vector<bool> upload_pending;
     std::vector<VkMat> upload_sources;
-    std::vector<VkBufferMemory> upload_targets;
+    // external views with command-owned metadata copies
+    std::vector<VkMat> upload_targets;
 
     // owns all compute and upload synchronization semaphores
     std::vector<VkSemaphore> execution_semaphores;
@@ -2337,7 +2338,7 @@ void VkComputePrivate::record_copy_buffer(VkCommandBuffer command_buffer, VkBuff
     }
 }
 
-int VkComputePrivate::record_device_upload(const VkBufferMemory& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last, VkSemaphore& upload_wait_semaphore)
+int VkComputePrivate::record_device_upload(const VkMat& source, const VkMat& target, size_t src_offset, size_t target_offset, size_t size, bool last, VkSemaphore& upload_wait_semaphore)
 {
     if (upload_command_buffers.size() >= (size_t)INT_MAX)
         return -1;
@@ -2415,26 +2416,25 @@ int VkComputePrivate::record_device_upload(const VkBufferMemory& source, const V
 
     // record source to device
     {
-        const VkBufferMemory* src = &source;
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.pNext = 0;
-        barrier.srcAccessMask = src->mapped_ptr ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
+        barrier.srcAccessMask = source.mapped_ptr() ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
         barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.buffer = src->buffer;
-        barrier.offset = src_offset;
+        barrier.buffer = source.buffer();
+        barrier.offset = source.buffer_offset() + src_offset;
         barrier.size = size;
 
-        VkPipelineStageFlags src_stage = src->mapped_ptr ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        VkPipelineStageFlags src_stage = source.mapped_ptr() ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
         VkBufferCopy region;
-        region.srcOffset = src_offset;
+        region.srcOffset = source.buffer_offset() + src_offset;
         region.dstOffset = target.buffer_offset() + target_offset;
         region.size = size;
 
-        record_copy_buffer(upload_command_buffers[task], source.buffer, target.buffer(), region, src_stage, &barrier);
+        record_copy_buffer(upload_command_buffers[task], source.buffer(), target.buffer(), region, src_stage, &barrier);
     }
 
     // release device transfer-write @ transfer to null @ compute
@@ -2627,6 +2627,12 @@ void VkComputePrivate::clear_records()
     }
     delayed_records.clear();
     upload_sources.clear();
+    for (size_t i = 0; i < upload_targets.size(); i++)
+    {
+        VkBufferMemory* target = upload_targets[i].data;
+        upload_targets[i].release();
+        delete target;
+    }
     upload_targets.clear();
     recorded_count = 0;
     weight_staging_buffer.release();
@@ -2990,15 +2996,12 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
         r.command_buffer = 0;
         r.wait.task = weight_compute_task;
         delayed_records.push_back(r);
-        VkBufferMemory target_view = *target.data;
-        target_view.offset = target.buffer_offset();
-        target_view.capacity = size;
-        record_host_copy(source, target_view, 0, source.data->source_size);
+        record_host_copy(source, target, 0, source.data->source_size);
     }
     else if (!needs_host_copy(source))
     {
         upload_sources.push_back(source);
-        ret = record_device_upload(*source.data, target, source.buffer_offset(), 0, alignSize(source.data->source_size, 4), true, weight_upload_wait_semaphore);
+        ret = record_device_upload(source, target, 0, 0, size, true, weight_upload_wait_semaphore);
         if (ret != 0)
             return ret;
     }
@@ -3026,12 +3029,9 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
                 r.wait.task = (int)upload_command_buffers.size() - 1;
                 delayed_records.push_back(r);
             }
-            VkBufferMemory host = *weight_staging_buffer.data;
-            host.offset = weight_staging_buffer.buffer_offset();
-            host.capacity = alignSize(chunk_size, 4);
-            record_host_copy(source, host, offset, chunk_size);
+            record_host_copy(source, weight_staging_buffer, offset, chunk_size);
             const bool last = chunk_size == source.data->source_size - offset;
-            ret = record_device_upload(host, target, host.offset, offset, host.capacity, last, weight_upload_wait_semaphore);
+            ret = record_device_upload(weight_staging_buffer, target, 0, offset, alignSize(chunk_size, 4), last, weight_upload_wait_semaphore);
             if (ret != 0)
                 return ret;
             offset += chunk_size;
@@ -3127,10 +3127,14 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, VkAllocator* 
     return 0;
 }
 
-void VkComputePrivate::record_host_copy(const VkMat& source, const VkBufferMemory& target, size_t offset, size_t size)
+void VkComputePrivate::record_host_copy(const VkMat& source, const VkMat& target, size_t offset, size_t size)
 {
     upload_sources.push_back(source);
-    upload_targets.push_back(target);
+
+    // Keep a metadata copy without retaining the workspace allocation.
+    VkBufferMemory* target_memory = new VkBufferMemory(*target.data);
+    VkMat target_view(1, target_memory, (size_t)1u, target.allocator);
+    upload_targets.push_back(make_weight_view(target, target_view));
 
     record r;
     r.type = record::TYPE_host_copy;
@@ -3157,11 +3161,12 @@ int VkComputePrivate::submit_records()
         case record::TYPE_host_copy:
         {
             const VkMat& source = upload_sources[r.host_copy.source_index];
-            const VkBufferMemory& target = upload_targets[r.host_copy.target_index];
-            unsigned char* dst = (unsigned char*)target.mapped_ptr + target.offset;
+            const VkMat& target = upload_targets[r.host_copy.target_index];
+            const size_t size = alignSize(r.host_copy.size, 4);
+            unsigned char* dst = (unsigned char*)target.mapped_ptr();
             memcpy(dst, (const unsigned char*)source.data->source_ptr + r.host_copy.source_offset, r.host_copy.size);
-            memset(dst + r.host_copy.size, 0, target.capacity - r.host_copy.size);
-            ret = flush_weight_buffer(vkdev, &target, 0, target.capacity);
+            memset(dst + r.host_copy.size, 0, size - r.host_copy.size);
+            ret = flush_weight_buffer(vkdev, target.data, target.offset, size);
 #if NCNN_BENCHMARK
             if (source.data->storage_type == 2)
                 bytes_read += r.host_copy.size;
