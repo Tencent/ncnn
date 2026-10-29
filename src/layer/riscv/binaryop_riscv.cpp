@@ -13,6 +13,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "binaryop_bf16s.h"
+#endif
+
 BinaryOp_riscv::BinaryOp_riscv()
 {
 #if __riscv_vector
@@ -24,6 +28,9 @@ BinaryOp_riscv::BinaryOp_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 }
 
@@ -481,12 +488,20 @@ static int get_reverse_op_type(int op_type)
 
 int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
+#endif
 
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
     {
         return forward_fp16s(bottom_blobs, top_blobs, opt);
+    }
+#endif
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+    {
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
     }
 #endif
 
@@ -639,12 +654,20 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
 int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_top_blob.elembits();
+#endif
 
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
+    }
+#endif
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+    {
+        return forward_inplace_bf16s(bottom_top_blob, opt);
     }
 #endif
 
@@ -652,5 +675,163 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
     return 0;
 }
+
+#if NCNN_BF16
+int BinaryOp_riscv::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& A = bottom_blobs[0];
+    const Mat& B = bottom_blobs[1];
+    const int outdims = std::max(A.dims, B.dims);
+
+    Mat A2 = A;
+    Mat B2 = B;
+    if (A.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+        {
+            if (A.w * A.elempack == B.h * B.elempack)
+                A2 = A.reshape(1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 2;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A.cstep * A.elempack;
+            }
+        }
+        if (outdims == 3 && A.dims == 1)
+        {
+            if (A.w * A.elempack == B.c * B.elempack)
+                A2 = A.reshape(1, 1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 3;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A.cstep * A.elempack;
+            }
+        }
+        if (outdims == 3 && A.dims == 2)
+            A2 = A.reshape(1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 1)
+        {
+            if (A.w * A.elempack == B.c * B.elempack)
+                A2 = A.reshape(1, 1, 1, A.w, opt.workspace_allocator);
+            else // if (A.w == B.w)
+            {
+                A2.dims = 4;
+                A2.w = A.w * A.elempack;
+                A2.elempack = 1;
+                A2.elemsize = A.elemsize / A.elempack;
+                A2.cstep = A.cstep * A.elempack;
+            }
+        }
+        if (outdims == 4 && A.dims == 2)
+            A2 = A.reshape(1, 1, A.w, A.h, opt.workspace_allocator);
+        if (outdims == 4 && A.dims == 3)
+            A2 = A.reshape(1, A.w, A.h, A.c, opt.workspace_allocator);
+    }
+    if (B.dims < outdims)
+    {
+        // expand inner axes
+        if (outdims == 2)
+        {
+            if (B.w * B.elempack == A.h * A.elempack)
+                B2 = B.reshape(1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 2;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B.cstep * B.elempack;
+            }
+        }
+        if (outdims == 3 && B.dims == 1)
+        {
+            if (B.w * B.elempack == A.c * A.elempack)
+                B2 = B.reshape(1, 1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 3;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B.cstep * B.elempack;
+            }
+        }
+        if (outdims == 3 && B.dims == 2)
+            B2 = B.reshape(1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 1)
+        {
+            if (B.w * B.elempack == A.c * A.elempack)
+                B2 = B.reshape(1, 1, 1, B.w, opt.workspace_allocator);
+            else // if (B.w == A.w)
+            {
+                B2.dims = 4;
+                B2.w = B.w * B.elempack;
+                B2.elempack = 1;
+                B2.elemsize = B.elemsize / B.elempack;
+                B2.cstep = B.cstep * B.elempack;
+            }
+        }
+        if (outdims == 4 && B.dims == 2)
+            B2 = B.reshape(1, 1, B.w, B.h, opt.workspace_allocator);
+        if (outdims == 4 && B.dims == 3)
+            B2 = B.reshape(1, B.w, B.h, B.c, opt.workspace_allocator);
+    }
+
+    const int outw = std::max(A2.w, B2.w);
+    const int outh = std::max(A2.h, B2.h);
+    const int outd = std::max(A2.d, B2.d);
+    const int outc = std::max(A2.c, B2.c);
+    const size_t out_elemsize = std::max(A2.elemsize, B2.elemsize);
+    const int out_elempack = std::max(A2.elempack, B2.elempack);
+
+    Mat& top_blob = top_blobs[0];
+    if (outdims == 1)
+    {
+        top_blob.create(outw, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 2)
+    {
+        top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 3)
+    {
+        top_blob.create(outw, outh, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (outdims == 4)
+    {
+        top_blob.create(outw, outh, outd, outc, out_elemsize, out_elempack, opt.blob_allocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    const bool a_pack_is_lower = A2.elempack < B2.elempack;
+    const bool a_pack_is_equal = A2.elempack == B2.elempack;
+    const bool a_size_is_lower = A2.w * A2.h * A2.d * A2.c * A2.elempack < B2.w * B2.h * B2.d * B2.c * B2.elempack;
+    if (a_pack_is_lower || (a_pack_is_equal && a_size_is_lower))
+    {
+        binaryop_bf16s(B2, A2, top_blob, get_reverse_op_type(op_type), opt);
+    }
+    else
+    {
+        binaryop_bf16s(A2, B2, top_blob, op_type, opt);
+    }
+
+    return 0;
+}
+
+int BinaryOp_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    binary_op_scalar_inplace_bf16s(bottom_top_blob, float32_to_bfloat16(b), op_type, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
