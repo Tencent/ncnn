@@ -339,8 +339,6 @@ private:
     VkBlobAllocatorPrivate* const d;
 };
 
-class Mat;
-class VkMat;
 class VkWeightAllocatorPrivate;
 class NCNN_EXPORT VkWeightAllocator : public VkAllocator
 {

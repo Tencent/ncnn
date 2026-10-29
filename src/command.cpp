@@ -105,11 +105,6 @@ public:
         uintptr_t source_identity;
         bool valid;
     };
-    struct buffer_range
-    {
-        size_t offset;
-        size_t size;
-    };
     struct weight_bindings
     {
         weight_bindings()
@@ -123,7 +118,7 @@ public:
         size_t reader;
     };
     VkWeightCache(const VulkanDevice* device, size_t device_cache_size, size_t host_cache_size, size_t device_memory_limit, size_t host_memory_limit)
-        : vkdev(device), weight_device_cache_size(device_cache_size), weight_host_cache_size(host_cache_size), weight_device_memory_limit(device_memory_limit), weight_host_memory_limit(host_memory_limit), automatic_device_size(!device_cache_size), automatic_host_size(!host_cache_size), view_allocator(device), host_size(0), device_size(0), alignment(weight_buffer_alignment(device)), device_head(0), host_head(0), device_reader(0), host_reader(0), unified(false), initialized(false)
+        : vkdev(device), weight_device_cache_size(device_cache_size), weight_host_cache_size(host_cache_size), weight_device_memory_limit(device_memory_limit), weight_host_memory_limit(host_memory_limit), view_allocator(device), host_size(0), device_size(0), alignment(weight_buffer_alignment(device)), device_head(0), host_head(0), device_reader(0), host_reader(0), unified(false), initialized(false)
     {
     }
     ~VkWeightCache()
@@ -143,7 +138,7 @@ public:
         device_head = host_head = 0;
         device_reader = host_reader = 0;
     }
-    int initialize(size_t minimum_device_size, size_t max_source_size, size_t max_file_size);
+    int initialize(size_t minimum_device_size, bool needs_staging);
     int validate_source(const VkMat& source) const;
     size_t aligned_size(const VkMat& source) const
     {
@@ -253,8 +248,6 @@ private:
     size_t weight_host_cache_size;
     size_t weight_device_memory_limit;
     size_t weight_host_memory_limit;
-    bool automatic_device_size;
-    bool automatic_host_size;
     mutable VkWeightCacheAllocator view_allocator;
     VkMat host_buffer;
     VkMat device_buffer;
@@ -342,9 +335,9 @@ int VkWeightCache::prepare_bindings(weight_bindings& bindings)
     return 0;
 }
 
-int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size, size_t max_file_size)
+int VkWeightCache::initialize(size_t minimum_device_size, bool needs_staging)
 {
-    if (!minimum_device_size && !max_source_size && !max_file_size)
+    if (!minimum_device_size)
         return 0;
 
     size_t device_memory_limit = weight_device_memory_limit;
@@ -361,14 +354,14 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
         // descriptors reference it, the buffer stays fixed until the cache is cleared.
         size_t capacity = weight_device_cache_size;
         if (!capacity)
-            capacity = std::max((size_t)128 * 1024 * 1024, std::max(minimum_device_size, max_source_size));
+            capacity = std::max((size_t)128 * 1024 * 1024, minimum_device_size);
         if (capacity > (size_t)-1 - alignment)
             return -1;
         capacity = alignSize(capacity, alignment);
-        int ret = fit_weight_capacity(vkdev, device_memory_limit, automatic_device_size, false, capacity);
+        int ret = fit_weight_capacity(vkdev, device_memory_limit, !weight_device_cache_size, false, capacity);
         if (ret != 0)
             return ret;
-        if (capacity < minimum_device_size || capacity < max_source_size)
+        if (capacity < minimum_device_size)
         {
             NCNN_LOGE("weight cache exceeds command capacity or memory limit");
             return -1;
@@ -382,7 +375,7 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
             return ret;
         initialized = true;
     }
-    else if (minimum_device_size > device_size || max_source_size > device_size)
+    else if (minimum_device_size > device_size)
     {
         NCNN_LOGE("recorded weight bindings exceed the fixed command cache; clear and configure a larger cache");
         return -1;
@@ -390,13 +383,13 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
 
     // Host-only sources do not need staging. A later submission may add file
     // sources without changing the retained device allocation.
-    if (max_file_size && !unified && host_buffer.empty())
+    if (needs_staging && !unified && host_buffer.empty())
     {
         size_t capacity = weight_host_cache_size ? weight_host_cache_size : (size_t)16 * 1024 * 1024;
         if (capacity > (size_t)-1 - alignment)
             return -1;
         capacity = alignSize(capacity, alignment);
-        int ret = fit_weight_capacity(vkdev, host_memory_limit, automatic_host_size, true, capacity);
+        int ret = fit_weight_capacity(vkdev, host_memory_limit, !weight_host_cache_size, true, capacity);
         if (ret != 0)
             return ret;
         if (capacity < alignment)
@@ -413,13 +406,12 @@ int VkWeightCache::initialize(size_t minimum_device_size, size_t max_source_size
 class VkComputePrivate
 {
 public:
-    explicit VkComputePrivate(const VulkanDevice* _vkdev);
+    VkComputePrivate(const VulkanDevice* _vkdev);
     ~VkComputePrivate();
 
     int init();
     int begin_command_buffer();
 
-    typedef VkWeightCache::buffer_range buffer_range;
     typedef VkWeightCache::weight_bindings weight_bindings;
     int prepare_weights(const VkMat* bindings, size_t count, weight_bindings& prepared);
     int record_weights(const weight_bindings& bindings);
@@ -451,19 +443,19 @@ public:
     int wait_fence(VkFence fence);
     int create_upload_task();
     int allocate_host_range(size_t size, VkMat& reservation);
-    void record_upload_release_to_compute(int task, const buffer_range& range);
+    void record_upload_release_to_compute(int task, const VkMat& target);
     int submit_immediate();
     int begin_weight_recording();
     int create_compute_task(bool ordinary);
     int begin_compute_batch();
     void record_weight_barriers(int task, const weight_bindings& bindings);
-    int end_compute_task(int task, bool release);
-    int submit_compute_command(int task, const VkSubmitInfo& info, bool ordered);
+    int end_compute_task(int task);
+    int submit_compute_command(int task, const VkSubmitInfo& info);
     int wait_compute(size_t task);
     int finish_execution(int result = 0);
     void drain_execution();
     void clear_execution();
-    void record_compute_acquire_from_upload(int task, const buffer_range& range);
+    void record_compute_acquire_from_upload(int task, const VkMat& target);
     int active_compute_task;
     bool weight_recording;
     std::vector<VkSemaphore> active_upload_waits;
@@ -515,7 +507,7 @@ public:
     VkWeightCache* weight_cache;
 
     int create_descriptorset(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template,
-                             const unsigned char* descriptor_infos, VkDescriptorSet* descriptorset);
+                             const unsigned char* descriptor_infos);
 
     const VulkanDevice* vkdev;
 
@@ -612,11 +604,8 @@ public:
             {
                 VkPipelineBindPoint bind_point;
                 VkPipelineLayout pipeline_layout;
-                VkDescriptorSetLayout descriptorset_layout;
-                VkDescriptorUpdateTemplateKHR update_template;
-                uint32_t binding_count;
-                const int* binding_types;
-                unsigned char* data;
+                uint32_t descriptorset_count;
+                uint32_t descriptorset_offset;
             } bind_descriptorsets;
             struct
             {
@@ -682,8 +671,8 @@ public:
         };
     };
 
-    int record_deferred(const record& r);
-    int flush_records();
+    void record_deferred(const record& r);
+    void flush_records();
 
     std::vector<record> delayed_records;
     size_t recorded_count;
@@ -812,13 +801,8 @@ int VkComputePrivate::record_device_cache_copy(int task, const VkMat& source, co
     copy.dstOffset = target.buffer_offset() + target_offset;
     record_copy_buffer(upload_command_buffers[task], source.buffer(), target.buffer(), copy, src_stage, &barrier);
     if (last)
-    {
-        buffer_range range = {target.buffer_offset(), target.buffer_capacity()};
-        record_upload_release_to_compute(task, range);
-    }
-    ret = flush_records();
-    if (ret != 0)
-        return ret;
+        record_upload_release_to_compute(task, target);
+    flush_records();
     vkret = vkEndCommandBuffer(upload_command_buffers[task]);
     if (vkret != VK_SUCCESS)
     {
@@ -998,7 +982,7 @@ int VkComputePrivate::allocate_host_range(size_t size, VkMat& reservation)
     return 0;
 }
 
-void VkComputePrivate::record_upload_release_to_compute(int task, const buffer_range& range)
+void VkComputePrivate::record_upload_release_to_compute(int task, const VkMat& target)
 {
     const VkCommandBuffer command_buffer = upload_command_buffers[task];
     // release device transfer-write @ transfer to null @ compute
@@ -1009,13 +993,13 @@ void VkComputePrivate::record_upload_release_to_compute(int task, const buffer_r
     barrier.dstAccessMask = 0;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.buffer = weight_cache->get_device_buffer().buffer();
-    barrier.offset = weight_cache->get_device_buffer().buffer_offset() + range.offset;
-    barrier.size = range.size;
+    barrier.buffer = target.buffer();
+    barrier.offset = target.buffer_offset();
+    barrier.size = target.buffer_capacity();
     record_buffer_barrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, barrier);
 }
 
-void VkComputePrivate::record_compute_acquire_from_upload(int task, const buffer_range& range)
+void VkComputePrivate::record_compute_acquire_from_upload(int task, const VkMat& target)
 {
     const VkCommandBuffer command_buffer = compute_command_buffers[task];
     // acquire device null @ transfer to shader-read @ compute
@@ -1026,9 +1010,9 @@ void VkComputePrivate::record_compute_acquire_from_upload(int task, const buffer
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.buffer = weight_cache->get_device_buffer().buffer();
-    barrier.offset = weight_cache->get_device_buffer().buffer_offset() + range.offset;
-    barrier.size = range.size;
+    barrier.buffer = target.buffer();
+    barrier.offset = target.buffer_offset();
+    barrier.size = target.buffer_capacity();
     record_buffer_barrier(command_buffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT, barrier);
 }
 
@@ -1041,16 +1025,15 @@ int VkComputePrivate::wait_compute(size_t task)
     return ret;
 }
 
-int VkComputePrivate::submit_compute_command(int task, const VkSubmitInfo& info, bool ordered)
+int VkComputePrivate::submit_compute_command(int task, const VkSubmitInfo& info)
 {
     VkSemaphore signal = 0;
     VkSemaphoreCreateInfo semaphore_info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0};
-    if (ordered && vkCreateSemaphore(vkdev->vkdevice(), &semaphore_info, 0, &signal) != VK_SUCCESS)
+    if (vkCreateSemaphore(vkdev->vkdevice(), &semaphore_info, 0, &signal) != VK_SUCCESS)
         return -1;
     // Retain even an unsubmitted signal until execution cleanup.
     const VkSemaphore previous = compute_queue_signals.empty() ? 0 : compute_queue_signals.back();
-    if (ordered)
-        compute_queue_signals.push_back(signal);
+    compute_queue_signals.push_back(signal);
     std::vector<VkSemaphore> waits;
     std::vector<VkPipelineStageFlags> stages;
     for (uint32_t i = 0; i < info.waitSemaphoreCount; i++)
@@ -1066,8 +1049,7 @@ int VkComputePrivate::submit_compute_command(int task, const VkSubmitInfo& info,
     std::vector<VkSemaphore> signals;
     for (uint32_t i = 0; i < info.signalSemaphoreCount; i++)
         signals.push_back(info.pSignalSemaphores[i]);
-    if (ordered)
-        signals.push_back(signal);
+    signals.push_back(signal);
     VkSubmitInfo submitInfo = info;
     submitInfo.waitSemaphoreCount = (uint32_t)waits.size();
     submitInfo.pWaitSemaphores = waits.data();
@@ -1134,8 +1116,7 @@ void VkComputePrivate::record_weight_barriers(int task, const weight_bindings& b
         if (!bindings.missing[i]) continue;
         if (!weight_cache->is_unified() || !needs_host_copy(source))
         {
-            buffer_range range = {target.buffer_offset(), target.buffer_capacity()};
-            record_compute_acquire_from_upload(task, range);
+            record_compute_acquire_from_upload(task, target);
             continue;
         }
         VkBufferMemoryBarrier barrier = {VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, 0,
@@ -1147,7 +1128,7 @@ void VkComputePrivate::record_weight_barriers(int task, const weight_bindings& b
     }
 }
 
-int VkComputePrivate::end_compute_task(int task, bool release)
+int VkComputePrivate::end_compute_task(int task)
 {
 #if NCNN_COVERAGE
     if (!weight_recording)
@@ -1155,11 +1136,8 @@ int VkComputePrivate::end_compute_task(int task, bool release)
 #endif
     VkResult ret = vkEndCommandBuffer(compute_command_buffers[task]);
     if (ret != VK_SUCCESS) return ret;
-    if (release)
-    {
-        VkSemaphoreCreateInfo info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0};
-        ret = vkCreateSemaphore(vkdev->vkdevice(), &info, 0, &compute_upload_semaphores[task]);
-    }
+    VkSemaphoreCreateInfo info = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO, 0, 0};
+    ret = vkCreateSemaphore(vkdev->vkdevice(), &info, 0, &compute_upload_semaphores[task]);
     return ret;
 }
 
@@ -1525,10 +1503,6 @@ void VkComputePrivate::clear_records()
         case record::TYPE_copy_image_to_buffer:
             delete[] r.copy_image_to_buffer.regions;
             break;
-        case record::TYPE_bind_descriptorsets:
-            delete[] r.bind_descriptorsets.binding_types;
-            delete[] r.bind_descriptorsets.data;
-            break;
         case record::TYPE_push_constants:
             delete[](const unsigned char*) r.push_constants.values;
             break;
@@ -1552,7 +1526,7 @@ void VkComputePrivate::clear_records()
 }
 
 int VkComputePrivate::create_descriptorset(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkDescriptorUpdateTemplateKHR descriptor_update_template,
-        const unsigned char* descriptor_infos, VkDescriptorSet* descriptorset)
+        const unsigned char* descriptor_infos)
 {
     int buffer_binding_count = 0;
     int image_binding_count = 0;
@@ -1615,7 +1589,8 @@ int VkComputePrivate::create_descriptorset(int binding_count, const int* binding
     descriptorSetAllocateInfo.descriptorSetCount = 1;
     descriptorSetAllocateInfo.pSetLayouts = &descriptorset_layout;
 
-    ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, descriptorset);
+    VkDescriptorSet descriptorset;
+    ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkAllocateDescriptorSets failed %d", ret);
@@ -1623,11 +1598,11 @@ int VkComputePrivate::create_descriptorset(int binding_count, const int* binding
         return -1;
     }
     descriptor_pools.push_back(descriptor_pool);
-    descriptorsets.push_back(*descriptorset);
+    descriptorsets.push_back(descriptorset);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template())
     {
-        vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), *descriptorset, descriptor_update_template, descriptor_infos);
+        vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, descriptor_update_template, descriptor_infos);
     }
     else
     {
@@ -1639,7 +1614,7 @@ int VkComputePrivate::create_descriptorset(int binding_count, const int* binding
 
             writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             writeDescriptorSets[i].pNext = 0;
-            writeDescriptorSets[i].dstSet = *descriptorset;
+            writeDescriptorSets[i].dstSet = descriptorset;
             writeDescriptorSets[i].dstBinding = i;
             writeDescriptorSets[i].dstArrayElement = 0;
             writeDescriptorSets[i].descriptorCount = 1;
@@ -1669,15 +1644,12 @@ int VkComputePrivate::create_descriptorset(int binding_count, const int* binding
     return 0;
 }
 
-int VkComputePrivate::flush_records()
+void VkComputePrivate::flush_records()
 {
     for (; recorded_count < delayed_records.size(); recorded_count++)
     {
-        int ret = record_deferred(delayed_records[recorded_count]);
-        if (ret != 0)
-            return ret;
+        record_deferred(delayed_records[recorded_count]);
     }
-    return 0;
 }
 
 int VkComputePrivate::submit_managed()
@@ -1697,9 +1669,8 @@ int VkComputePrivate::submit_managed()
 int VkComputePrivate::close_compute_task()
 {
     if (active_compute_task < 0) return 0;
-    int ret = flush_records();
-    if (ret) return ret;
-    ret = end_compute_task(active_compute_task, true);
+    flush_records();
+    int ret = end_compute_task(active_compute_task);
     if (ret) return ret;
     execution_action action;
     action.type = execution_action::COMPUTE;
@@ -1718,8 +1689,7 @@ int VkComputePrivate::prepare_weights(const VkMat* bindings, size_t count, weigh
 {
     prepared = weight_bindings();
     size_t required = 0;
-    size_t max_source_size = 0;
-    size_t max_file_size = 0;
+    bool needs_staging = false;
     for (size_t i = 0; i < count; i++)
     {
         const VkMat& source = bindings[i];
@@ -1740,9 +1710,8 @@ int VkComputePrivate::prepare_weights(const VkMat* bindings, size_t count, weigh
         if (size > (size_t)-1 - required)
             return -1;
         required += size;
-        max_source_size = std::max(max_source_size, size);
         if (needs_host_copy(source))
-            max_file_size = std::max(max_file_size, size);
+            needs_staging = true;
         prepared.weights.push_back(source);
         // Reserve the complete allocation, retaining each binding's view offset.
 #if NCNN_BATCH
@@ -1752,7 +1721,7 @@ int VkComputePrivate::prepare_weights(const VkMat* bindings, size_t count, weigh
     if (prepared.weights.empty())
         return 0;
 
-    int ret = weight_cache->initialize(required, max_source_size, max_file_size);
+    int ret = weight_cache->initialize(required, needs_staging);
     if (ret != 0)
         return ret;
     return weight_cache->prepare_bindings(prepared);
@@ -1772,9 +1741,7 @@ int VkComputePrivate::record_weights(const weight_bindings& bindings)
     }
     if (!vkdev->info.support_VK_KHR_push_descriptor())
     {
-        ret = flush_records();
-        if (ret != 0)
-            return ret;
+        flush_records();
     }
     const bool prior_reader = active_compute_task >= 0 && weight_cache->has_reader(active_compute_task + 1);
     bool gpu_upload = false;
@@ -1872,7 +1839,7 @@ int VkComputePrivate::execute_actions()
                                 };
             if (compute)
             {
-                ret = submit_compute_command(task, info, true);
+                ret = submit_compute_command(task, info);
                 if (!ret) compute_pending[task] = true;
             }
             else
@@ -2947,41 +2914,50 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     // record update bindings
     if (binding_count > 0)
     {
-        std::vector<unsigned char> descriptorInfos(sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count);
-        unsigned char* p_descriptorInfos = descriptorInfos.data();
-        int buffer_index = 0;
-        int image_index = 0;
-        for (int i = 0; i < binding_count; i++)
+        std::vector<unsigned char> descriptorInfos;
         {
-            int binding_type = shader_info.binding_types[i];
-            if (binding_type == 1)
+            descriptorInfos.resize(sizeof(VkDescriptorBufferInfo) * buffer_binding_count + sizeof(VkDescriptorImageInfo) * image_binding_count);
+
+            unsigned char* p_descriptorInfos = descriptorInfos.data();
+            int descriptorBufferInfo_index = 0;
+            int descriptorImageInfo_index = 0;
+            for (int i = 0; i < binding_count; i++)
             {
-                const VkMat& binding = buffer_bindings[buffer_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[buffer_index];
-                buffer_index++;
-                VkDescriptorBufferInfo descriptorBufferInfo;
-                descriptorBufferInfo.buffer = binding.buffer();
-                descriptorBufferInfo.offset = binding.buffer_offset();
-                descriptorBufferInfo.range = binding.buffer_capacity();
-                if (is_deferred_buffer(binding.data))
+                int binding_type = shader_info.binding_types[i];
+
+                if (binding_type == 1)
                 {
-                    d->execution_error = d->resolve_weight(weights, binding, descriptorBufferInfo);
-                    if (d->execution_error)
-                        return;
+                    const VkMat& binding = buffer_bindings[descriptorBufferInfo_index].empty() ? vkdev->get_dummy_buffer() : buffer_bindings[descriptorBufferInfo_index];
+                    descriptorBufferInfo_index++;
+
+                    VkDescriptorBufferInfo descriptorBufferInfo;
+                    descriptorBufferInfo.buffer = binding.buffer();
+                    descriptorBufferInfo.offset = binding.buffer_offset();
+                    descriptorBufferInfo.range = binding.buffer_capacity();
+                    if (is_deferred_buffer(binding.data))
+                    {
+                        d->execution_error = d->resolve_weight(weights, binding, descriptorBufferInfo);
+                        if (d->execution_error)
+                            return;
+                    }
+
+                    memcpy(p_descriptorInfos, &descriptorBufferInfo, sizeof(VkDescriptorBufferInfo));
+                    p_descriptorInfos += sizeof(VkDescriptorBufferInfo);
                 }
-                memcpy(p_descriptorInfos, &descriptorBufferInfo, sizeof(descriptorBufferInfo));
-                p_descriptorInfos += sizeof(descriptorBufferInfo);
-            }
-            else // if (binding_type == 2 || binding_type == 3)
-            {
-                const VkImageMat& binding = image_bindings[image_index].empty() ? vkdev->get_dummy_image() : image_bindings[image_index];
-                image_index++;
-                // The descriptor layout supplies the immutable nearest sampler.
-                VkDescriptorImageInfo descriptorImageInfo;
-                descriptorImageInfo.sampler = 0;
-                descriptorImageInfo.imageView = binding.imageview();
-                descriptorImageInfo.imageLayout = binding.data->image_layout;
-                memcpy(p_descriptorInfos, &descriptorImageInfo, sizeof(descriptorImageInfo));
-                p_descriptorInfos += sizeof(descriptorImageInfo);
+                else //if (binding_type == 2 || binding_type == 3)
+                {
+                    const VkImageMat& binding = image_bindings[descriptorImageInfo_index].empty() ? vkdev->get_dummy_image() : image_bindings[descriptorImageInfo_index];
+                    descriptorImageInfo_index++;
+
+                    // we always use immutable nearest sampler set in descroptor layout during pipeline creation
+                    VkDescriptorImageInfo descriptorImageInfo;
+                    descriptorImageInfo.sampler = 0;
+                    descriptorImageInfo.imageView = binding.imageview();
+                    descriptorImageInfo.imageLayout = binding.data->image_layout;
+
+                    memcpy(p_descriptorInfos, &descriptorImageInfo, sizeof(VkDescriptorImageInfo));
+                    p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                }
             }
         }
 
@@ -2991,20 +2967,17 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
         else
         {
-            unsigned char* data = new unsigned char[descriptorInfos.size()];
-            memcpy(data, descriptorInfos.data(), descriptorInfos.size());
-            int* binding_types = new int[binding_count];
-            memcpy(binding_types, shader_info.binding_types, binding_count * sizeof(int));
+            d->execution_error = d->create_descriptorset(binding_count, shader_info.binding_types, pipeline->descriptorset_layout(), pipeline->descriptor_update_template(), descriptorInfos.data());
+            if (d->execution_error)
+                return;
+
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
             r.command_buffer = d->compute_command_buffer;
             r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
             r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
-            r.bind_descriptorsets.descriptorset_layout = pipeline->descriptorset_layout();
-            r.bind_descriptorsets.update_template = pipeline->descriptor_update_template();
-            r.bind_descriptorsets.binding_count = binding_count;
-            r.bind_descriptorsets.binding_types = binding_types;
-            r.bind_descriptorsets.data = data;
+            r.bind_descriptorsets.descriptorset_count = 1;
+            r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
             d->delayed_records.push_back(r);
         }
     }
@@ -3018,16 +2991,17 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
         else
         {
-            const size_t size = constant_count * sizeof(vk_constant_type);
-            unsigned char* values = new unsigned char[size];
-            memcpy(values, constants.data(), size);
+            uint32_t size = constant_count * sizeof(vk_constant_type);
+            unsigned char* constant_values = new unsigned char[size];
+            memcpy(constant_values, constants.data(), size);
+
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_push_constants;
             r.command_buffer = d->compute_command_buffer;
             r.push_constants.pipeline_layout = pipeline->pipeline_layout();
             r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
             r.push_constants.size = size;
-            r.push_constants.values = values;
+            r.push_constants.values = constant_values;
             d->delayed_records.push_back(r);
         }
     }
@@ -3180,16 +3154,16 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 #endif
         d->delayed_records.push_back(r);
 
-        unsigned char* data = new unsigned char[sizeof(info)];
-        memcpy(data, &info, sizeof(info));
+        const int binding_types[3] = {3, 1, 1};
+        d->execution_error = d->create_descriptorset(3, binding_types, pipeline->descriptorset_layout(), pipeline->descriptor_update_template(), (const unsigned char*)&info);
+        if (d->execution_error)
+            return;
+
         r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
         r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
         r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
-        r.bind_descriptorsets.descriptorset_layout = pipeline->descriptorset_layout();
-        r.bind_descriptorsets.update_template = pipeline->descriptor_update_template();
-        r.bind_descriptorsets.binding_count = 3;
-        r.bind_descriptorsets.binding_types = new int[3] {3, 1, 1};
-        r.bind_descriptorsets.data = data;
+        r.bind_descriptorsets.descriptorset_count = 1;
+        r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
         d->delayed_records.push_back(r);
 
         r.type = VkComputePrivate::record::TYPE_dispatch;
@@ -3202,7 +3176,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
-int VkComputePrivate::record_deferred(const record& r)
+void VkComputePrivate::record_deferred(const record& r)
 {
     const VkCommandBuffer command_buffer = r.command_buffer;
     switch (r.type)
@@ -3237,12 +3211,7 @@ int VkComputePrivate::record_deferred(const record& r)
     }
     case VkComputePrivate::record::TYPE_bind_descriptorsets:
     {
-        VkDescriptorSet descriptorset;
-        int ret = create_descriptorset(r.bind_descriptorsets.binding_count, r.bind_descriptorsets.binding_types, r.bind_descriptorsets.descriptorset_layout,
-                                       r.bind_descriptorsets.update_template, r.bind_descriptorsets.data, &descriptorset);
-        if (ret != 0)
-            return ret;
-        vkCmdBindDescriptorSets(command_buffer, r.bind_descriptorsets.bind_point, r.bind_descriptorsets.pipeline_layout, 0, 1, &descriptorset, 0, 0);
+        vkCmdBindDescriptorSets(command_buffer, r.bind_descriptorsets.bind_point, r.bind_descriptorsets.pipeline_layout, 0, r.bind_descriptorsets.descriptorset_count, descriptorsets.data() + r.bind_descriptorsets.descriptorset_offset, 0, 0);
         break;
     }
     case VkComputePrivate::record::TYPE_push_constants:
@@ -3290,7 +3259,6 @@ int VkComputePrivate::record_deferred(const record& r)
     default:
         break;
     }
-    return 0;
 }
 
 int VkCompute::submit_and_wait()
@@ -3327,9 +3295,7 @@ int VkCompute::submit_and_wait()
             }
 #endif // NCNN_BENCHMARK
 
-            ret = d->flush_records();
-            if (ret != 0)
-                return ret;
+            d->flush_records();
         }
 
         int ret = d->submit_immediate();
@@ -4079,8 +4045,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         return;
     }
 
-    // Preserve the allocating overload's snapshot-at-recording behavior.
-    if (dst.data->storage_type == 2)
+    // preserve the source contents while an unmapped upload waits for staging
+    if (dst.data->storage_type == 2 || dst.mapped_ptr())
         d->record_upload(src_flattened, dst, opt);
     else
     {
@@ -4133,6 +4099,30 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
             memcpy(ptr, src_b.data, size);
             memset(ptr + size, 0, end - offset - size);
         }
+        return;
+    }
+    if (dst.mapped_ptr())
+    {
+        for (int b = 0; b < src.n; b++)
+        {
+            const Mat src_b = src.batch(b);
+            const VkMat dst_b = dst.batch(b);
+            const size_t end = b + 1 == src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
+            const size_t size = src_b.total() * src_b.elemsize;
+            unsigned char* ptr = (unsigned char*)dst_b.mapped_ptr();
+            memcpy(ptr, src_b.data, size);
+            memset(ptr + size, 0, end - dst_b.offset - size);
+        }
+        upload_error = dst.allocator->flush(dst.data);
+        if (upload_error)
+            return;
+        if (dst.data->storage_type != 1)
+        {
+            record_host_upload(*dst.data);
+            pending_upload_total += dst.buffer_capacity();
+        }
+        dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
+        dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         return;
     }
     if (dst.buffer_capacity() > (uint64_t)-1 - queued_upload_total)
@@ -4287,12 +4277,9 @@ int VkTransferPrivate::upload_buffers()
     for (size_t i = 0; i < uploads.size(); i++)
     {
         const upload_record& r = uploads[i];
-        if (!r.destination.mapped_ptr())
-        {
-            capacity += std::min(alignSize(r.destination.buffer_capacity(), 4), target - capacity);
-            if (r.host_memory_limit)
-                host_memory_limit = host_memory_limit ? std::min(host_memory_limit, r.host_memory_limit) : r.host_memory_limit;
-        }
+        capacity += std::min(alignSize(r.destination.buffer_capacity(), 4), target - capacity);
+        if (r.host_memory_limit)
+            host_memory_limit = host_memory_limit ? std::min(host_memory_limit, r.host_memory_limit) : r.host_memory_limit;
     }
     VkBufferMemory* staging = 0;
     VkMat staging_mat;
@@ -4305,7 +4292,7 @@ int VkTransferPrivate::upload_buffers()
     {
         const upload_record& r = uploads[i];
         const VkMat& dst = r.destination;
-        if (!dst.mapped_ptr() && (!staging || staging_allocator != r.staging_allocator))
+        if (!staging || staging_allocator != r.staging_allocator)
         {
             if (used)
             {
@@ -4362,13 +4349,6 @@ int VkTransferPrivate::upload_buffers()
             const size_t source_size = src_b.total() * src_b.elemsize;
             const size_t end = b + 1 == r.source.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
             const size_t size = end - dst_b.offset;
-            if (dst.mapped_ptr())
-            {
-                unsigned char* ptr = (unsigned char*)dst_b.mapped_ptr();
-                memcpy(ptr, src_b.data, source_size);
-                memset(ptr + source_size, 0, size - source_size);
-                continue;
-            }
             for (size_t offset = 0; ret == 0 && offset < size;)
             {
                 if (used == capacity)
@@ -4402,15 +4382,6 @@ int VkTransferPrivate::upload_buffers()
                 pending_upload_total += copy_size;
                 used += copy_size;
                 offset += n;
-            }
-        }
-        if (ret == 0 && dst.mapped_ptr())
-        {
-            ret = dst.allocator->flush(dst.data);
-            if (ret == 0 && dst.data->storage_type != 1)
-            {
-                record_host_upload(*dst.data);
-                pending_upload_total += dst.buffer_capacity();
             }
         }
         if (ret == 0)

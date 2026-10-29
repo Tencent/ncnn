@@ -627,6 +627,29 @@ static int test_weight_storage_record_time_preparation()
         if (CompareMat(ordinary_expected, ordinary_output, 0.f) || CompareMat(input[0], first_output, 0.f) || CompareMat(expected, output, 0.f) || cmd.reset())
             return -1;
     }
+    if (!vkdev->info.support_VK_KHR_push_descriptor())
+    {
+        const VulkanFailure::Failure failures[] = {VulkanFailure::CREATE_DESCRIPTOR_POOL, VulkanFailure::ALLOCATE_DESCRIPTOR_SET};
+        for (int i = 0; i < 2; i++)
+        {
+            {
+                VulkanFailure failure(failures[i]);
+                cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
+                if (!failure.triggered || cmd.submit_and_wait() == 0 || failure.submission_count() != 0)
+                {
+                    fprintf(stderr, "descriptor allocation failure was not returned before GPU submission\n");
+                    return -1;
+                }
+            }
+            if (cmd.reset())
+                return -1;
+            ncnn::Mat output;
+            cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
+            cmd.record_clone(result, output, opt);
+            if (cmd.submit_and_wait() || CompareMat(expected, output, 0.f) || cmd.reset())
+                return -1;
+        }
+    }
     // A later oversized working set latches an error without submitting earlier
     // recorded work or destroying backing referenced by those commands.
     ncnn::Option small_opt = opt;
@@ -816,6 +839,20 @@ static int test_weight_storage_staging_flush_failure()
         if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
         {
             fprintf(stderr, "staging flush failure prevented reuse after reset\n");
+            return -1;
+        }
+    }
+    {
+        opt.blob_vkallocator = &staging;
+        staging.fail = true;
+        staging.flushes = 0;
+        ncnn::VkMat weight;
+        ncnn::VkTransfer cmd(vkdev);
+        WeightRecordingProbe probe(vkdev);
+        cmd.record_upload(input, weight, opt);
+        if (staging.flushes != 1 || cmd.submit_and_wait() == 0 || probe.submissions != 0)
+        {
+            fprintf(stderr, "mapped weight flush failure was not returned before GPU submission\n");
             return -1;
         }
     }

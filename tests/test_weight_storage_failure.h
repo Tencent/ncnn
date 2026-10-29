@@ -25,11 +25,13 @@ public:
         ALLOCATE_COMMAND,
         CREATE_FENCE,
         CREATE_SEMAPHORE,
+        CREATE_DESCRIPTOR_POOL,
+        ALLOCATE_DESCRIPTOR_SET,
         TRACK_COMMANDS
     };
 
     explicit VulkanFailure(Failure failure, int fail_at = 1)
-        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus)
+        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus), create_descriptor_pool(ncnn::vkCreateDescriptorPool), allocate_descriptor_sets(ncnn::vkAllocateDescriptorSets)
     {
         calls = 0;
         reused_command = false;
@@ -47,6 +49,8 @@ public:
         ncnn::vkResetCommandBuffer = reset_commands;
         ncnn::vkResetFences = reset_task_fences;
         ncnn::vkGetFenceStatus = get_fence_status;
+        ncnn::vkCreateDescriptorPool = make_descriptor_pool;
+        ncnn::vkAllocateDescriptorSets = allocate_descriptors;
     }
 
     ~VulkanFailure()
@@ -62,6 +66,8 @@ public:
         ncnn::vkResetCommandBuffer = reset_command;
         ncnn::vkResetFences = reset_fences;
         ncnn::vkGetFenceStatus = fence_status;
+        ncnn::vkCreateDescriptorPool = create_descriptor_pool;
+        ncnn::vkAllocateDescriptorSets = allocate_descriptor_sets;
         g_vulkan_failure = 0;
     }
 
@@ -178,6 +184,26 @@ private:
         }
         return f->create_semaphore(device, info, allocator, semaphore);
     }
+    static VKAPI_ATTR VkResult VKAPI_CALL make_descriptor_pool(VkDevice device, const VkDescriptorPoolCreateInfo* info, const VkAllocationCallbacks* allocator, VkDescriptorPool* pool)
+    {
+        VulkanFailure* f = g_vulkan_failure;
+        if (f->failure == CREATE_DESCRIPTOR_POOL && ++f->calls == f->fail_at)
+        {
+            f->triggered = true;
+            return VK_ERROR_OUT_OF_HOST_MEMORY;
+        }
+        return f->create_descriptor_pool(device, info, allocator, pool);
+    }
+    static VKAPI_ATTR VkResult VKAPI_CALL allocate_descriptors(VkDevice device, const VkDescriptorSetAllocateInfo* info, VkDescriptorSet* sets)
+    {
+        VulkanFailure* f = g_vulkan_failure;
+        if (f->failure == ALLOCATE_DESCRIPTOR_SET && ++f->calls == f->fail_at)
+        {
+            f->triggered = true;
+            return VK_ERROR_OUT_OF_HOST_MEMORY;
+        }
+        return f->allocate_descriptor_sets(device, info, sets);
+    }
     static VKAPI_ATTR VkResult VKAPI_CALL reset_commands(VkCommandBuffer command, VkCommandBufferResetFlags flags)
     {
         VulkanFailure* f = g_vulkan_failure;
@@ -215,6 +241,8 @@ private:
     PFN_vkResetCommandBuffer reset_command;
     PFN_vkResetFences reset_fences;
     PFN_vkGetFenceStatus fence_status;
+    PFN_vkCreateDescriptorPool create_descriptor_pool;
+    PFN_vkAllocateDescriptorSets allocate_descriptor_sets;
     Failure failure;
     int fail_at;
     int submissions;

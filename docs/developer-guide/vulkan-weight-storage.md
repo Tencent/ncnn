@@ -165,8 +165,9 @@ Ordinary buffer clones and weight uploads share a copy recorder that uses the
 given source and destination ranges without allocating a new destination.
 Descriptors and copy regions receive the actual cache buffer and view offset at
 this point. Devices with push descriptors encode Vulkan commands immediately.
-Other devices retain individual command records with native descriptor payloads;
-these are replayed before switching compute batches or ending the final batch.
+Other devices create and update descriptor sets while recording, and retain
+individual command records that bind those sets. These are replayed before
+switching compute batches or ending the final batch.
 There is no submission-time descriptor patching. A pipeline bind through its
 dispatch remains in one batch, so a cache switch cannot split pipeline state.
 
@@ -218,8 +219,10 @@ together. Net submits when pending uploads exceed 256 MiB, including retained
 CPU snapshots. The check runs after each layer, so the pending total can exceed
 the threshold by one layer's uploads. Recording errors are reported at the next
 threshold submission or the final submission, so loading may read later layers
-before reporting a recording failure. File-backed weights are copied directly
-into their mappings and do not retain pending upload snapshots.
+before reporting a recording failure. File-backed and host-mappable weights are
+copied directly into their mappings while recording and do not retain pending
+upload snapshots. Host-mappable Vulkan allocations are flushed at that point;
+only unmapped destinations need snapshots and staging transfers.
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
 allocation bytes, including padding. It excludes file mappings and command

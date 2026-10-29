@@ -942,31 +942,44 @@ static int test_weight_storage_upload_snapshot()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     UnmappedWeightAllocator weights(vkdev);
+    ncnn::VkWeightAllocator host(vkdev, true);
     ncnn::VkStagingAllocator staging(vkdev);
     ncnn::Option opt = weight_storage_option();
-    opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
-    ncnn::Mat source(7, (size_t)1u);
-    memset(source.data, 0, source.total() * source.elemsize);
-    memset(source.data, 37, 7);
-    ncnn::VkMat snapshot;
-    ncnn::VkTransfer upload(vkdev);
-    upload.record_upload(source, snapshot, opt);
-    memset(source.data, 91, 7);
-    source.release();
-    if (!upload.pending_upload_total() || upload.submit_and_wait() || upload.reset())
-        return -1;
-    ncnn::VkCompute download(vkdev);
-    ncnn::Mat result;
-    download.record_clone(snapshot, result, opt);
-    if (download.submit_and_wait())
-        return -1;
-    for (int i = 0; i < 7; i++)
-        if (((const unsigned char*)result.data)[i] != 37)
+    ncnn::VkAllocator* allocators[3] = {&weights, &staging, &host};
+    for (int i = 0; i < 3; i++)
+    {
+        opt.blob_vkallocator = allocators[i];
+        ncnn::Mat source(7, (size_t)1u);
+        memset(source.data, 0, source.total() * source.elemsize);
+        memset(source.data, 37, 7);
+        ncnn::VkMat snapshot;
+        ncnn::VkTransfer upload(vkdev);
+        upload.record_upload(source, snapshot, opt);
+        if (snapshot.empty())
             return -1;
-    for (size_t i = 7; i < snapshot.buffer_capacity(); i++)
-        if (((const unsigned char*)result.data)[i] != 0)
+        if ((i == 1 && !snapshot.mapped_ptr()) || (snapshot.mapped_ptr() && memcmp(snapshot.mapped_ptr(), source.data, 7) != 0))
+        {
+            fprintf(stderr, "mapped weight was not filled while recording mode=%d\n", i);
             return -1;
+        }
+        memset(source.data, 91, 7);
+        source.release();
+        if ((i == 0 && !upload.pending_upload_total()) || upload.submit_and_wait() || upload.reset())
+            return -1;
+        ncnn::VkCompute download(vkdev);
+        ncnn::Mat result;
+        download.record_clone(snapshot, result, opt);
+        if (download.submit_and_wait())
+            return -1;
+        for (int j = 0; j < 7; j++)
+            if (((const unsigned char*)result.data)[j] != 37)
+                return -1;
+        for (size_t j = 7; j < snapshot.buffer_capacity(); j++)
+            if (((const unsigned char*)result.data)[j] != 0)
+                return -1;
+    }
+    opt.blob_vkallocator = &weights;
     for (int unmapped = 0; unmapped < 2; unmapped++)
     {
         FailingStagingAllocator failing(vkdev, unmapped != 0);
