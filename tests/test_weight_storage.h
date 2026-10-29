@@ -12,6 +12,46 @@
 
 #include <errno.h>
 
+class WeightWorkspaceAllocator : public ncnn::VkBlobAllocator
+{
+public:
+    explicit WeightWorkspaceAllocator(const ncnn::VulkanDevice* vkdev)
+        : ncnn::VkBlobAllocator(vkdev, 4096), allocations(0), frees(0), live(0), peak_live(0), fail_at(0), last_buffer(0), last_offset(0), unmapped(false)
+    {
+    }
+    virtual ncnn::VkBufferMemory* fastMalloc(size_t size)
+    {
+        allocations++;
+        if (allocations == fail_at)
+            return 0;
+        ncnn::VkBufferMemory* ptr = ncnn::VkBlobAllocator::fastMalloc(size);
+        if (ptr)
+        {
+            if (unmapped)
+                ptr->mapped_ptr = 0;
+            last_buffer = ptr->buffer;
+            last_offset = ptr->offset;
+            live++;
+            peak_live = std::max(peak_live, live);
+        }
+        return ptr;
+    }
+    virtual void fastFree(ncnn::VkBufferMemory* ptr)
+    {
+        frees++;
+        live--;
+        ncnn::VkBlobAllocator::fastFree(ptr);
+    }
+    int allocations;
+    int frees;
+    int live;
+    int peak_live;
+    int fail_at;
+    VkBuffer last_buffer;
+    size_t last_offset;
+    bool unmapped;
+};
+
 // General disk-weight cases use a private writable directory, not system TMPDIR.
 // Default-directory fallback is exercised separately by the load-failure test.
 static const char* g_weight_storage_test_directory = 0;

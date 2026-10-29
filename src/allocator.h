@@ -358,16 +358,14 @@ public:
 
     // configure before allocating weights
     void set_weights_in_disk(bool enable);
-    // reserve exchange capacity first, then place weights in loading order
-    int set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit, size_t device_cache_size = 0, size_t host_cache_size = 0);
+    // limit resident allocations, placing weights in loading order
+    int set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit);
 
     // flush and seal file weights after uploads complete
     int finalize_weights();
 
-    // actual resident Vulkan allocations, including padding; excludes command caches and file mappings
+    // actual resident Vulkan allocations, including padding; excludes temporary weights and file mappings
     void get_weight_memory_usage(uint64_t& device_bytes, uint64_t& host_bytes) const;
-    bool needs_weight_cache() const;
-    bool has_disk_weights() const;
 
 public:
     // release all blocks immediately

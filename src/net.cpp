@@ -2366,7 +2366,7 @@ int Net::load_model(const DataReader& dr)
             d->weight_vkallocator->set_weights_in_disk(opt.use_weights_in_disk);
             if (opt.use_weights_in_disk)
             {
-                ret = d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size);
+                ret = d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit);
                 if (ret != 0)
                 {
                     delete d->weight_vkallocator;
@@ -2389,7 +2389,7 @@ int Net::load_model(const DataReader& dr)
         opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
         if (opt.use_weights_in_disk && opt.weight_host_memory_limit)
         {
-            const size_t staging_limit = opt.weight_host_cache_size ? opt.weight_host_cache_size : (size_t)16 * 1024 * 1024;
+            const size_t staging_limit = (size_t)16 * 1024 * 1024;
             opt_upload.weight_host_memory_limit = std::min(opt.weight_host_memory_limit, staging_limit);
         }
     }
@@ -3305,49 +3305,6 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
 #endif // NCNN_BATCH
 
-#if NCNN_VULKAN
-    const bool use_weight_cache = d->blob_mats[blob_index].dims == 0 && d->opt.use_vulkan_compute && d->net->d->weight_vkallocator->needs_weight_cache();
-    size_t weight_device_memory_limit = 0;
-    size_t weight_host_memory_limit = 0;
-    // Residency budgets apply only to disk storage. Zero remains unbounded.
-    if (use_weight_cache && d->opt.use_weights_in_disk)
-    {
-        const VkWeightAllocator* weights = d->net->d->weight_vkallocator;
-        uint64_t device_used, host_used;
-        weights->get_weight_memory_usage(device_used, host_used);
-        weight_device_memory_limit = d->opt.weight_device_memory_limit;
-        weight_host_memory_limit = d->opt.weight_host_memory_limit;
-        const int device_type = d->net->vulkan_device()->info.type();
-        if (device_type == 1 || device_type == 3)
-        {
-            weight_device_memory_limit = weight_device_memory_limit && weight_host_memory_limit
-                                         ? std::min(weight_device_memory_limit, weight_host_memory_limit)
-                                         : std::max(weight_device_memory_limit, weight_host_memory_limit);
-            weight_host_memory_limit = 0;
-            device_used += host_used;
-            host_used = 0;
-        }
-        if (weight_device_memory_limit)
-        {
-            if (device_used >= weight_device_memory_limit)
-            {
-                NCNN_LOGE("resident weights exhaust the device memory limit");
-                return -1;
-            }
-            weight_device_memory_limit -= (size_t)device_used;
-        }
-        if (weight_host_memory_limit)
-        {
-            if (host_used > weight_host_memory_limit || (host_used == weight_host_memory_limit && weights->has_disk_weights()))
-            {
-                NCNN_LOGE("resident weights exhaust the host memory limit");
-                return -1;
-            }
-            weight_host_memory_limit -= (size_t)host_used;
-        }
-    }
-#endif // NCNN_VULKAN
-
     int old_blocktime = get_kmp_blocktime();
     set_kmp_blocktime(d->opt.openmp_blocktime);
 
@@ -3393,8 +3350,6 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
 
             ncnn::VkCompute cmd(d->net->vulkan_device());
-            if (use_weight_cache)
-                cmd.set_weight_memory_limit(weight_device_memory_limit, weight_host_memory_limit, d->opt.weight_device_cache_size, d->opt.weight_host_cache_size);
 
 #if NCNN_BENCHMARK
             cmd.create_query_pool(d->net->layers().size() * 2);

@@ -52,7 +52,7 @@ static int test_weight_memory_usage(bool host)
         return -1;
     weights.clear();
     weights.get_weight_memory_usage(device_bytes, host_bytes);
-    if (device_bytes || host_bytes || weights.needs_weight_cache())
+    if (device_bytes || host_bytes)
         return -1;
     return 0;
 }
@@ -77,23 +77,23 @@ static int test_weight_file_memory_usage()
     if (weights.finalize_weights())
         return -1;
     weights.get_weight_memory_usage(device_bytes, host_bytes);
-    if (device_bytes || host_bytes || !weights.needs_weight_cache() || !weights.has_disk_weights())
+    if (device_bytes || host_bytes)
     {
         fprintf(stderr, "file mappings must not count as resident Vulkan allocations\n");
         return -1;
     }
     weight.release();
     weights.clear();
-    if (weights.set_weight_memory_limit(8192, 8192, 4096, 4096))
+    if (weights.set_weight_memory_limit(8192, 8192))
         return -1;
     weight.create(64, (size_t)4u, &weights);
     if (weight.empty() || weights.finalize_weights())
         return -1;
-    // Residents are allocated directly while loading, with space reserved for exchange.
+    // Residents are allocated directly within their own loading budget.
     weights.get_weight_memory_usage(device_bytes, host_bytes);
-    if (!device_bytes || device_bytes > 4096 || host_bytes)
+    if (!device_bytes || device_bytes > 8192 || host_bytes)
     {
-        fprintf(stderr, "resident weights must report actual allocation bytes within the reserved budget\n");
+        fprintf(stderr, "resident weights must report actual allocation bytes within the resident budget\n");
         return -1;
     }
 #endif
@@ -105,23 +105,21 @@ static int test_weight_memory_configuration()
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev, false, 4096);
     weights.set_weights_in_disk(true);
-    if (weights.set_weight_memory_limit(8192, 8192, 4096, 4096))
+    if (weights.set_weight_memory_limit(8192, 8192))
         return -1;
-    if (weights.set_weight_memory_limit(4096, 4096, (size_t)-1, 4096) == 0)
+    if (vkdev->info.type() != 1 && vkdev->info.type() != 3
+            && weights.set_weight_memory_limit(0, 8192) == 0)
     {
-        fprintf(stderr, "weight cache overflow was not reported by configuration\n");
+        fprintf(stderr, "incomplete resident limits were accepted on a discrete device\n");
         return -1;
     }
-    if (vkdev->info.type() != 1 && vkdev->info.type() != 3
-            && weights.set_weight_memory_limit(4096, 8192, 1024, (size_t)-1) == 0)
-        return -1;
     // A rejected configuration leaves the previous budgets usable.
     ncnn::VkMat weight(64, (size_t)4u, &weights);
     if (weight.empty() || weight.data->storage_type != 0)
         return -1;
     uint64_t device_bytes, host_bytes;
     weights.get_weight_memory_usage(device_bytes, host_bytes);
-    if (!device_bytes || device_bytes > 4096 || host_bytes)
+    if (!device_bytes || device_bytes > 8192 || host_bytes)
         return -1;
     return 0;
 }

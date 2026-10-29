@@ -25,8 +25,6 @@ static int perf_weight_storage(bool host, bool disk, size_t device_memory_limit,
     net.opt.use_cooperative_matrix = false;
     net.opt.use_weights_in_host_memory = host;
     net.opt.use_weights_in_disk = disk;
-    net.opt.weight_device_cache_size = width * width * sizeof(float) * 2;
-    net.opt.weight_host_cache_size = width * width * sizeof(float);
     net.opt.weight_device_memory_limit = device_memory_limit;
     net.opt.weight_host_memory_limit = host_memory_limit;
 

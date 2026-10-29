@@ -88,8 +88,8 @@ static int test_weight_storage_networks()
         return -1;
     opt.use_weights_in_host_memory = false;
     opt.use_weights_in_disk = true;
-    opt.weight_device_cache_size = 2048;
-    opt.weight_host_cache_size = 256;
+
+
     if (test_weight_storage_network(opt) != 0)
         return -1;
     opt.weight_device_memory_limit = 6144;
@@ -104,9 +104,9 @@ static int test_weight_storage_networks()
     const ncnn::GpuInfo& info = ncnn::get_gpu_info(ncnn::get_default_gpu_index());
     if (info.type() == 1 || info.type() == 3)
     {
-        // Normalize the shared limit before subtracting resident allocations.
+        // Normalize the shared resident limit on unified memory.
         ncnn::Option unified_opt = opt;
-        unified_opt.weight_device_cache_size = 0;
+
         unified_opt.weight_device_memory_limit = 0;
         unified_opt.weight_host_memory_limit = 6144;
         if (test_weight_storage_network(unified_opt))
@@ -122,7 +122,7 @@ static int test_weight_storage_networks()
     // The half precision model exceeds both residency budgets together.
     opt.weight_device_memory_limit = 2048;
     opt.weight_host_memory_limit = 2048;
-    opt.weight_device_cache_size = 1024;
+
     if (info.support_fp16_storage())
     {
         opt.use_fp16_packed = true;
@@ -158,11 +158,10 @@ static int test_weight_storage_model_chain(const ncnn::Option& first_opt, const 
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
-    opt.weight_device_cache_size = 4096;
-    opt.weight_host_cache_size = 256;
+
+
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
+    cmd.workspace_weight_allocator = &blobs;
     ncnn::Mat input = RandomMat(16, 8);
     for (int i = 0; i < 3; i++)
     {
@@ -186,11 +185,6 @@ static int test_weight_storage_model_chain(const ncnn::Option& first_opt, const 
             fprintf(stderr, "test_weight_storage_model_chain output failed round=%d\n", i);
             return -1;
         }
-    }
-    if (cmd.clear_weight_cache() != 0)
-    {
-        fprintf(stderr, "test_weight_storage_model_chain clear failed\n");
-        return -1;
     }
     return 0;
 }
@@ -226,8 +220,6 @@ static int test_weight_storage_model_reload()
     command_opt.blob_vkallocator = &blobs;
     command_opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(command_opt.weight_device_memory_limit, command_opt.weight_host_memory_limit, command_opt.weight_device_cache_size, command_opt.weight_host_cache_size) != 0)
-        return -1;
     ncnn::Mat input = RandomMat(16, 8);
     for (int i = 0; i < 5; i++)
     {
@@ -287,26 +279,8 @@ static int test_weight_storage_load_failure()
 
     opt.weight_device_memory_limit = 256;
     opt.weight_host_memory_limit = 256;
-    opt.weight_device_cache_size = 4096;
-    if (load_weight_storage_net(net, opt, 1.f, 12) == 0)
-    {
-        fprintf(stderr, "test_weight_storage_load_failure invalid cache configuration accepted\n");
+    if (test_weight_storage_network(opt) != 0)
         return -1;
-    }
-    net.clear();
-    opt.weight_device_cache_size = 0;
-    if (load_weight_storage_net(net, opt, 1.f, 12) == 0)
-    {
-        // The dispatch checks its complete working set against the fixed cache.
-        ncnn::Extractor ex = net.create_extractor();
-        ncnn::Mat output;
-        if (ex.input("b0", RandomMat(16, 8)) || ex.extract("b12", output) == 0)
-        {
-            fprintf(stderr, "test_weight_storage_load_failure insufficient memory limit accepted\n");
-            return -1;
-        }
-    }
-    net.clear();
     opt.weight_device_memory_limit = 0;
     opt.weight_host_memory_limit = 0;
     net.opt = opt;
@@ -367,7 +341,7 @@ static int test_weight_storage_extractor_reload()
         fprintf(stderr, "test_weight_storage_extractor_reload failed at line %d\n", __LINE__);
         return -1;
     }
-    // Clearing an old Extractor must not change the new model's cache configuration.
+    // Clearing an old Extractor must not change the new model's storage configuration.
     old.clear();
     ncnn::Extractor current = net.create_extractor();
     if (current.extract("b2", output) || output.total() != 1536)
@@ -453,41 +427,6 @@ static int test_weight_storage_extractor_commands()
     return 0;
 }
 
-static int test_weight_storage_net_cache_limit(bool host)
-{
-    if (host)
-    {
-        // Probe the same allocator policy as Net instead of assuming every GPU
-        // exposes non-device-local host memory (unified allocations need no cache).
-        const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
-        ncnn::VkWeightAllocator weights(vkdev, true);
-        ncnn::VkMat weight(256, (size_t)4u, &weights);
-        if (weight.empty())
-            return -1;
-        if (weight.data->storage_type == 0 || weight.data->source_size == 0)
-        {
-            fprintf(stderr, "test_weight_storage_net_cache_limit host skipped: host weights are device-local\n");
-            return 0;
-        }
-    }
-    ncnn::Option opt = weight_storage_option();
-    opt.use_weights_in_disk = !host;
-    opt.use_weights_in_host_memory = host;
-    opt.weight_device_cache_size = 256;
-    opt.weight_host_cache_size = 256;
-    ncnn::Net net;
-    if (load_weight_storage_net(net, opt, 1.f, 1) != 0)
-        return -1;
-    ncnn::Extractor ex = net.create_extractor();
-    ncnn::Mat output;
-    if (ex.input("b0", RandomMat(16, 8)) != 0 || ex.extract("b1", output) == 0)
-    {
-        fprintf(stderr, "test_weight_storage_net_cache_limit ignored explicit cache size host=%d\n", host);
-        return -1;
-    }
-    return 0;
-}
-
 int main()
 {
     SRAND(7767517);
@@ -502,8 +441,8 @@ int main()
     }
 
     const int ret = 0
-                    || test_weight_storage_net_cache_limit(false)
-                    || test_weight_storage_net_cache_limit(true)
+
+
                     || test_weight_storage_extractor_commands()
                     || test_weight_storage_networks()
                     || test_weight_storage_model_chains()

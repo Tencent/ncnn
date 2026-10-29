@@ -47,8 +47,6 @@ static int test_weight_storage_bytes(const ncnn::Option& opt, int elempack, bool
     download_opt.blob_vkallocator = &staging;
     download_opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(download_opt.weight_device_memory_limit, download_opt.weight_host_memory_limit, download_opt.weight_device_cache_size, download_opt.weight_host_cache_size) != 0)
-        return -1;
     ncnn::Mat expected;
     ncnn::Mat actual;
     cmd.record_clone(resident_weight, expected, download_opt);
@@ -115,7 +113,7 @@ static int test_weight_storage_precisions()
     return 0;
 }
 
-static int test_weight_storage_cache()
+static int test_weight_storage_workspace_reuse()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
     ncnn::VkWeightAllocator weights(vkdev);
@@ -137,17 +135,15 @@ static int test_weight_storage_cache()
     }
     if (upload.submit_and_wait() != 0 || weights.finalize_weights() != 0)
     {
-        fprintf(stderr, "test_weight_storage_cache upload failed\n");
+        fprintf(stderr, "test_weight_storage_workspace_reuse upload failed\n");
         return -1;
     }
 
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
-    opt.weight_device_cache_size = 2048;
-    opt.weight_host_cache_size = 256;
+
+
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
     for (int round = 0; round < 3; round++)
     {
         ncnn::Mat output[18];
@@ -155,33 +151,28 @@ static int test_weight_storage_cache()
             cmd.record_clone(weight[i], output[i], opt);
         if (cmd.submit_and_wait() != 0)
         {
-            fprintf(stderr, "test_weight_storage_cache submit failed round=%d\n", round);
+            fprintf(stderr, "test_weight_storage_workspace_reuse submit failed round=%d\n", round);
             return -1;
         }
         for (int i = 0; i < 18; i++)
         {
             if (CompareMat(input[i], output[i], 0.f) != 0)
             {
-                fprintf(stderr, "test_weight_storage_cache output failed round=%d weight=%d\n", round, i);
+                fprintf(stderr, "test_weight_storage_workspace_reuse output failed round=%d weight=%d\n", round, i);
                 return -1;
             }
         }
         if (cmd.reset() != 0)
         {
-            fprintf(stderr, "test_weight_storage_cache reset failed\n");
+            fprintf(stderr, "test_weight_storage_workspace_reuse reset failed\n");
             return -1;
         }
     }
-    if (cmd.clear_weight_cache() != 0)
-    {
-        fprintf(stderr, "test_weight_storage_cache clear failed\n");
-        return -1;
-    }
     ncnn::Mat output;
     cmd.record_clone(weight[0], output, opt);
-    if (cmd.clear_weight_cache() == 0 || cmd.submit_and_wait() != 0 || CompareMat(input[0], output, 0.f) != 0)
+    if (cmd.submit_and_wait() != 0 || CompareMat(input[0], output, 0.f) != 0)
     {
-        fprintf(stderr, "test_weight_storage_cache pending recording failed\n");
+        fprintf(stderr, "test_weight_storage_workspace_reuse pending recording failed\n");
         return -1;
     }
     return 0;
@@ -196,7 +187,7 @@ static int test_weight_storage_residents()
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
-    if (weights.set_weight_memory_limit(16384, 16384, 8192, 4096))
+    if (weights.set_weight_memory_limit(16384, 16384))
         return -1;
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
@@ -217,20 +208,18 @@ static int test_weight_storage_residents()
     }
     uint64_t device_bytes, host_bytes;
     weights.get_weight_memory_usage(device_bytes, host_bytes);
-    if (device_bytes >= 16384 || host_bytes > 16384 || !weights.needs_weight_cache())
+    if (device_bytes > 16384 || host_bytes > 16384)
     {
         fprintf(stderr, "test_weight_storage_residents allocation budget exceeded\n");
         return -1;
     }
-    opt.weight_device_cache_size = 8192;
-    opt.weight_host_cache_size = 4096;
+
+
     opt.weight_device_memory_limit = 16384 - (size_t)device_bytes;
     opt.weight_host_memory_limit = 16384 - (size_t)host_bytes;
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
     ncnn::Mat output[4];
     for (int i = 0; i < 4; i++)
         cmd.record_clone(weight[i], output[i], opt);
@@ -245,7 +234,7 @@ static int test_weight_storage_residents()
     return 0;
 }
 
-static int test_weight_storage_automatic_cache()
+static int test_weight_storage_automatic_workspace()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
     ncnn::VkWeightAllocator weights(vkdev);
@@ -271,32 +260,30 @@ static int test_weight_storage_automatic_cache()
         }
         if (upload.submit_and_wait())
         {
-            fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+            fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
             return -1;
         }
     }
     {
         ncnn::VkCompute early(vkdev);
-        if (early.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-            return -1;
         ncnn::Mat output;
         early.record_clone(weight[0], output, opt);
         if (early.submit_and_wait() == 0 || early.reset())
         {
-            fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+            fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
             return -1;
         }
         early.record_clone(weight[0], output, opt);
         if (early.submit_and_wait() == 0)
         {
-            fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+            fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
             return -1;
         }
     }
     // automatic sizing also supports direct allocator uploads
     if (weights.finalize_weights())
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     const char shader[] = "#version 450\n"
@@ -309,30 +296,28 @@ static int test_weight_storage_automatic_cache()
     std::vector<uint32_t> spirv;
     if (ncnn::compile_spirv_module(shader, opt, spirv))
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     ncnn::Pipeline pipeline(vkdev);
     pipeline.set_local_size_xyz(1, 1, 1);
     if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
     ncnn::Mat warm_output;
     cmd.record_clone(weight[0], warm_output, opt);
     if (cmd.submit_and_wait() || CompareMat(input[0], warm_output, 0.f) || cmd.reset())
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     ncnn::VkMat result(256, (size_t)4u, &blobs);
     if (result.empty())
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     std::vector<ncnn::VkMat> bindings(4);
@@ -345,7 +330,7 @@ static int test_weight_storage_automatic_cache()
     cmd.record_clone(result, output, opt);
     if (cmd.submit_and_wait())
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     ncnn::Mat expected(256);
@@ -353,82 +338,27 @@ static int test_weight_storage_automatic_cache()
         ((float*)expected)[i] = ((const float*)input[0])[i] + ((const float*)input[1])[i] + ((const float*)input[2])[i];
     if (CompareMat(expected, output, 0.0001f))
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
-    // reuse cached weights after automatic growth
+    // Upload the same weights again after reset.
     if (cmd.reset())
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
     cmd.record_clone(weight[0], warm_output, opt);
     if (cmd.submit_and_wait() || CompareMat(input[0], warm_output, 0.f))
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
-    if (opt.weight_device_cache_size || opt.weight_host_cache_size || opt.weight_device_memory_limit || opt.weight_host_memory_limit)
+    if (opt.weight_device_memory_limit || opt.weight_host_memory_limit)
     {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
+        fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
         return -1;
     }
-    ncnn::Option fixed_opt = opt;
-    fixed_opt.weight_device_cache_size = 2048;
-    ncnn::VkCompute fixed(vkdev);
-    if (fixed.set_weight_memory_limit(fixed_opt.weight_device_memory_limit, fixed_opt.weight_host_memory_limit, fixed_opt.weight_device_cache_size, fixed_opt.weight_host_cache_size) != 0)
-        return -1;
-    fixed.record_pipeline(&pipeline, bindings, constants, result);
-    if (fixed.submit_and_wait() == 0)
-    {
-        fprintf(stderr, "test_weight_storage_automatic_cache failed at line %d\n", __LINE__);
-        return -1;
-    }
-    // A rejected whole-dispatch capacity check must not poison later executions.
-    ncnn::Mat recovered;
-    if (fixed.reset())
-        return -1;
-    fixed.record_clone(weight[0], recovered, fixed_opt);
-    if (fixed.set_weight_memory_limit(1, 1, 1, 1) == 0)
-    {
-        fprintf(stderr, "weight cache settings changed while recording\n");
-        return -1;
-    }
-    if (fixed.submit_and_wait() || CompareMat(input[0], recovered, 0.f))
-    {
-        fprintf(stderr, "test_weight_storage_automatic_cache fixed capacity recovery failed\n");
-        return -1;
-    }
-    if (fixed.reset() || fixed.set_weight_memory_limit(0, 0, 4096, 256) == 0)
-    {
-        fprintf(stderr, "weight cache settings changed without clearing retained backing\n");
-        return -1;
-    }
-    if (fixed.clear_weight_cache() || fixed.set_weight_memory_limit(0, 0, 4096, 256))
-        return -1;
-    fixed.record_pipeline(&pipeline, bindings, constants, result);
-    fixed.record_clone(result, recovered, opt);
-    if (fixed.submit_and_wait() || CompareMat(expected, recovered, 0.0001f))
-    {
-        fprintf(stderr, "weight cache reconfiguration failed\n");
-        return -1;
-    }
-    // Individual uploads do not predeclare a group: the actual three-input
-    // dispatch must still reject a hard memory budget that cannot hold it.
-    ncnn::Option limited_opt = opt;
-    limited_opt.weight_device_memory_limit = 2048;
-    limited_opt.weight_host_memory_limit = 2048;
-    ncnn::VkCompute limited(vkdev);
-    if (limited.set_weight_memory_limit(limited_opt.weight_device_memory_limit, limited_opt.weight_host_memory_limit, limited_opt.weight_device_cache_size, limited_opt.weight_host_cache_size) != 0)
-        return -1;
-    limited.record_pipeline(&pipeline, bindings, constants, result);
-    if (limited.submit_and_wait() == 0)
-    {
-        fprintf(stderr, "test_weight_storage_automatic_cache ignored simultaneous binding budget\n");
-        return -1;
-    }
-    if (limited.reset())
-        return -1;
+
     return 0;
 }
 
@@ -459,7 +389,7 @@ static int test_weight_storage_mixed_recording()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev);
-    ncnn::VkBlobAllocator blobs(vkdev);
+    WeightWorkspaceAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
@@ -495,8 +425,7 @@ static int test_weight_storage_mixed_recording()
         ((float*)expected_result.data)[i] = ((const float*)expected_prefix.data)[i] + ((const float*)weight_values.data)[i];
     }
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
+    cmd.workspace_weight_allocator = &blobs;
 #if NCNN_BENCHMARK
     const bool timestamps = weight_storage_has_timestamps(vkdev);
     if (timestamps && cmd.create_query_pool(2))
@@ -507,6 +436,7 @@ static int test_weight_storage_mixed_recording()
     const int modes[] = {0, 1, 2, 0};
     for (int round = 0; round < 4; round++)
     {
+        blobs.clear();
 #if NCNN_BENCHMARK
         if (timestamps)
             cmd.record_write_timestamp(0);
@@ -536,13 +466,27 @@ static int test_weight_storage_mixed_recording()
         bindings[1] = modes[round] == 0 ? ordinary_weight : weight;
         bindings[2] = result;
         cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
+        const VkBuffer weight_buffer = blobs.last_buffer;
+        const size_t weight_offset = blobs.last_offset;
+        // An independent ordinary upload may reuse the released weight range.
+        // Its write must follow the preceding dispatch's read of that range.
+        ncnn::Mat replacement = RandomMat(64);
+        ncnn::VkMat reused;
+        ncnn::Mat replaced_output;
+        cmd.record_clone(replacement, reused, opt);
+        if (modes[round] != 0 && (reused.buffer() != weight_buffer || reused.buffer_offset() != weight_offset))
+        {
+            fprintf(stderr, "shared workspace fixture did not reuse the resolved weight range\n");
+            return -1;
+        }
+        cmd.record_clone(reused, replaced_output, opt);
         ncnn::Mat output;
         cmd.record_clone(result, output, opt);
 #if NCNN_BENCHMARK
         if (timestamps)
             cmd.record_write_timestamp(1);
 #endif
-        if (cmd.submit_and_wait() || CompareMat(expected_prefix, prefix_output, 0.0001f) || CompareMat(expected_result, output, 0.0001f)
+        if (cmd.submit_and_wait() || CompareMat(replacement, replaced_output, 0.f) || CompareMat(expected_prefix, prefix_output, 0.0001f) || CompareMat(expected_result, output, 0.0001f)
                 || (modes[round] == 2 && CompareMat(weight_values, early_weight, 0.f)))
         {
             fprintf(stderr, "test_weight_storage_mixed_recording failed round=%d mode=%d push_descriptors=%d\n", round, modes[round], vkdev->info.support_VK_KHR_push_descriptor());
@@ -588,8 +532,6 @@ static int test_weight_storage_recorded_weight_lifetime()
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
     ncnn::Mat original = RandomMat(128);
     ncnn::VkMat weight(128, (size_t)4u, &store);
     if (weight.empty())
@@ -634,7 +576,7 @@ static int test_weight_storage_recorded_subview()
     }
 
     // A legitimate borrowed tensor view is smaller than its backing source.
-    // Recording it first must not truncate the cached allocation or its padding.
+    // Recording it first must not truncate the temporary allocation or its padding.
     ncnn::VkMat view(7, weight.data, (size_t)4u, &store);
 #if NCNN_BATCH
     view.offset = first * sizeof(float);
@@ -664,9 +606,10 @@ static int test_weight_storage_recorded_subview()
     ncnn::VkMat result(7, (size_t)4u, &blobs);
     if (result.empty())
         return -1;
+
+    WeightWorkspaceAllocator workspace(vkdev);
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
+    cmd.workspace_weight_allocator = &workspace;
     ncnn::Mat small_output;
     ncnn::Mat full_output;
     cmd.record_clone(view, small_output, opt);
@@ -676,8 +619,8 @@ static int test_weight_storage_recorded_subview()
         fprintf(stderr, "test_weight_storage_recorded_subview lost source extent or view offset\n");
         return -1;
     }
-    // Descriptor records retain two owning views of the same allocation.
-    // Each view must resolve its own offset after caller handles are released.
+    // Two owning views of the same allocation share one resolve, preserving
+    // their individual offsets after caller handles are released.
     ncnn::VkMat owning_view = weight;
     owning_view.w = view.w;
     owning_view.cstep = view.cstep;
@@ -689,7 +632,13 @@ static int test_weight_storage_recorded_subview()
     bindings[0] = owning_view;
     bindings[1] = weight;
     bindings[2] = result;
+    const int allocations = workspace.allocations;
     cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
+    if (workspace.allocations != allocations + 1 || workspace.live != 0)
+    {
+        fprintf(stderr, "multiple views did not share one temporary workspace allocation\n");
+        return -1;
+    }
     cmd.record_clone(result, small_output, opt);
     bindings.clear();
     ncnn::Mat expected(7);
@@ -889,50 +838,36 @@ static int test_weight_storage_allocation_failure(bool disk)
     return 0;
 }
 
-static int test_weight_storage_cache_limit(size_t capacity, bool expect_error)
+static int test_weight_storage_workspace_chunks()
 {
-    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev);
-    ncnn::VkWeightStagingAllocator upload_staging(vkdev);
     ncnn::VkBlobAllocator blobs(vkdev);
     ncnn::VkStagingAllocator staging(vkdev);
+    WeightWorkspaceAllocator workspace(vkdev);
+    workspace.unmapped = true;
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
-    opt.staging_vkallocator = &upload_staging;
-    ncnn::Mat input = RandomMat(12288);
+    opt.staging_vkallocator = &staging;
+    // Cross the staging chunk boundary even on a unified-memory test device.
+    ncnn::Mat input(16 * 1024 * 1024 / 4 + 17);
+    for (int i = 0; i < input.w; i++)
+        ((float*)input)[i] = (float)(i % 257);
     ncnn::VkMat weight;
     ncnn::VkTransfer upload(vkdev);
     upload.record_upload(input, weight, opt);
-    if (upload.submit_and_wait() != 0 || weights.finalize_weights() != 0)
-    {
-        fprintf(stderr, "test_weight_storage_cache_limit prepare failed\n");
+    if (upload.submit_and_wait() || weights.finalize_weights())
         return -1;
-    }
     opt.blob_vkallocator = &blobs;
-    opt.staging_vkallocator = &staging;
-    opt.weight_device_memory_limit = 65536;
-    opt.weight_host_memory_limit = 65536;
-    opt.weight_device_cache_size = capacity;
     ncnn::VkCompute cmd(vkdev);
-    if (cmd.set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit, opt.weight_device_cache_size, opt.weight_host_cache_size) != 0)
-        return -1;
+    cmd.workspace_weight_allocator = &workspace;
     ncnn::Mat output;
     cmd.record_clone(weight, output, opt);
-    int ret = cmd.submit_and_wait();
-    if (expect_error)
+    if (workspace.allocations != 1 || workspace.live != 0 || cmd.submit_and_wait() || CompareMat(input, output, 0.f))
     {
-        if (ret == 0)
-        {
-            fprintf(stderr, "test_weight_storage_cache_limit error missing capacity=%zu\n", capacity);
-            return -1;
-        }
-        return 0;
-    }
-    if (ret != 0 || CompareMat(input, output, 0.f) != 0)
-    {
-        fprintf(stderr, "test_weight_storage_cache_limit output failed capacity=%zu\n", capacity);
+        fprintf(stderr, "temporary weight staging chunks corrupted the complete allocation\n");
         return -1;
     }
     return 0;
@@ -1013,17 +948,18 @@ int main()
     }
 
     const int ret = 0
+                    || test_weight_storage_workspace_chunks()
                     || test_weight_storage_upload_snapshot()
                     || test_weight_storage_precisions()
-                    || test_weight_storage_cache()
-                    || test_weight_storage_cache_limit(0, false)
-                    || test_weight_storage_cache_limit(65536, false)
-                    || test_weight_storage_cache_limit(98304, true)
-                    || test_weight_storage_cache_limit(32768, true)
+                    || test_weight_storage_workspace_reuse()
+
+
+
+
                     || test_weight_storage_allocation_failure(false)
                     || test_weight_storage_allocation_failure(true)
                     || test_weight_storage_residents()
-                    || test_weight_storage_automatic_cache()
+                    || test_weight_storage_automatic_workspace()
                     || test_weight_storage_mixed_recording()
                     || test_weight_storage_recorded_weight_lifetime()
                     || test_weight_storage_recorded_subview();

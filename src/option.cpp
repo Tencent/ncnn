@@ -25,8 +25,6 @@ Option::Option()
     workspace_vkallocator = 0;
     staging_vkallocator = 0;
     kvcache_vkallocator = 0;
-    weight_device_cache_size = 0;
-    weight_host_cache_size = 0;
     weight_device_memory_limit = 0;
     weight_host_memory_limit = 0;
     pipeline_cache = 0;
