@@ -1014,6 +1014,33 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
                     ret = -1;
         if (cmd.reset() != 0)
             ret = -1;
+
+        // Reuse the same command across ordinary and paged recordings, including
+        // recovery after a partially allocated batch.
+        for (int round = 0; round < 3 && ret == 0; round++)
+        {
+            const int output_count = round == 1 ? count : 1;
+            ncnn::VkMat ordinary;
+            if (round == 1)
+            {
+                for (int i = 0; i < count; i++)
+                    cmd.record_clone(weight[i], output[i], opt);
+            }
+            else
+            {
+                cmd.record_clone(input[0], ordinary, opt);
+                cmd.record_clone(ordinary, output[0], opt);
+            }
+            if (cmd.submit_and_wait() != 0)
+                ret = -1;
+            for (int i = 0; i < output_count && ret == 0; i++)
+                if (CompareMat(input[i], output[i], 0.f) != 0)
+                    ret = -1;
+            if (cmd.reset() != 0)
+                ret = -1;
+            if (ret != 0)
+                fprintf(stderr, "compute resource reuse failed failure=%d round=%d\n", failure, round);
+        }
     }
     for (int i = 0; i < count; i++)
     {
