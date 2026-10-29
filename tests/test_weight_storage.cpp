@@ -142,7 +142,6 @@ static int test_weight_storage_workspace_reuse()
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
 
-
     ncnn::VkCompute cmd(vkdev);
     for (int round = 0; round < 3; round++)
     {
@@ -213,7 +212,6 @@ static int test_weight_storage_residents()
         fprintf(stderr, "test_weight_storage_residents allocation budget exceeded\n");
         return -1;
     }
-
 
     opt.weight_device_memory_limit = 16384 - (size_t)device_bytes;
     opt.weight_host_memory_limit = 16384 - (size_t)host_bytes;
@@ -952,9 +950,6 @@ int main()
                     || test_weight_storage_upload_snapshot()
                     || test_weight_storage_precisions()
                     || test_weight_storage_workspace_reuse()
-
-
-
 
                     || test_weight_storage_allocation_failure(false)
                     || test_weight_storage_allocation_failure(true)

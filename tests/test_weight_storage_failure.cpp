@@ -138,7 +138,6 @@ static int test_weight_storage_midflight_failure(int fail_at)
         return -1;
     opt.blob_vkallocator = &blobs;
 
-
     ncnn::VkCompute cmd(vkdev);
     ncnn::Mat output[count];
     for (int i = 0; i < count; i++)
@@ -249,7 +248,6 @@ static int test_weight_storage_repeated_weights()
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
 
-
     ncnn::Mat input[48];
     ncnn::VkMat weight[48];
     ncnn::VkTransfer upload(vkdev);
@@ -303,7 +301,6 @@ static int test_weight_storage_dispatch_pinning()
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
-
 
     ncnn::Mat input[6];
     ncnn::VkMat weight[6];
@@ -525,7 +522,6 @@ static int test_weight_storage_record_time_preparation()
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
     const int elements = 256 * 1024;
-
 
     ncnn::Mat input[4];
     ncnn::VkMat weight[4];

@@ -89,7 +89,6 @@ static int test_weight_storage_networks()
     opt.use_weights_in_host_memory = false;
     opt.use_weights_in_disk = true;
 
-
     if (test_weight_storage_network(opt) != 0)
         return -1;
     opt.weight_device_memory_limit = 6144;
@@ -158,7 +157,6 @@ static int test_weight_storage_model_chain(const ncnn::Option& first_opt, const 
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
-
 
     ncnn::VkCompute cmd(vkdev);
     cmd.workspace_weight_allocator = &blobs;
@@ -441,7 +439,6 @@ int main()
     }
 
     const int ret = 0
-
 
                     || test_weight_storage_extractor_commands()
                     || test_weight_storage_networks()
