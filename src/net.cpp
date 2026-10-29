@@ -3350,7 +3350,6 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
 
             ncnn::VkCompute cmd(d->net->vulkan_device());
-
 #if NCNN_BENCHMARK
             cmd.create_query_pool(d->net->layers().size() * 2);
 #endif // NCNN_BENCHMARK
