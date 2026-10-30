@@ -2815,15 +2815,16 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         return -1;
     }
 
-    // private concurrent buffers allow reuse across compute and transfer queues
     if (!local_weight_vkallocator)
-        local_weight_vkallocator = new VkBlobAllocator(vkdev, 16 * 1024 * 1024, true);
+        local_weight_vkallocator = new VkBlobAllocator(vkdev);
 
     // create dst for the complete allocation, including bytes outside the view
     const size_t size = src.data->capacity;
     {
+        // mapped writes must not share a non-coherent atom with another allocation
+        const size_t alignment = std::max(vkdev->info.memory_map_alignment(), vkdev->info.non_coherent_atom_size());
         dst.release();
-        dst.create(1, size, 1, local_weight_vkallocator);
+        dst.create(1, alignSize(size, alignment), 1, local_weight_vkallocator);
         if (dst.empty() || dst.data->capacity < size)
             return -100;
         dst.dims = src.dims;
@@ -2855,6 +2856,8 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
 
     VkAccessFlags upload_access = 0;
     VkPipelineStageFlags upload_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    uint32_t src_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
+    uint32_t dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
 
     // host writes wait for older compute; the preceding weight group is still live
     if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && dst_upload.mapped_ptr() && needs_host_copy(src_weight))
@@ -2881,6 +2884,12 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
     }
     else
     {
+        if (!vkdev->info.unified_compute_transfer_queue())
+        {
+            src_queue_family_index = transfer_queue_family_index;
+            dst_queue_family_index = vkdev->info.compute_queue_family_index();
+        }
+
         VkMat src_upload;
         size_t chunk_capacity = size;
         if (!needs_host_copy(src_weight))
@@ -3046,7 +3055,8 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 }
             }
 
-            // record upload to device
+            // overwrite the complete range after its older compute has finished;
+            // the upload queue acquires reused storage without preserving old contents
             {
                 VkBufferCopy region;
                 region.srcOffset = src_upload.buffer_offset();
@@ -3073,7 +3083,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 }
             }
 
-            // barrier upload transfer-write before signaling compute
+            // release uploaded weights from transfer to compute
             if (last)
             {
                 VkBufferMemoryBarrier barrier;
@@ -3081,8 +3091,8 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 barrier.pNext = 0;
                 barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
                 barrier.dstAccessMask = 0;
-                barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+                barrier.srcQueueFamilyIndex = src_queue_family_index;
+                barrier.dstQueueFamilyIndex = dst_queue_family_index;
                 barrier.buffer = dst_upload.buffer();
                 barrier.offset = dst_upload.buffer_offset();
                 barrier.size = dst_upload.buffer_capacity();
@@ -3208,15 +3218,15 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         compute_command_buffer_index = command_buffer_index;
     }
 
-    // barrier uploaded weights to shader-read and transfer-read
+    // acquire uploaded weights for shader-read and transfer-read
     {
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barrier.pNext = 0;
         barrier.srcAccessMask = upload_access;
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.srcQueueFamilyIndex = src_queue_family_index;
+        barrier.dstQueueFamilyIndex = dst_queue_family_index;
         barrier.buffer = dst_upload.buffer();
         barrier.offset = dst_upload.buffer_offset();
         barrier.size = dst_upload.buffer_capacity();

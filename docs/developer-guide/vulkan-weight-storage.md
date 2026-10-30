@@ -151,11 +151,14 @@ or reset discards retained references only after pending work is drained.
 Temporary weight uploads reuse the existing device transfer-family selector,
 which prefers a transfer-only family and otherwise selects a transfer-capable
 family. The selected family may be the same as the compute family.
-When the two families differ, temporary weight backing buffers use CONCURRENT
-sharing between them; their reuse therefore does not require queue-family
-ownership transfers. The private file-upload staging buffer is EXCLUSIVE and
-used only by the upload family. Ordinary activation and workspace buffers keep
-their existing sharing and ownership rules.
+Temporary weight backing buffers use the ordinary EXCLUSIVE blob allocator.
+When the two families differ, the final upload chunk releases the complete
+weight range to the compute family, and its consumer acquires the same range
+after waiting for the upload semaphore. Reusing a range waits for its older
+compute consumer before overwriting every byte; the upload family can acquire
+that range with its old contents discarded. The private file-upload staging
+buffer is EXCLUSIVE and used only by the upload family. Ordinary activation and
+workspace buffers keep their existing sharing and ownership rules.
 
 Queue-family sharing does not replace synchronization. Before recording weight
 group N+1, the preceding compute batch N is closed. The upload of N+1 waits for

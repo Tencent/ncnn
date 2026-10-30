@@ -302,7 +302,7 @@ public:
     bool cached;
 
 protected:
-    VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage, bool concurrent = false);
+    VkBuffer create_buffer(size_t size, VkBufferUsageFlags usage);
     VkDeviceMemory allocate_memory(size_t size, uint32_t memory_type_index);
     VkDeviceMemory allocate_dedicated_memory(size_t size, uint32_t memory_type_index, VkImage image, VkBuffer buffer);
     VkDeviceMemory allocate_import_host_memory(size_t size, uint32_t memory_type_index, void* host_ptr);
@@ -328,9 +328,6 @@ public:
     virtual void fastFree(VkImageMemory* ptr);
 
 private:
-    friend class VkComputePrivate;
-    VkBlobAllocator(const VulkanDevice* vkdev, size_t preferred_block_size, bool concurrent);
-
     VkBlobAllocator(const VkBlobAllocator&);
     VkBlobAllocator& operator=(const VkBlobAllocator&);
 

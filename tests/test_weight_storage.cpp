@@ -14,25 +14,45 @@ class WeightStorageUploadProbe
 {
 public:
     explicit WeightStorageUploadProbe(const ncnn::VulkanDevice* vkdev)
-        : hide_next_map(vkdev->info.type() == 1 || vkdev->info.type() == 3), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer)
+        : hide_next_map(vkdev->info.type() == 1 || vkdev->info.type() == 3), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer),
+          create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
     {
         g_weight_storage_upload_probe = this;
         ncnn::vkMapMemory = map_memory;
         ncnn::vkCmdCopyBuffer = record_copy;
+        ncnn::vkCreateBuffer = create_buffer;
+        ncnn::vkCmdPipelineBarrier = record_barrier;
     }
     ~WeightStorageUploadProbe()
     {
         ncnn::vkMapMemory = map;
         ncnn::vkCmdCopyBuffer = copy;
+        ncnn::vkCreateBuffer = create;
+        ncnn::vkCmdPipelineBarrier = barrier;
         g_weight_storage_upload_probe = 0;
     }
     struct Copy
     {
+        VkCommandBuffer command;
         VkBuffer source;
         VkBuffer target;
         VkBufferCopy region;
     };
     std::vector<Copy> copies;
+    struct Buffer
+    {
+        VkBuffer handle;
+        VkSharingMode sharing_mode;
+    };
+    std::vector<Buffer> buffers;
+    struct Barrier
+    {
+        VkCommandBuffer command;
+        VkPipelineStageFlags src_stage;
+        VkPipelineStageFlags dst_stage;
+        VkBufferMemoryBarrier buffer_barrier;
+    };
+    std::vector<Barrier> barriers;
     bool hide_next_map;
     int hidden_maps;
 
@@ -57,6 +77,7 @@ private:
         for (uint32_t i = 0; i < count; i++)
         {
             Copy entry;
+            entry.command = command;
             entry.source = source;
             entry.target = target;
             entry.region = regions[i];
@@ -64,8 +85,39 @@ private:
         }
         p->copy(command, source, target, count, regions);
     }
+    static VKAPI_ATTR VkResult VKAPI_CALL create_buffer(VkDevice device, const VkBufferCreateInfo* info, const VkAllocationCallbacks* callbacks, VkBuffer* buffer)
+    {
+        WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
+        VkResult ret = p->create(device, info, callbacks, buffer);
+        if (ret == VK_SUCCESS)
+        {
+            Buffer entry;
+            entry.handle = *buffer;
+            entry.sharing_mode = info->sharingMode;
+            p->buffers.push_back(entry);
+        }
+        return ret;
+    }
+    static VKAPI_ATTR void VKAPI_CALL record_barrier(VkCommandBuffer command, VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, VkDependencyFlags flags,
+                                                     uint32_t memory_count, const VkMemoryBarrier* memory_barriers, uint32_t buffer_count, const VkBufferMemoryBarrier* buffer_barriers,
+                                                     uint32_t image_count, const VkImageMemoryBarrier* image_barriers)
+    {
+        WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
+        for (uint32_t i = 0; i < buffer_count; i++)
+        {
+            Barrier entry;
+            entry.command = command;
+            entry.src_stage = src_stage;
+            entry.dst_stage = dst_stage;
+            entry.buffer_barrier = buffer_barriers[i];
+            p->barriers.push_back(entry);
+        }
+        p->barrier(command, src_stage, dst_stage, flags, memory_count, memory_barriers, buffer_count, buffer_barriers, image_count, image_barriers);
+    }
     PFN_vkMapMemory map;
     PFN_vkCmdCopyBuffer copy;
+    PFN_vkCreateBuffer create;
+    PFN_vkCmdPipelineBarrier barrier;
 };
 #endif
 
@@ -1031,8 +1083,8 @@ static int test_weight_storage_workspace_chunks()
         fprintf(stderr, "temporary weight did not record both staging chunks\n");
         return -1;
     }
-    const WeightStorageUploadProbe::Copy& first = probe.copies[0];
-    const WeightStorageUploadProbe::Copy& second = probe.copies[1];
+    const WeightStorageUploadProbe::Copy first = probe.copies[0];
+    const WeightStorageUploadProbe::Copy second = probe.copies[1];
     const VkDeviceSize chunk_size = (VkDeviceSize)16 * 1024 * 1024;
     if (first.source != second.source || first.target != second.target
             || first.region.srcOffset != second.region.srcOffset
@@ -1048,6 +1100,42 @@ static int test_weight_storage_workspace_chunks()
         fprintf(stderr, "temporary weight staging chunks corrupted the complete allocation\n");
         return -1;
     }
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    bool exclusive = false;
+    for (size_t i = 0; i < probe.buffers.size(); i++)
+        if (probe.buffers[i].handle == first.target)
+            exclusive = probe.buffers[i].sharing_mode == VK_SHARING_MODE_EXCLUSIVE;
+    int releases = 0;
+    int acquires = 0;
+    for (size_t i = 0; i < probe.barriers.size(); i++)
+    {
+        const WeightStorageUploadProbe::Barrier& entry = probe.barriers[i];
+        const VkBufferMemoryBarrier& barrier = entry.buffer_barrier;
+        if (barrier.buffer != first.target || barrier.srcQueueFamilyIndex == barrier.dstQueueFamilyIndex)
+            continue;
+        if (barrier.srcQueueFamilyIndex != vkdev->info.transfer_queue_family_index()
+            || barrier.dstQueueFamilyIndex != vkdev->info.compute_queue_family_index()
+            || barrier.offset != first.region.dstOffset || barrier.size != weight.data->capacity)
+        {
+            fprintf(stderr, "temporary weight ownership transfer lost its complete allocation\n");
+            return -1;
+        }
+        if (entry.command == second.command && barrier.srcAccessMask == VK_ACCESS_TRANSFER_WRITE_BIT && barrier.dstAccessMask == 0
+            && entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+            releases++;
+        else if (entry.command != second.command && barrier.srcAccessMask == 0
+                 && barrier.dstAccessMask == (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT)
+                 && entry.src_stage == VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+                 && entry.dst_stage == (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT))
+            acquires++;
+    }
+    const int transfers = vkdev->info.unified_compute_transfer_queue() ? 0 : 1;
+    if (!exclusive || releases != transfers || acquires != transfers)
+    {
+        fprintf(stderr, "temporary weight requires exclusive sharing and matching upload release / compute acquire\n");
+        return -1;
+    }
+#endif
     return 0;
 }
 
