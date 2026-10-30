@@ -23,6 +23,9 @@ int Padding::load_param(const ParamDict& pd)
     front = pd.get(7, 0);
     behind = pd.get(8, 0);
 
+    if (top < 0 || bottom < 0 || left < 0 || right < 0 || front < 0 || behind < 0)
+        return -1;
+
 #if NCNN_VALIDATION
     if (type < 0 || type > 2)
         return -1;
@@ -284,6 +287,9 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
+    if (top < 0 || bottom < 0 || left < 0 || right < 0 || front < 0 || behind < 0)
+        return -100;
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
@@ -291,7 +297,10 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
-    int outw = w + left + right;
+    long long outw64 = (long long)w + left + right;
+    if (outw64 > INT_MAX)
+        return -100;
+    int outw = (int)outw64;
 
     if (dims == 1)
     {
@@ -309,7 +318,10 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
-    int outh = h + top + bottom;
+    long long outh64 = (long long)h + top + bottom;
+    if (outh64 > INT_MAX)
+        return -100;
+    int outh = (int)outh64;
 
     if (dims == 2)
     {
