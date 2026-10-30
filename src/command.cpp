@@ -569,7 +569,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     // upload
     VkMat dst_staging;
     dst_staging.create_like(src_fp16, opt.staging_vkallocator);
-    if (dst_staging.empty() || !dst_staging.mapped_ptr())
+    if (dst_staging.empty())
         return;
 
     // stash staging
@@ -732,7 +732,7 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
     // host to staging
     VkMat dst_staging;
     dst_staging.create_like(src, opt.staging_vkallocator);
-    if (dst_staging.empty() || !dst_staging.mapped_ptr())
+    if (dst_staging.empty())
         return;
 
     // memcpy src to device
@@ -790,8 +790,6 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
     {
         src_staging = src;
     }
-    if (!src_staging.mapped_ptr())
-        return;
 
     // create dst
     dst.create_like(src_staging, opt.blob_allocator);
@@ -2825,7 +2823,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         const size_t alignment = std::max(vkdev->info.memory_map_alignment(), vkdev->info.non_coherent_atom_size());
         dst.release();
         dst.create(1, alignSize(size, alignment), 1, local_weight_vkallocator);
-        if (dst.empty() || dst.data->capacity < size)
+        if (dst.empty())
             return -100;
         dst.dims = src.dims;
         dst.w = src.w;
@@ -2905,8 +2903,6 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             {
                 if (!local_staging_vkallocator)
                     local_staging_vkallocator = new VkStagingAllocator(vkdev);
-                if (!local_staging_vkallocator)
-                    return -1;
                 weight_staging_buffer.create(1, (size_t)16 * 1024 * 1024, 1, local_staging_vkallocator);
                 if (weight_staging_buffer.empty() || !weight_staging_buffer.mapped_ptr())
                     return -100;
@@ -3759,10 +3755,9 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
 
 void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Option& opt)
 {
-    if (upload_error || src.empty())
+    if (upload_error)
         return;
-    if (dst.empty() || !dst.allocator || dst.allocator->vkdev != vkdev || src.n != dst.n
-            || dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
+    if (dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
     {
         upload_error = -1;
         return;

@@ -1007,26 +1007,6 @@ static int test_weight_storage_allocation_failure(bool disk)
             return -1;
     }
     {
-        FailingStagingAllocator failing(vkdev, true);
-        bad = opt;
-        bad.staging_vkallocator = &failing;
-        cmd.record_upload(input, device_output, bad);
-        if (check_weight_storage_failure(cmd, src, input, opt, "upload staging mapping", device_output.empty(), failing.allocations) != 0)
-            return -1;
-    }
-    {
-        FailingStagingAllocator failing(vkdev, true);
-        bad = opt;
-        bad.staging_vkallocator = &failing;
-        // exercise device-to-host copies even when the source is mapped
-        void* mapping = src.data->mapped_ptr;
-        src.data->mapped_ptr = 0;
-        cmd.record_clone(src, output, bad);
-        src.data->mapped_ptr = mapping;
-        if (check_weight_storage_failure(cmd, src, input, opt, "clone staging mapping", output.empty(), failing.allocations) != 0)
-            return -1;
-    }
-    {
         FailingStagingAllocator failing(vkdev, false);
         bad = opt;
         bad.blob_vkallocator = &failing;

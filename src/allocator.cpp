@@ -751,11 +751,6 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     VkBufferMemory* block = new VkBufferMemory;
 
     block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    if (!block->buffer)
-    {
-        delete block;
-        return 0;
-    }
     block->offset = 0;
 
     // TODO respect VK_KHR_dedicated_allocation ?
@@ -801,28 +796,12 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
-    VkResult ret = vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkBindBufferMemory failed %d", ret);
-        vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
-        vkFreeMemory(vkdev->vkdevice(), block->memory, 0);
-        delete block;
-        return 0;
-    }
+    vkBindBufferMemory(vkdev->vkdevice(), block->buffer, block->memory, 0);
 
     block->mapped_ptr = 0;
     if (mappable)
     {
-        ret = vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkMapMemory failed %d", ret);
-            vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
-            vkFreeMemory(vkdev->vkdevice(), block->memory, 0);
-            delete block;
-            return 0;
-        }
+        vkMapMemory(vkdev->vkdevice(), block->memory, 0, new_block_size, 0, &block->mapped_ptr);
     }
 
     block->memory_type_index = buffer_memory_type_index;
@@ -2034,11 +2013,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         block->buffer = create_weight_buffer_object(vkdev, new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, handle_types, true);
     else
         block->buffer = create_buffer(new_block_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    if (!block->buffer)
-    {
-        delete block;
-        return 0;
-    }
     block->offset = 0;
 
     if (vkdev->info.support_VK_KHR_get_memory_requirements2() && vkdev->info.support_VK_KHR_dedicated_allocation() && !d->prefer_host_memory)
@@ -2820,11 +2794,6 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     VkBufferMemory* ptr = new VkBufferMemory;
 
     ptr->buffer = create_buffer(size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT);
-    if (!ptr->buffer)
-    {
-        delete ptr;
-        return 0;
-    }
     ptr->offset = 0;
 
     VkMemoryRequirements memoryRequirements;
@@ -2836,12 +2805,6 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
         buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, VK_MEMORY_PROPERTY_HOST_CACHED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
 
-    if (buffer_memory_type_index == (uint32_t)-1)
-    {
-        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
-        delete ptr;
-        return 0;
-    }
     ptr->memory = allocate_memory(memoryRequirements.size, buffer_memory_type_index);
     if (!ptr->memory)
     {
@@ -2851,26 +2814,11 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
     }
 
     // ignore memoryRequirements.alignment as we always bind at zero offset
-    ptr->mapped_ptr = 0;
-    VkResult ret = vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkBindBufferMemory failed %d", ret);
-        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
-        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
-        delete ptr;
-        return 0;
-    }
-    ret = vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkMapMemory failed %d", ret);
-        vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
-        vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
-        delete ptr;
-        return 0;
-    }
+    vkBindBufferMemory(vkdev->vkdevice(), ptr->buffer, ptr->memory, 0);
+
     ptr->capacity = size;
+
+    vkMapMemory(vkdev->vkdevice(), ptr->memory, 0, size, 0, &ptr->mapped_ptr);
 
     ptr->memory_type_index = buffer_memory_type_index;
 

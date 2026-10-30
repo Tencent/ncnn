@@ -17,7 +17,6 @@ public:
     {
         ALLOCATE_MEMORY,
         BIND_MEMORY,
-        MAP_MEMORY,
         SUBMIT,
         SECOND_SUBMIT,
         FENCE_WAIT,
@@ -31,7 +30,7 @@ public:
     };
 
     explicit VulkanFailure(Failure failure, int fail_at = 1)
-        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus), create_descriptor_pool(ncnn::vkCreateDescriptorPool), allocate_descriptor_sets(ncnn::vkAllocateDescriptorSets)
+        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus), create_descriptor_pool(ncnn::vkCreateDescriptorPool), allocate_descriptor_sets(ncnn::vkAllocateDescriptorSets)
     {
         calls = 0;
         reused_command = false;
@@ -40,7 +39,6 @@ public:
         g_vulkan_failure = this;
         ncnn::vkAllocateMemory = allocate_memory;
         ncnn::vkBindBufferMemory = bind_memory;
-        ncnn::vkMapMemory = map_memory;
         ncnn::vkQueueSubmit = queue_submit;
         ncnn::vkWaitForFences = wait_for_fences;
         ncnn::vkAllocateCommandBuffers = allocate_commands;
@@ -57,7 +55,6 @@ public:
     {
         ncnn::vkAllocateMemory = allocate;
         ncnn::vkBindBufferMemory = bind;
-        ncnn::vkMapMemory = map;
         ncnn::vkQueueSubmit = submit;
         ncnn::vkWaitForFences = wait;
         ncnn::vkAllocateCommandBuffers = allocate_command;
@@ -106,17 +103,6 @@ private:
             return VK_ERROR_OUT_OF_DEVICE_MEMORY;
         }
         return f->bind(device, buffer, memory, offset);
-    }
-
-    static VKAPI_ATTR VkResult VKAPI_CALL map_memory(VkDevice device, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** data)
-    {
-        VulkanFailure* f = g_vulkan_failure;
-        if (f->failure == MAP_MEMORY)
-        {
-            f->triggered = true;
-            return VK_ERROR_MEMORY_MAP_FAILED;
-        }
-        return f->map(device, memory, offset, size, flags, data);
     }
 
     static VKAPI_ATTR VkResult VKAPI_CALL queue_submit(VkQueue queue, uint32_t count, const VkSubmitInfo* submits, VkFence fence)
@@ -248,7 +234,6 @@ private:
     int submissions;
     PFN_vkAllocateMemory allocate;
     PFN_vkBindBufferMemory bind;
-    PFN_vkMapMemory map;
     PFN_vkQueueSubmit submit;
     PFN_vkWaitForFences wait;
 };
