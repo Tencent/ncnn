@@ -213,7 +213,7 @@ class NCNN_EXPORT VkBufferMemory
 {
 public:
     VkBufferMemory()
-        : mapped_ptr(0), source_ptr(0), source_size(0), storage_type(0)
+        : mapped_ptr(0), storage_type(0)
     {
     }
 
@@ -235,10 +235,6 @@ public:
 
     // initialize and modified by mat
     int refcount;
-
-    // borrowed source bytes
-    void* source_ptr;
-    size_t source_size;
 
     // storage type
     // 0 = device, 1 = host, 2 = disk

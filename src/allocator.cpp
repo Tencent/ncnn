@@ -1659,7 +1659,6 @@ public:
         resident_free[0] = resident_free[1] = 0;
     }
     int allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr);
-    VkBufferMemory* record_weight(VkBufferMemory* ptr, size_t size);
 
     size_t block_size;
     size_t buffer_offset_alignment;
@@ -1923,7 +1922,6 @@ int VkWeightAllocatorPrivate::allocate_resident(size_t size, int storage_type, V
     ptr->offset = block->capacity - free_size;
     ptr->capacity = aligned_size;
     free_size -= aligned_size;
-    record_weight(ptr, size);
     return 0;
 }
 
@@ -1983,24 +1981,26 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     }
     if (d->use_weights_in_disk)
     {
-        void* source_ptr = 0;
-        int ret = d->file.reserve(size, d->buffer_offset_alignment, source_ptr);
+        const size_t aligned_size = alignSize(size, d->buffer_offset_alignment);
+        void* mapped_ptr = 0;
+        int ret = d->file.reserve(aligned_size, d->buffer_offset_alignment, mapped_ptr);
         if (ret != 0)
             return 0;
+        memset((unsigned char*)mapped_ptr + size, 0, aligned_size - size);
+
         VkWeightBufferMemory* ptr = new VkWeightBufferMemory;
-        ptr->source_ptr = source_ptr;
         ptr->buffer = 0;
         ptr->offset = 0;
-        ptr->capacity = alignSize(size, d->buffer_offset_alignment);
+        ptr->capacity = aligned_size;
         ptr->memory = 0;
-        ptr->mapped_ptr = 0;
+        ptr->mapped_ptr = mapped_ptr;
         ptr->memory_type_index = (uint32_t)-1;
         ptr->access_flags = VK_ACCESS_HOST_WRITE_BIT;
         ptr->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
         ptr->storage_type = 2;
         ptr->file_index = d->file_weights.size();
         d->file_weights.push_back(ptr);
-        return d->record_weight(ptr, size);
+        return ptr;
     }
 
     //     NCNN_LOGE("VkWeightAllocator fastMalloc %lu", size);
@@ -2034,7 +2034,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 
             d->buffer_block_free_spaces[i] -= aligned_size;
 
-            return d->record_weight(ptr, size);
+            return ptr;
         }
     }
 
@@ -2159,7 +2159,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-            return d->record_weight(ptr, size);
+            return ptr;
         }
     }
 
@@ -2327,17 +2327,6 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
-    return d->record_weight(ptr, size);
-}
-
-VkBufferMemory* VkWeightAllocatorPrivate::record_weight(VkBufferMemory* ptr, size_t size)
-{
-    if (ptr->storage_type != 0)
-    {
-        if (ptr->storage_type == 1 && ptr->mapped_ptr)
-            ptr->source_ptr = (unsigned char*)ptr->mapped_ptr + ptr->offset;
-        ptr->source_size = size;
-    }
     return ptr;
 }
 
@@ -2351,6 +2340,9 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
 
 int VkWeightAllocator::flush(VkBufferMemory* ptr)
 {
+    // file mappings are flushed by finalize_weights()
+    if (!ptr || ptr->storage_type == 2)
+        return -1;
     return flush_weight_buffer(vkdev, ptr, 0, ptr->capacity);
 }
 

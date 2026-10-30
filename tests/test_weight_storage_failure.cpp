@@ -895,7 +895,6 @@ static int test_weight_storage_upload_overlap()
     {
         storage_types[i] = weight[i].data->storage_type;
         weight[i].data->storage_type = 1;
-        weight[i].data->source_size = weight[i].buffer_capacity();
     }
     opt.blob_vkallocator = &blobs;
     int ret = 0;
@@ -966,8 +965,6 @@ static int test_weight_storage_upload_overlap()
     for (int i = 0; i < 3; i++)
     {
         weight[i].data->storage_type = storage_types[i];
-        if (storage_types[i] == 0)
-            weight[i].data->source_size = 0;
     }
     return ret;
 }
@@ -1155,7 +1152,6 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
     {
         storage_types[i] = weight[i].data->storage_type;
         weight[i].data->storage_type = 1;
-        weight[i].data->source_size = input[i].total() * input[i].elemsize;
     }
     opt.blob_vkallocator = &blobs;
 
@@ -1229,8 +1225,6 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
     for (int i = 0; i < count; i++)
     {
         weight[i].data->storage_type = storage_types[i];
-        if (storage_types[i] == 0)
-            weight[i].data->source_size = 0;
     }
     return ret;
 }

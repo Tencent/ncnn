@@ -651,7 +651,7 @@ static int test_weight_storage_recorded_weight_lifetime()
     ncnn::VkMat weight(128, (size_t)4u, &store);
     if (weight.empty())
         return -1;
-    memcpy(weight.data->source_ptr, original.data, original.total() * original.elemsize);
+    memcpy(weight.mapped_ptr(), original.data, original.total() * original.elemsize);
     if (store.finalize_weights())
         return -1;
     ncnn::Mat output;
@@ -697,10 +697,19 @@ static int test_weight_storage_recorded_subview()
     view.offset = first * sizeof(float);
 #endif
     const size_t logical_bytes = (size_t)input.w * input.elemsize;
-    if (view.buffer_capacity() >= weight.data->source_size || weight.data->source_size < logical_bytes || weight.data->capacity <= logical_bytes)
+    if (view.buffer_capacity() >= logical_bytes || weight.data->capacity <= logical_bytes || !weight.mapped_ptr())
     {
-        fprintf(stderr, "test_weight_storage_recorded_subview invalid fixture view=%zu source=%zu capacity=%zu logical=%zu\n", view.buffer_capacity(), weight.data->source_size, weight.data->capacity, logical_bytes);
+        fprintf(stderr, "test_weight_storage_recorded_subview invalid fixture view=%zu capacity=%zu logical=%zu\n", view.buffer_capacity(), weight.data->capacity, logical_bytes);
         return -1;
+    }
+    const unsigned char* mapped_ptr = (const unsigned char*)weight.mapped_ptr();
+    for (size_t i = weight.buffer_capacity(); i < weight.data->capacity; i++)
+    {
+        if (mapped_ptr[i] != 0)
+        {
+            fprintf(stderr, "test_weight_storage_recorded_subview nonzero allocation padding at %zu\n", i);
+            return -1;
+        }
     }
     ncnn::Mat expected_view(7);
     memcpy(expected_view.data, (const float*)input.data + first, 7 * sizeof(float));
@@ -744,7 +753,7 @@ static int test_weight_storage_recorded_subview()
         if (copy.source != first_upload.source)
             continue;
         uploads++;
-        if (copy.region.size != ncnn::alignSize(weight.data->source_size, 4)
+        if (copy.region.size != weight.data->capacity
                 || (i != 0 && copy.target == first_upload.target
                     && copy.region.dstOffset < first_upload.region.dstOffset + first_upload.region.size
                     && first_upload.region.dstOffset < copy.region.dstOffset + copy.region.size))
@@ -782,7 +791,7 @@ static int test_weight_storage_recorded_subview()
 #endif
     cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    if (probe.copies.size() != copies + 1 || probe.copies.back().region.size != ncnn::alignSize(weight.data->source_size, 4))
+    if (probe.copies.size() != copies + 1 || probe.copies.back().region.size != weight.data->capacity)
     {
         fprintf(stderr, "multiple views did not share one complete temporary weight upload\n");
         return -1;
@@ -1027,7 +1036,7 @@ static int test_weight_storage_workspace_chunks()
     const VkDeviceSize chunk_size = (VkDeviceSize)16 * 1024 * 1024;
     if (first.source != second.source || first.target != second.target
             || first.region.srcOffset != second.region.srcOffset
-            || first.region.size != chunk_size || second.region.size != ncnn::alignSize(weight.data->source_size - (size_t)chunk_size, 4)
+            || first.region.size != chunk_size || second.region.size != weight.data->capacity - (size_t)chunk_size
             || second.region.dstOffset != first.region.dstOffset + chunk_size)
     {
         fprintf(stderr, "temporary weight staging chunks lost their complete allocation or reusable staging range\n");

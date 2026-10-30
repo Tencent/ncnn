@@ -36,7 +36,7 @@ static void wait_for_pending_commands()
 
 static bool is_deferred_buffer(const VkBufferMemory* memory)
 {
-    return memory && memory->storage_type != 0 && memory->source_size != 0;
+    return memory && memory->storage_type != 0;
 }
 
 static bool needs_host_copy(const VkMat& src)
@@ -2820,7 +2820,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         local_weight_vkallocator = new VkBlobAllocator(vkdev, 16 * 1024 * 1024, true);
 
     // create dst for the complete allocation, including bytes outside the view
-    const size_t size = alignSize(src.data->source_size, 4);
+    const size_t size = src.data->capacity;
     {
         dst.release();
         dst.create(1, size, 1, local_weight_vkallocator);
@@ -2873,7 +2873,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         r.host_copy.src_index = upload_src_buffers.size() - 1;
         r.host_copy.dst_index = upload_dst_buffers.size() - 1;
         r.host_copy.src_offset = 0;
-        r.host_copy.size = src_weight.data->source_size;
+        r.host_copy.size = size;
         delayed_records.push_back(r);
 
         upload_access = VK_ACCESS_HOST_WRITE_BIT;
@@ -2907,11 +2907,11 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         }
 
         // record upload chunks
-        for (size_t offset = 0; offset < src_weight.data->source_size;)
+        for (size_t offset = 0; offset < size;)
         {
-            const size_t chunk_size = std::min(chunk_capacity, src_weight.data->source_size - offset);
+            const size_t chunk_size = std::min(chunk_capacity, size - offset);
             const size_t upload_size = alignSize(chunk_size, 4);
-            const bool last = chunk_size == src_weight.data->source_size - offset;
+            const bool last = chunk_size == size - offset;
             if (needs_host_copy(src_weight))
             {
                 if (!upload_command_buffers.empty())
@@ -3272,7 +3272,7 @@ int VkComputePrivate::submit_records()
             const VkMat& dst = upload_dst_buffers[r.host_copy.dst_index];
             const size_t size = alignSize(r.host_copy.size, 4);
             unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
-            memcpy(ptr, (const unsigned char*)src.data->source_ptr + r.host_copy.src_offset, r.host_copy.size);
+            memcpy(ptr, (const unsigned char*)src.mapped_ptr() + r.host_copy.src_offset, r.host_copy.size);
             memset(ptr + r.host_copy.size, 0, size - r.host_copy.size);
             ret = flush_weight_buffer(vkdev, dst.data, dst.offset, size);
 #if NCNN_BENCHMARK
@@ -3769,8 +3769,7 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
     }
     if (dst.data->storage_type == 2)
     {
-        if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.data->source_ptr
-                || dst.offset > dst.data->source_size || dst.buffer_capacity() > dst.data->source_size - dst.offset)
+        if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.mapped_ptr())
         {
             NCNN_LOGE("disk weight requires a writable source range during upload");
             upload_error = -1;
@@ -3779,12 +3778,12 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
         for (int b = 0; b < src.n; b++)
         {
             const Mat src_b = src.batch(b);
-            const size_t offset = dst.batch(b).offset;
+            const VkMat dst_b = dst.batch(b);
             const size_t end = b + 1 == src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
             const size_t size = src_b.total() * src_b.elemsize;
-            unsigned char* ptr = (unsigned char*)dst.data->source_ptr + offset;
+            unsigned char* ptr = (unsigned char*)dst_b.mapped_ptr();
             memcpy(ptr, src_b.data, size);
-            memset(ptr + size, 0, end - offset - size);
+            memset(ptr + size, 0, end - dst_b.offset - size);
         }
         return;
     }

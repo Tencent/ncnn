@@ -174,7 +174,11 @@ unmapped target uses staging. Other devices copy host-resident Vulkan buffers
 directly or fill a command-owned staging buffer from file mappings. File uploads
 use chunks of at most 16 MiB, waiting for the previous upload before overwriting
 staging. These transfer chunks do not slice the weight's mathematical operation
-or its shader binding.
+or its shader binding. Uploads cover the complete allocation capacity, including
+alignment padding, even when the consumer binds a subview. File mappings reserve
+that same capacity and initialize the allocation's trailing padding to zero.
+Host and file sources use the existing mapped pointer and allocation offset;
+the tensor view keeps its separate offset.
 
 Devices with push descriptors encode Vulkan commands immediately. Other devices
 create descriptor sets while recording and replay their native commands before
