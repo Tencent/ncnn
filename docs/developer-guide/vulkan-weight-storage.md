@@ -129,8 +129,8 @@ Model backing must remain valid and immutable until execution completes and the
 recording is reset. Clearing a Net invalidates its weights and existing
 Extractors. Use `clear()`, `load_param()` and `load_model()` to replace a model.
 
-The private `record_resolve()` validates a deferred source, creates a temporary
-`VkMat` from the private pool, records the complete source upload and
+The private `record_resolve()` creates a temporary `VkMat` from the private
+pool, records the complete source upload and
 returns a view with the original shape, packing and offset. Ordinary buffers
 pass through. `record_pipeline()` resolves its local binding array in order.
 Multiple views of the same source allocation within a dispatch share one
@@ -198,8 +198,10 @@ Check the return value of `set_weight_memory_limit()` before allocating weights;
 an invalid configuration returns an error and leaves the previous settings intact.
 Allocation failures return a null buffer, observed as an empty `VkMat`.
 Record each transformed weight with `VkTransfer::record_upload()`, then check
-`submit_and_wait()` before calling `finalize_weights()`. Recording and submission
-errors are returned by `submit_and_wait()`. Finalization flushes
+`submit_and_wait()` before calling `finalize_weights()`. Complete finalization
+before recording weight use with `VkCompute`; command recording relies on this
+loading order. `VkTransfer::submit_and_wait()` returns upload recording and
+submission errors. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
 work have been released. Uploads use bounded staging and batch small copies

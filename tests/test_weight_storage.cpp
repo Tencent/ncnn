@@ -400,23 +400,6 @@ static int test_weight_storage_automatic_workspace()
             return -1;
         }
     }
-    {
-        ncnn::VkCompute early(vkdev);
-        early.set_use_weight_upload_online(true);
-        ncnn::Mat output;
-        early.record_clone(weight[0], output, opt);
-        if (!output.empty() || early.reset())
-        {
-            fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
-            return -1;
-        }
-        early.record_clone(weight[0], output, opt);
-        if (!output.empty() || early.reset())
-        {
-            fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
-            return -1;
-        }
-    }
     // automatic sizing also supports direct allocator uploads
     if (weights.finalize_weights())
     {

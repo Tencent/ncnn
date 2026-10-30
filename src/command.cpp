@@ -19,7 +19,6 @@
 
 namespace ncnn {
 
-size_t weight_buffer_alignment(const VulkanDevice* vkdev);
 int fit_weight_buffer_size(const VulkanDevice* vkdev, size_t memory_limit, bool host, size_t& capacity);
 VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t memory_limit, size_t& allocation_size, bool concurrent);
 void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
@@ -43,33 +42,6 @@ static bool is_deferred_buffer(const VkBufferMemory* memory)
 static bool needs_host_copy(const VkMat& src)
 {
     return src.data->storage_type == 2 || !src.buffer();
-}
-
-static int validate_weight_binding(const VkMat& src, const VulkanDevice* vkdev)
-{
-    const VkBufferMemory* ptr = src.data;
-    const size_t alignment = weight_buffer_alignment(vkdev);
-    if (src.allocator && src.allocator->vkdev != vkdev)
-    {
-        NCNN_LOGE("weight source and command must use the same Vulkan device");
-        return -1;
-    }
-    if (ptr->storage_type == 2 && !(ptr->access_flags & VK_ACCESS_HOST_READ_BIT))
-    {
-        NCNN_LOGE("file weights must be finalized before recording");
-        return -1;
-    }
-    if (!is_deferred_buffer(ptr) || src.offset > ptr->source_size
-            || src.buffer_capacity() > ptr->source_size - src.offset
-            || ptr->source_size > (size_t)-1 - alignment
-            || (ptr->storage_type != 2 && ptr->storage_type != 1)
-            || (needs_host_copy(src) && !ptr->source_ptr)
-            || (!needs_host_copy(src) && alignSize(ptr->source_size, 4) > ptr->capacity))
-    {
-        NCNN_LOGE("invalid deferred buffer binding");
-        return -1;
-    }
-    return 0;
 }
 
 class VkComputePrivate
@@ -1517,10 +1489,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             if (_buffer_bindings[j].data != _buffer_bindings[i].data)
                 continue;
 
-            int ret = validate_weight_binding(_buffer_bindings[j], vkdev);
-            if (ret != 0)
-                return;
-
             // share storage without changing the binding shape or offset
             VkMat resolved = buffer_bindings[i];
             std::swap(buffer_bindings[j].data, resolved.data);
@@ -2845,13 +2813,6 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
     {
         NCNN_LOGE("deferred weight requires set_use_weight_upload_online(true) before recording");
         return -1;
-    }
-
-    // check source
-    {
-        int ret = validate_weight_binding(src, vkdev);
-        if (ret != 0)
-            return ret;
     }
 
     // private concurrent buffers allow reuse across compute and transfer queues
