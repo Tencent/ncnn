@@ -860,6 +860,12 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
     endif()
 endif()
 
+if(ANDROID AND ANDROID_NDK_MAJOR EQUAL 30 AND CMAKE_CXX_COMPILER_ID MATCHES "Clang"
+    AND (CMAKE_ANDROID_STL_TYPE STREQUAL "c++_static" OR CMAKE_ANDROID_STL_TYPE STREQUAL "c++_shared"))
+    # Keep ncnn and bundled glslang linkable with older NDK libc++ runtimes.
+    add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-include${CMAKE_CURRENT_SOURCE_DIR}/cmake/ncnn_android_libcxx_compat.h>")
+endif()
+
 if(NCNN_VULKAN)
     if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT NCNN_SIMPLEVK)
         message(FATAL_ERROR "Emscripten Vulkan requires NCNN_SIMPLEVK")
