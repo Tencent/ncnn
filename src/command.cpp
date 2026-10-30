@@ -788,7 +788,38 @@ void VkCompute::record_clone(const VkMat& src, VkMat& dst, const Option& opt)
     }
 
     {
-        // barrier device any @ null to transfer-write @ compute
+        // barrier device any @ compute|transfer to transfer-write @ transfer
+        // dst memory may be recycled from a blob that earlier commands still read or write
+        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = dst.buffer();
+        barriers[0].offset = dst.data->offset;
+        barriers[0].size = dst.data->capacity;
+
+        VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            delete[] barriers;
+        }
+        else
+        {
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+            r.command_buffer = d->compute_command_buffer;
+            r.buffer_barrers.src_stage = src_stage;
+            r.buffer_barrers.dst_stage = dst_stage;
+            r.buffer_barrers.barrier_count = 1;
+            r.buffer_barrers.barriers = barriers;
+            d->delayed_records.push_back(r);
+        }
 
         // mark device transfer-write @ transfer
         dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
