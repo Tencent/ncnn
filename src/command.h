@@ -26,6 +26,10 @@ public:
     virtual ~VkCompute();
 
 public:
+    // select before recording; reset preserves this setting
+    // enable for host or disk weights that require uploading during execution
+    void set_use_weight_upload_online(bool enable);
+
     void record_upload(const Mat& src, VkMat& dst, const Option& opt);
 
     void record_download(const VkMat& src, Mat& dst, const Option& opt);

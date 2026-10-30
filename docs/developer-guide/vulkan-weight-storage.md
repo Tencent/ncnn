@@ -70,7 +70,7 @@ activation buffers, temporary weights, staging, or allocator pool reserves.
 There is no separate fixed-capacity weight exchange arena and no
 `weight_device_cache_size` or `weight_host_cache_size` setting. Temporary weights
 are command-owned allocations: the private allocator can grow its pool, and an
-allocation failure is reported by the command. Recording retains the complete
+allocation failure stops the current recording operation. Recording retains the complete
 resolved weight group for the preceding operation while allocating the current
 group. Allow room for both adjacent complete groups, allocation alignment and
 pool reserves, not just the largest individual binding or dispatch.
@@ -96,12 +96,24 @@ resident fallback when no explicit directory or memory limits are configured.
 
 ## external commands
 
-Normal `Mat` extraction and external commands both manage temporary weight
-storage automatically:
+Normal `Mat` extraction selects online weight upload from the Net's
+`use_weights_in_host_memory` and `use_weights_in_disk` options. For external
+commands, select the mode before recording:
 
 ```cpp
 ncnn::VkCompute cmd(net.vulkan_device());
+cmd.set_use_weight_upload_online(net.opt.use_weights_in_host_memory || net.opt.use_weights_in_disk);
 ```
+
+The setting defaults to `false` and survives `submit_and_wait()` and `reset()`.
+It stays fixed while commands are recorded. Enable it for an external command
+that uses deferred host or disk weights, including when several Nets share the
+command. With this mode disabled, recording a deferred weight logs the missing
+configuration and returns from that operation.
+
+`init()` prepares the compute and upload command pools and starts the initial
+compute command buffer. Both pools remain available until command destruction.
+Temporary weight and staging allocations are still created only when needed.
 
 Each command owns an independent temporary weight pool. It cannot be replaced
 with, or shared with, an Extractor's `workspace_vkallocator`. Continue to
@@ -171,9 +183,11 @@ remains in one compute batch. Recording allocates resources but does not submit
 GPU work or fill deferred file-upload destinations. `submit_and_wait()` executes
 the recorded fills, uploads, computation and downloads.
 
-Preparation failures are retained and returned by `submit_and_wait()` without
-submitting earlier work. Call `reset()` before recording again after an error.
-Ordinary output allocation failures retain the empty-output convention. All
+Recording failures return from the current operation, following the ordinary
+`void record_*()` convention. They are not saved as a command-wide error for a
+later `submit_and_wait()` call. Reset an incomplete recording before using the
+command again. Output allocation failures retain the empty-output convention.
+`submit_and_wait()` returns errors from its own submission and waiting work. All
 submitted upload and compute work is drained before execution resources are
 released. A nonterminal fence error keeps work pending and prevents reset;
 destruction waits for completion or device loss.

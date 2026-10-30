@@ -56,12 +56,14 @@ static int test_weight_storage_workspace_failure(VulkanFailure::Failure failure)
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output;
     {
-        // Workspace and task failures are latched while recording and reported by submit.
+        // Recording failures stop the operation; submission failures return directly.
         VulkanFailure fail(failure);
         cmd.record_clone(weight, output, opt);
-        if (cmd.submit_and_wait() == 0 || !fail.triggered)
+        const bool failed = failure == VulkanFailure::SUBMIT ? cmd.submit_and_wait() != 0 : output.empty();
+        if (!failed || !fail.triggered)
         {
             fprintf(stderr, "test_weight_storage_workspace_failure error missing failure=%d\n", failure);
             return -1;
@@ -136,6 +138,7 @@ static int test_weight_storage_midflight_failure(int fail_at)
     opt.blob_vkallocator = &blobs;
 
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output[count];
     for (int i = 0; i < count; i++)
         cmd.record_clone(weight[i], output[i], opt);
@@ -196,6 +199,7 @@ static int test_weight_storage_resident_batches()
         return -1;
     opt.blob_vkallocator = &blobs;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output[24];
     for (int i = 0; i < 24; i++)
         if (i != 2)
@@ -259,6 +263,7 @@ static int test_weight_storage_repeated_weights()
         return -1;
     opt.blob_vkallocator = &blobs;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output[96];
     for (int round = 0; round < 2; round++)
     {
@@ -326,6 +331,7 @@ static int test_weight_storage_dispatch_pinning()
     if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
         return -1;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     const int indices[8][3] = {{3, 0, 1}, {3, 4, 1}, {5, 3, 4}, {0, 4, 5}, {1, 5, 0}, {2, 0, 1}, {3, 1, 2}, {0, 2, 3}};
     for (int round = 0; round < 2; round++)
     {
@@ -631,6 +637,7 @@ static int test_weight_storage_record_time_preparation()
     ncnn::VkMat ordinary_devices[2];
     ncnn::VkMat first_devices[2];
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     for (int round = 0; round < 2; round++)
     {
         ncnn::Mat ordinary(64);
@@ -694,14 +701,13 @@ static int test_weight_storage_record_time_preparation()
             {
                 VulkanFailure failure(failures[i]);
                 cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-                if (!failure.triggered || cmd.submit_and_wait() == 0 || failure.submission_count() != 0)
+                if (!failure.triggered || failure.submission_count() != 0)
                 {
-                    fprintf(stderr, "descriptor allocation failure was not returned before GPU submission\n");
+                    fprintf(stderr, "descriptor allocation failure submitted GPU work\n");
                     return -1;
                 }
             }
-            if (cmd.reset())
-                return -1;
+            // A failed descriptor operation does not poison later valid recording.
             ncnn::Mat output;
             cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
             cmd.record_clone(result, output, opt);
@@ -712,13 +718,14 @@ static int test_weight_storage_record_time_preparation()
     // A later task allocation failure must not submit earlier records or a partial binding set.
     ncnn::VkMat first_device(elements, (size_t)4u, &blobs);
     ncnn::VkCompute rejected(vkdev);
+    rejected.set_use_weight_upload_online(true);
     {
         WeightRecordingProbe probe(vkdev);
         rejected.record_clone(weight[0], first_device, opt);
         const int dispatches = probe.dispatches;
         VulkanFailure failure(VulkanFailure::ALLOCATE_COMMAND);
         rejected.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-        if (!failure.triggered || rejected.submit_and_wait() == 0 || probe.submissions != 0 || probe.dispatches != dispatches || probe.destroyed_recorded_buffer)
+        if (!failure.triggered || probe.submissions != 0 || probe.dispatches != dispatches || probe.destroyed_recorded_buffer)
         {
             fprintf(stderr, "weight preparation failure submitted work or lost a pending allocation\n");
             return -1;
@@ -762,6 +769,7 @@ static int test_weight_storage_workspace_allocation()
             return -1;
     }
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     {
         WeightRecordingProbe probe(vkdev);
         cmd.record_clone(native, target, opt);
@@ -789,6 +797,7 @@ static int test_weight_storage_workspace_allocation()
         WeightRecordingProbe probe(vkdev);
         {
             ncnn::VkCompute scoped(vkdev);
+            scoped.set_use_weight_upload_online(true);
             scoped.record_clone(weight, target, opt);
             if (scoped.submit_and_wait() || probe.allocations == 0)
                 return -1;
@@ -826,6 +835,7 @@ static int test_weight_storage_private_pool()
     opt.blob_vkallocator = &blobs;
     opt.workspace_vkallocator = &blobs;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     for (int round = 0; round < 2; round++)
     {
         ncnn::VkMat first;
@@ -891,6 +901,7 @@ static int test_weight_storage_upload_overlap()
     int ret = 0;
     {
         ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(true);
         for (int round = 0; round < 2 && ret == 0; round++)
         {
             ncnn::VkMat results[3];
@@ -1092,6 +1103,7 @@ static int test_weight_storage_workspace_wait_failure(bool deferred_weight)
     opt.blob_vkallocator = &blobs;
     ncnn::Mat output;
     ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev);
+    cmd->set_use_weight_upload_online(deferred_weight);
     ncnn::VkMat ordinary;
     ncnn::Mat ordinary_input = RandomMat(256);
     if (deferred_weight)
@@ -1150,19 +1162,25 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
     int ret = 0;
     {
         ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(true);
         {
             // Command/fence/semaphore allocation happens while recording.
             VulkanFailure check(failure, 5);
-            for (int i = 0; i < count; i++)
-                cmd.record_clone(weight[i], output[i], opt);
+            int recorded = 0;
+            for (; recorded < count; recorded++)
+            {
+                cmd.record_clone(weight[recorded], output[recorded], opt);
+                if (check.triggered)
+                    break;
+            }
             if (check.submission_count() != 0 || (failure != VulkanFailure::TRACK_COMMANDS && !check.triggered))
             {
                 fprintf(stderr, "recording did not prepare execution resources or submitted work\n");
                 return -1;
             }
-            ret = cmd.submit_and_wait();
             if (failure == VulkanFailure::TRACK_COMMANDS)
             {
+                ret = cmd.submit_and_wait();
                 if (ret != 0 || check.reused_command || check.resets != 0 || check.submission_count() <= count + 4)
                 {
                     fprintf(stderr, "execution resources reused a submitted command or insufficient task coverage count=%d reused=%d resets=%d\n", check.submission_count(), check.reused_command, check.resets);
@@ -1171,7 +1189,7 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
             }
             else
             {
-                ret = ret != 0 && check.triggered && check.submission_count() == 0 ? 0 : -1;
+                ret = recorded < count && output[recorded].empty() && check.triggered && check.submission_count() == 0 ? 0 : -1;
             }
         }
         if (ret == 0 && failure == VulkanFailure::TRACK_COMMANDS)

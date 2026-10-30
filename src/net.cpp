@@ -3350,6 +3350,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             }
 
             ncnn::VkCompute cmd(d->net->vulkan_device());
+            cmd.set_use_weight_upload_online(d->opt.use_weights_in_host_memory || d->opt.use_weights_in_disk);
 #if NCNN_BENCHMARK
             cmd.create_query_pool(d->net->layers().size() * 2);
 #endif // NCNN_BENCHMARK

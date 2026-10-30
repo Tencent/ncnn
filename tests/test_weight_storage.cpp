@@ -69,6 +69,76 @@ private:
 };
 #endif
 
+static int test_weight_storage_upload_mode()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat input = RandomMat(64);
+    ncnn::VkMat weight;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(input, weight, opt);
+    if (upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    if (weight.data->storage_type != 2)
+        return 0;
+    opt.blob_vkallocator = &blobs;
+
+    ncnn::VkCompute cmd(vkdev);
+    ncnn::Mat output;
+    output.release();
+    cmd.record_clone(weight, output, opt);
+    if (!output.empty() || cmd.submit_and_wait() || cmd.reset())
+    {
+        fprintf(stderr, "deferred weight unexpectedly enabled online upload\n");
+        return -1;
+    }
+
+    cmd.set_use_weight_upload_online(true);
+    for (int round = 0; round < 2; round++)
+    {
+        // Empty and ordinary recordings must retain the selected online mode.
+        if (cmd.submit_and_wait() || cmd.reset())
+            return -1;
+        ncnn::VkMat ordinary;
+        cmd.record_clone(input, ordinary, opt);
+        cmd.record_clone(ordinary, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(input, output, 0.f) || cmd.reset())
+            return -1;
+        cmd.record_clone(weight, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(input, output, 0.f) || cmd.reset())
+        {
+            fprintf(stderr, "online weight upload setting was lost after reset\n");
+            return -1;
+        }
+    }
+
+    // The caller can select the ordinary mode again before a new recording.
+    cmd.set_use_weight_upload_online(false);
+    if (cmd.submit_and_wait() || cmd.reset())
+        return -1;
+    ncnn::VkMat ordinary;
+    cmd.record_clone(input, ordinary, opt);
+    cmd.record_clone(ordinary, output, opt);
+    if (cmd.submit_and_wait() || CompareMat(input, output, 0.f) || cmd.reset())
+        return -1;
+    output.release();
+    cmd.record_clone(weight, output, opt);
+    if (!output.empty() || cmd.submit_and_wait() || cmd.reset())
+    {
+        fprintf(stderr, "disabled online weight upload was changed by recording\n");
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_weight_storage_bytes(const ncnn::Option& opt, int elempack, bool flatten, int batch, bool host)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(ncnn::get_default_gpu_index());
@@ -112,6 +182,7 @@ static int test_weight_storage_bytes(const ncnn::Option& opt, int elempack, bool
     download_opt.blob_vkallocator = &staging;
     download_opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat expected;
     ncnn::Mat actual;
     cmd.record_clone(resident_weight, expected, download_opt);
@@ -208,6 +279,7 @@ static int test_weight_storage_workspace_reuse()
     opt.staging_vkallocator = &staging;
 
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     for (int round = 0; round < 3; round++)
     {
         ncnn::Mat output[18];
@@ -283,6 +355,7 @@ static int test_weight_storage_residents()
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output[4];
     for (int i = 0; i < 4; i++)
         cmd.record_clone(weight[i], output[i], opt);
@@ -329,15 +402,16 @@ static int test_weight_storage_automatic_workspace()
     }
     {
         ncnn::VkCompute early(vkdev);
+        early.set_use_weight_upload_online(true);
         ncnn::Mat output;
         early.record_clone(weight[0], output, opt);
-        if (early.submit_and_wait() == 0 || early.reset())
+        if (!output.empty() || early.reset())
         {
             fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
             return -1;
         }
         early.record_clone(weight[0], output, opt);
-        if (early.submit_and_wait() == 0)
+        if (!output.empty() || early.reset())
         {
             fprintf(stderr, "test_weight_storage_automatic_workspace failed at line %d\n", __LINE__);
             return -1;
@@ -370,6 +444,7 @@ static int test_weight_storage_automatic_workspace()
         return -1;
     }
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat warm_output;
     cmd.record_clone(weight[0], warm_output, opt);
     if (cmd.submit_and_wait() || CompareMat(input[0], warm_output, 0.f) || cmd.reset())
@@ -488,6 +563,7 @@ static int test_weight_storage_mixed_recording()
         ((float*)expected_result.data)[i] = ((const float*)expected_prefix.data)[i] + ((const float*)weight_values.data)[i];
     }
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
 #if NCNN_BENCHMARK
     const bool timestamps = weight_storage_has_timestamps(vkdev);
     if (timestamps && cmd.create_query_pool(2))
@@ -587,6 +663,7 @@ static int test_weight_storage_recorded_weight_lifetime()
     opt.blob_vkallocator = &blobs;
     opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat original = RandomMat(128);
     ncnn::VkMat weight(128, (size_t)4u, &store);
     if (weight.empty())
@@ -666,6 +743,7 @@ static int test_weight_storage_recorded_subview()
     WeightStorageUploadProbe probe(vkdev);
 #endif
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat small_output;
     ncnn::Mat full_output;
     cmd.record_clone(view, small_output, opt);
@@ -852,6 +930,7 @@ static int test_weight_storage_allocation_failure(bool disk)
     }
     const ncnn::VkMat& src = disk ? file : native;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output;
     ncnn::VkMat device_output;
 
@@ -951,6 +1030,7 @@ static int test_weight_storage_workspace_chunks()
     WeightStorageUploadProbe probe(vkdev);
 #endif
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat output;
     cmd.record_clone(weight, output, opt);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
@@ -1054,6 +1134,7 @@ int main()
     }
 
     const int ret = 0
+                    || test_weight_storage_upload_mode()
                     || test_weight_storage_workspace_chunks()
                     || test_weight_storage_upload_snapshot()
                     || test_weight_storage_precisions()

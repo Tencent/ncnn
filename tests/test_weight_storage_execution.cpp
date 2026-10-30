@@ -159,6 +159,7 @@ static int test_weight_storage_model_chain(const ncnn::Option& first_opt, const 
     opt.staging_vkallocator = &staging;
 
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat input = RandomMat(16, 8);
     for (int i = 0; i < 3; i++)
     {
@@ -217,6 +218,7 @@ static int test_weight_storage_model_reload()
     command_opt.blob_vkallocator = &blobs;
     command_opt.staging_vkallocator = &staging;
     ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
     ncnn::Mat input = RandomMat(16, 8);
     for (int i = 0; i < 5; i++)
     {
