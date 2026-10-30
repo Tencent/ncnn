@@ -22,6 +22,12 @@ Slice_loongarch::Slice_loongarch()
 
 int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    // slices_ptr[i] / indices_ptr[i] are read for every top blob
+    if (!indices.empty() ? indices.w < (int)top_blobs.size() - 1 : slices.w < (int)top_blobs.size())
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& bottom_blob = bottom_blobs[0];
 
 #if NCNN_BF16

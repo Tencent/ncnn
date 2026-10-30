@@ -5,9 +5,30 @@
 
 #include "datareader.h"
 
+#include <limits.h>
 #include <string.h>
 
 namespace ncnn {
+
+// product of the declared dimensions as an element count, rejecting negative factors and int overflow
+static bool modelbin_element_count(int a, int b, int c, int d, int& total)
+{
+    if (a < 0 || b < 0 || c < 0 || d < 0)
+        return false;
+
+    long long t = (long long)a * b;
+    if (t > INT_MAX)
+        return false;
+    t *= c;
+    if (t > INT_MAX)
+        return false;
+    t *= d;
+    if (t > INT_MAX)
+        return false;
+
+    total = (int)t;
+    return true;
+}
 
 ModelBin::ModelBin()
 {
@@ -24,7 +45,14 @@ Mat ModelBin::load(int /*w*/, int /*type*/) const
 
 Mat ModelBin::load(int w, int h, int type) const
 {
-    Mat m = load(w * h, type);
+    int total;
+    if (!modelbin_element_count(w, h, 1, 1, total))
+    {
+        NCNN_LOGE("ModelBin load invalid shape %d %d", w, h);
+        return Mat();
+    }
+
+    Mat m = load(total, type);
     if (m.empty())
         return m;
 
@@ -33,7 +61,14 @@ Mat ModelBin::load(int w, int h, int type) const
 
 Mat ModelBin::load(int w, int h, int c, int type) const
 {
-    Mat m = load(w * h * c, type);
+    int total;
+    if (!modelbin_element_count(w, h, c, 1, total))
+    {
+        NCNN_LOGE("ModelBin load invalid shape %d %d %d", w, h, c);
+        return Mat();
+    }
+
+    Mat m = load(total, type);
     if (m.empty())
         return m;
 
@@ -42,7 +77,14 @@ Mat ModelBin::load(int w, int h, int c, int type) const
 
 Mat ModelBin::load(int w, int h, int d, int c, int type) const
 {
-    Mat m = load(w * h * d * c, type);
+    int total;
+    if (!modelbin_element_count(w, h, d, c, total))
+    {
+        NCNN_LOGE("ModelBin load invalid shape %d %d %d %d", w, h, d, c);
+        return Mat();
+    }
+
+    Mat m = load(total, type);
     if (m.empty())
         return m;
 
@@ -82,6 +124,13 @@ ModelBinFromDataReader& ModelBinFromDataReader::operator=(const ModelBinFromData
 Mat ModelBinFromDataReader::load(int w, int type) const
 {
     Mat m;
+
+    // a negative element count or a count whose byte size wraps size_t must be rejected before any byte-size arithmetic
+    if (w < 0 || (size_t)w > ((~(size_t)0) - 64) / sizeof(float))
+    {
+        NCNN_LOGE("ModelBin load invalid element count %d", w);
+        return Mat();
+    }
 
     if (type == 0)
     {
