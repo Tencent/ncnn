@@ -732,9 +732,12 @@ static int test_weight_storage_recorded_subview()
     first = std::max(4, (int)(vkdev->info.buffer_offset_alignment() / sizeof(float)));
 #endif
     ncnn::Mat input = RandomMat(first + 257);
+    ncnn::Mat bias = RandomMat(7);
     ncnn::VkMat weight;
+    ncnn::VkMat bias_gpu;
     ncnn::VkTransfer upload(vkdev);
     upload.record_upload(input, weight, opt);
+    upload.record_upload(bias, bias_gpu, opt);
     if (upload.submit_and_wait() || store.finalize_weights())
     {
         fprintf(stderr, "test_weight_storage_recorded_subview upload/finalization failed\n");
@@ -824,8 +827,7 @@ static int test_weight_storage_recorded_subview()
         fprintf(stderr, "test_weight_storage_recorded_subview lost source extent or view offset\n");
         return -1;
     }
-    // Two owning views of the same allocation share one resolve, preserving
-    // their individual offsets after caller handles are released.
+    // retain the owning subview and a separate weight after caller handles are released
     ncnn::VkMat owning_view = weight;
     owning_view.w = view.w;
     owning_view.cstep = view.cstep;
@@ -835,26 +837,17 @@ static int test_weight_storage_recorded_subview()
 #endif
     std::vector<ncnn::VkMat> bindings(3);
     bindings[0] = owning_view;
-    bindings[1] = weight;
+    bindings[1] = bias_gpu;
     bindings[2] = result;
-#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    const size_t copies = probe.copies.size();
-#endif
     cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    if (probe.copies.size() != copies + 1 || probe.copies.back().region.size != weight.data->capacity)
-    {
-        fprintf(stderr, "multiple views did not share one complete temporary weight upload\n");
-        return -1;
-    }
-#endif
     cmd.record_clone(result, small_output, opt);
     bindings.clear();
     ncnn::Mat expected(7);
     for (int i = 0; i < 7; i++)
-        ((float*)expected)[i] = ((const float*)input)[first + i] + ((const float*)input)[i];
+        ((float*)expected)[i] = ((const float*)input)[first + i] + ((const float*)bias)[i];
     owning_view.release();
     weight.release();
+    bias_gpu.release();
     view.release();
     if (cmd.submit_and_wait() || CompareMat(expected, small_output, 0.0001f) || cmd.reset())
     {

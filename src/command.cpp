@@ -1480,19 +1480,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         int ret = d->record_resolve(_buffer_bindings[i], buffer_bindings[i]);
         if (ret != 0)
             return;
-
-        // resolve each allocation once, preserving each binding view
-        for (size_t j = i + 1; j < buffer_bindings.size(); j++)
-        {
-            if (_buffer_bindings[j].data != _buffer_bindings[i].data)
-                continue;
-
-            // share storage without changing the binding shape or offset
-            VkMat resolved = buffer_bindings[i];
-            std::swap(buffer_bindings[j].data, resolved.data);
-            std::swap(buffer_bindings[j].refcount, resolved.refcount);
-            std::swap(buffer_bindings[j].allocator, resolved.allocator);
-        }
     }
 
     const int buffer_binding_count = (int)buffer_bindings.size();

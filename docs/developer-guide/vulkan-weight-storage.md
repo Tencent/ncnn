@@ -132,9 +132,8 @@ Extractors. Use `clear()`, `load_param()` and `load_model()` to replace a model.
 The private `record_resolve()` creates a temporary `VkMat` from the private
 pool, records the complete source upload and
 returns a view with the original shape, packing and offset. Ordinary buffers
-pass through. `record_pipeline()` resolves its local binding array in order.
-Multiple views of the same source allocation within a dispatch share one
-resolved allocation. Later operations upload the source again; there is no
+pass through. `record_pipeline()` resolves each weight binding independently,
+in binding order. Later operations upload the source again; there is no
 persistent weight identity cache. `MemoryData` continues to use `record_clone()`
 and owns its independent output.
 
