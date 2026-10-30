@@ -14,8 +14,7 @@ class WeightStorageUploadProbe
 {
 public:
     explicit WeightStorageUploadProbe(const ncnn::VulkanDevice* vkdev)
-        : hide_next_map(vkdev->info.type() == 1 || vkdev->info.type() == 3), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer),
-          create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
+        : hide_next_map(vkdev->info.type() == 1 || vkdev->info.type() == 3), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer), create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
     {
         g_weight_storage_upload_probe = this;
         ncnn::vkMapMemory = map_memory;
@@ -99,8 +98,8 @@ private:
         return ret;
     }
     static VKAPI_ATTR void VKAPI_CALL record_barrier(VkCommandBuffer command, VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, VkDependencyFlags flags,
-                                                     uint32_t memory_count, const VkMemoryBarrier* memory_barriers, uint32_t buffer_count, const VkBufferMemoryBarrier* buffer_barriers,
-                                                     uint32_t image_count, const VkImageMemoryBarrier* image_barriers)
+            uint32_t memory_count, const VkMemoryBarrier* memory_barriers, uint32_t buffer_count, const VkBufferMemoryBarrier* buffer_barriers,
+            uint32_t image_count, const VkImageMemoryBarrier* image_barriers)
     {
         WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
         for (uint32_t i = 0; i < buffer_count; i++)
@@ -1114,14 +1113,14 @@ static int test_weight_storage_workspace_chunks()
         if (barrier.buffer != first.target || barrier.srcQueueFamilyIndex == barrier.dstQueueFamilyIndex)
             continue;
         if (barrier.srcQueueFamilyIndex != vkdev->info.transfer_queue_family_index()
-            || barrier.dstQueueFamilyIndex != vkdev->info.compute_queue_family_index()
-            || barrier.offset != first.region.dstOffset || barrier.size != weight.data->capacity)
+                || barrier.dstQueueFamilyIndex != vkdev->info.compute_queue_family_index()
+                || barrier.offset != first.region.dstOffset || barrier.size != weight.data->capacity)
         {
             fprintf(stderr, "temporary weight ownership transfer lost its complete allocation\n");
             return -1;
         }
         if (entry.command == second.command && barrier.srcAccessMask == VK_ACCESS_TRANSFER_WRITE_BIT && barrier.dstAccessMask == 0
-            && entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+                && entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
             releases++;
         else if (entry.command != second.command && barrier.srcAccessMask == 0
                  && barrier.dstAccessMask == (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT)
