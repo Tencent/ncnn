@@ -1474,29 +1474,6 @@ VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int
     return ptr;
 }
 
-int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size)
-{
-    if (!buffer || !buffer->mapped_ptr || offset > buffer->capacity || size > buffer->capacity - offset)
-        return -1;
-    if (!size || vkdev->is_coherent(buffer->memory_type_index))
-        return 0;
-    VkMappedMemoryRange mappedMemoryRange;
-    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    mappedMemoryRange.pNext = 0;
-    mappedMemoryRange.offset = round_down(buffer->offset + offset, vkdev->info.non_coherent_atom_size());
-    mappedMemoryRange.size = round_up(buffer->offset + offset + size, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
-    mappedMemoryRange.memory = buffer->memory;
-
-    VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkFlushMappedMemoryRanges failed %d", ret);
-        return -1;
-    }
-
-    return 0;
-}
-
 class WeightFile
 {
 public:
@@ -2296,9 +2273,26 @@ void VkWeightAllocator::fastFree(VkBufferMemory* ptr)
 int VkWeightAllocator::flush(VkBufferMemory* ptr)
 {
     // file mappings are flushed by finalize_weights()
-    if (!ptr || ptr->storage_type == 2)
+    if (!ptr || ptr->storage_type == 2 || !ptr->mapped_ptr)
         return -1;
-    return flush_weight_buffer(vkdev, ptr, 0, ptr->capacity);
+    if (!ptr->capacity || vkdev->is_coherent(ptr->memory_type_index))
+        return 0;
+
+    VkMappedMemoryRange mappedMemoryRange;
+    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = ptr->memory;
+    mappedMemoryRange.offset = round_down(ptr->offset, vkdev->info.non_coherent_atom_size());
+    mappedMemoryRange.size = round_up(ptr->offset + ptr->capacity, vkdev->info.non_coherent_atom_size()) - mappedMemoryRange.offset;
+
+    VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkFlushMappedMemoryRanges failed %d", ret);
+        return -1;
+    }
+
+    return 0;
 }
 
 int VkWeightAllocator::invalidate(VkBufferMemory* ptr)

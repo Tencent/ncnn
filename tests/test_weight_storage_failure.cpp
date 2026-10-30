@@ -186,7 +186,7 @@ static int test_weight_storage_resident_batches()
             input[i] = RandomMat(i % 3 == 0 ? 4 : i % 3 == 1 ? 256 : 1024);
             upload.record_upload(input[i], weight[i], opt);
         }
-        if (count.submission_count() != 0 || weight[0].empty() || weight[0].data->storage_type != 0)
+        if (count.submission_count() == 0 || weight[0].empty() || weight[0].data->storage_type != 0)
             return -1;
         if (upload.submit_and_wait() || count.submission_count() < 2 || count.submission_count() > 100)
         {
@@ -225,10 +225,10 @@ static int test_weight_storage_resident_failure()
     opt.weight_host_memory_limit = 1024;
     ncnn::VkMat weight;
     ncnn::VkTransfer upload(vkdev);
-    upload.record_upload(RandomMat(2048), weight, opt);
-    if (weight.empty() || weight.data->storage_type != 0)
-        return -1;
     VulkanFailure fail(VulkanFailure::SECOND_SUBMIT);
+    upload.record_upload(RandomMat(2048), weight, opt);
+    if (weight.empty() || weight.data->storage_type != 0 || !fail.triggered)
+        return -1;
     if (upload.submit_and_wait() == 0 || !fail.triggered || upload.reset() == 0)
     {
         fprintf(stderr, "resident upload midflight failure was lost\n");
@@ -1055,7 +1055,7 @@ public:
     int frees;
 };
 
-static int test_weight_storage_transfer_wait_failure()
+static int test_weight_storage_transfer_wait_failure(bool record_chunk)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     UnmappedWeightAllocator weights(vkdev);
@@ -1063,13 +1063,19 @@ static int test_weight_storage_transfer_wait_failure()
     ncnn::Option opt = weight_storage_option();
     opt.staging_vkallocator = &staging;
     opt.blob_vkallocator = &weights;
-    ncnn::Mat input = RandomMat(256);
+    opt.weight_host_memory_limit = 16384;
+    ncnn::Mat input = RandomMat(record_chunk ? 16384 : 256);
     ncnn::VkMat target;
     {
         VulkanFailure fail(VulkanFailure::FENCE_WAIT, 3);
         {
             ncnn::VkTransfer upload(vkdev);
             upload.record_upload(input, target, opt);
+            if (record_chunk && !fail.triggered)
+            {
+                fprintf(stderr, "full staging did not submit during recording\n");
+                return -1;
+            }
             if (upload.submit_and_wait() == 0 || !fail.triggered || staging.frees != 0 || upload.reset() == 0)
             {
                 fprintf(stderr, "failed fence wait prematurely released transfer staging\n");
@@ -1246,7 +1252,8 @@ int main()
                     || test_weight_storage_allocator_failure(VulkanFailure::ALLOCATE_MEMORY)
                     || test_weight_storage_allocator_failure(VulkanFailure::BIND_MEMORY)
                     || test_weight_storage_staging_flush_failure()
-                    || test_weight_storage_transfer_wait_failure()
+                    || test_weight_storage_transfer_wait_failure(false)
+                    || test_weight_storage_transfer_wait_failure(true)
                     || test_weight_storage_workspace_wait_failure(true)
                     || test_weight_storage_workspace_wait_failure(false)
                     || test_weight_storage_execution_resources(VulkanFailure::TRACK_COMMANDS)

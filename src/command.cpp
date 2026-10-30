@@ -22,7 +22,6 @@ namespace ncnn {
 int fit_weight_buffer_size(const VulkanDevice* vkdev, size_t memory_limit, bool host, size_t& capacity);
 VkBufferMemory* create_weight_buffer(const VulkanDevice* vkdev, size_t size, int storage_type, bool unified, size_t memory_limit, size_t& allocation_size, bool concurrent);
 void destroy_weight_buffer(const VulkanDevice* vkdev, VkBufferMemory* buffer);
-int flush_weight_buffer(const VulkanDevice* vkdev, const VkBufferMemory* buffer, size_t offset, size_t size);
 
 static void wait_for_pending_commands()
 {
@@ -54,8 +53,10 @@ public:
     int begin_command_buffer();
     int end_command_buffer();
 
+    int record_begin_compute();
     int record_submit_compute();
     int record_resolve(const VkMat& src, VkMat& dst);
+    void record_host_copy(const VkBufferMemory& src, const VkBufferMemory& dst, size_t src_offset, size_t size);
 
     void flush_records();
     void clear_records();
@@ -99,10 +100,6 @@ public:
     VkSemaphore weight_upload_wait_semaphore;
     bool use_weight_upload_online;
 
-    std::vector<VkMat> upload_src_buffers;
-    // external views with command-owned metadata copies
-    std::vector<VkMat> upload_dst_buffers;
-
     std::vector<VkMat> upload_staging_buffers;
     std::vector<VkMat> download_post_buffers;
     std::vector<Mat> download_post_mats_fp16;
@@ -135,6 +132,7 @@ public:
 #endif // NCNN_BENCHMARK
 
             TYPE_host_copy,
+            TYPE_flush_memory,
             TYPE_wait_compute,
             TYPE_wait_upload,
             TYPE_submit_compute,
@@ -244,11 +242,19 @@ public:
 
             struct
             {
-                size_t src_index;
-                size_t dst_index;
-                size_t src_offset;
+                const void* src_ptr;
+                void* dst_ptr;
                 size_t size;
+#if NCNN_BENCHMARK
+                bool from_disk;
+#endif // NCNN_BENCHMARK
             } host_copy;
+            struct
+            {
+                VkDeviceMemory memory;
+                VkDeviceSize offset;
+                VkDeviceSize size;
+            } flush_memory;
             struct
             {
                 int command_buffer_index;
@@ -881,6 +887,10 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
         d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
         std::swap(previous_weights, d->weight_buffers);
         d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
+
+        ret = d->record_begin_compute();
+        if (ret != 0)
+            return;
     }
 
     VkMat src;
@@ -1129,6 +1139,10 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
         std::swap(previous_weights, d->weight_buffers);
         d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
+
+        ret = d->record_begin_compute();
+        if (ret != 0)
+            return;
     }
 
     VkMat src;
@@ -1454,28 +1468,39 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
     std::vector<VkMat> buffer_bindings = _buffer_bindings;
 
+    bool need_resolve = false;
+    for (size_t i = 0; i < buffer_bindings.size(); i++)
+    {
+        if (is_deferred_buffer(buffer_bindings[i].data))
+        {
+            need_resolve = true;
+            break;
+        }
+    }
+
     // keep the preceding weights live while resolving this operation
     std::vector<VkMat> previous_weights;
-    bool first_weight = true;
+    if (need_resolve && d->use_weight_upload_online)
+    {
+        const int previous_compute_index = d->compute_command_buffer_index;
+        int ret = d->record_submit_compute();
+        if (ret != 0)
+            return;
+
+        d->weight_wait_compute_index = d->weight_last_compute_index;
+        d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
+        std::swap(previous_weights, d->weight_buffers);
+        d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
+
+        ret = d->record_begin_compute();
+        if (ret != 0)
+            return;
+    }
 
     for (size_t i = 0; i < buffer_bindings.size(); i++)
     {
         if (!is_deferred_buffer(buffer_bindings[i].data))
             continue;
-
-        if (first_weight && d->use_weight_upload_online)
-        {
-            const int previous_compute_index = d->compute_command_buffer_index;
-            int ret = d->record_submit_compute();
-            if (ret != 0)
-                return;
-
-            d->weight_wait_compute_index = d->weight_last_compute_index;
-            d->weight_last_compute_index = d->weight_buffers.empty() ? -1 : previous_compute_index;
-            std::swap(previous_weights, d->weight_buffers);
-            d->weight_upload_wait_semaphore = d->weight_wait_compute_index < 0 ? 0 : d->compute_upload_semaphores[d->weight_wait_compute_index];
-            first_weight = false;
-        }
 
         int ret = d->record_resolve(_buffer_bindings[i], buffer_bindings[i]);
         if (ret != 0)
@@ -2626,14 +2651,6 @@ void VkComputePrivate::clear_records()
 
     weight_buffers.clear();
 
-    upload_src_buffers.clear();
-    for (size_t i = 0; i < upload_dst_buffers.size(); i++)
-    {
-        VkBufferMemory* ptr = upload_dst_buffers[i].data;
-        upload_dst_buffers[i].release();
-        delete ptr;
-    }
-    upload_dst_buffers.clear();
     weight_staging_buffer.release();
 }
 
@@ -2714,6 +2731,7 @@ void VkComputePrivate::flush_records()
         }
 #endif // NCNN_BENCHMARK
         case VkComputePrivate::record::TYPE_host_copy:
+        case VkComputePrivate::record::TYPE_flush_memory:
         case VkComputePrivate::record::TYPE_wait_compute:
         case VkComputePrivate::record::TYPE_wait_upload:
         case VkComputePrivate::record::TYPE_submit_compute:
@@ -2725,6 +2743,73 @@ void VkComputePrivate::flush_records()
             break;
         }
     }
+}
+
+int VkComputePrivate::record_begin_compute()
+{
+    if (!local_weight_vkallocator)
+        local_weight_vkallocator = new VkBlobAllocator(vkdev);
+
+    if (compute_command_buffers.size() >= (size_t)INT_MAX)
+        return -1;
+
+    const int command_buffer_index = (int)compute_command_buffers.size();
+    compute_command_buffers.push_back(0);
+    compute_command_fences.push_back(0);
+    compute_upload_semaphores.push_back(0);
+    compute_command_pending.push_back(false);
+
+    // compute_command_buffers
+    {
+        VkCommandBufferAllocateInfo commandBufferAllocateInfo;
+        commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        commandBufferAllocateInfo.pNext = 0;
+        commandBufferAllocateInfo.commandPool = compute_command_pool;
+        commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        commandBufferAllocateInfo.commandBufferCount = 1;
+
+        VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &compute_command_buffers[command_buffer_index]);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
+            return -1;
+        }
+    }
+
+    // compute_command_fences
+    {
+        VkFenceCreateInfo fenceCreateInfo;
+        fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceCreateInfo.pNext = 0;
+        fenceCreateInfo.flags = 0;
+
+        VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &compute_command_fences[command_buffer_index]);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreateFence failed %d", ret);
+            return -1;
+        }
+    }
+
+    // begin command buffer
+    {
+        VkCommandBufferBeginInfo commandBufferBeginInfo;
+        commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        commandBufferBeginInfo.pNext = 0;
+        commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+        commandBufferBeginInfo.pInheritanceInfo = 0;
+
+        VkResult ret = vkBeginCommandBuffer(compute_command_buffers[command_buffer_index], &commandBufferBeginInfo);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
+            return -1;
+        }
+    }
+
+    compute_command_buffer_index = command_buffer_index;
+
+    return 0;
 }
 
 int VkComputePrivate::record_submit_compute()
@@ -2800,9 +2885,6 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         return -1;
     }
 
-    if (!local_weight_vkallocator)
-        local_weight_vkallocator = new VkBlobAllocator(vkdev);
-
     // create dst for the complete allocation, including bytes outside the view
     const size_t size = src.data->capacity;
     {
@@ -2827,25 +2909,13 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
 #endif
     }
 
-    // full allocation views for upload; dst retains the consumer shape and offset
-    VkMat dst_upload(1, dst.data, size, 1, local_weight_vkallocator);
-    VkMat src_weight = src;
-#if NCNN_BATCH
-    src_weight.offset = 0;
-#endif
-
-    if (!vkdev->info.support_VK_KHR_push_descriptor())
-    {
-        flush_records();
-    }
-
     VkAccessFlags upload_access = 0;
     VkPipelineStageFlags upload_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     uint32_t src_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
     uint32_t dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
 
     // host writes wait for older compute; the preceding weight group is still live
-    if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && dst_upload.mapped_ptr() && needs_host_copy(src_weight))
+    if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && dst.data->mapped_ptr && needs_host_copy(src))
     {
         record r;
         r.type = record::TYPE_wait_compute;
@@ -2853,16 +2923,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         r.wait.command_buffer_index = weight_wait_compute_index;
         delayed_records.push_back(r);
 
-        upload_src_buffers.push_back(src_weight);
-        VkBufferMemory* ptr = new VkBufferMemory(*dst_upload.data);
-        upload_dst_buffers.push_back(VkMat(1, ptr, size, 1, dst_upload.allocator));
-
-        r.type = record::TYPE_host_copy;
-        r.host_copy.src_index = upload_src_buffers.size() - 1;
-        r.host_copy.dst_index = upload_dst_buffers.size() - 1;
-        r.host_copy.src_offset = 0;
-        r.host_copy.size = size;
-        delayed_records.push_back(r);
+        record_host_copy(*src.data, *dst.data, 0, size);
 
         upload_access = VK_ACCESS_HOST_WRITE_BIT;
         upload_stage = VK_PIPELINE_STAGE_HOST_BIT;
@@ -2875,13 +2936,12 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             dst_queue_family_index = vkdev->info.compute_queue_family_index();
         }
 
-        VkMat src_upload;
+        const VkBufferMemory* src_upload;
         size_t chunk_capacity = size;
-        if (!needs_host_copy(src_weight))
+        if (!needs_host_copy(src))
         {
             // upload directly from host buffer
-            upload_src_buffers.push_back(src_weight);
-            src_upload = src_weight;
+            src_upload = src.data;
         }
         else
         {
@@ -2894,8 +2954,8 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 if (weight_staging_buffer.empty() || !weight_staging_buffer.mapped_ptr())
                     return -100;
             }
-            src_upload = weight_staging_buffer;
-            chunk_capacity = src_upload.buffer_capacity();
+            src_upload = weight_staging_buffer.data;
+            chunk_capacity = src_upload->capacity;
         }
 
         // record upload chunks
@@ -2904,7 +2964,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             const size_t chunk_size = std::min(chunk_capacity, size - offset);
             const size_t upload_size = alignSize(chunk_size, 4);
             const bool last = chunk_size == size - offset;
-            if (needs_host_copy(src_weight))
+            if (needs_host_copy(src))
             {
                 if (!upload_command_buffers.empty())
                 {
@@ -2915,18 +2975,7 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                     delayed_records.push_back(r);
                 }
 
-                upload_src_buffers.push_back(src_weight);
-                VkBufferMemory* ptr = new VkBufferMemory(*src_upload.data);
-                upload_dst_buffers.push_back(VkMat(1, ptr, src_upload.elemsize, 1, src_upload.allocator));
-
-                record r;
-                r.type = record::TYPE_host_copy;
-                r.command_buffer = 0;
-                r.host_copy.src_index = upload_src_buffers.size() - 1;
-                r.host_copy.dst_index = upload_dst_buffers.size() - 1;
-                r.host_copy.src_offset = offset;
-                r.host_copy.size = chunk_size;
-                delayed_records.push_back(r);
+                record_host_copy(*src.data, *src_upload, offset, chunk_size);
             }
 
             if (upload_command_buffers.size() >= (size_t)INT_MAX)
@@ -3008,15 +3057,15 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 VkBufferMemoryBarrier barrier;
                 barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
                 barrier.pNext = 0;
-                barrier.srcAccessMask = src_upload.mapped_ptr() ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
+                barrier.srcAccessMask = src_upload->mapped_ptr ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
                 barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                barrier.buffer = src_upload.buffer();
-                barrier.offset = src_upload.buffer_offset();
+                barrier.buffer = src_upload->buffer;
+                barrier.offset = src_upload->offset;
                 barrier.size = upload_size;
 
-                VkPipelineStageFlags src_stage = src_upload.mapped_ptr() ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+                VkPipelineStageFlags src_stage = src_upload->mapped_ptr ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
                 if (vkdev->info.support_VK_KHR_push_descriptor())
                 {
@@ -3042,13 +3091,13 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
             // the upload queue acquires reused storage without preserving old contents
             {
                 VkBufferCopy region;
-                region.srcOffset = src_upload.buffer_offset();
-                region.dstOffset = dst_upload.buffer_offset() + offset;
+                region.srcOffset = src_upload->offset;
+                region.dstOffset = dst.data->offset + offset;
                 region.size = upload_size;
 
                 if (vkdev->info.support_VK_KHR_push_descriptor())
                 {
-                    vkCmdCopyBuffer(upload_command_buffers[command_buffer_index], src_upload.buffer(), dst_upload.buffer(), 1, &region);
+                    vkCmdCopyBuffer(upload_command_buffers[command_buffer_index], src_upload->buffer, dst.data->buffer, 1, &region);
                 }
                 else
                 {
@@ -3058,8 +3107,8 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                     record r;
                     r.type = record::TYPE_copy_buffer;
                     r.command_buffer = upload_command_buffers[command_buffer_index];
-                    r.copy_buffer.src = src_upload.buffer();
-                    r.copy_buffer.dst = dst_upload.buffer();
+                    r.copy_buffer.src = src_upload->buffer;
+                    r.copy_buffer.dst = dst.data->buffer;
                     r.copy_buffer.region_count = 1;
                     r.copy_buffer.regions = regions;
                     delayed_records.push_back(r);
@@ -3076,9 +3125,9 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
                 barrier.dstAccessMask = 0;
                 barrier.srcQueueFamilyIndex = src_queue_family_index;
                 barrier.dstQueueFamilyIndex = dst_queue_family_index;
-                barrier.buffer = dst_upload.buffer();
-                barrier.offset = dst_upload.buffer_offset();
-                barrier.size = dst_upload.buffer_capacity();
+                barrier.buffer = dst.data->buffer;
+                barrier.offset = dst.data->offset;
+                barrier.size = size;
 
                 if (vkdev->info.support_VK_KHR_push_descriptor())
                 {
@@ -3139,68 +3188,6 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         }
     }
 
-    if (compute_command_buffer_index < 0)
-    {
-        if (compute_command_buffers.size() >= (size_t)INT_MAX)
-            return -1;
-
-        const int command_buffer_index = (int)compute_command_buffers.size();
-        compute_command_buffers.push_back(0);
-        compute_command_fences.push_back(0);
-        compute_upload_semaphores.push_back(0);
-        compute_command_pending.push_back(false);
-
-        // compute_command_buffers
-        {
-            VkCommandBufferAllocateInfo commandBufferAllocateInfo;
-            commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            commandBufferAllocateInfo.pNext = 0;
-            commandBufferAllocateInfo.commandPool = compute_command_pool;
-            commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            commandBufferAllocateInfo.commandBufferCount = 1;
-
-            VkResult ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, &compute_command_buffers[command_buffer_index]);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
-                return -1;
-            }
-        }
-
-        // compute_command_fences
-        {
-            VkFenceCreateInfo fenceCreateInfo;
-            fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-            fenceCreateInfo.pNext = 0;
-            fenceCreateInfo.flags = 0;
-
-            VkResult ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &compute_command_fences[command_buffer_index]);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkCreateFence failed %d", ret);
-                return -1;
-            }
-        }
-
-        // begin command buffer
-        {
-            VkCommandBufferBeginInfo commandBufferBeginInfo;
-            commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            commandBufferBeginInfo.pNext = 0;
-            commandBufferBeginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            commandBufferBeginInfo.pInheritanceInfo = 0;
-
-            VkResult ret = vkBeginCommandBuffer(compute_command_buffers[command_buffer_index], &commandBufferBeginInfo);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
-                return -1;
-            }
-        }
-
-        compute_command_buffer_index = command_buffer_index;
-    }
-
     // acquire uploaded weights for shader-read and transfer-read
     {
         VkBufferMemoryBarrier barrier;
@@ -3210,9 +3197,9 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
         barrier.srcQueueFamilyIndex = src_queue_family_index;
         barrier.dstQueueFamilyIndex = dst_queue_family_index;
-        barrier.buffer = dst_upload.buffer();
-        barrier.offset = dst_upload.buffer_offset();
-        barrier.size = dst_upload.buffer_capacity();
+        barrier.buffer = dst.data->buffer;
+        barrier.offset = dst.data->offset;
+        barrier.size = size;
 
         VkPipelineStageFlags src_stage = upload_stage;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -3247,6 +3234,30 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
     return 0;
 }
 
+void VkComputePrivate::record_host_copy(const VkBufferMemory& src, const VkBufferMemory& dst, size_t src_offset, size_t size)
+{
+    record r;
+    r.type = record::TYPE_host_copy;
+    r.command_buffer = 0;
+    r.host_copy.src_ptr = (const unsigned char*)src.mapped_ptr + src.offset + src_offset;
+    r.host_copy.dst_ptr = (unsigned char*)dst.mapped_ptr + dst.offset;
+    r.host_copy.size = size;
+#if NCNN_BENCHMARK
+    r.host_copy.from_disk = src.storage_type == 2;
+#endif // NCNN_BENCHMARK
+    delayed_records.push_back(r);
+
+    if (!vkdev->is_coherent(dst.memory_type_index))
+    {
+        const size_t atom = vkdev->info.non_coherent_atom_size();
+        r.type = record::TYPE_flush_memory;
+        r.flush_memory.memory = dst.memory;
+        r.flush_memory.offset = dst.offset / atom * atom;
+        r.flush_memory.size = alignSize(dst.offset + alignSize(size, 4), atom) - r.flush_memory.offset;
+        delayed_records.push_back(r);
+    }
+}
+
 int VkComputePrivate::submit_records()
 {
     VkSemaphore compute_compute_semaphore = 0;
@@ -3261,17 +3272,31 @@ int VkComputePrivate::submit_records()
         {
         case record::TYPE_host_copy:
         {
-            const VkMat& src = upload_src_buffers[r.host_copy.src_index];
-            const VkMat& dst = upload_dst_buffers[r.host_copy.dst_index];
             const size_t size = alignSize(r.host_copy.size, 4);
-            unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
-            memcpy(ptr, (const unsigned char*)src.mapped_ptr() + r.host_copy.src_offset, r.host_copy.size);
+            unsigned char* ptr = (unsigned char*)r.host_copy.dst_ptr;
+            memcpy(ptr, r.host_copy.src_ptr, r.host_copy.size);
             memset(ptr + r.host_copy.size, 0, size - r.host_copy.size);
-            ret = flush_weight_buffer(vkdev, dst.data, dst.offset, size);
 #if NCNN_BENCHMARK
-            if (src.data->storage_type == 2)
+            if (r.host_copy.from_disk)
                 bytes_read += r.host_copy.size;
 #endif
+            break;
+        }
+        case record::TYPE_flush_memory:
+        {
+            VkMappedMemoryRange mappedMemoryRange;
+            mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+            mappedMemoryRange.pNext = 0;
+            mappedMemoryRange.memory = r.flush_memory.memory;
+            mappedMemoryRange.offset = r.flush_memory.offset;
+            mappedMemoryRange.size = r.flush_memory.size;
+
+            VkResult result = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+            if (result != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkFlushMappedMemoryRanges failed %d", result);
+                return -1;
+            }
             break;
         }
         case record::TYPE_wait_compute:
@@ -3386,7 +3411,8 @@ public:
     int finish_upload(int error = 0);
     int submit_and_wait();
     int reset();
-    int upload_buffers();
+    int prepare_staging(const Option& opt);
+    int flush_staging();
     void record_upload(const Mat& src, const VkMat& dst, const Option& opt);
     void record_copy(const VkBufferMemory& src, const VkBufferMemory& dst, size_t size);
     void record_host_upload(const VkBufferMemory& dst);
@@ -3394,7 +3420,6 @@ public:
     const VulkanDevice* vkdev;
 
     uint64_t pending_upload_total;
-    uint64_t queued_upload_total;
     int upload_error;
     bool compute_command_pending;
     bool upload_command_pending;
@@ -3410,23 +3435,17 @@ public:
     VkFence upload_command_fence;
     VkFence compute_command_fence;
 
-    struct upload_record
-    {
-        Mat src;
-        VkMat dst;
-        size_t host_memory_limit;
-        VkAllocator* staging_vkallocator;
-    };
-    std::vector<upload_record> uploads;
-    VkMat pending_staging_mat;
-    VkBufferMemory* pending_staging_buffer;
+    VkMat staging_mat;
+    VkBufferMemory* staging_buffer;
+    size_t staging_capacity;
+    size_t staging_used;
+    size_t staging_memory_limit;
 };
 
 VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
     pending_upload_total = 0;
-    queued_upload_total = 0;
     upload_error = 0;
     compute_command_pending = false;
     upload_command_pending = false;
@@ -3442,7 +3461,10 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     upload_command_fence = 0;
     compute_command_fence = 0;
 
-    pending_staging_buffer = 0;
+    staging_buffer = 0;
+    staging_capacity = 0;
+    staging_used = 0;
+    staging_memory_limit = 0;
 
     upload_error = init();
 }
@@ -3455,7 +3477,8 @@ VkTransferPrivate::~VkTransferPrivate()
         if (compute_command_pending || upload_command_pending)
             wait_for_pending_commands();
     } while (compute_command_pending || upload_command_pending);
-    destroy_weight_buffer(vkdev, pending_staging_buffer);
+    if (!staging_mat.allocator)
+        destroy_weight_buffer(vkdev, staging_buffer);
 
     vkDestroyFence(vkdev->vkdevice(), compute_command_fence, 0);
 
@@ -3725,39 +3748,18 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         return;
     }
 
-    // preserve the source contents while an unmapped upload waits for staging
-    if (dst.data->storage_type == 2 || dst.mapped_ptr())
-        d->record_upload(src_flattened, dst, opt);
-    else
-    {
-        Mat snapshot = src_flattened.clone();
-        if (snapshot.empty())
-        {
-            d->upload_error = -100;
-            return;
-        }
-        d->record_upload(snapshot, dst, opt);
-    }
+    d->record_upload(src_flattened, dst, opt);
 }
 
 void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Option& opt)
 {
     if (upload_error)
         return;
-    if (dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
+    const size_t size = src.total() * src.elemsize;
+    if (size > dst.buffer_capacity() || dst.buffer_capacity() > dst.data->capacity)
     {
         upload_error = -1;
         return;
-    }
-    for (int b = 0; b < src.n; b++)
-    {
-        const size_t offset = dst.batch(b).offset;
-        const size_t end = b + 1 == src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
-        if (offset > end || src.batch(b).total() * src.elemsize > end - offset)
-        {
-            upload_error = -1;
-            return;
-        }
     }
     if (dst.data->storage_type == 2)
     {
@@ -3767,30 +3769,16 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
             upload_error = -1;
             return;
         }
-        for (int b = 0; b < src.n; b++)
-        {
-            const Mat src_b = src.batch(b);
-            const VkMat dst_b = dst.batch(b);
-            const size_t end = b + 1 == src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
-            const size_t size = src_b.total() * src_b.elemsize;
-            unsigned char* ptr = (unsigned char*)dst_b.mapped_ptr();
-            memcpy(ptr, src_b.data, size);
-            memset(ptr + size, 0, end - dst_b.offset - size);
-        }
+        unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
+        memcpy(ptr, src.data, size);
+        memset(ptr + size, 0, dst.buffer_capacity() - size);
         return;
     }
     if (dst.mapped_ptr())
     {
-        for (int b = 0; b < src.n; b++)
-        {
-            const Mat src_b = src.batch(b);
-            const VkMat dst_b = dst.batch(b);
-            const size_t end = b + 1 == src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
-            const size_t size = src_b.total() * src_b.elemsize;
-            unsigned char* ptr = (unsigned char*)dst_b.mapped_ptr();
-            memcpy(ptr, src_b.data, size);
-            memset(ptr + size, 0, end - dst_b.offset - size);
-        }
+        unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
+        memcpy(ptr, src.data, size);
+        memset(ptr + size, 0, dst.buffer_capacity() - size);
         upload_error = dst.allocator->flush(dst.data);
         if (upload_error)
             return;
@@ -3803,18 +3791,44 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
         dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         return;
     }
-    if (dst.buffer_capacity() > (uint64_t)-1 - queued_upload_total)
-    {
-        upload_error = -1;
+    upload_error = prepare_staging(opt);
+    if (upload_error)
         return;
+
+    for (size_t offset = 0; offset < dst.buffer_capacity();)
+    {
+        if (staging_used == staging_capacity)
+        {
+            upload_error = submit_and_wait();
+            if (upload_error)
+                return;
+            upload_error = reset();
+            if (upload_error)
+                return;
+        }
+        const size_t n = std::min(staging_capacity - staging_used, dst.buffer_capacity() - offset);
+        const size_t copy_size = alignSize(n, 4);
+        if (offset + copy_size > dst.data->capacity)
+        {
+            upload_error = -1;
+            return;
+        }
+        const size_t src_bytes = offset < size ? std::min(n, size - offset) : 0;
+        unsigned char* ptr = (unsigned char*)staging_buffer->mapped_ptr + staging_buffer->offset + staging_used;
+        if (src_bytes)
+            memcpy(ptr, (const unsigned char*)src.data + offset, src_bytes);
+        memset(ptr + src_bytes, 0, copy_size - src_bytes);
+        VkBufferMemory src_buffer = *staging_buffer;
+        src_buffer.offset += staging_used;
+        VkBufferMemory dst_buffer = *dst.data;
+        dst_buffer.offset += offset;
+        record_copy(src_buffer, dst_buffer, copy_size);
+        pending_upload_total += copy_size;
+        staging_used += copy_size;
+        offset += n;
     }
-    VkTransferPrivate::upload_record r;
-    r.src = src;
-    r.dst = dst;
-    r.host_memory_limit = opt.weight_host_memory_limit;
-    r.staging_vkallocator = opt.staging_vkallocator;
-    uploads.push_back(r);
-    queued_upload_total += dst.buffer_capacity();
+    dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
+    dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 }
 
 void VkTransferPrivate::record_copy(const VkBufferMemory& src, const VkBufferMemory& dst, size_t size)
@@ -3945,154 +3959,85 @@ void VkTransferPrivate::record_host_upload(const VkBufferMemory& dst)
     }
 }
 
-int VkTransferPrivate::upload_buffers()
+int VkTransferPrivate::prepare_staging(const Option& opt)
 {
-    if (upload_error)
-        return upload_error;
-    size_t capacity = 0;
-    size_t host_memory_limit = 0;
-    const size_t staging_buffer_size = 8 * 1024 * 1024;
-    for (size_t i = 0; i < uploads.size(); i++)
+    if (staging_buffer && staging_mat.allocator == opt.staging_vkallocator && staging_memory_limit == opt.weight_host_memory_limit)
+        return 0;
+
+    if (staging_buffer)
     {
-        const upload_record& r = uploads[i];
-        capacity += std::min(alignSize(r.dst.buffer_capacity(), 4), staging_buffer_size - capacity);
-        if (r.host_memory_limit)
-            host_memory_limit = host_memory_limit ? std::min(host_memory_limit, r.host_memory_limit) : r.host_memory_limit;
-    }
-    VkBufferMemory* staging = 0;
-    VkMat staging_mat;
-    VkAllocator* staging_vkallocator = 0;
-    int ret = 0;
-    if (capacity)
-        ret = fit_weight_buffer_size(vkdev, host_memory_limit, true, capacity);
-    size_t used = 0;
-    for (size_t i = 0; ret == 0 && i < uploads.size(); i++)
-    {
-        const upload_record& r = uploads[i];
-        const VkMat& dst = r.dst;
-        if (!staging || staging_vkallocator != r.staging_vkallocator)
+        if (pending_upload_total)
         {
-            if (used)
-            {
-                ret = staging_vkallocator ? staging_vkallocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
-                if (ret == 0)
-                    ret = submit_and_wait();
-                if (ret == 0)
-                    ret = reset();
-                used = 0;
-            }
+            int ret = submit_and_wait();
             if (ret != 0)
-                break;
-            if (staging && !staging_vkallocator)
-                destroy_weight_buffer(vkdev, staging);
-            staging_mat.release();
-            staging = 0;
-            staging_vkallocator = r.staging_vkallocator;
-            if (staging_vkallocator)
-            {
-                if (staging_vkallocator->vkdev != vkdev)
-                {
-                    ret = -1;
-                    break;
-                }
-                staging_mat.create((int)capacity, (size_t)1u, staging_vkallocator);
-                staging = staging_mat.data;
-            }
-            else
-            {
-                size_t allocation_size;
-                const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
-                staging = create_weight_buffer(vkdev, capacity, 1, unified, host_memory_limit, allocation_size, true);
-            }
-            if (!staging || !staging->mapped_ptr)
-            {
-                ret = -100;
-                break;
-            }
-            if (host_memory_limit)
-            {
-                VkMemoryRequirements requirements;
-                vkGetBufferMemoryRequirements(vkdev->vkdevice(), staging->buffer, &requirements);
-                if (requirements.size > host_memory_limit)
-                {
-                    ret = -1;
-                    break;
-                }
-            }
+                return ret;
+            ret = reset();
+            if (ret != 0)
+                return ret;
         }
-        for (int b = 0; ret == 0 && b < r.src.n; b++)
-        {
-            const Mat src_b = r.src.batch(b);
-            const VkMat dst_b = dst.batch(b);
-            const size_t src_size = src_b.total() * src_b.elemsize;
-            const size_t end = b + 1 == r.src.n ? dst.offset + dst.buffer_capacity() : dst.batch(b + 1).offset;
-            const size_t size = end - dst_b.offset;
-            for (size_t offset = 0; ret == 0 && offset < size;)
-            {
-                if (used == capacity)
-                {
-                    ret = staging_vkallocator ? staging_vkallocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
-                    if (ret == 0)
-                        ret = submit_and_wait();
-                    if (ret == 0)
-                        ret = reset();
-                    used = 0;
-                    if (ret != 0)
-                        break;
-                }
-                const size_t n = std::min(capacity - used, size - offset);
-                const size_t copy_size = alignSize(n, 4);
-                if (offset + copy_size > dst.data->capacity - dst_b.offset)
-                {
-                    ret = -1;
-                    break;
-                }
-                const size_t src_bytes = offset < src_size ? std::min(n, src_size - offset) : 0;
-                unsigned char* ptr = (unsigned char*)staging->mapped_ptr + staging->offset + used;
-                if (src_bytes)
-                    memcpy(ptr, (const unsigned char*)src_b.data + offset, src_bytes);
-                memset(ptr + src_bytes, 0, copy_size - src_bytes);
-                VkBufferMemory src_buffer = *staging;
-                src_buffer.offset += used;
-                VkBufferMemory dst_buffer = *dst.data;
-                dst_buffer.offset = dst_b.buffer_offset() + offset;
-                record_copy(src_buffer, dst_buffer, copy_size);
-                pending_upload_total += copy_size;
-                used += copy_size;
-                offset += n;
-            }
-        }
-        if (ret == 0)
-        {
-            dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
-            dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
-        }
+        if (!staging_mat.allocator)
+            destroy_weight_buffer(vkdev, staging_buffer);
+        staging_mat.release();
+        staging_buffer = 0;
     }
-    if (ret == 0 && used)
-        ret = staging_vkallocator ? staging_vkallocator->flush(staging) : flush_weight_buffer(vkdev, staging, 0, used);
-    if (ret == 0)
-        ret = submit_and_wait();
-    // A failed fence wait does not prove completion. Keep staging alive for
-    // finish_upload() to drain again during command destruction.
-    if (compute_command_pending || upload_command_pending)
-    {
-        if (staging_vkallocator)
-            pending_staging_mat = staging_mat;
-        else
-            pending_staging_buffer = staging;
-    }
-    else if (staging && !staging_vkallocator)
-    {
-        destroy_weight_buffer(vkdev, staging);
-    }
+
+    staging_capacity = 8 * 1024 * 1024;
+    staging_memory_limit = opt.weight_host_memory_limit;
+    int ret = fit_weight_buffer_size(vkdev, staging_memory_limit, true, staging_capacity);
     if (ret != 0)
-        upload_error = ret;
-    if (ret == 0)
+        return ret;
+
+    if (opt.staging_vkallocator)
     {
-        uploads.clear();
-        queued_upload_total = 0;
+        if (opt.staging_vkallocator->vkdev != vkdev)
+            return -1;
+        staging_mat.create((int)staging_capacity, (size_t)1u, opt.staging_vkallocator);
+        staging_buffer = staging_mat.data;
     }
-    return ret;
+    else
+    {
+        size_t allocation_size;
+        const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
+        staging_buffer = create_weight_buffer(vkdev, staging_capacity, 1, unified, staging_memory_limit, allocation_size, true);
+    }
+    if (!staging_buffer || !staging_buffer->mapped_ptr)
+        return -100;
+    if (staging_memory_limit)
+    {
+        VkMemoryRequirements requirements;
+        vkGetBufferMemoryRequirements(vkdev->vkdevice(), staging_buffer->buffer, &requirements);
+        if (requirements.size > staging_memory_limit)
+            return -1;
+    }
+    return 0;
+}
+
+int VkTransferPrivate::flush_staging()
+{
+    if (!staging_used)
+        return 0;
+    if (staging_mat.allocator)
+        return staging_mat.allocator->flush(staging_buffer);
+
+    if (vkdev->is_coherent(staging_buffer->memory_type_index))
+        return 0;
+
+    const size_t atom = vkdev->info.non_coherent_atom_size();
+    VkMappedMemoryRange mappedMemoryRange;
+    mappedMemoryRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+    mappedMemoryRange.pNext = 0;
+    mappedMemoryRange.memory = staging_buffer->memory;
+    mappedMemoryRange.offset = staging_buffer->offset / atom * atom;
+    mappedMemoryRange.size = alignSize(staging_buffer->offset + staging_used, atom) - mappedMemoryRange.offset;
+
+    VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &mappedMemoryRange);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkFlushMappedMemoryRanges failed %d", ret);
+        return -1;
+    }
+
+    return 0;
 }
 
 int VkTransferPrivate::finish_upload(int error)
@@ -4120,24 +4065,21 @@ int VkTransferPrivate::finish_upload(int error)
     if (error)
         upload_error = error;
     else
+    {
         pending_upload_total = 0;
+        staging_used = 0;
+    }
     return error;
 }
 
 int VkTransfer::submit_and_wait()
 {
-    return d->upload_buffers();
+    return d->submit_and_wait();
 }
 
 int VkTransfer::reset()
 {
-    const int ret = d->reset();
-    if (ret == 0)
-    {
-        d->uploads.clear();
-        d->queued_upload_total = 0;
-    }
-    return ret;
+    return d->reset();
 }
 
 int VkTransferPrivate::submit_and_wait()
@@ -4146,6 +4088,10 @@ int VkTransferPrivate::submit_and_wait()
         return upload_error;
     if (pending_upload_total == 0)
         return 0;
+
+    upload_error = flush_staging();
+    if (upload_error)
+        return upload_error;
 
     //     NCNN_LOGE("submit_and_wait");
 
@@ -4260,6 +4206,7 @@ int VkTransferPrivate::reset()
         return upload_error;
 
     pending_upload_total = 0;
+    staging_used = 0;
 
     // reset command buffer and fence
     {
@@ -4310,7 +4257,7 @@ int VkTransferPrivate::reset()
 
 uint64_t VkTransfer::pending_upload_total() const
 {
-    return d->pending_upload_total + d->queued_upload_total;
+    return d->pending_upload_total;
 }
 
 } // namespace ncnn

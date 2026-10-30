@@ -132,8 +132,11 @@ Extractors. Use `clear()`, `load_param()` and `load_model()` to replace a model.
 The private `record_resolve()` creates a temporary `VkMat` from the private
 pool, records the complete source upload and
 returns a view with the original shape, packing and offset. Ordinary buffers
-pass through. `record_pipeline()` resolves each weight binding independently,
-in binding order. Later operations upload the source again; there is no
+pass through. `record_pipeline()` first scans for weight bindings that need
+resolving. If present, it closes the preceding compute batch and opens the next
+before resolving each weight independently in a second pass. Weight-consuming
+clones use the same batch transition. Final submission closes the last batch
+without opening another. Later operations upload the source again; there is no
 persistent weight identity cache. `MemoryData` continues to use `record_clone()`
 and owns its independent output.
 
@@ -182,6 +185,14 @@ that same capacity and initialize the allocation's trailing padding to zero.
 Host and file sources use the existing mapped pointer and allocation offset;
 the tensor view keeps its separate offset.
 
+Deferred host copies record source and destination addresses directly, including
+allocation and chunk offsets. Source backing belongs to the weight allocator;
+destination backing belongs to the command's private allocators. These records
+do not retain tensor views or copied allocation metadata. A separate flush record
+follows each copy to non-coherent memory and covers the copy plus alignment padding.
+Allocator-backed uploads continue to use `allocator->flush()`; internal staging
+flushes are handled by the transfer command.
+
 Devices with push descriptors encode Vulkan commands immediately. Other devices
 create descriptor sets while recording and replay their native commands before
 closing the corresponding command buffer. A pipeline bind through its dispatch
@@ -203,6 +214,7 @@ For direct allocator use, configure `VkWeightAllocator` before allocation with
 Check the return value of `set_weight_memory_limit()` before allocating weights;
 an invalid configuration returns an error and leaves the previous settings intact.
 Allocation failures return a null buffer, observed as an empty `VkMat`.
+Weight tensors passed to `VkTransfer::record_upload()` have `n == 1`.
 Record each transformed weight with `VkTransfer::record_upload()`, then check
 `submit_and_wait()` before calling `finalize_weights()`. Complete finalization
 before recording weight use with `VkCompute`; command recording relies on this
@@ -210,15 +222,19 @@ loading order. `VkTransfer::submit_and_wait()` returns upload recording and
 submission errors. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
-work have been released. Uploads use bounded staging and batch small copies
-together. Net submits when pending uploads exceed 256 MiB, including retained
-CPU snapshots. The check runs after each layer, so the pending total can exceed
-the threshold by one layer's uploads. Recording errors are reported at the next
-threshold submission or the final submission, so loading may read later layers
-before reporting a recording failure. File-backed and host-mappable weights are
-copied directly into their mappings while recording and do not retain pending
-upload snapshots. Host-mappable Vulkan allocations are flushed at that point;
-only unmapped destinations need snapshots and staging transfers.
+work have been released. Unmapped destinations are filled through a reusable
+staging buffer of at most 8 MiB, reduced to fit the configured host memory limit.
+Recording copies source bytes directly into staging, batching small weights.
+When staging fills, recording submits and waits before reusing it; large weights
+are transferred in chunks during the same call. No whole-weight CPU snapshots or
+pending source queue are retained. The final `submit_and_wait()` completes the
+remaining commands. Net also submits when pending uploads exceed 256 MiB,
+checked after each layer. Recording errors are reported at the next threshold
+submission or the final submission, so loading may read later layers before
+reporting a recording failure. File-backed and host-mappable weights are copied
+directly into their mappings while recording. Host-mappable Vulkan allocations
+are flushed at that point. Staging is flushed before submission and remains
+alive until all submitted work completes, including after a failed fence wait.
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
 allocation bytes, including padding. It excludes file mappings, temporary
