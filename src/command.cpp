@@ -3409,18 +3409,13 @@ public:
     int begin_command_buffer();
     int end_command_buffer();
     int finish_upload(int error = 0);
-    int submit_and_wait();
-    int reset();
-    int prepare_staging(const Option& opt);
     int flush_staging();
-    void record_upload(const Mat& src, const VkMat& dst, const Option& opt);
     void record_copy(const VkBufferMemory& src, const VkBufferMemory& dst, size_t size);
     void record_host_upload(const VkBufferMemory& dst);
 
     const VulkanDevice* vkdev;
 
     uint64_t pending_upload_total;
-    int upload_error;
     bool compute_command_pending;
     bool upload_command_pending;
 
@@ -3446,7 +3441,6 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
     pending_upload_total = 0;
-    upload_error = 0;
     compute_command_pending = false;
     upload_command_pending = false;
 
@@ -3466,14 +3460,14 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     staging_used = 0;
     staging_memory_limit = 0;
 
-    upload_error = init();
+    init();
 }
 
 VkTransferPrivate::~VkTransferPrivate()
 {
     do
     {
-        finish_upload(upload_error);
+        finish_upload();
         if (compute_command_pending || upload_command_pending)
             wait_for_pending_commands();
     } while (compute_command_pending || upload_command_pending);
@@ -3693,7 +3687,7 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten)
 {
-    if (d->upload_error)
+    if (d->compute_command_pending || d->upload_command_pending)
         return;
 
     if (src.empty())
@@ -3728,37 +3722,23 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     if (flatten && flattened_size > 2147483647)
     {
         NCNN_LOGE("weight exceeds maximum flattened dimension");
-        d->upload_error = -1;
         return;
     }
     Mat src_flattened = flatten ? src.reshape((int)flattened_size) : src;
 
     if (src_flattened.empty())
-    {
-        d->upload_error = -100;
         return;
-    }
 
     // create dst
     dst.create_like(src_flattened, opt.blob_vkallocator);
 
     if (dst.empty())
-    {
-        d->upload_error = -100;
         return;
-    }
 
-    d->record_upload(src_flattened, dst, opt);
-}
-
-void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Option& opt)
-{
-    if (upload_error)
-        return;
-    const size_t size = src.total() * src.elemsize;
+    const size_t size = src_flattened.total() * src_flattened.elemsize;
     if (size > dst.buffer_capacity() || dst.buffer_capacity() > dst.data->capacity)
     {
-        upload_error = -1;
+        NCNN_LOGE("weight upload exceeds destination capacity");
         return;
     }
     if (dst.data->storage_type == 2)
@@ -3766,65 +3746,126 @@ void VkTransferPrivate::record_upload(const Mat& src, const VkMat& dst, const Op
         if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.mapped_ptr())
         {
             NCNN_LOGE("disk weight requires a writable source range during upload");
-            upload_error = -1;
             return;
         }
         unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
-        memcpy(ptr, src.data, size);
+        memcpy(ptr, src_flattened.data, size);
         memset(ptr + size, 0, dst.buffer_capacity() - size);
         return;
     }
     if (dst.mapped_ptr())
     {
         unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
-        memcpy(ptr, src.data, size);
+        memcpy(ptr, src_flattened.data, size);
         memset(ptr + size, 0, dst.buffer_capacity() - size);
-        upload_error = dst.allocator->flush(dst.data);
-        if (upload_error)
+        int ret = dst.allocator->flush(dst.data);
+        if (ret != 0)
             return;
         if (dst.data->storage_type != 1)
         {
-            record_host_upload(*dst.data);
-            pending_upload_total += dst.buffer_capacity();
+            d->record_host_upload(*dst.data);
+            d->pending_upload_total += dst.buffer_capacity();
         }
         dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
         dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         return;
     }
-    upload_error = prepare_staging(opt);
-    if (upload_error)
-        return;
+    if (!d->staging_buffer || d->staging_mat.allocator != opt.staging_vkallocator || d->staging_memory_limit != opt.weight_host_memory_limit)
+    {
+        if (d->staging_buffer)
+        {
+            if (d->pending_upload_total)
+            {
+                int ret = submit_and_wait();
+                if (ret != 0)
+                    return;
+                ret = reset();
+                if (ret != 0)
+                    return;
+            }
+            if (!d->staging_mat.allocator)
+                destroy_weight_buffer(vkdev, d->staging_buffer);
+            d->staging_mat.release();
+            d->staging_buffer = 0;
+        }
+
+        d->staging_capacity = 8 * 1024 * 1024;
+        d->staging_memory_limit = opt.weight_host_memory_limit;
+        int ret = fit_weight_buffer_size(vkdev, d->staging_memory_limit, true, d->staging_capacity);
+        if (ret != 0)
+            return;
+
+        VkMat staging_mat;
+        VkBufferMemory* staging_buffer = 0;
+        if (opt.staging_vkallocator)
+        {
+            if (opt.staging_vkallocator->vkdev != vkdev)
+            {
+                NCNN_LOGE("weight staging allocator uses a different Vulkan device");
+                return;
+            }
+            staging_mat.create((int)d->staging_capacity, (size_t)1u, opt.staging_vkallocator);
+            staging_buffer = staging_mat.data;
+        }
+        else
+        {
+            size_t allocation_size;
+            const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
+            staging_buffer = create_weight_buffer(vkdev, d->staging_capacity, 1, unified, d->staging_memory_limit, allocation_size, true);
+        }
+        if (!staging_buffer || !staging_buffer->mapped_ptr)
+        {
+            NCNN_LOGE("weight staging allocation or mapping failed");
+            if (!staging_mat.allocator)
+                destroy_weight_buffer(vkdev, staging_buffer);
+            return;
+        }
+        if (d->staging_memory_limit)
+        {
+            VkMemoryRequirements requirements;
+            vkGetBufferMemoryRequirements(vkdev->vkdevice(), staging_buffer->buffer, &requirements);
+            if (requirements.size > d->staging_memory_limit)
+            {
+                NCNN_LOGE("weight staging allocation exceeds host memory limit");
+                if (!staging_mat.allocator)
+                    destroy_weight_buffer(vkdev, staging_buffer);
+                return;
+            }
+        }
+        d->staging_mat = staging_mat;
+        d->staging_buffer = staging_buffer;
+    }
 
     for (size_t offset = 0; offset < dst.buffer_capacity();)
     {
-        if (staging_used == staging_capacity)
+        if (d->staging_used == d->staging_capacity)
         {
-            upload_error = submit_and_wait();
-            if (upload_error)
+            int ret = submit_and_wait();
+            if (ret != 0)
                 return;
-            upload_error = reset();
-            if (upload_error)
+            ret = reset();
+            if (ret != 0)
                 return;
         }
-        const size_t n = std::min(staging_capacity - staging_used, dst.buffer_capacity() - offset);
+        const size_t n = std::min(d->staging_capacity - d->staging_used, dst.buffer_capacity() - offset);
         const size_t copy_size = alignSize(n, 4);
         if (offset + copy_size > dst.data->capacity)
         {
-            upload_error = -1;
+            NCNN_LOGE("weight upload chunk exceeds destination capacity");
             return;
         }
         const size_t src_bytes = offset < size ? std::min(n, size - offset) : 0;
-        unsigned char* ptr = (unsigned char*)staging_buffer->mapped_ptr + staging_buffer->offset + staging_used;
+        unsigned char* ptr = (unsigned char*)d->staging_buffer->mapped_ptr + d->staging_buffer->offset + d->staging_used;
         if (src_bytes)
-            memcpy(ptr, (const unsigned char*)src.data + offset, src_bytes);
+            memcpy(ptr, (const unsigned char*)src_flattened.data + offset, src_bytes);
         memset(ptr + src_bytes, 0, copy_size - src_bytes);
-        VkBufferMemory src_buffer = *staging_buffer;
-        src_buffer.offset += staging_used;
+        VkBufferMemory src_buffer = *d->staging_buffer;
+        src_buffer.offset += d->staging_used;
         VkBufferMemory dst_buffer = *dst.data;
         dst_buffer.offset += offset;
-        record_copy(src_buffer, dst_buffer, copy_size);
-        pending_upload_total += copy_size;
-        staging_used += copy_size;
+        d->record_copy(src_buffer, dst_buffer, copy_size);
+        d->pending_upload_total += copy_size;
+        d->staging_used += copy_size;
         offset += n;
     }
     dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
@@ -3959,59 +4000,6 @@ void VkTransferPrivate::record_host_upload(const VkBufferMemory& dst)
     }
 }
 
-int VkTransferPrivate::prepare_staging(const Option& opt)
-{
-    if (staging_buffer && staging_mat.allocator == opt.staging_vkallocator && staging_memory_limit == opt.weight_host_memory_limit)
-        return 0;
-
-    if (staging_buffer)
-    {
-        if (pending_upload_total)
-        {
-            int ret = submit_and_wait();
-            if (ret != 0)
-                return ret;
-            ret = reset();
-            if (ret != 0)
-                return ret;
-        }
-        if (!staging_mat.allocator)
-            destroy_weight_buffer(vkdev, staging_buffer);
-        staging_mat.release();
-        staging_buffer = 0;
-    }
-
-    staging_capacity = 8 * 1024 * 1024;
-    staging_memory_limit = opt.weight_host_memory_limit;
-    int ret = fit_weight_buffer_size(vkdev, staging_memory_limit, true, staging_capacity);
-    if (ret != 0)
-        return ret;
-
-    if (opt.staging_vkallocator)
-    {
-        if (opt.staging_vkallocator->vkdev != vkdev)
-            return -1;
-        staging_mat.create((int)staging_capacity, (size_t)1u, opt.staging_vkallocator);
-        staging_buffer = staging_mat.data;
-    }
-    else
-    {
-        size_t allocation_size;
-        const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
-        staging_buffer = create_weight_buffer(vkdev, staging_capacity, 1, unified, staging_memory_limit, allocation_size, true);
-    }
-    if (!staging_buffer || !staging_buffer->mapped_ptr)
-        return -100;
-    if (staging_memory_limit)
-    {
-        VkMemoryRequirements requirements;
-        vkGetBufferMemoryRequirements(vkdev->vkdevice(), staging_buffer->buffer, &requirements);
-        if (requirements.size > staging_memory_limit)
-            return -1;
-    }
-    return 0;
-}
-
 int VkTransferPrivate::flush_staging()
 {
     if (!staging_used)
@@ -4062,9 +4050,7 @@ int VkTransferPrivate::finish_upload(int error)
             upload_command_pending = false;
         }
     }
-    if (error)
-        upload_error = error;
-    else
+    if (error == 0)
     {
         pending_upload_total = 0;
         staging_used = 0;
@@ -4074,39 +4060,29 @@ int VkTransferPrivate::finish_upload(int error)
 
 int VkTransfer::submit_and_wait()
 {
-    return d->submit_and_wait();
-}
-
-int VkTransfer::reset()
-{
-    return d->reset();
-}
-
-int VkTransferPrivate::submit_and_wait()
-{
-    if (upload_error)
-        return upload_error;
-    if (pending_upload_total == 0)
+    if (d->compute_command_pending || d->upload_command_pending)
+        return -1;
+    if (d->pending_upload_total == 0)
         return 0;
 
-    upload_error = flush_staging();
-    if (upload_error)
-        return upload_error;
+    int ret = d->flush_staging();
+    if (ret != 0)
+        return ret;
 
     //     NCNN_LOGE("submit_and_wait");
 
     // end command buffer
     {
-        int ret = end_command_buffer();
+        int ret = d->end_command_buffer();
         if (ret != 0)
-            return finish_upload(ret);
+            return d->finish_upload(ret);
     }
 
     VkQueue compute_queue = vkdev->acquire_queue(vkdev->info.compute_queue_family_index());
     if (compute_queue == 0)
     {
         NCNN_LOGE("out of compute queue");
-        return finish_upload(-1);
+        return d->finish_upload(-1);
     }
 
     if (vkdev->info.unified_compute_transfer_queue())
@@ -4120,18 +4096,18 @@ int VkTransferPrivate::submit_and_wait()
             submitInfo.pWaitSemaphores = 0;
             submitInfo.pWaitDstStageMask = 0;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &compute_command_buffer;
+            submitInfo.pCommandBuffers = &d->compute_command_buffer;
             submitInfo.signalSemaphoreCount = 0;
             submitInfo.pSignalSemaphores = 0;
 
-            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, compute_command_fence);
+            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, d->compute_command_fence);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return finish_upload(-1);
+                return d->finish_upload(-1);
             }
-            compute_command_pending = true;
+            d->compute_command_pending = true;
         }
     }
     else
@@ -4141,7 +4117,7 @@ int VkTransferPrivate::submit_and_wait()
         {
             NCNN_LOGE("out of transfer queue");
             vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-            return finish_upload(-1);
+            return d->finish_upload(-1);
         }
 
         // submit upload compute
@@ -4153,19 +4129,19 @@ int VkTransferPrivate::submit_and_wait()
             submitInfo.pWaitSemaphores = 0;
             submitInfo.pWaitDstStageMask = 0;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &upload_command_buffer;
+            submitInfo.pCommandBuffers = &d->upload_command_buffer;
             submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = &upload_compute_semaphore;
+            submitInfo.pSignalSemaphores = &d->upload_compute_semaphore;
 
-            VkResult ret = vkQueueSubmit(transfer_queue, 1, &submitInfo, upload_command_fence);
+            VkResult ret = vkQueueSubmit(transfer_queue, 1, &submitInfo, d->upload_command_fence);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return finish_upload(-1);
+                return d->finish_upload(-1);
             }
-            upload_command_pending = true;
+            d->upload_command_pending = true;
         }
         {
             VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // FIXME
@@ -4174,22 +4150,22 @@ int VkTransferPrivate::submit_and_wait()
             submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
             submitInfo.pNext = 0;
             submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = &upload_compute_semaphore;
+            submitInfo.pWaitSemaphores = &d->upload_compute_semaphore;
             submitInfo.pWaitDstStageMask = &wait_dst_stage;
             submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &compute_command_buffer;
+            submitInfo.pCommandBuffers = &d->compute_command_buffer;
             submitInfo.signalSemaphoreCount = 0;
             submitInfo.pSignalSemaphores = 0;
 
-            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, compute_command_fence);
+            VkResult ret = vkQueueSubmit(compute_queue, 1, &submitInfo, d->compute_command_fence);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return finish_upload(-1);
+                return d->finish_upload(-1);
             }
-            compute_command_pending = true;
+            d->compute_command_pending = true;
         }
 
         vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
@@ -4197,62 +4173,56 @@ int VkTransferPrivate::submit_and_wait()
 
     vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
 
-    return finish_upload();
+    return d->finish_upload();
 }
 
-int VkTransferPrivate::reset()
+int VkTransfer::reset()
 {
-    if (upload_error)
-        return upload_error;
+    if (d->compute_command_pending || d->upload_command_pending)
+        return -1;
 
-    pending_upload_total = 0;
-    staging_used = 0;
+    d->pending_upload_total = 0;
+    d->staging_used = 0;
 
     // reset command buffer and fence
     {
-        VkResult ret = vkResetCommandBuffer(compute_command_buffer, 0);
+        VkResult ret = vkResetCommandBuffer(d->compute_command_buffer, 0);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
-            upload_error = -1;
-            return upload_error;
+            return -1;
         }
     }
     {
-        VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &compute_command_fence);
+        VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->compute_command_fence);
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkResetFences failed %d", ret);
-            upload_error = -1;
-            return upload_error;
+            return -1;
         }
     }
 
     if (!vkdev->info.unified_compute_transfer_queue())
     {
         {
-            VkResult ret = vkResetCommandBuffer(upload_command_buffer, 0);
+            VkResult ret = vkResetCommandBuffer(d->upload_command_buffer, 0);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
-                upload_error = -1;
-                return upload_error;
+                return -1;
             }
         }
         {
-            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &upload_command_fence);
+            VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->upload_command_fence);
             if (ret != VK_SUCCESS)
             {
                 NCNN_LOGE("vkResetFences failed %d", ret);
-                upload_error = -1;
-                return upload_error;
+                return -1;
             }
         }
     }
 
-    upload_error = begin_command_buffer();
-
-    return upload_error;
+    return d->begin_command_buffer();
 }
 
 uint64_t VkTransfer::pending_upload_total() const

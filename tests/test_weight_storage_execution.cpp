@@ -259,14 +259,18 @@ static int test_weight_storage_load_failure()
     ncnn::Net net;
     char path[256];
     snprintf(path, sizeof(path), "%s/missing/weights", weight_storage_test_directory() ? weight_storage_test_directory() : ".");
-    net.set_weight_file_directory(path);
-    path[0] = 0;
-    if (load_weight_storage_net(net, opt, 1.f, 1, false, false) == 0)
     {
-        fprintf(stderr, "test_weight_storage_load_failure invalid directory accepted\n");
-        return -1;
+        ncnn::VkWeightAllocator weights(ncnn::get_gpu_device());
+        weights.set_weights_in_disk(true);
+        weights.set_weight_file_directory(path);
+        path[0] = 0;
+        ncnn::VkMat rejected(256, (size_t)4u, &weights);
+        if (!rejected.empty())
+        {
+            fprintf(stderr, "test_weight_storage_load_failure invalid directory accepted\n");
+            return -1;
+        }
     }
-    net.clear();
     // Intentionally exercise the real default directory and resident fallback.
     net.set_weight_file_directory((const char*)0);
     if (load_weight_storage_net(net, opt, 1.f, 1, false, false) != 0)

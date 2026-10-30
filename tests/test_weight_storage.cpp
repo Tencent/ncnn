@@ -1149,11 +1149,19 @@ static int test_weight_storage_upload_recording()
         ncnn::VkMat target;
         ncnn::VkTransfer rejected(vkdev);
         rejected.record_upload(bytes, target, bad);
-        if (rejected.submit_and_wait() == 0 || rejected.reset() == 0 || failing.allocations != 1)
+        if (rejected.pending_upload_total() != 0 || rejected.submit_and_wait() != 0 || rejected.reset() != 0 || failing.allocations != 1)
         {
             fprintf(stderr, "test_weight_storage_upload_recording staging failure missing unmapped=%d\n", unmapped);
             return -1;
         }
+        rejected.record_upload(bytes, target, opt);
+        if (!rejected.pending_upload_total() || rejected.submit_and_wait() != 0)
+            return -1;
+        ncnn::VkCompute download(vkdev);
+        ncnn::Mat result;
+        download.record_clone(target, result, opt);
+        if (download.submit_and_wait() != 0 || memcmp(result.data, bytes.data, 7) != 0)
+            return -1;
     }
     return 0;
 }

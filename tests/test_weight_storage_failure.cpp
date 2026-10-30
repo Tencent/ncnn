@@ -98,16 +98,11 @@ static int test_weight_storage_transfer_failure(VulkanFailure::Failure failure)
     cmd.record_upload(RandomMat(256), weight, opt);
     {
         VulkanFailure fail(failure);
-        if (cmd.submit_and_wait() == 0 || !fail.triggered || cmd.reset() == 0)
+        if (cmd.submit_and_wait() == 0 || !fail.triggered)
         {
             fprintf(stderr, "test_weight_storage_transfer_failure error missing failure=%d\n", failure);
             return -1;
         }
-    }
-    if (cmd.submit_and_wait() == 0)
-    {
-        fprintf(stderr, "test_weight_storage_transfer_failure lost error failure=%d\n", failure);
-        return -1;
     }
     return 0;
 }
@@ -229,7 +224,7 @@ static int test_weight_storage_resident_failure()
     upload.record_upload(RandomMat(2048), weight, opt);
     if (weight.empty() || weight.data->storage_type != 0 || !fail.triggered)
         return -1;
-    if (upload.submit_and_wait() == 0 || !fail.triggered || upload.reset() == 0)
+    if (fail.submission_count() != 2)
     {
         fprintf(stderr, "resident upload midflight failure was lost\n");
         return -1;
@@ -1031,9 +1026,16 @@ static int test_weight_storage_staging_flush_failure()
         ncnn::VkTransfer cmd(vkdev);
         WeightRecordingProbe probe(vkdev);
         cmd.record_upload(input, weight, opt);
-        if (staging.flushes != 1 || cmd.submit_and_wait() == 0 || probe.submissions != 0)
+        if (staging.flushes != 1 || cmd.submit_and_wait() != 0 || probe.submissions != 0)
         {
-            fprintf(stderr, "mapped weight flush failure was not returned before GPU submission\n");
+            fprintf(stderr, "mapped weight flush failure submitted GPU work\n");
+            return -1;
+        }
+        staging.fail = false;
+        cmd.record_upload(input, weight, opt);
+        if (staging.flushes != 2 || cmd.submit_and_wait() != 0)
+        {
+            fprintf(stderr, "mapped weight flush failure prevented later recording\n");
             return -1;
         }
     }

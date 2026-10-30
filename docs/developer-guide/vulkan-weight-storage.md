@@ -218,8 +218,12 @@ Weight tensors passed to `VkTransfer::record_upload()` have `n == 1`.
 Record each transformed weight with `VkTransfer::record_upload()`, then check
 `submit_and_wait()` before calling `finalize_weights()`. Complete finalization
 before recording weight use with `VkCompute`; command recording relies on this
-loading order. `VkTransfer::submit_and_wait()` returns upload recording and
-submission errors. Finalization flushes
+loading order. Recording failures end the current operation without retaining
+an error status. `submit_and_wait()` and `reset()` return errors from their own
+operations; a successful final submit does not certify earlier void recording
+operations. Net does not aggregate recording failures into a load error.
+After a submission or wait failure, discard the command; destruction
+drains any work still in flight. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
 work have been released. Unmapped destinations are filled through a reusable
@@ -229,9 +233,7 @@ When staging fills, recording submits and waits before reusing it; large weights
 are transferred in chunks during the same call. No whole-weight CPU snapshots or
 pending source queue are retained. The final `submit_and_wait()` completes the
 remaining commands. Net also submits when pending uploads exceed 256 MiB,
-checked after each layer. Recording errors are reported at the next threshold
-submission or the final submission, so loading may read later layers before
-reporting a recording failure. File-backed and host-mappable weights are copied
+checked after each layer. File-backed and host-mappable weights are copied
 directly into their mappings while recording. Host-mappable Vulkan allocations
 are flushed at that point. Staging is flushed before submission and remains
 alive until all submitted work completes, including after a failed fence wait.
