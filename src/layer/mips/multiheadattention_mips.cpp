@@ -696,6 +696,11 @@ int MultiHeadAttention_mips::destroy_pipeline(const Option& _opt)
 
 int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& _opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_BATCH
     if (kv_cache && bottom_blobs[0].n > 1)
         return -1;
@@ -816,11 +821,11 @@ int MultiHeadAttention_mips::forward(const std::vector<Mat>& bottom_blobs, std::
             if (retv != 0)
                 return retv;
         }
-        int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, opt);
+        int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, append_kv ? current_key.elemsize : past_xk_blob_unpacked.elemsize, 1, opt);
         if (retk != 0)
             return retk;
 
-        int retv = create_or_grow_kvcache(past_xv_blob_unpacked, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, current_value.elemsize, 1, opt);
+        int retv = create_or_grow_kvcache(past_xv_blob_unpacked, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, append_kv ? current_value.elemsize : past_xv_blob_unpacked.elemsize, 1, opt);
         if (retv != 0)
             return retv;
 
