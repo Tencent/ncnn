@@ -212,6 +212,11 @@ class VulkanDevice;
 class NCNN_EXPORT VkBufferMemory
 {
 public:
+    VkBufferMemory()
+        : mapped_ptr(0), storage_type(0)
+    {
+    }
+
     VkBuffer buffer;
 
     // the base offset assigned by allocator
@@ -219,6 +224,7 @@ public:
     size_t capacity;
 
     VkDeviceMemory memory;
+    // non-null when this allocation can be accessed by the host
     void* mapped_ptr;
 
     uint32_t memory_type_index;
@@ -229,6 +235,10 @@ public:
 
     // initialize and modified by mat
     int refcount;
+
+    // storage type
+    // 0 = device, 1 = host, 2 = disk
+    int storage_type;
 };
 
 class NCNN_EXPORT VkImageMemory
@@ -336,6 +346,23 @@ public:
     }
     virtual ~VkWeightAllocator();
 
+    // set before allocating weights; null or empty uses the system directory
+    void set_weight_file_directory(const char* path);
+#if _WIN32
+    void set_weight_file_directory(const wchar_t* path);
+#endif
+
+    // configure before allocating weights
+    void set_weights_in_disk(bool enable);
+    // limit resident allocations, placing weights in loading order
+    int set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit);
+
+    // flush and seal file weights after uploads complete
+    int finalize_weights();
+
+    // actual resident Vulkan allocations, including padding; excludes temporary weights and file mappings
+    void get_weight_memory_usage(uint64_t& device_bytes, uint64_t& host_bytes) const;
+
 public:
     // release all blocks immediately
     virtual void clear();
@@ -345,6 +372,9 @@ public:
     virtual void fastFree(VkBufferMemory* ptr);
     virtual VkImageMemory* fastMalloc(int w, int h, int c, size_t elemsize, int elempack);
     virtual void fastFree(VkImageMemory* ptr);
+
+    virtual int flush(VkBufferMemory* ptr);
+    virtual int invalidate(VkBufferMemory* ptr);
 
 private:
     VkWeightAllocator(const VkWeightAllocator&);

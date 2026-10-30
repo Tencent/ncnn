@@ -52,3 +52,7 @@ if(WITH_LAYER_sdpa)
     ncnn_add_perf(sdpa_kvcache)
     ncnn_add_perf(sdpa_prefill)
 endif()
+
+if(NCNN_VULKAN AND NCNN_STDIO AND NCNN_STRING AND WITH_LAYER_gemm)
+    ncnn_add_perf(weight_storage)
+endif()

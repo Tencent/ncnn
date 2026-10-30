@@ -62,6 +62,10 @@ public:
     // kv cache memory allocator
     VkAllocator* kvcache_vkallocator;
 
+    // disk weight resident limits; both zero disable resident placement
+    size_t weight_device_memory_limit;
+    size_t weight_host_memory_limit;
+
     // pipeline cache
     PipelineCache* pipeline_cache;
 #endif // NCNN_VULKAN
@@ -118,7 +122,7 @@ public:
 
     bool use_tensor_storage;
 
-    bool use_reserved_1p;
+    bool use_weights_in_disk;
     bool use_weights_in_host_memory;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
