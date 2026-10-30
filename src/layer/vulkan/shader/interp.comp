@@ -59,12 +59,12 @@ void main()
 
     if (resize_type == 2 && (psc(w) == 1 || (psc(dims) == 3 && psc(h) == 1)))
     {
-        afp fx = align_corner == 1 ? afp(gx) * afp(p.scale_x) : (afp(gx) + afp(0.5f)) * afp(p.scale_x) - afp(0.5f);
-        afp fy = psc(dims) == 2 ? afp(gy) : (align_corner == 1 ? afp(gy) * afp(p.scale_y) : (afp(gy) + afp(0.5f)) * afp(p.scale_y) - afp(0.5f));
-        int sx = int(floor(fx));
-        int sy = int(floor(fy));
-        fx -= afp(sx);
-        fy -= afp(sy);
+        const float x = align_corner == 1 ? float(gx) * p.scale_x : (float(gx) + 0.5f) * p.scale_x - 0.5f;
+        const float y = psc(dims) == 2 ? float(gy) : (align_corner == 1 ? float(gy) * p.scale_y : (float(gy) + 0.5f) * p.scale_y - 0.5f);
+        int sx = int(floor(x));
+        int sy = int(floor(y));
+        afp fx = afp(x - float(sx));
+        afp fy = afp(y - float(sy));
         int x0 = clamp(sx, 0, psc(w) - 1);
         int x1 = clamp(sx + 1, 0, psc(w) - 1);
         int y0 = clamp(sy, 0, psc(h) - 1);
@@ -82,7 +82,7 @@ void main()
     {
         if (resize_type == 1) // nearest
         {
-            int sx = min(int(floor(afp(gx) * afp(p.scale_x))), psc(w) - 1);
+            int sx = min(int(floor(float(gx) * p.scale_x)), psc(w) - 1);
 
             int v_offset = gz * psc(cstep) + gy * psc(w) + sx;
 
@@ -92,19 +92,19 @@ void main()
         }
         if (resize_type == 2) // bilinear
         {
-            afp fx;
+            float x;
             if (align_corner == 1)
             {
-                fx = afp(gx) * afp(p.scale_x);
+                x = float(gx) * p.scale_x;
             }
             else
             {
-                fx = (afp(gx) + afp(0.5f)) * afp(p.scale_x) - afp(0.5f);
+                x = (float(gx) + 0.5f) * p.scale_x - 0.5f;
             }
 
-            int sx = int(floor(fx));
+            int sx = int(floor(x));
 
-            fx -= afp(sx);
+            afp fx = afp(x - float(sx));
 
             int sx_max = psc(w) - 2;
 
@@ -136,9 +136,9 @@ void main()
 
     if (resize_type == 1) // nearest
     {
-        afpvec2 gxy = afpvec2(gx, gy);
+        vec2 gxy = vec2(gx, gy);
         ivec2 sxy_max = ivec2(psc(w) - 1, psc(h) - 1);
-        ivec2 sxy = min(ivec2(floor(gxy * afpvec2(p.scale_x, p.scale_y))), sxy_max);
+        ivec2 sxy = min(ivec2(floor(gxy * vec2(p.scale_x, p.scale_y))), sxy_max);
 
         int sx = sxy.r;
         int sy = sxy.g;
@@ -151,20 +151,20 @@ void main()
     }
     if (resize_type == 2) // bilinear
     {
-        afpvec2 gxy = afpvec2(gx, gy);
-        afpvec2 fxy;
+        vec2 gxy = vec2(gx, gy);
+        vec2 xy;
         if (align_corner == 1)
         {
-            fxy = gxy * afpvec2(p.scale_x, p.scale_y);
+            xy = gxy * vec2(p.scale_x, p.scale_y);
         }
         else
         {
-            fxy = (gxy + afp(0.5f)) * afpvec2(p.scale_x, p.scale_y) - afp(0.5f);
+            xy = (gxy + 0.5f) * vec2(p.scale_x, p.scale_y) - 0.5f;
         }
 
-        ivec2 sxy = ivec2(floor(fxy));
+        ivec2 sxy = ivec2(floor(xy));
 
-        fxy -= afpvec2(sxy);
+        afpvec2 fxy = afpvec2(xy - vec2(sxy));
 
         ivec2 sxy_max = ivec2(psc(w) - 2, psc(h) - 2);
 
