@@ -4,6 +4,11 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from pnnx_test_utils import convert_and_import_ncnn
 
 class Model(nn.Module):
     def __init__(self):
@@ -35,17 +40,10 @@ def test():
 
     a0, a1, a2 = net(x, y, q)
 
-    # export torchscript
-    mod = torch.jit.trace(net, (x, y, q))
-    mod.save("test_nn_BatchNorm2d.pt")
-
-    # torchscript to pnnx
-    import os
-    os.system("../../src/pnnx test_nn_BatchNorm2d.pt inputshape=[1,32,12,64],[1,11,1,1],[2,32,12,64]")
+    module = convert_and_import_ncnn(net, (x, y, q), "test_nn_BatchNorm2d", pnnx_args=("inputshape=[1,32,12,64],[1,11,1,1],[2,32,12,64]",))
 
     # ncnn inference
-    import test_nn_BatchNorm2d_ncnn
-    b0, b1, b2 = test_nn_BatchNorm2d_ncnn.test_inference()
+    b0, b1, b2 = module.test_inference()
 
     return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
 
