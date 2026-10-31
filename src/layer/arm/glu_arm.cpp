@@ -89,12 +89,8 @@ static void glu_pack4to1(const float* input, const float* gate, float* output, i
     {
         const float32x4x4_t _input = vld4q_f32(input);
         const float32x4x4_t _gate = vld4q_f32(gate);
-        const float32x4_t _x = input_lane == 0 ? _input.val[0] : input_lane == 1 ? _input.val[1]
-                                                             : input_lane == 2   ? _input.val[2]
-                                                                                 : _input.val[3];
-        const float32x4_t _g = gate_lane == 0 ? _gate.val[0] : gate_lane == 1 ? _gate.val[1]
-                                                           : gate_lane == 2   ? _gate.val[2]
-                                                                              : _gate.val[3];
+        const float32x4_t _x = input_lane == 0 ? _input.val[0] : input_lane == 1 ? _input.val[1] : input_lane == 2 ? _input.val[2] : _input.val[3];
+        const float32x4_t _g = gate_lane == 0 ? _gate.val[0] : gate_lane == 1 ? _gate.val[1] : gate_lane == 2 ? _gate.val[2] : _gate.val[3];
         vst1q_f32(output, vmulq_f32(_x, sigmoid_ps(_g)));
         input += 16;
         gate += 16;
@@ -114,10 +110,9 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 {
     const int dims = bottom_blob.dims;
     const int elempack = bottom_blob.elempack;
-    const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis
-                                                       : axis;
+    const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis : axis;
     if (dims < 1 || dims > 4 || positive_axis < 0 || positive_axis >= dims
-        || (elempack != 1 && elempack != 4) || bottom_blob.elembits() != 32)
+            || (elempack != 1 && elempack != 4) || bottom_blob.elembits() != 32)
         return -100;
 
     int w = bottom_blob.w;
@@ -128,8 +123,7 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     if (positive_axis == 0)
     {
-        const int outer = dims == 1 ? w : dims == 2 ? h
-                                                    : channels;
+        const int outer = dims == 1 ? w : dims == 2 ? h : channels;
         const int out_outer = outer * elempack / 2;
         if (out_outer % out_elempack != 0)
             out_elempack = 1;
@@ -184,7 +178,7 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         const int blocks_per_outer = (size + block_size - 1) / block_size;
         const int block_count = out_outer * blocks_per_outer;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < block_count; i++)
         {
             const int q = i / blocks_per_outer;
@@ -239,7 +233,7 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     const int blocks_per_channel = spans_per_channel * blocks_per_span;
     const int block_count = channels * blocks_per_channel;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < block_count; i++)
     {
         const int q = i / blocks_per_channel;

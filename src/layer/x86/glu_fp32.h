@@ -106,8 +106,7 @@ static void glu_pack(const float* input, const float* gate, float* output, int s
 static int glu_packed_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Option& opt)
 {
     const int dims = bottom_blob.dims;
-    const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis
-                                                       : axis;
+    const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis : axis;
     if (dims < 1 || dims > 4 || positive_axis < 0 || positive_axis >= dims)
         return -100;
 
@@ -140,7 +139,7 @@ static int glu_packed_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, cons
 
         const int block_size = 1024;
         const int blocks = (size + block_size - 1) / block_size;
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < blocks; i++)
         {
             const int offset = i * block_size;
@@ -189,7 +188,7 @@ static int glu_packed_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, cons
             const int block_size = 1024;
             const int blocks_per_channel = (size + block_size - 1) / block_size;
             const int block_count = out_channels * blocks_per_channel;
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < block_count; i++)
             {
                 const int q = i / blocks_per_channel;
@@ -260,7 +259,7 @@ static int glu_packed_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, cons
     const int blocks_per_span = (span_size + block_size - 1) / block_size;
     const int blocks_per_channel = spans_per_channel * blocks_per_span;
     const int block_count = channels * blocks_per_channel;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < block_count; i++)
     {
         const int q = i / blocks_per_channel;
@@ -290,8 +289,7 @@ static int glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Optio
         return glu_packed_fp32(bottom_blob, top_blob, axis, opt);
 
     const int dims = bottom_blob.dims;
-    const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis
-                                                       : axis;
+    const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis : axis;
     if (dims < 1 || dims > 4 || positive_axis < 0 || positive_axis >= dims)
         return -100;
 
@@ -357,7 +355,7 @@ static int glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Optio
     const int blocks_per_channel = spans_per_channel * blocks_per_span;
     const int block_count = channels * blocks_per_channel;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < block_count; i++)
     {
         const int q = i / blocks_per_channel;
