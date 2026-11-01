@@ -10,12 +10,7 @@ void gemm_transB_packed_tile_bf16s_zvfbfmin(const Mat& AT_tile, const Mat& BT_ti
 void unpack_output_tile_bf16s_zvfbfmin(const Mat& topT, Mat& top_blob, int i, int max_ii, int j, int max_jj, int output_transpose);
 #endif
 
-#if __riscv_vector && __riscv_xtheadvector
-// FIXME inline causes incorrect codegen on c906
-__attribute__((noinline))
-#endif
-static void
-pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin && !__riscv_zvfbfwma && !__riscv_xtheadvector
     if (cpu_support_riscv_zvfbfmin())
@@ -85,12 +80,7 @@ pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int ma
     }
 }
 
-#if __riscv_vector && __riscv_xtheadvector
-// FIXME inline causes incorrect codegen on c906
-__attribute__((noinline))
-#endif
-static void
-transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
+static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin && !__riscv_zvfbfwma && !__riscv_xtheadvector
     if (cpu_support_riscv_zvfbfmin())
@@ -160,12 +150,7 @@ transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int max_ii, int
     }
 }
 
-#if __riscv_vector && __riscv_xtheadvector
-// FIXME inline causes incorrect codegen on c906
-__attribute__((noinline))
-#endif
-static void
-pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin && !__riscv_zvfbfwma && !__riscv_xtheadvector
     if (cpu_support_riscv_zvfbfmin())
@@ -249,12 +234,7 @@ pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int ma
     }
 }
 
-#if __riscv_vector && __riscv_xtheadvector
-// FIXME inline causes incorrect codegen on c906
-__attribute__((noinline))
-#endif
-static void
-transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin && !__riscv_zvfbfwma && !__riscv_xtheadvector
     if (cpu_support_riscv_zvfbfmin())
