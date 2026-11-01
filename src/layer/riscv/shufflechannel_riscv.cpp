@@ -83,9 +83,9 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
     {
 #if C906 || __riscv_xtheadvector
         // C906 128 bits
-        static unsigned int index_c906[4 * 4];
+        unsigned int index_c906[4 * 4];
 #else
-        static uint8_t bitmask[32];
+        uint8_t bitmask[32];
 #endif
         // follow arm version
         if (_group == 2 && channels % _group != 0)
@@ -658,9 +658,9 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
     {
 #if C906 || __riscv_xtheadvector
         // C906 128 bits
-        static unsigned short index_c906[8 * 4];
+        unsigned short index_c906[8 * 8];
 #else
-        static uint8_t bitmask[32];
+        uint8_t bitmask[32];
 #endif
         // follow arm version
         if (_group == 2 && channels % _group != 0)

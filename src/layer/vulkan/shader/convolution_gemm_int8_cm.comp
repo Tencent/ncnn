@@ -83,9 +83,12 @@ const uint Nd4 = N / 4;
 const uint Kd4 = K / 4;
 const uint Md4 = M / 4;
 
+#if ncnn_vendorID == 0x5143
+const uint Kd4p = Kd4;
+const uint Nd4p = Nd4;
+#elif ncnn_VK_KHR_cooperative_matrix
 // keep packed int8 row strides aligned to 16 bytes
 // odd multiples of 16 bytes spread successive rows across shared memory banks
-#if ncnn_VK_KHR_cooperative_matrix
 const uint Nd4p = (((Nd4 + 3) / 4) | 1) * 4;
 const uint Kd4p = (((Kd4 + 3) / 4) | 1) * 4;
 #elif ncnn_VK_NV_cooperative_matrix
@@ -620,7 +623,10 @@ void main()
                     const uint Md4_K_USGM = Md4 * K * UNROLL_SG_M;
                     const uint Md4_K_USGM_USGK = Md4_K_USGM * UNROLL_SG_K;
                     const uint Md4_K_USGM_USGK_d_subgroupsize = (Md4_K_USGM_USGK + (subgroup_size * UNROLL_WG_N - 1)) / (subgroup_size * UNROLL_WG_N);
-                    [[unroll]] for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
+#if ncnn_vendorID != 0x5143
+                    [[unroll]]
+#endif
+                    for (uint q = 0; q < Md4_K_USGM_USGK_d_subgroupsize; q++)
                     {
                         const uint siq = (q * UNROLL_WG_N + sgni) * subgroup_size + si;
 
@@ -695,7 +701,12 @@ void main()
                             const uint gk = (ki + zk) * Kd4 + j;
 
                             int v = 0;
+#if ncnn_vendorID == 0x5143
+                            // adreno can lose the K predicate in a combined bounds check
+                            if (gm < size)
+#else
                             if (gm < size && gk < K04)
+#endif
                             {
                                 const uint sx = gm % psc(outw);
                                 const uint sy = gm / psc(outw);
@@ -705,7 +716,12 @@ void main()
                                 const uint kx = k - ky * kernel_w;
                                 const uint spatial = (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
+#if ncnn_vendorID == 0x5143
+                                const uint load_mask = -uint(gk < K04);
+                                v = i8buffer_sm4(bottom_blob_int8_data, (sz * psc(cstep) + spatial) & load_mask) & int(load_mask);
+#else
                                 v = i8buffer_sm4(bottom_blob_int8_data, sz * psc(cstep) + spatial);
+#endif
                             }
 
                             tmp_v[sgmi][siq] = v;

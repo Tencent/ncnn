@@ -42,6 +42,10 @@ public:
     Pipeline* pipeline_layernorm_sub_mean_square_pack4;
     Pipeline* pipeline_layernorm_coeffs_pack4;
     Pipeline* pipeline_layernorm_norm_pack4;
+
+    // subgroup pipelines
+    Pipeline* pipeline_layernorm_reduce_subgroup;
+    Pipeline* pipeline_layernorm_reduce_subgroup_pack4;
 };
 
 } // namespace ncnn

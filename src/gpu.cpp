@@ -4745,7 +4745,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT;
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = 0;
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.requiredSubgroupSize = subgroup_size;
-    if (info.support_subgroup_size_control())
+    if (info.support_subgroup_size_control() && (info.querySubgroupSizeControlProperties().requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT))
     {
         // pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT;
         pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = enabledExtensionFeatures;
@@ -6263,6 +6263,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_storage)
     {
         custom_exts += "#extension GL_EXT_shader_8bit_storage: require\n";
+        custom_exts += "#pragma use_storage_buffer\n";
     }
     if (opt.use_int8_arithmetic)
     {

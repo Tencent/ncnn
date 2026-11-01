@@ -22,7 +22,7 @@ on:
     - 'tests/**'
 
 env:
-  EMSCRIPTEN_VERSION: 3.1.28
+  EMSCRIPTEN_VERSION: 6.0.12
 
 concurrency:
   group: web-assembly-${{ github.ref }}
@@ -32,6 +32,11 @@ permissions:
 
 jobs:
   webassembly:
+    strategy:
+      matrix:
+        include:
+          - { arch: wasm32, flags: "" }
+          - { arch: wasm64, flags: "-m64" }
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7
@@ -44,33 +49,36 @@ jobs:
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
-        export LDFLAGS="-sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1"
+        export LDFLAGS="${{ matrix.flags }} -sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1"
         mkdir build-basic && cd build-basic
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test-basic
       run: |
+        source emsdk/emsdk_env.sh
         cd build-basic
-        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER="$EMSDK_NODE" ctest --output-on-failure -j $(nproc)
     - name: build-simd
       run: |
         source emsdk/emsdk_env.sh
-        export LDFLAGS="-sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1"
+        export LDFLAGS="${{ matrix.flags }} -sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1"
         mkdir build-simd && cd build-simd
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test-simd
       run: |
+        source emsdk/emsdk_env.sh
         cd build-simd
-        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER="$EMSDK_NODE" ctest --output-on-failure -j $(nproc)
     - name: build-simd-omp
       run: |
         source emsdk/emsdk_env.sh
-        export LDFLAGS="-sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1"
+        export LDFLAGS="${{ matrix.flags }} -sERROR_ON_WASM_CHANGES_AFTER_LINK -sWASM_BIGINT -O1"
         mkdir build-simd-omp && cd build-simd-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test-simd-omp
       run: |
+        source emsdk/emsdk_env.sh
         cd build-simd-omp
-        TESTS_EXECUTABLE_LOADER=node ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER="$EMSDK_NODE" ctest --output-on-failure -j $(nproc)
