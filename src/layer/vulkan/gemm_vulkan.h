@@ -27,6 +27,10 @@ protected:
     int create_pipeline_int8(const Option& opt);
     int upload_model_int8(VkTransfer& cmd, const Option& opt);
     int forward_int8(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+
+    int create_pipeline_block_quant(const Option& opt);
+    int upload_model_block_quant(VkTransfer& cmd, const Option& opt);
+    int forward_block_quant(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 #endif
 
 public:
@@ -70,6 +74,25 @@ public:
     Pipeline* pipeline_gemm_quantize_B_descale_int8;
     Pipeline* pipeline_gemm_quantize_B_int8;
 #endif
+
+    // weight block quantization
+#if NCNN_INT8
+    Mat B_data_quantize_scales_packed;
+    Mat B_data_input_scales_padded;
+
+    VkMat B_data_quantize_scales_gpu;
+    VkMat B_data_input_scales_gpu;
+
+    Pipeline* pipeline_gemm_block_quant;
+    Pipeline* pipeline_gemm_block_quant_slm;
+    Pipeline* pipeline_gemm_block_quant_m1;
+    Pipeline* pipeline_gemm_block_quant_cm;
+    Pipeline* pipeline_gemm_block_quant_quantize_A;
+
+    int block_quant_row_words;
+    int block_quant_scale_pitch;
+#endif // NCNN_INT8
+
 };
 
 } // namespace ncnn

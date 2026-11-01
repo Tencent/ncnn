@@ -304,14 +304,16 @@ int Gemm::load_param(const ParamDict& pd)
             return -1;
         }
 
-        if (weight_block_quantize_bits != 8)
+        // the vulkan block quant kernels need NCNN_INT8 and write the storage type of the
+        // activations, so a fp32 output request falls back to the cpu implementation
+        if (weight_block_quantize_bits != 8 || !NCNN_INT8 || output_elemtype == 1)
         {
             support_packing = false;
             support_bf16_storage = false;
             support_fp16_storage = false;
+            support_vulkan = false;
+            support_vulkan_packing = false;
         }
-        support_vulkan = false;
-        support_vulkan_packing = false;
 #else
         NCNN_LOGE("please build ncnn with NCNN_WEIGHT_QUANT enabled for weight quantized inference");
         return -1;
