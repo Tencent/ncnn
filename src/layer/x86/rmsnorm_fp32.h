@@ -44,6 +44,26 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
+        if (size >= 64)
+        {
+            // Independent chains hide FMA latency without mixing packed lanes.
+            __m512 _rms1 = _mm512_setzero_ps();
+            __m512 _rms2 = _mm512_setzero_ps();
+            __m512 _rms3 = _mm512_setzero_ps();
+            for (; i + 63 < size; i += 64)
+            {
+                __m512 _p0 = _mm512_loadu_ps(ptr0);
+                __m512 _p1 = _mm512_loadu_ps(ptr0 + 16);
+                __m512 _p2 = _mm512_loadu_ps(ptr0 + 32);
+                __m512 _p3 = _mm512_loadu_ps(ptr0 + 48);
+                _rms_avx512 = _mm512_fmadd_ps(_p0, _p0, _rms_avx512);
+                _rms1 = _mm512_fmadd_ps(_p1, _p1, _rms1);
+                _rms2 = _mm512_fmadd_ps(_p2, _p2, _rms2);
+                _rms3 = _mm512_fmadd_ps(_p3, _p3, _rms3);
+                ptr0 += 64;
+            }
+            _rms_avx512 = _mm512_add_ps(_mm512_add_ps(_rms_avx512, _rms1), _mm512_add_ps(_rms2, _rms3));
+        }
         for (; i + 15 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr0);

@@ -217,6 +217,34 @@ static int test_rmsnorm_gpu_fp16a()
 }
 #endif // NCNN_VULKAN
 
+static int test_rmsnorm_simd_boundaries()
+{
+    // Exercise packed lengths around the 64-float block and every SIMD tail.
+    const int widths[] = {3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33};
+    for (int i = 0; i < (int)(sizeof(widths) / sizeof(widths[0])); i++)
+    {
+        const int w = widths[i];
+        for (int affine = 0; affine < 2; affine++)
+        {
+            if (test_rmsnorm(RandomMat(w, 16), w, 0.001f, affine))
+                return -1;
+        }
+    }
+
+    for (int w = 63; w <= 80; w++)
+    {
+        for (int affine = 0; affine < 2; affine++)
+        {
+            if (test_rmsnorm(RandomMat(w), w, 0.001f, affine)
+                || test_rmsnorm(RandomMat(w, 16), w, 0.001f, affine)
+                || test_rmsnorm(RandomMat(w + 64), w + 64, 0.001f, affine))
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -228,6 +256,7 @@ int main()
            || test_rmsnorm_3()
            || test_rmsnorm_4()
            || test_rmsnorm_5()
+           || test_rmsnorm_simd_boundaries()
 #if NCNN_VULKAN
            || test_rmsnorm_gpu_fp16a()
 #endif // NCNN_VULKAN
