@@ -10,11 +10,11 @@ static void pack_A_tile_fp32_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int
 
     const size_t A_hstep = A.dims == 3 ? A.cstep : (size_t)A.w;
 
-    const int A_elempack = A.elempack;
+    const int elempack = A.elempack;
 #if __riscv_vector
-    if (A_elempack != 1 && A_elempack != packn)
+    if (elempack != 1 && elempack != packn)
 #else
-    if (A_elempack != 1)
+    if (elempack != 1)
 #endif
     {
         float* pp = AT;
@@ -27,7 +27,7 @@ static void pack_A_tile_fp32_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int
                 for (int iii = 0; iii < packn; iii++)
                 {
                     const int row = i + ii + iii;
-                    pp[iii] = ((const float*)A)[(row / A_elempack * A_elempack) * A_hstep + (k + kk) * A_elempack + row % A_elempack];
+                    pp[iii] = ((const float*)A)[(row / elempack * elempack) * A_hstep + (k + kk) * elempack + row % elempack];
                 }
                 pp += packn;
             }
@@ -37,26 +37,26 @@ static void pack_A_tile_fp32_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int
         {
             const int row0 = i + ii;
             const int row1 = i + ii + 1;
-            const float* p0 = (const float*)A + (row0 / A_elempack * A_elempack) * A_hstep + k * A_elempack + row0 % A_elempack;
-            const float* p1 = (const float*)A + (row1 / A_elempack * A_elempack) * A_hstep + k * A_elempack + row1 % A_elempack;
+            const float* p0 = (const float*)A + (row0 / elempack * elempack) * A_hstep + k * elempack + row0 % elempack;
+            const float* p1 = (const float*)A + (row1 / elempack * elempack) * A_hstep + k * elempack + row1 % elempack;
             for (int kk = 0; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp[1] = p1[0];
                 pp += 2;
-                p0 += A_elempack;
-                p1 += A_elempack;
+                p0 += elempack;
+                p1 += elempack;
             }
         }
         for (; ii < max_ii; ii++)
         {
             const int row = i + ii;
-            const float* p0 = (const float*)A + (row / A_elempack * A_elempack) * A_hstep + k * A_elempack + row % A_elempack;
+            const float* p0 = (const float*)A + (row / elempack * elempack) * A_hstep + k * elempack + row % elempack;
             for (int kk = 0; kk < max_kk; kk++)
             {
                 pp[0] = p0[0];
                 pp++;
-                p0 += A_elempack;
+                p0 += elempack;
             }
         }
         return;
@@ -66,8 +66,6 @@ static void pack_A_tile_fp32_bf16s(const Mat& A, Mat& AT, int i, int max_ii, int
 
     int ii = 0;
 #if __riscv_vector
-    const int elempack = A.elempack;
-
     for (; ii + (packn - 1) < max_ii; ii += packn)
     {
         if (elempack == packn)
@@ -1767,24 +1765,21 @@ static void unpack_output_tile_bf16s(const Mat& topT, Mat& top_blob, int i, int 
         }
         for (; jj < max_jj; jj += 1)
         {
-            for (int jjj = 0; jjj < 1; jjj++)
+            const int out_i = output_transpose ? j + jj : i + ii;
+            const int out_j = output_transpose ? i + ii : j + jj;
+            const int out_i1 = output_transpose ? out_i : out_i + 1;
+            const int out_j1 = output_transpose ? out_j + 1 : out_j;
+            const size_t offset0 = (out_i / out_elempack * out_elempack) * out_hstep + out_i % out_elempack + out_j * out_elempack;
+            const size_t offset1 = (out_i1 / out_elempack * out_elempack) * out_hstep + out_i1 % out_elempack + out_j1 * out_elempack;
+            if (out_elembits == 16)
             {
-                const int out_i = output_transpose ? j + jj + jjj : i + ii;
-                const int out_j = output_transpose ? i + ii : j + jj + jjj;
-                const int out_i1 = output_transpose ? out_i : out_i + 1;
-                const int out_j1 = output_transpose ? out_j + 1 : out_j;
-                const size_t offset0 = (out_i / out_elempack * out_elempack) * out_hstep + out_i % out_elempack + out_j * out_elempack;
-                const size_t offset1 = (out_i1 / out_elempack * out_elempack) * out_hstep + out_i1 % out_elempack + out_j1 * out_elempack;
-                if (out_elembits == 16)
-                {
-                    ((unsigned short*)top_blob)[offset0] = float32_to_bfloat16(pp[jjj]);
-                    ((unsigned short*)top_blob)[offset1] = float32_to_bfloat16(pp[1 + jjj]);
-                }
-                else
-                {
-                    ((float*)top_blob)[offset0] = pp[jjj];
-                    ((float*)top_blob)[offset1] = pp[1 + jjj];
-                }
+                ((unsigned short*)top_blob)[offset0] = float32_to_bfloat16(pp[0]);
+                ((unsigned short*)top_blob)[offset1] = float32_to_bfloat16(pp[1]);
+            }
+            else
+            {
+                ((float*)top_blob)[offset0] = pp[0];
+                ((float*)top_blob)[offset1] = pp[1];
             }
             pp += 2;
         }
