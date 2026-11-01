@@ -12,57 +12,6 @@ static void pack_C_tile_fp32(const Mat& C, Mat& CT, int i, int max_ii, int j, in
     const size_t C_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
 
     const int elempack = C.elempack;
-#if __riscv_vector
-    if (elempack != 1 && elempack != packn)
-#else
-    if (elempack != 1)
-#endif
-    {
-        float* pp = CT;
-        int ii = 0;
-#if __riscv_vector
-        for (; ii + (packn - 1) < max_ii; ii += packn)
-        {
-            for (int jj = 0; jj < max_jj; jj++)
-            {
-                for (int iii = 0; iii < packn; iii++)
-                {
-                    const int row = i + ii + iii;
-                    pp[iii] = ((const float*)C)[(row / elempack * elempack) * C_hstep + (j + jj) * elempack + row % elempack];
-                }
-                pp += packn;
-            }
-        }
-#endif
-        for (; ii + 1 < max_ii; ii += 2)
-        {
-            const int row0 = i + ii;
-            const int row1 = i + ii + 1;
-            const float* p0 = (const float*)C + (row0 / elempack * elempack) * C_hstep + j * elempack + row0 % elempack;
-            const float* p1 = (const float*)C + (row1 / elempack * elempack) * C_hstep + j * elempack + row1 % elempack;
-            for (int jj = 0; jj < max_jj; jj++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp += 2;
-                p0 += elempack;
-                p1 += elempack;
-            }
-        }
-        for (; ii < max_ii; ii++)
-        {
-            const int row = i + ii;
-            const float* p0 = (const float*)C + (row / elempack * elempack) * C_hstep + j * elempack + row % elempack;
-            for (int jj = 0; jj < max_jj; jj++)
-            {
-                pp[0] = p0[0];
-                pp++;
-                p0 += elempack;
-            }
-        }
-        return;
-    }
-
     float* pp = CT;
 
     int ii = 0;
@@ -91,17 +40,32 @@ static void pack_C_tile_fp32(const Mat& C, Mat& CT, int i, int max_ii, int j, in
                 p0++;
             }
         }
+        if (elempack != 1 && elempack != packn)
+        {
+            for (int jj = 0; jj < max_jj; jj++)
+            {
+                for (int iii = 0; iii < packn; iii++)
+                {
+                    const int row = i + ii + iii;
+                    const float* p0 = (const float*)C + (row / elempack * elempack) * C_hstep + (j + jj) * elempack + row % elempack;
+                    pp[iii] = p0[0];
+                }
+                pp += packn;
+            }
+        }
     }
 #endif // __riscv_vector
     for (; ii + 1 < max_ii; ii += 2)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)C + (i + ii) * C_hstep + j;
-            const float* p1 = (const float*)C + (i + ii + 1) * C_hstep + j;
+        const int row0 = i + ii;
+        const int row1 = i + ii + 1;
+        const float* p0 = (const float*)C + (row0 / elempack * elempack) * C_hstep + j * elempack + row0 % elempack;
+        const float* p1 = (const float*)C + (row1 / elempack * elempack) * C_hstep + j * elempack + row1 % elempack;
 
-            int jj = 0;
+        int jj = 0;
 #if __riscv_vector
+        if (elempack == 1)
+        {
             for (; jj + (packn - 1) < max_jj; jj += packn)
             {
                 vfloat32m2_t v0 = __riscv_vle32_v_f32m2(p0, vl);
@@ -111,38 +75,39 @@ static void pack_C_tile_fp32(const Mat& C, Mat& CT, int i, int max_ii, int j, in
                 p0 += packn;
                 p1 += packn;
             }
+        }
 #endif // __riscv_vector
-            for (; jj < max_jj; jj++)
-            {
-                pp[0] = p0[0];
-                pp[1] = p1[0];
-                pp += 2;
-                p0++;
-                p1++;
-            }
+        for (; jj < max_jj; jj++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp += 2;
+            p0 += elempack;
+            p1 += elempack;
         }
     }
     for (; ii < max_ii; ii += 1)
     {
-        // if (elempack == 1)
-        {
-            const float* p0 = (const float*)C + (i + ii) * C_hstep + j;
+        const int row = i + ii;
+        const float* p0 = (const float*)C + (row / elempack * elempack) * C_hstep + j * elempack + row % elempack;
 
-            int jj = 0;
+        int jj = 0;
 #if __riscv_vector
+        if (elempack == 1)
+        {
             for (; jj + (packn - 1) < max_jj; jj += packn)
             {
                 __riscv_vse32_v_f32m2(pp, __riscv_vle32_v_f32m2(p0, vl), vl);
                 pp += packn;
                 p0 += packn;
             }
+        }
 #endif // __riscv_vector
-            for (; jj < max_jj; jj++)
-            {
-                pp[0] = p0[0];
-                pp += 1;
-                p0++;
-            }
+        for (; jj < max_jj; jj++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0 += elempack;
         }
     }
 }
