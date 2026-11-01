@@ -6,14 +6,26 @@
 
 #include <__config>
 
+#ifdef __has_include
+#if __has_include(<__availability>)
+#include <__availability>
+#endif
+#endif
+
 // use libc++ header fallbacks, including local stream instantiations,
 // to avoid runtime symbols unavailable in older NDKs
 // these are private libc++ macros; recheck them when updating the NDK/libc++
-#if _LIBCPP_VERSION >= 210000 && _LIBCPP_VERSION < 220000
+#ifdef _LIBCPP_AVAILABILITY_HAS_VERBOSE_ABORT
 #undef _LIBCPP_AVAILABILITY_HAS_VERBOSE_ABORT
 #define _LIBCPP_AVAILABILITY_HAS_VERBOSE_ABORT 0
+#endif
+
+#ifdef _LIBCPP_AVAILABILITY_HAS_HASH_MEMORY
 #undef _LIBCPP_AVAILABILITY_HAS_HASH_MEMORY
 #define _LIBCPP_AVAILABILITY_HAS_HASH_MEMORY 0
+#endif
+
+#ifdef _LIBCPP_AVAILABILITY_HAS_ADDITIONAL_IOSTREAM_EXPLICIT_INSTANTIATIONS_1
 #undef _LIBCPP_AVAILABILITY_HAS_ADDITIONAL_IOSTREAM_EXPLICIT_INSTANTIATIONS_1
 #define _LIBCPP_AVAILABILITY_HAS_ADDITIONAL_IOSTREAM_EXPLICIT_INSTANTIATIONS_1 0
 #endif
