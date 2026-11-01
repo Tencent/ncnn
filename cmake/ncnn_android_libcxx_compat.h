@@ -6,9 +6,9 @@
 
 #include <__config>
 
-// NDK r30's libc++ headers otherwise require runtime symbols unavailable in
-// older NDKs. Use their header fallbacks, including local stream instantiations.
-// These are private libc++ macros; recheck them when updating the NDK/libc++.
+// use libc++ header fallbacks, including local stream instantiations,
+// to avoid runtime symbols unavailable in older NDKs
+// these are private libc++ macros; recheck them when updating the NDK/libc++
 #if _LIBCPP_VERSION >= 210000 && _LIBCPP_VERSION < 220000
 #undef _LIBCPP_AVAILABILITY_HAS_VERBOSE_ABORT
 #define _LIBCPP_AVAILABILITY_HAS_VERBOSE_ABORT 0
