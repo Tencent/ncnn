@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "cpu.h"
-#include "layer.h"
 #include "mat.h"
-#include "x86_activation.h"
-#include "x86_usability.h"
+#include "sse_mathfun.h"
+#include "avx_mathfun.h"
 
 namespace ncnn {
 
 #include "glu_fp32.h"
 
-int glu_fp32_avx2(const Mat& input, Mat& output, int axis, const Option& opt)
+void glu_avx2(const float* input, const float* gate, float* output, int size)
 {
-    return glu_fp32(input, output, axis, opt);
+    glu(input, gate, output, size);
+}
+
+void glu_pack_avx2(const float* input, const float* gate, float* output, int size, int elempack, int out_elempack)
+{
+    glu_pack(input, gate, output, size, elempack, out_elempack);
 }
 
 } // namespace ncnn
