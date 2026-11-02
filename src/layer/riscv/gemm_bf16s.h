@@ -150,7 +150,12 @@ static void transpose_pack_A_tile_fp32_to_bf16(const Mat& A, Mat& AT, int i, int
     }
 }
 
-static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+#if __riscv_vector && __riscv_xtheadvector
+// FIXME keep out of line to avoid c906/c910 constant-b regressions
+__attribute__((noinline))
+#endif
+static void
+pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin && !__riscv_zvfbfwma && !__riscv_xtheadvector
     if (cpu_support_riscv_zvfbfmin())
@@ -234,7 +239,12 @@ static void pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, i
     }
 }
 
-static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
+#if __riscv_vector && __riscv_xtheadvector
+// FIXME keep out of line to avoid c906/c910 constant-b regressions
+__attribute__((noinline))
+#endif
+static void
+transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int max_jj, int k, int max_kk)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin && !__riscv_zvfbfwma && !__riscv_xtheadvector
     if (cpu_support_riscv_zvfbfmin())
