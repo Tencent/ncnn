@@ -236,8 +236,8 @@ static int test_rmsnorm_simd_boundaries()
         for (int affine = 0; affine < 2; affine++)
         {
             if (test_rmsnorm(RandomMat(w), w, 0.001f, affine)
-                || test_rmsnorm(RandomMat(w, 16), w, 0.001f, affine)
-                || test_rmsnorm(RandomMat(w + 64), w + 64, 0.001f, affine))
+                    || test_rmsnorm(RandomMat(w, 16), w, 0.001f, affine)
+                    || test_rmsnorm(RandomMat(w + 64), w + 64, 0.001f, affine))
                 return -1;
         }
     }
