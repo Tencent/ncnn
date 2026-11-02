@@ -95,7 +95,7 @@ static int conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     }
     else
     {
-        Bpack.create(K * N, (size_t)4u);
+        Bpack.create(K * N, (size_t)4u, opt.workspace_allocator);
         if (Bpack.empty())
             return -100;
 
@@ -162,7 +162,7 @@ static int conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& _
     }
     else
     {
-        Mat top_pack1(top_blob.w, top_blob.h, M, (size_t)4u);
+        Mat top_pack1(top_blob.w, top_blob.h, M, (size_t)4u, opt.workspace_allocator);
         if (top_pack1.empty())
             return -100;
 

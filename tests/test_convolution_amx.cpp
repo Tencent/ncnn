@@ -50,12 +50,16 @@ static const int amx_channels[][3] = {
     {64, 64, 1},
 };
 // exact 16 wide pixel tiles first, then the spatial remainders
+// the 32 wide fp16 tiles read the tail backwards from N - 32, so widths just past a
+// multiple of 32 (49 and 65) hand an overlapping tile pair to two workers
 static const int amx_shapes[][2] = {
     {4, 4},
     {16, 16},
     {9, 7},
     {18, 17},
     {25, 33},
+    {7, 7},
+    {13, 5},
 };
 
 static int test_convolution_apple_amx_fp32()
@@ -78,7 +82,7 @@ static int test_convolution_apple_amx_fp32()
 
             for (int i = 0; i < 6; i++)
             {
-                for (int j = 0; j < 5; j++)
+                for (int j = 0; j < 7; j++)
                 {
                     if (test_convolution_impl(amx_shapes[j][0], amx_shapes[j][1], amx_channels[i][0], amx_channels[i][1], 1, 1, 1, 1, amx_channels[i][2], 0, &opt, threading ? TEST_LAYER_ENABLE_THREADING : 0) != 0)
                         return -1;
@@ -145,7 +149,7 @@ static int test_convolution_apple_amx_fp16()
 
             for (int i = 0; i < 4; i++)
             {
-                for (int j = 0; j < 5; j++)
+                for (int j = 0; j < 7; j++)
                 {
                     if (test_convolution_impl(amx_shapes[j][0], amx_shapes[j][1], channels[i][0], channels[i][1], 1, 1, 1, 1, channels[i][2], 0, &opt, threading ? TEST_LAYER_ENABLE_THREADING : 0) != 0)
                         return -1;

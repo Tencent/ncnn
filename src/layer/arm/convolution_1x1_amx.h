@@ -139,7 +139,7 @@ static void conv1x1s1_apple_amx_pack_f32(const Mat& bottom_blob, Mat& Bpack, int
 {
     const int elempack = bottom_blob.elempack;
 
-    Bpack.create(K * N, (size_t)4u);
+    Bpack.create(K * N, (size_t)4u, opt.workspace_allocator);
     if (Bpack.empty())
         return;
 
@@ -206,7 +206,7 @@ static int conv1x1s1_apple_amx(const Mat& bottom_blob, Mat& top_blob, const Mat&
     const int ntail = N % 16;
     if (ntail)
     {
-        Btail.create(16 * K, (size_t)4u);
+        Btail.create(16 * K, (size_t)4u, opt.workspace_allocator);
         if (Btail.empty())
             return -100;
 
@@ -340,7 +340,7 @@ static void conv1x1s1_apple_amx_pack_f16(const Mat& bottom_blob, Mat& Bpack, int
 {
     const int elempack = bottom_blob.elempack;
 
-    Bpack.create(K * N, (size_t)2u);
+    Bpack.create(K * N, (size_t)2u, opt.workspace_allocator);
     if (Bpack.empty())
         return;
 
@@ -450,6 +450,10 @@ static int conv1x1s1_apple_amx_fp16(const Mat& bottom_blob, Mat& top_blob, const
             const int m0 = mi * 32;
             // the last tile overlaps backwards so that the x operand never reads past N
             const int n0 = ni * 32 + 32 <= N ? ni * 32 : N - 32;
+            // pixels below nkeep belong to the previous tile, storing them here would
+            // let two workers write the same output element
+            const int nkeep = ni * 32;
+            const int d = nkeep - n0;
 
             float zt[64 * 16] __attribute__((aligned(64)));
             __fp16 t16[32 * 32] __attribute__((aligned(64)));
@@ -457,7 +461,29 @@ static int conv1x1s1_apple_amx_fp16(const Mat& bottom_blob, Mat& top_blob, const
             // the first k skips the z input, so the tile needs no zeroing from set
             conv1x1s1_apple_amx_tile_f16(A, lda, B, ldb, m0, n0, K, zt);
 
-            if (out_elempack == 1)
+            if (d)
+            {
+                for (int j = 0; j < 32; j++)
+                {
+                    const float b = (bias && m0 + j < M) ? bias[m0 + j] : 0.f;
+                    conv1x1s1_apple_amx_store_row_f16(zt + j * 2 * 16, zt + (j * 2 + 1) * 16, b, t16 + j * 32);
+                }
+
+                for (int j = 0; j < 32; j++)
+                {
+                    const int m = m0 + j;
+                    if (m >= M)
+                        break;
+
+                    __fp16* dst = outptr + (size_t)(m / out_elempack) * out_cstep + (size_t)nkeep * out_elempack + (m % out_elempack);
+
+                    for (int c = d; c < 32; c++)
+                    {
+                        dst[(size_t)(c - d) * out_elempack] = t16[j * 32 + c];
+                    }
+                }
+            }
+            else if (out_elempack == 1)
             {
                 for (int j = 0; j < 32; j++)
                 {
@@ -677,7 +703,7 @@ static void conv1x1s1_apple_amx_pack_int8(const Mat& bottom_blob, Mat& Bpack, in
 {
     const int elempack = bottom_blob.elempack;
 
-    Bpack.create((size_t)K * N + slack, (size_t)1u);
+    Bpack.create((size_t)K * N + slack, (size_t)1u, opt.workspace_allocator);
     if (Bpack.empty())
         return;
 
@@ -792,6 +818,10 @@ static int conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const
         const int m0 = mi * 16;
         // the last tile overlaps backwards so that the x operand never reads past N
         const int n0 = ni * 64 + 64 <= N ? ni * 64 : N - 64;
+        // columns below nkeep are owned by the previous tile, storing them here would let
+        // two workers write the same output element
+        const int nkeep = ni * 64;
+        const int d = nkeep - n0;
 
         int zt[64 * 16] __attribute__((aligned(64)));
         signed char t8[16 * 64] __attribute__((aligned(64)));
@@ -806,9 +836,9 @@ static int conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const
         {
             for (int m = 0; m < mlast; m++)
             {
-                signed char* dst = outptr + (size_t)(m0 + m) * out_cstep + n0;
+                signed char* dst = outptr + (size_t)(m0 + m) * out_cstep + nkeep;
 
-                memcpy(dst, t8 + m * 64, 64);
+                memcpy(dst, t8 + m * 64 + d, 64 - d);
             }
         }
         else
@@ -816,11 +846,29 @@ static int conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const
             // transpose 8 output channels at a time into the packed pixel layout
             for (int g = 0; g < mlast / 8; g++)
             {
-                signed char* dstc = outptr + (size_t)((m0 + g * 8) / 8) * out_cstep + (size_t)n0 * 8;
+                signed char* dstc = outptr + (size_t)((m0 + g * 8) / 8) * out_cstep + (size_t)nkeep * 8;
 
                 for (int nb = 0; nb < 8; nb++)
                 {
-                    conv1x1s1_apple_amx_transpose8x8_i8(t8 + (g * 8) * 64 + nb * 8, 64, dstc + nb * 8 * 8, 8);
+                    const int c0 = n0 + nb * 8;
+                    if (c0 + 8 <= nkeep)
+                        continue;
+
+                    if (c0 >= nkeep)
+                    {
+                        conv1x1s1_apple_amx_transpose8x8_i8(t8 + (g * 8) * 64 + nb * 8, 64, dstc + (size_t)(c0 - nkeep) * 8, 8);
+                    }
+                    else
+                    {
+                        // the tile boundary cuts this block, store its tail only
+                        for (int j = nkeep - c0; j < 8; j++)
+                        {
+                            for (int i = 0; i < 8; i++)
+                            {
+                                dstc[(size_t)(c0 + j - nkeep) * 8 + i] = t8[(g * 8 + i) * 64 + nb * 8 + j];
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -853,9 +901,12 @@ static int convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const M
     const float* bias_data = _bias_data.empty() ? 0 : (const float*)_bias_data;
     const float scale_out = _scale_out_data.empty() ? 1.f : ((const float*)_scale_out_data)[0];
 
-    // the shifted x operand of the last tap reads a few bytes past the plane
+    // the last tap shifts the x operand by kernel_w - 1 bytes past the end of the plane and
+    // reads a whole 64 byte operand from there, so the slack has to follow the kernel width.
+    // those bytes only cover the dropped row tail columns, zero or foreign data is never stored
+    const int bslack = kernel_w > 64 ? kernel_w : 64;
     Mat Bpack;
-    conv1x1s1_apple_amx_pack_int8(bottom_blob, Bpack, channels, Np, 64, opt);
+    conv1x1s1_apple_amx_pack_int8(bottom_blob, Bpack, channels, Np, bslack, opt);
     if (Bpack.empty())
         return -100;
 
@@ -877,6 +928,9 @@ static int convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const M
         const int m0 = mi * 16;
         // the last tile overlaps backwards so that the x operand never reads past the padded plane
         const int n0 = ni * 64 + 64 <= Ntotal ? ni * 64 : Ntotal - 64;
+        // padded columns below nkeep were already computed by the previous tile, storing
+        // them again would let two workers write the same output pixel
+        const int nkeep = ni * 64;
 
         int zt[64 * 16] __attribute__((aligned(64)));
         signed char t8[16 * 64] __attribute__((aligned(64)));
@@ -891,10 +945,13 @@ static int convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const M
         for (int nb = 0; nb < 8; nb++)
         {
             const int c0 = n0 + nb * 8;
+            if (c0 + 8 <= nkeep)
+                continue;
+
             const int oy = c0 / bw;
             const int ox = c0 % bw;
 
-            if (ox + 8 <= outw)
+            if (ox + 8 <= outw && c0 >= nkeep)
             {
                 const size_t outbase = (size_t)oy * outw + ox;
 
@@ -922,6 +979,9 @@ static int convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const M
                 for (int j = 0; j < 8; j++)
                 {
                     const int c = c0 + j;
+                    if (c < nkeep)
+                        continue;
+
                     const int cy = c / bw;
                     const int cx = c % bw;
                     if (cx >= outw)
