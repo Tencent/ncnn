@@ -67,7 +67,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
             _rms_avx512 = _mm512_fmadd_ps(_p, _p, _rms_avx512);
             ptr0 += 16;
         }
-#else // __AVX512F__
+#else  // __AVX512F__
         __m256 _rms1 = _mm256_setzero_ps();
         __m256 _rms2 = _mm256_setzero_ps();
         __m256 _rms3 = _mm256_setzero_ps();
@@ -91,7 +91,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
             _rms_avx = _mm256_comp_fmadd_ps(_p, _p, _rms_avx);
             ptr0 += 8;
         }
-#else // __AVX__
+#else  // __AVX__
         __m128 _rms1 = _mm_setzero_ps();
         __m128 _rms2 = _mm_setzero_ps();
         __m128 _rms3 = _mm_setzero_ps();
@@ -115,7 +115,7 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
             _rms = _mm_comp_fmadd_ps(_p, _p, _rms);
             ptr0 += 4;
         }
-#else // __SSE2__
+#else  // __SSE2__
         float rms1 = 0.f;
         for (; i + 1 < size; i += 2)
         {
