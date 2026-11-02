@@ -2785,7 +2785,9 @@ int cpu_support_arm_sme2()
 #if defined _WIN32
     return 0;
 #elif defined __ANDROID__ || defined __linux__
-    return g_hwcaps2 & HWCAP2_SME2;
+    // HWCAP2_SME2 is bit 37, so the masked value must be compared rather than
+    // narrowed to the int return type
+    return (g_hwcaps2 & HWCAP2_SME2) != 0;
 #elif __APPLE__
     return g_hw_optional_arm_FEAT_SME2;
 #else

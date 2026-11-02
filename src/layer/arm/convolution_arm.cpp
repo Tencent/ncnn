@@ -69,7 +69,7 @@ namespace ncnn {
 #endif // __ARM_NEON
 
 #if NCNN_ARM_SME
-static void conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _bias, const Option& opt)
+static int conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _bias, const Option& opt)
 {
     const int N = (int)top_blob.w * top_blob.h;
 
@@ -97,7 +97,7 @@ static void conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& 
     {
         Bpack.create(K * N, (size_t)4u);
         if (Bpack.empty())
-            return;
+            return -100;
 
         float* bp = Bpack;
 
@@ -164,7 +164,7 @@ static void conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& 
     {
         Mat top_pack1(top_blob.w, top_blob.h, M, (size_t)4u);
         if (top_pack1.empty())
-            return;
+            return -100;
 
         const size_t out_cstep = top_pack1.cstep;
 
@@ -179,6 +179,8 @@ static void conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& 
 
         convert_packing(top_pack1, top_blob, out_elempack, opt);
     }
+
+    return 0;
 }
 #endif // NCNN_ARM_SME
 
@@ -712,7 +714,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     // path is kept as the fallback for apple silicon without sme (m1..m3)
     if (opt.use_arm_sme && cpu_support_arm_sme_f32f32() && !weight_data_amx.empty() && num_input >= 16 && num_output >= 16 && outw * outh >= 16)
     {
-        conv1x1s1_arm_sme(bottom_blob_bordered, top_blob, weight_data_amx, bias_data, opt);
+        int ret = conv1x1s1_arm_sme(bottom_blob_bordered, top_blob, weight_data_amx, bias_data, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -725,7 +729,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #if defined __APPLE__ && __aarch64__
     if (opt.use_apple_amx && cpu_support_apple_amx() && !weight_data_amx.empty() && num_input >= 16 && num_output >= 16 && outw * outh >= 16)
     {
-        conv1x1s1_apple_amx(bottom_blob_bordered, top_blob, weight_data_amx, bias_data, opt);
+        int ret = conv1x1s1_apple_amx(bottom_blob_bordered, top_blob, weight_data_amx, bias_data, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
         {
@@ -1453,8 +1459,10 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     // amx wins over the native i8mm path only when k is long enough to amortize the repack and the requant epilogue
     // shorter reductions measured below the native path, 128 for 1x1 and 144 for 3x3 with 16 channels
     // the kxk path packs the input plane once and shifts it by the kernel offset, so k rows are channel major and kernel offset minor
+    // forward_int8_arm() enters amx only when the output is requantized, so an int8 layer
+    // with floating point output would carry a repacked copy it can never read
     const int amx_K = num_input * maxk;
-    if (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && opt.use_apple_amx && cpu_support_apple_amx() && amx_K >= 256 && num_output >= 16)
+    if (int8_scale_term > 100 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && opt.use_apple_amx && cpu_support_apple_amx() && amx_K >= 256 && num_output >= 16)
     {
         const int Mblk = (num_output + 15) / 16;
 
@@ -1640,14 +1648,17 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         if (top_blob.empty())
             return -100;
 
+        int ret;
         if (kernel_w == 1 && kernel_h == 1)
         {
-            conv1x1s1_apple_amx_int8(bottom_blob_bordered, top_blob, weight_data_amx_int8, scale_in_data, bias_data, top_blob_int8_scales, activation_type, activation_params, opt);
+            ret = conv1x1s1_apple_amx_int8(bottom_blob_bordered, top_blob, weight_data_amx_int8, scale_in_data, bias_data, top_blob_int8_scales, activation_type, activation_params, opt);
         }
         else
         {
-            convks1_apple_amx_int8(bottom_blob_bordered, top_blob, weight_data_amx_int8, scale_in_data, bias_data, top_blob_int8_scales, kernel_w, kernel_h, activation_type, activation_params, opt);
+            ret = convks1_apple_amx_int8(bottom_blob_bordered, top_blob, weight_data_amx_int8, scale_in_data, bias_data, top_blob_int8_scales, kernel_w, kernel_h, activation_type, activation_params, opt);
         }
+        if (ret != 0)
+            return ret;
 
         return 0;
     }

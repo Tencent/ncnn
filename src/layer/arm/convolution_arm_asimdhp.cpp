@@ -284,7 +284,9 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
 #if defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (!weight_data_amx_fp16.empty() && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_output >= 16 && outw * outh >= 32)
     {
-        conv1x1s1_apple_amx_fp16(bottom_blob_bordered, top_blob, weight_data_amx_fp16, bias_data, opt);
+        int ret = conv1x1s1_apple_amx_fp16(bottom_blob_bordered, top_blob, weight_data_amx_fp16, bias_data, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
             activation->forward_inplace(top_blob, opt);
@@ -359,7 +361,9 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 #if defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (!weight_data_amx_fp16.empty() && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_output >= 16 && outw * outh >= 32)
     {
-        conv1x1s1_apple_amx_fp16(bottom_blob_bordered, top_blob, weight_data_amx_fp16, bias_data, opt);
+        int ret = conv1x1s1_apple_amx_fp16(bottom_blob_bordered, top_blob, weight_data_amx_fp16, bias_data, opt);
+        if (ret != 0)
+            return ret;
 
         if (activation)
             activation->forward_inplace(top_blob, opt);

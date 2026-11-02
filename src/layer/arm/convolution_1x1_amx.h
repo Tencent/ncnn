@@ -163,7 +163,7 @@ static void conv1x1s1_apple_amx_pack_f32(const Mat& bottom_blob, Mat& Bpack, int
     }
 }
 
-static void conv1x1s1_apple_amx(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _bias, const Option& opt)
+static int conv1x1s1_apple_amx(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _bias, const Option& opt)
 {
     const int N = (int)top_blob.w * top_blob.h;
 
@@ -191,7 +191,7 @@ static void conv1x1s1_apple_amx(const Mat& bottom_blob, Mat& top_blob, const Mat
     {
         conv1x1s1_apple_amx_pack_f32(bottom_blob, Bpack, K, N, opt);
         if (Bpack.empty())
-            return;
+            return -100;
 
         B = Bpack;
         ldb = N;
@@ -208,7 +208,7 @@ static void conv1x1s1_apple_amx(const Mat& bottom_blob, Mat& top_blob, const Mat
     {
         Btail.create(16 * K, (size_t)4u);
         if (Btail.empty())
-            return;
+            return -100;
 
         Btail.fill(0.f);
         float* bt = Btail;
@@ -229,6 +229,8 @@ static void conv1x1s1_apple_amx(const Mat& bottom_blob, Mat& top_blob, const Mat
     }
 
     conv1x1s1_apple_amx_gemm_f32(A, lda, B, ldb, Bt, (float*)top_blob, out_cstep, M, N, K, bias, out_elempack, opt);
+
+    return 0;
 }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -387,7 +389,7 @@ static void conv1x1s1_apple_amx_pack_f16(const Mat& bottom_blob, Mat& Bpack, int
     }
 }
 
-static void conv1x1s1_apple_amx_fp16(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_fp16, const Mat& _bias, const Option& opt)
+static int conv1x1s1_apple_amx_fp16(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_fp16, const Mat& _bias, const Option& opt)
 {
     const int N = (int)top_blob.w * top_blob.h;
 
@@ -418,7 +420,7 @@ static void conv1x1s1_apple_amx_fp16(const Mat& bottom_blob, Mat& top_blob, cons
     {
         conv1x1s1_apple_amx_pack_f16(bottom_blob, Bpack, K, N, opt);
         if (Bpack.empty())
-            return;
+            return -100;
 
         B = (const __fp16*)Bpack;
         ldb = N;
@@ -514,6 +516,8 @@ static void conv1x1s1_apple_amx_fp16(const Mat& bottom_blob, Mat& top_blob, cons
 
         NCNN_AMX_CLR();
     }
+
+    return 0;
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
@@ -738,7 +742,7 @@ static inline void conv1x1s1_apple_amx_requant_tile_int8(const int* zt, int mlas
     }
 }
 
-static void conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _scale_in_data, const Mat& _bias_data, const Mat& _scale_out_data, int activation_type, const Mat& activation_params, const Option& opt)
+static int conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _scale_in_data, const Mat& _bias_data, const Mat& _scale_out_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int N = (int)top_blob.w * top_blob.h;
     const int out_elempack = top_blob.elempack;
@@ -766,7 +770,7 @@ static void conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, cons
     {
         conv1x1s1_apple_amx_pack_int8(bottom_blob, Bpack, K, N, 0, opt);
         if (Bpack.empty())
-            return;
+            return -100;
 
         B = (const signed char*)Bpack;
         ldb = N;
@@ -821,12 +825,14 @@ static void conv1x1s1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, cons
             }
         }
     }
+
+    return 0;
 }
 
 // kxk stride1 int8 convolution through the same matint kernel
 // the input is packed once as channels x (bh * bw) and every tap is a byte shift, so no im2col buffer is materialized
 // the epilogue maps the padded column layout back to the real output rows while it writes
-static void convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _scale_in_data, const Mat& _bias_data, const Mat& _scale_out_data, int kernel_w, int kernel_h, int activation_type, const Mat& activation_params, const Option& opt)
+static int convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _scale_in_data, const Mat& _bias_data, const Mat& _scale_out_data, int kernel_w, int kernel_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int outw = (int)top_blob.w;
     const int outh = (int)top_blob.h;
@@ -851,7 +857,7 @@ static void convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const 
     Mat Bpack;
     conv1x1s1_apple_amx_pack_int8(bottom_blob, Bpack, channels, Np, 64, opt);
     if (Bpack.empty())
-        return;
+        return -100;
 
     const signed char* B = (const signed char*)Bpack;
 
@@ -946,6 +952,8 @@ static void convks1_apple_amx_int8(const Mat& bottom_blob, Mat& top_blob, const 
             }
         }
     }
+
+    return 0;
 }
 
 #endif // defined __APPLE__ && __aarch64__

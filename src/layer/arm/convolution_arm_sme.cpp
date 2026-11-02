@@ -5,66 +5,29 @@
 // C[num_output][pixels] = weight[num_output][num_input] * bottom[num_input][pixels]
 //
 // this translation unit is the only one built with sme enabled
-// streaming mode is entered and left here so callers keep the plain aapcs64 abi
-// a caller compiled with sme enabled would emit cntd in its own prologue and trap
-// on hardware that has no non-streaming sve
+// both kernels run in streaming mode and are entered with pstate.sm and pstate.za already set
 //
-// apple silicon has sme but no non-streaming sve, so the compiler must not
-// allocate any vector sized stack object in this file.  The prologue of a
-// streaming function would then read the vector length with cntd or addvl, both
-// of which are undefined without non-streaming sve.  Both epilogues keep their
-// four za rows in registers and store them with one instruction, so neither
-// entry needs a frame sized by the vector length.  The channel packed epilogue
-// uses st4, which is an sme2 instruction that runs in streaming mode, so this
-// entry is compiled for sme2 and only called on cpus that report sme2.
+// they must keep the attributes they are compiled with out of the files that call them: a
+// caller that can see them books the vector length sized register state in its own prologue
+// with cntd or rdsvl, and apple silicon implements no non-streaming sve, so the transition
+// never happens and the call traps. convolution_arm_sme.h enters streaming mode in plain asm
+// around an attribute free declaration and saves the registers the kernel is allowed to discard
+//
+// the channel packed kernel uses st4, an sme2 instruction that runs in streaming mode, so only
+// it is compiled for sme2 and its entry is called on cpus that report sme2.
 
 #if __ARM_FEATURE_SME
 
 #include <arm_sme.h>
 #include <stddef.h>
 
-// streaming mode remaps v8-v15, the fpsimd callee-saved registers, onto the za storage
-// the kernels are declared without the streaming attribute, so no caller saves them
-// around the sm transition. each entry point brackets its own transition with these
-// two helpers to keep the plain aapcs64 contract it promises its callers.
-struct alignas(16) ncnn_sme_fpsimd_state
-{
-    unsigned long long v[16];
-};
-
-static __attribute__((always_inline)) void ncnn_sme_save_fpsimd(ncnn_sme_fpsimd_state& s) __arm_preserves("za") __arm_streaming
-{
-    void* p = &s;
-    __asm__ volatile(
-        "stp q8, q9, [%[p]]\n"
-        "stp q10, q11, [%[p], #32]\n"
-        "stp q12, q13, [%[p], #64]\n"
-        "stp q14, q15, [%[p], #96]\n"
-        :
-        : [p] "r"(p)
-        : "memory");
-}
-
-static __attribute__((always_inline)) void ncnn_sme_restore_fpsimd(ncnn_sme_fpsimd_state& s) __arm_preserves("za") __arm_streaming
-{
-    void* p = &s;
-    __asm__ volatile(
-        "ldp q8, q9, [%[p]]\n"
-        "ldp q10, q11, [%[p], #32]\n"
-        "ldp q12, q13, [%[p], #64]\n"
-        "ldp q14, q15, [%[p], #96]\n"
-        :
-        : [p] "r"(p)
-        : "memory");
-}
-
 // za provides four tiles of svcntw() rows by svcntw() columns of f32
 #define NCNN_SME_M_TILES 4
 
 // write the rows of za tile T as output channels of the channel major fp32 layout
 // inactive rows are skipped, inactive columns are masked by pg_n
-// always_inline keeps these out of line streaming calls from pulling cntd into
-// the prologue of the caller, which runs before streaming mode is entered
+// the kernel keeps the four tiles in za between the two calls, so neither one
+// has to read the tile back from memory
 template <int T>
 static __attribute__((always_inline)) void ncnn_sme_store_plain(const float* bias, float* outptr, size_t out_cstep, int m0, int svl, int m_end, int n0, svbool_t pg_n) __arm_preserves("za") __arm_streaming
 {
@@ -160,7 +123,8 @@ static __attribute__((always_inline)) void ncnn_sme_mma_tile(const float* A, int
 
 // C[m_begin, m_end) = A[K][M]^T * B[K][N] over the channel major fp32 layout
 // out_cstep = N
-static __attribute__((always_inline)) void ncnn_sme_conv1x1s1(const float* A, int lda, const float* B, int ldb, float* outptr, size_t out_cstep, int m_begin, int m_end, int N, int K, const float* bias) __arm_preserves("za") __arm_streaming
+// entered in streaming mode with za enabled, see ncnn_sme_streaming_guard in the header
+extern "C" __arm_new("za") void ncnn_sme_conv1x1s1_f32(const float* A, int lda, const float* B, int ldb, float* outptr, size_t out_cstep, int m_begin, int m_end, int N, int K, const float* bias) __arm_streaming
 {
     const int svl = (int)svcntw();
     const int mb = svl * NCNN_SME_M_TILES;
@@ -183,7 +147,7 @@ static __attribute__((always_inline)) void ncnn_sme_conv1x1s1(const float* A, in
 
 // same kernel over the 4 channel packed fp32 layout, out_cstep = N * 4
 // split from the plain entry so that only this one is compiled for sme2
-static __attribute__((target("sme,sme2"), always_inline)) void ncnn_sme_conv1x1s1_pack4(const float* A, int lda, const float* B, int ldb, float* outptr, size_t out_cstep, int m_begin, int m_end, int N, int K, const float* bias) __arm_preserves("za") __arm_streaming
+extern "C" __attribute__((target("sme,sme2"))) __arm_new("za") void ncnn_sme_conv1x1s1_pack4_f32(const float* A, int lda, const float* B, int ldb, float* outptr, size_t out_cstep, int m_begin, int m_end, int N, int K, const float* bias) __arm_streaming
 {
     const int svl = (int)svcntw();
     const int mb = svl * NCNN_SME_M_TILES;
@@ -200,36 +164,6 @@ static __attribute__((target("sme,sme2"), always_inline)) void ncnn_sme_conv1x1s
             ncnn_sme_store_pack4<3>(bias, outptr, out_cstep, m0, svl, m_end, N, n0);
         }
     }
-}
-
-// channel major output, safe on any sme capable cpu
-extern "C" __arm_new("za") void ncnn_conv1x1s1_sme_f32(const float* A, int lda, const float* B, int ldb, float* outptr, size_t out_cstep, int m_begin, int m_end, int N, int K, const float* bias) __arm_streaming
-{
-    ncnn_sme_fpsimd_state fpsimd;
-    ncnn_sme_save_fpsimd(fpsimd);
-
-    __asm__ __volatile__("smstart sm" ::: "memory");
-
-    ncnn_sme_conv1x1s1(A, lda, B, ldb, outptr, out_cstep, m_begin, m_end, N, K, bias);
-
-    __asm__ __volatile__("smstop sm" ::: "memory");
-
-    ncnn_sme_restore_fpsimd(fpsimd);
-}
-
-// 4 channel packed output, requires sme2 for the st4 epilogue
-extern "C" __attribute__((target("sme,sme2"))) __arm_new("za") void ncnn_conv1x1s1_sme_pack4_f32(const float* A, int lda, const float* B, int ldb, float* outptr, size_t out_cstep, int m_begin, int m_end, int N, int K, const float* bias) __arm_streaming
-{
-    ncnn_sme_fpsimd_state fpsimd;
-    ncnn_sme_save_fpsimd(fpsimd);
-
-    __asm__ __volatile__("smstart sm" ::: "memory");
-
-    ncnn_sme_conv1x1s1_pack4(A, lda, B, ldb, outptr, out_cstep, m_begin, m_end, N, K, bias);
-
-    __asm__ __volatile__("smstop sm" ::: "memory");
-
-    ncnn_sme_restore_fpsimd(fpsimd);
 }
 
 #endif // __ARM_FEATURE_SME
