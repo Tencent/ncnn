@@ -40,7 +40,7 @@ int Threshold_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 #endif
 
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
     }
