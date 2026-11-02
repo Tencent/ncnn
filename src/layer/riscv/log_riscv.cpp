@@ -43,7 +43,7 @@ int Log_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif
 
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_inplace_fp16sa(bottom_top_blob, opt);
