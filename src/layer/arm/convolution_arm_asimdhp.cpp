@@ -14,6 +14,10 @@
 
 namespace ncnn {
 
+#if defined __APPLE__ && __aarch64__
+#include "convolution_1x1_amx.h"
+#endif
+
 #if __ARM_NEON
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "convolution_packed_fp16s.h"
@@ -74,6 +78,39 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
+
+#if defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    // transposed fp16 weight for the apple amx fma16 tile, output channels padded to 32
+    // the tile computes a full 32 output channel block, so num_output <= 16 wastes half the rows and loses
+    // a short reduction cannot amortize the input repack and the packed output transpose, 16 channel expand1x1 measured slower
+    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && opt.use_apple_amx && cpu_support_apple_amx() && num_output > 16 && num_input >= 64)
+    {
+        const int Mpad = (num_output + 31) / 32 * 32;
+
+        weight_data_amx_fp16.create(num_input * Mpad, (size_t)2u);
+
+        if (!weight_data_amx_fp16.empty())
+        {
+            __fp16* dst0 = (__fp16*)weight_data_amx_fp16;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int k = 0; k < num_input; k++)
+            {
+                __fp16* dst = dst0 + (size_t)k * Mpad;
+
+                for (int m = 0; m < num_output; m++)
+                {
+                    dst[m] = (__fp16)weight_data[m * num_input + k];
+                }
+
+                for (int m = num_output; m < Mpad; m++)
+                {
+                    dst[m] = (__fp16)0.f;
+                }
+            }
+        }
+    }
+#endif // defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
     int elempack = 1;
     int out_elempack = 1;
@@ -244,6 +281,18 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (top_blob.empty())
         return -100;
 
+#if defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (!weight_data_amx_fp16.empty() && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_output >= 16 && outw * outh >= 32)
+    {
+        conv1x1s1_apple_amx_fp16(bottom_blob_bordered, top_blob, weight_data_amx_fp16, bias_data, opt);
+
+        if (activation)
+            activation->forward_inplace(top_blob, opt);
+
+        return 0;
+    }
+#endif // defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
     // TODO dilated conv for bf16s
     //     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     //     {
@@ -306,6 +355,18 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
+
+#if defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (!weight_data_amx_fp16.empty() && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_output >= 16 && outw * outh >= 32)
+    {
+        conv1x1s1_apple_amx_fp16(bottom_blob_bordered, top_blob, weight_data_amx_fp16, bias_data, opt);
+
+        if (activation)
+            activation->forward_inplace(top_blob, opt);
+
+        return 0;
+    }
+#endif // defined __APPLE__ && __aarch64__ && __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
     // TODO dilated conv for bf16s
     //     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)

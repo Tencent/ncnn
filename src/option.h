@@ -158,6 +158,18 @@ public:
     bool use_int16_packed;
     bool use_int16_storage;
     bool use_reserved_11;
+
+    // enable apple amx matrix coprocessor kernels
+    // supported on apple silicon m1 and later
+    // changes should be applied before loading network structure and weight
+    // enabled by default
+    bool use_apple_amx;
+
+    // enable arm sme matrix extension kernels
+    // supported on armv9.2 devices like apple m4 and a18
+    // changes should be applied before loading network structure and weight
+    // enabled by default
+    bool use_arm_sme;
 };
 
 } // namespace ncnn

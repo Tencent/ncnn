@@ -76,6 +76,10 @@ Option::Option()
     use_int16_packed = true;
     use_int16_storage = true;
     use_reserved_11 = false;
+
+    use_apple_amx = true;
+
+    use_arm_sme = true;
 }
 
 } // namespace ncnn
