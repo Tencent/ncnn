@@ -6,7 +6,7 @@
 #include "mat.h"
 #include "testutil.h"
 
-static int test_command_upload_download(const ncnn::Mat& a)
+static int test_command_upload_download(const ncnn::Mat& a, bool online)
 {
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -27,12 +27,14 @@ static int test_command_upload_download(const ncnn::Mat& a)
     ncnn::Mat c;
     {
         ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(online);
 
         ncnn::VkMat b;
         cmd.record_upload(a, b, opt);
         cmd.record_download(b, c, opt);
 
-        cmd.submit_and_wait();
+        if (cmd.submit_and_wait())
+            return -1;
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
@@ -47,7 +49,7 @@ static int test_command_upload_download(const ncnn::Mat& a)
     return 0;
 }
 
-static int test_command_clone(const ncnn::Mat& a)
+static int test_command_clone(const ncnn::Mat& a, bool online)
 {
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -71,6 +73,7 @@ static int test_command_clone(const ncnn::Mat& a)
     ncnn::Mat e;
     {
         ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(online);
 
         ncnn::VkMat b1;
         ncnn::VkMat b2;
@@ -95,7 +98,8 @@ static int test_command_clone(const ncnn::Mat& a)
             cmd.record_clone(b2, d, opt);
         }
 
-        cmd.submit_and_wait();
+        if (cmd.submit_and_wait())
+            return -1;
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
@@ -116,7 +120,7 @@ static int test_command_clone(const ncnn::Mat& a)
     return 0;
 }
 
-static int test_command_transfer(const ncnn::Mat& a)
+static int test_command_transfer(const ncnn::Mat& a, bool online)
 {
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
 
@@ -144,10 +148,12 @@ static int test_command_transfer(const ncnn::Mat& a)
         cmd1.submit_and_wait();
 
         ncnn::VkCompute cmd2(vkdev);
+        cmd2.set_use_weight_upload_online(online);
 
         cmd2.record_download(b, c, opt);
 
-        cmd2.submit_and_wait();
+        if (cmd2.submit_and_wait())
+            return -1;
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
@@ -162,51 +168,52 @@ static int test_command_transfer(const ncnn::Mat& a)
     return 0;
 }
 
-static int test_command_0()
+static int test_command_0(bool online)
 {
     return 0
-           || test_command_upload_download(RandomMat(5, 7, 24))
-           || test_command_upload_download(RandomMat(7, 9, 12))
-           || test_command_upload_download(RandomMat(3, 5, 13))
-           || test_command_upload_download(RandomMat(15, 24))
-           || test_command_upload_download(RandomMat(19, 12))
-           || test_command_upload_download(RandomMat(17, 15))
-           || test_command_upload_download(RandomMat(128))
-           || test_command_upload_download(RandomMat(124))
-           || test_command_upload_download(RandomMat(127));
+           || test_command_upload_download(RandomMat(5, 7, 24), online)
+           || test_command_upload_download(RandomMat(7, 9, 12), online)
+           || test_command_upload_download(RandomMat(3, 5, 13), online)
+           || test_command_upload_download(RandomMat(15, 24), online)
+           || test_command_upload_download(RandomMat(19, 12), online)
+           || test_command_upload_download(RandomMat(17, 15), online)
+           || test_command_upload_download(RandomMat(128), online)
+           || test_command_upload_download(RandomMat(124), online)
+           || test_command_upload_download(RandomMat(127), online);
 }
 
-static int test_command_1()
+static int test_command_1(bool online)
 {
     return 0
-           || test_command_clone(RandomMat(5, 7, 24))
-           || test_command_clone(RandomMat(7, 9, 12))
-           || test_command_clone(RandomMat(3, 5, 13))
-           || test_command_clone(RandomMat(15, 24))
-           || test_command_clone(RandomMat(19, 12))
-           || test_command_clone(RandomMat(17, 15))
-           || test_command_clone(RandomMat(128))
-           || test_command_clone(RandomMat(124))
-           || test_command_clone(RandomMat(127));
+           || test_command_clone(RandomMat(5, 7, 24), online)
+           || test_command_clone(RandomMat(7, 9, 12), online)
+           || test_command_clone(RandomMat(3, 5, 13), online)
+           || test_command_clone(RandomMat(15, 24), online)
+           || test_command_clone(RandomMat(19, 12), online)
+           || test_command_clone(RandomMat(17, 15), online)
+           || test_command_clone(RandomMat(128), online)
+           || test_command_clone(RandomMat(124), online)
+           || test_command_clone(RandomMat(127), online);
 }
 
-static int test_command_2()
+static int test_command_2(bool online)
 {
     return 0
-           || test_command_transfer(RandomMat(5, 7, 24))
-           || test_command_transfer(RandomMat(7, 9, 12))
-           || test_command_transfer(RandomMat(3, 5, 13))
-           || test_command_transfer(RandomMat(15, 24))
-           || test_command_transfer(RandomMat(19, 12))
-           || test_command_transfer(RandomMat(17, 15))
-           || test_command_transfer(RandomMat(128))
-           || test_command_transfer(RandomMat(124))
-           || test_command_transfer(RandomMat(127));
+           || test_command_transfer(RandomMat(5, 7, 24), online)
+           || test_command_transfer(RandomMat(7, 9, 12), online)
+           || test_command_transfer(RandomMat(3, 5, 13), online)
+           || test_command_transfer(RandomMat(15, 24), online)
+           || test_command_transfer(RandomMat(19, 12), online)
+           || test_command_transfer(RandomMat(17, 15), online)
+           || test_command_transfer(RandomMat(128), online)
+           || test_command_transfer(RandomMat(124), online)
+           || test_command_transfer(RandomMat(127), online);
 }
 
 int main()
 {
     SRAND(7767517);
 
-    return test_command_0() || test_command_1() || test_command_2();
+    return test_command_0(false) || test_command_1(false) || test_command_2(false)
+           || test_command_0(true) || test_command_1(true) || test_command_2(true);
 }

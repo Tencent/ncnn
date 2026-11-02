@@ -671,6 +671,86 @@ static int test_weight_storage_mixed_recording()
     return 0;
 }
 
+// Mixed descriptor data and constants must survive later batches and resets.
+static int test_weight_storage_image_descriptors()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    if (!vkdev->info.support_image_storage())
+        return 0;
+    ncnn::VkWeightAllocator weights(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat inputs[2] = {RandomMat(64), RandomMat(64)};
+    ncnn::Mat values[2] = {RandomMat(64), RandomMat(64)};
+    ncnn::VkMat weight[2];
+    ncnn::VkTransfer upload(vkdev);
+    for (int i = 0; i < 2; i++)
+        upload.record_upload(values[i], weight[i], opt);
+    if (upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    opt.blob_vkallocator = &blobs;
+    const char shader[] = "#version 450\n"
+                          "layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;\n"
+                          "layout(binding = 0, r32f) readonly uniform image3D a;\n"
+                          "layout(binding = 1) readonly buffer B { float b[]; };\n"
+                          "layout(binding = 2) writeonly buffer C { float c[]; };\n"
+                          "layout(push_constant) uniform parameter { float bias; } p;\n"
+                          "void main() { uint i = gl_GlobalInvocationID.x; if (i < 64) c[i] = imageLoad(a, ivec3(i, 0, 0)).x + b[i] + p.bias; }\n";
+    std::vector<uint32_t> spirv;
+    if (ncnn::compile_spirv_module(shader, opt, spirv))
+        return -1;
+    ncnn::Pipeline pipeline(vkdev);
+    pipeline.set_local_size_xyz(1, 1, 1);
+    if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
+        return -1;
+
+    ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
+    for (int round = 0; round < 2; round++)
+    {
+        ncnn::VkMat results[2];
+        ncnn::Mat outputs[2];
+        for (int i = 0; i < 2; i++)
+        {
+            // Image handles and the descriptor/constant vectors leave scope
+            // before submission. The command must retain all required data.
+            ncnn::VkImageMat image;
+            cmd.record_clone(inputs[i], image, opt);
+            results[i].create(64, (size_t)4u, &blobs);
+            std::vector<ncnn::VkMat> buffers(2);
+            buffers[0] = weight[i];
+            buffers[1] = results[i];
+            std::vector<ncnn::VkImageMat> images(1, image);
+            std::vector<ncnn::vk_constant_type> constants(1);
+            constants[0].f = (float)(i + round);
+            cmd.record_pipeline(&pipeline, buffers, images, constants, results[i]);
+            constants[0].f = -999.f;
+            cmd.record_clone(results[i], outputs[i], opt);
+        }
+        if (cmd.submit_and_wait())
+            return -1;
+        for (int i = 0; i < 2; i++)
+        {
+            ncnn::Mat expected(64);
+            for (int j = 0; j < 64; j++)
+                expected[j] = inputs[i][j] + values[i][j] + (float)(i + round);
+            if (CompareMat(expected, outputs[i], 0.0001f))
+            {
+                fprintf(stderr, "deferred image descriptors or constants lost their recorded values round=%d group=%d\n", round, i);
+                return -1;
+            }
+        }
+        if (cmd.reset())
+            return -1;
+    }
+    return 0;
+}
+
 static int test_weight_storage_recorded_weight_lifetime()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -781,6 +861,12 @@ static int test_weight_storage_recorded_subview()
     cmd.record_clone(view, small_output, opt);
     cmd.record_clone(weight, full_output, opt);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    if (probe.copies.empty())
+        return -1;
+#endif
+    if (cmd.submit_and_wait())
+        return -1;
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
     // The preceding full allocation remains leased while the next view is
     // resolved. Adjacent groups may share a backing buffer, but not its range.
     if (probe.copies.empty())
@@ -808,7 +894,7 @@ static int test_weight_storage_recorded_subview()
         return -1;
     }
 #endif
-    if (cmd.submit_and_wait() || CompareMat(expected_view, small_output, 0.f) || CompareMat(input, full_output, 0.f) || cmd.reset())
+    if (CompareMat(expected_view, small_output, 0.f) || CompareMat(input, full_output, 0.f) || cmd.reset())
     {
         fprintf(stderr, "test_weight_storage_recorded_subview lost source extent or view offset\n");
         return -1;
@@ -1036,6 +1122,12 @@ static int test_weight_storage_workspace_chunks()
     ncnn::Mat output;
     cmd.record_clone(weight, output, opt);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    if (probe.copies.empty())
+        return -1;
+#endif
+    if (cmd.submit_and_wait())
+        return -1;
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
     if (probe.copies.size() < 2)
     {
         fprintf(stderr, "temporary weight did not record both staging chunks\n");
@@ -1053,7 +1145,7 @@ static int test_weight_storage_workspace_chunks()
         return -1;
     }
 #endif
-    if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
+    if (CompareMat(input, output, 0.f))
     {
         fprintf(stderr, "temporary weight staging chunks corrupted the complete allocation\n");
         return -1;
@@ -1278,6 +1370,7 @@ int main()
                     || test_weight_storage_residents()
                     || test_weight_storage_automatic_workspace()
                     || test_weight_storage_mixed_recording()
+                    || test_weight_storage_image_descriptors()
                     || test_weight_storage_recorded_weight_lifetime()
                     || test_weight_storage_recorded_subview();
     if (directory.remove() != 0)

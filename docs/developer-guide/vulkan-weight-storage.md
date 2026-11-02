@@ -120,8 +120,8 @@ with, or shared with, an Extractor's `workspace_vkallocator`. Continue to
 configure each Extractor's blob, workspace and staging allocators for ordinary
 layer operations; these settings do not select the temporary weight pool.
 
-`cmd.reset()` discards recording state. Temporary weight views return to the
-private pool through `fastFree()`; pooled backing allocations remain available
+`cmd.reset()` waits for submitted work and discards unsubmitted recording state.
+Temporary weight views return to the private pool through `fastFree()`; pooled backing allocations remain available
 for that command until destruction. File-upload staging also belongs to the
 command and is not borrowed from ordinary layer staging. There is no
 `VkCompute::set_weight_memory_limit()` or `clear_weight_cache()`.
@@ -133,9 +133,10 @@ The private `record_resolve()` creates a temporary `VkMat` from the private
 pool, records the complete source upload and
 returns a view with the original shape, packing and offset. Ordinary buffers
 pass through. `record_pipeline()` first scans for weight bindings that need
-resolving. If present, it closes the preceding compute batch and opens the next
-before resolving each weight independently in a second pass. Weight-consuming
-clones use the same batch transition. Final submission closes the last batch
+resolving. If present, it submits the preceding compute batch, resolves each
+weight independently in a second pass, then begins the next compute batch after
+waiting for command buffer reuse. Weight-consuming clones use the same batch
+transition. Final submission closes the last batch
 without opening another. Later operations upload the source again; there is no
 persistent weight identity cache. `MemoryData` continues to use `record_clone()`
 and owns its independent output.
@@ -156,17 +157,18 @@ family. The selected family may be the same as the compute family.
 Temporary weight backing buffers use the ordinary EXCLUSIVE blob allocator.
 When the two families differ, the final upload chunk releases the complete
 weight range to the compute family, and its consumer acquires the same range
-after waiting for the upload semaphore. Reusing a range waits for its older
-compute consumer before overwriting every byte; the upload family can acquire
+after waiting for the upload semaphore. A range's older compute consumer has
+completed before the range is reused and every byte overwritten; the upload family can acquire
 that range with its old contents discarded. The private file-upload staging
 buffer is EXCLUSIVE and used only by the upload family. Ordinary activation and
 workspace buffers keep their existing sharing and ownership rules.
 
 Queue-family sharing does not replace synchronization. Before recording weight
-group N+1, the preceding compute batch N is closed. The upload of N+1 waits for
-the older compute batch N-1, whose temporary ranges may now be reused, rather
-than waiting for N. Group N is still referenced while N+1 is allocated, so these
-two groups have distinct storage. The compute consumer waits for its own uploads
+group N+1, the preceding compute batch N is submitted. Batch N-1 has already
+completed: its completion was required before reusing the compute command buffer
+for N. Its temporary ranges can therefore be reused without tracking a batch
+number or waiting again. Group N is still referenced while N+1 is allocated, so
+these two groups have distinct storage. The compute consumer waits for its own uploads
 and the preceding compute batch. These semaphore dependencies keep computation
 ordered while permitting upload N+1 to overlap compute N. They remain
 conservative batch dependencies, not a per-range reader table or a global
@@ -185,29 +187,39 @@ that same capacity and initialize the allocation's trailing padding to zero.
 Host and file sources use the existing mapped pointer and allocation offset;
 the tensor view keeps its separate offset.
 
-Deferred host copies record source and destination addresses directly, including
-allocation and chunk offsets. Source backing belongs to the weight allocator;
-destination backing belongs to the command's private allocators. These records
-do not retain tensor views or copied allocation metadata. A separate flush record
-follows each copy to non-coherent memory and covers the copy plus alignment padding.
-Allocator-backed uploads continue to use `allocator->flush()`; internal staging
-flushes are handled by the transfer command.
+Host copies read source and destination mappings directly, including allocation
+and chunk offsets. They execute while recording, after any preceding use of the
+destination or staging range completes. Non-coherent destinations are flushed
+before GPU submission, including alignment padding. Ordinary staging uploads
+also call `allocator->flush()` before their compute batch is submitted.
 
-Devices with push descriptors encode Vulkan commands immediately. Other devices
-create descriptor sets while recording and replay their native commands before
-closing the corresponding command buffer. A pipeline bind through its dispatch
-remains in one compute batch. Recording allocates resources but does not submit
-GPU work or fill deferred file-upload destinations. `submit_and_wait()` executes
-the recorded fills, uploads, computation and downloads.
+Online upload streams batches from `record_*()`. A new weight group submits the
+preceding compute batch, prepares and submits its own uploads, then waits before
+resetting the compute command buffer for reuse. Upload chunks similarly wait
+only when their upload buffer or staging storage must be reused. Uploads for the
+next group can overlap the preceding compute. Push descriptor devices encode
+compute commands directly; other devices replay the current batch's logical
+commands at submission. A pipeline bind through its dispatch stays in one batch.
+CPU metadata for completed recordings is discarded while download postprocessing
+remains deferred until `submit_and_wait()`.
+
+Each command owns one compute command buffer and one upload command buffer,
+allocated at initialization and retained across reset. Two fences and four binary
+semaphores are also reused. The last upload chunk signals readiness once for all
+weights in its group. `submit_and_wait()` submits the remaining compute batch,
+consumes outstanding chain signals and waits for completion before downloads.
+Reset and destruction wait for already submitted work before releasing its
+resources; reset discards any unsubmitted recording. An interrupted stream may
+require replacing semaphores whose signals have not been consumed.
 
 Recording failures return from the current operation, following the ordinary
-`void record_*()` convention. They are not saved as a command-wide error for a
-later `submit_and_wait()` call. Reset an incomplete recording before using the
-command again. Output allocation failures retain the empty-output convention.
-`submit_and_wait()` returns errors from its own submission and waiting work. All
-submitted upload and compute work is drained before execution resources are
-released. A nonterminal fence error keeps work pending and prevents reset;
-destruction waits for completion or device loss.
+`void record_*()` convention. This includes failures from submissions made while
+recording. They are not saved as a command-wide error for a later
+`submit_and_wait()` call. Reset an incomplete recording before using the command
+again. Output allocation failures retain the empty-output convention.
+`submit_and_wait()` returns errors from its own recording, submission and waiting
+operations. A nonterminal fence error retains pending work and its resources;
+reset or destruction must complete the wait before releasing them.
 
 For direct allocator use, configure `VkWeightAllocator` before allocation with
 `set_weights_in_disk()`, `set_weight_memory_limit(device_limit, host_limit)` and optionally `set_weight_file_directory()`.

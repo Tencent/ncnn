@@ -59,10 +59,10 @@ static int test_weight_storage_workspace_failure(VulkanFailure::Failure failure)
     cmd.set_use_weight_upload_online(true);
     ncnn::Mat output;
     {
-        // Recording failures stop the operation; submission failures return directly.
+        // Failures during streaming recording stop the current void operation.
         VulkanFailure fail(failure);
         cmd.record_clone(weight, output, opt);
-        const bool failed = failure == VulkanFailure::SUBMIT ? cmd.submit_and_wait() != 0 : output.empty();
+        const bool failed = output.empty();
         if (!failed || !fail.triggered)
         {
             fprintf(stderr, "test_weight_storage_workspace_failure error missing failure=%d\n", failure);
@@ -135,11 +135,11 @@ static int test_weight_storage_midflight_failure(int fail_at)
     ncnn::VkCompute cmd(vkdev);
     cmd.set_use_weight_upload_online(true);
     ncnn::Mat output[count];
-    for (int i = 0; i < count; i++)
-        cmd.record_clone(weight[i], output[i], opt);
     {
         VulkanFailure fail(VulkanFailure::SUBMIT, fail_at);
-        if (cmd.submit_and_wait() == 0 || !fail.triggered)
+        for (int i = 0; i < count && !fail.triggered; i++)
+            cmd.record_clone(weight[i], output[i], opt);
+        if (!fail.triggered)
         {
             fprintf(stderr, "test_weight_storage_midflight_failure missing failure at submit %d\n", fail_at);
             return -1;
@@ -262,10 +262,10 @@ static int test_weight_storage_repeated_weights()
     ncnn::Mat output[96];
     for (int round = 0; round < 2; round++)
     {
-        for (int i = 0; i < 96; i++)
-            cmd.record_clone(weight[i < 48 ? i : 95 - i], output[i], opt);
         {
             VulkanFailure count(VulkanFailure::SUBMIT, 1000000);
+            for (int i = 0; i < 96; i++)
+                cmd.record_clone(weight[i < 48 ? i : 95 - i], output[i], opt);
             if (cmd.submit_and_wait() != 0)
                 return -1;
             // Repeated sources are uploaded again in ordered compute batches.
@@ -392,12 +392,18 @@ class WeightRecordingProbe
 {
 public:
     explicit WeightRecordingProbe(const ncnn::VulkanDevice* vkdev)
-        : copies(0), dispatches(0), submissions(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), copy(ncnn::vkCmdCopyBuffer), dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), properties(vkdev->info.physicalDeviceMemoryProperties())
+        : copies(0), dispatches(0), submissions(0), semaphores(0), destroyed_semaphores(0), fences(0), destroyed_fences(0), command_buffers(0), freed_command_buffers(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), copy(ncnn::vkCmdCopyBuffer), dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), create_semaphore(ncnn::vkCreateSemaphore), destroy_semaphore(ncnn::vkDestroySemaphore), create_fence(ncnn::vkCreateFence), destroy_fence(ncnn::vkDestroyFence), allocate_command(ncnn::vkAllocateCommandBuffers), free_command(ncnn::vkFreeCommandBuffers), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), properties(vkdev->info.physicalDeviceMemoryProperties())
     {
         g_weight_recording_probe = this;
         ncnn::vkCmdCopyBuffer = record_copy;
         ncnn::vkCmdDispatch = record_dispatch;
         ncnn::vkQueueSubmit = queue_submit;
+        ncnn::vkCreateSemaphore = make_semaphore;
+        ncnn::vkDestroySemaphore = free_semaphore;
+        ncnn::vkCreateFence = make_fence;
+        ncnn::vkDestroyFence = free_fence;
+        ncnn::vkAllocateCommandBuffers = allocate_commands;
+        ncnn::vkFreeCommandBuffers = free_commands;
         ncnn::vkDestroyBuffer = destroy_buffer;
         ncnn::vkAllocateMemory = allocate_memory;
         ncnn::vkFreeMemory = free_memory;
@@ -407,6 +413,12 @@ public:
         ncnn::vkCmdCopyBuffer = copy;
         ncnn::vkCmdDispatch = dispatch;
         ncnn::vkQueueSubmit = submit;
+        ncnn::vkCreateSemaphore = create_semaphore;
+        ncnn::vkDestroySemaphore = destroy_semaphore;
+        ncnn::vkCreateFence = create_fence;
+        ncnn::vkDestroyFence = destroy_fence;
+        ncnn::vkAllocateCommandBuffers = allocate_command;
+        ncnn::vkFreeCommandBuffers = free_command;
         ncnn::vkDestroyBuffer = destroy;
         ncnn::vkAllocateMemory = allocate;
         ncnn::vkFreeMemory = free;
@@ -415,6 +427,12 @@ public:
     int copies;
     int dispatches;
     int submissions;
+    int semaphores;
+    int destroyed_semaphores;
+    int fences;
+    int destroyed_fences;
+    int command_buffers;
+    int freed_command_buffers;
     bool destroyed_recorded_buffer;
     int allocations;
     VkDeviceSize device_bytes;
@@ -425,27 +443,24 @@ public:
     struct Copy
     {
         VkCommandBuffer command;
+        int submission;
         VkBuffer source;
         VkBuffer target;
         VkBufferCopy region;
     };
     std::vector<Copy> copy_regions;
+    std::vector<VkCommandBuffer> dispatch_commands;
+    std::vector<int> dispatch_submissions;
 
     struct Submission
     {
         VkCommandBuffer command;
         std::vector<VkSemaphore> waits;
         std::vector<VkSemaphore> signals;
+        std::vector<int> wait_producers;
+        std::vector<int> dependencies;
     };
     std::vector<Submission> submit_records;
-
-    int submission_index(VkCommandBuffer command) const
-    {
-        for (size_t i = 0; i < submit_records.size(); i++)
-            if (submit_records[i].command == command)
-                return (int)i;
-        return -1;
-    }
 
     bool depends_on(int consumer, int producer) const
     {
@@ -455,20 +470,17 @@ public:
         for (size_t i = 0; i < pending.size(); i++)
         {
             const Submission& current = submit_records[pending[i]];
-            for (size_t w = 0; w < current.waits.size(); w++)
-                for (size_t p = 0; p < submit_records.size(); p++)
-                    for (size_t s = 0; s < submit_records[p].signals.size(); s++)
-                    {
-                        if (current.waits[w] != submit_records[p].signals[s])
-                            continue;
-                        if ((int)p == producer)
-                            return true;
-                        if (!visited[p])
-                        {
-                            visited[p] = true;
-                            pending.push_back((int)p);
-                        }
-                    }
+            for (size_t j = 0; j < current.dependencies.size(); j++)
+            {
+                const int p = current.dependencies[j];
+                if (p == producer)
+                    return true;
+                if (p >= 0 && !visited[p])
+                {
+                    visited[p] = true;
+                    pending.push_back(p);
+                }
+            }
         }
         return false;
     }
@@ -492,6 +504,7 @@ private:
         {
             Copy entry;
             entry.command = command;
+            entry.submission = -1;
             entry.source = src;
             entry.target = dst;
             entry.region = regions[i];
@@ -503,6 +516,8 @@ private:
     {
         WeightRecordingProbe* p = g_weight_recording_probe;
         p->dispatches++;
+        p->dispatch_commands.push_back(command);
+        p->dispatch_submissions.push_back(-1);
         p->dispatch(command, x, y, z);
     }
     static VKAPI_ATTR VkResult VKAPI_CALL queue_submit(VkQueue queue, uint32_t count, const VkSubmitInfo* info, VkFence fence)
@@ -510,17 +525,81 @@ private:
         WeightRecordingProbe* p = g_weight_recording_probe;
         p->submissions += count;
         for (uint32_t i = 0; i < count; i++)
-            for (uint32_t j = 0; j < info[i].commandBufferCount; j++)
+            for (uint32_t j = 0; j < std::max(1u, info[i].commandBufferCount); j++)
             {
                 Submission entry;
-                entry.command = info[i].pCommandBuffers[j];
+                entry.command = info[i].commandBufferCount ? info[i].pCommandBuffers[j] : 0;
                 for (uint32_t w = 0; w < info[i].waitSemaphoreCount; w++)
+                {
                     entry.waits.push_back(info[i].pWaitSemaphores[w]);
+                    int producer = -1;
+                    for (int k = (int)p->submit_records.size() - 1; k >= 0 && producer < 0; k--)
+                        for (size_t s = 0; s < p->submit_records[k].signals.size(); s++)
+                            if (p->submit_records[k].signals[s] == info[i].pWaitSemaphores[w])
+                                producer = k;
+                    entry.wait_producers.push_back(producer);
+                    if (producer >= 0)
+                        entry.dependencies.push_back(producer);
+                }
+                // A notification batch signals completion of the preceding copy in this call.
+                if (i > 0)
+                    entry.dependencies.push_back((int)p->submit_records.size() - 1);
                 for (uint32_t s = 0; s < info[i].signalSemaphoreCount; s++)
                     entry.signals.push_back(info[i].pSignalSemaphores[s]);
+                const int submission = (int)p->submit_records.size();
+                for (size_t c = 0; c < p->copy_regions.size(); c++)
+                    if (p->copy_regions[c].command == entry.command && p->copy_regions[c].submission < 0)
+                        p->copy_regions[c].submission = submission;
+                for (size_t d = 0; d < p->dispatch_commands.size(); d++)
+                    if (p->dispatch_commands[d] == entry.command && p->dispatch_submissions[d] < 0)
+                        p->dispatch_submissions[d] = submission;
                 p->submit_records.push_back(entry);
             }
         return p->submit(queue, count, info, fence);
+    }
+    static VKAPI_ATTR VkResult VKAPI_CALL make_semaphore(VkDevice device, const VkSemaphoreCreateInfo* info, const VkAllocationCallbacks* callbacks, VkSemaphore* semaphore)
+    {
+        WeightRecordingProbe* p = g_weight_recording_probe;
+        const VkResult ret = p->create_semaphore(device, info, callbacks, semaphore);
+        if (ret == VK_SUCCESS)
+            p->semaphores++;
+        return ret;
+    }
+    static VKAPI_ATTR void VKAPI_CALL free_semaphore(VkDevice device, VkSemaphore semaphore, const VkAllocationCallbacks* callbacks)
+    {
+        WeightRecordingProbe* p = g_weight_recording_probe;
+        if (semaphore)
+            p->destroyed_semaphores++;
+        p->destroy_semaphore(device, semaphore, callbacks);
+    }
+    static VKAPI_ATTR VkResult VKAPI_CALL make_fence(VkDevice device, const VkFenceCreateInfo* info, const VkAllocationCallbacks* callbacks, VkFence* fence)
+    {
+        WeightRecordingProbe* p = g_weight_recording_probe;
+        const VkResult ret = p->create_fence(device, info, callbacks, fence);
+        if (ret == VK_SUCCESS)
+            p->fences++;
+        return ret;
+    }
+    static VKAPI_ATTR void VKAPI_CALL free_fence(VkDevice device, VkFence fence, const VkAllocationCallbacks* callbacks)
+    {
+        WeightRecordingProbe* p = g_weight_recording_probe;
+        if (fence)
+            p->destroyed_fences++;
+        p->destroy_fence(device, fence, callbacks);
+    }
+    static VKAPI_ATTR VkResult VKAPI_CALL allocate_commands(VkDevice device, const VkCommandBufferAllocateInfo* info, VkCommandBuffer* commands)
+    {
+        WeightRecordingProbe* p = g_weight_recording_probe;
+        const VkResult ret = p->allocate_command(device, info, commands);
+        if (ret == VK_SUCCESS)
+            p->command_buffers += info->commandBufferCount;
+        return ret;
+    }
+    static VKAPI_ATTR void VKAPI_CALL free_commands(VkDevice device, VkCommandPool pool, uint32_t count, const VkCommandBuffer* commands)
+    {
+        WeightRecordingProbe* p = g_weight_recording_probe;
+        p->freed_command_buffers += count;
+        p->free_command(device, pool, count, commands);
     }
     static VKAPI_ATTR void VKAPI_CALL destroy_buffer(VkDevice device, VkBuffer buffer, const VkAllocationCallbacks* callbacks)
     {
@@ -571,6 +650,12 @@ private:
     PFN_vkCmdCopyBuffer copy;
     PFN_vkCmdDispatch dispatch;
     PFN_vkQueueSubmit submit;
+    PFN_vkCreateSemaphore create_semaphore;
+    PFN_vkDestroySemaphore destroy_semaphore;
+    PFN_vkCreateFence create_fence;
+    PFN_vkDestroyFence destroy_fence;
+    PFN_vkAllocateCommandBuffers allocate_command;
+    PFN_vkFreeCommandBuffers free_command;
     PFN_vkDestroyBuffer destroy;
     PFN_vkAllocateMemory allocate;
     PFN_vkFreeMemory free;
@@ -661,16 +746,16 @@ static int test_weight_storage_record_time_preparation()
                 cmd.record_clone(weight[0], first_device, opt);
                 weight_copy_recorded = probe.copies > before;
             }
-            if ((vkdev->info.support_VK_KHR_push_descriptor() && !weight_copy_recorded) || probe.submissions != 0)
+            if ((vkdev->info.support_VK_KHR_push_descriptor() && !weight_copy_recorded) || probe.submissions == 0)
             {
-                fprintf(stderr, "weight clone was not recorded immediately or was submitted while recording\n");
+                fprintf(stderr, "weight clone did not stream its preceding batch\n");
                 return -1;
             }
             cmd.record_clone(first_device, first_output, opt);
             const int before_dispatch = probe.dispatches;
             cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
             const int expected_dispatches = before_dispatch + (vkdev->info.support_VK_KHR_push_descriptor() ? 1 : 0);
-            if (probe.dispatches != expected_dispatches || probe.submissions != 0 || probe.destroyed_recorded_buffer)
+            if (probe.dispatches != expected_dispatches || probe.submissions == 0 || probe.destroyed_recorded_buffer)
             {
                 fprintf(stderr, "weight dispatch recording or backing lifetime was incorrect round=%d\n", round);
                 return -1;
@@ -696,9 +781,9 @@ static int test_weight_storage_record_time_preparation()
             {
                 VulkanFailure failure(failures[i]);
                 cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-                if (!failure.triggered || failure.submission_count() != 0)
+                if (!failure.triggered || failure.submission_count() == 0)
                 {
-                    fprintf(stderr, "descriptor allocation failure submitted GPU work\n");
+                    fprintf(stderr, "descriptor allocation failure did not reach the next streamed batch\n");
                     return -1;
                 }
             }
@@ -710,7 +795,7 @@ static int test_weight_storage_record_time_preparation()
                 return -1;
         }
     }
-    // A later task allocation failure must not submit earlier records or a partial binding set.
+    // Recording and submitting later groups must not allocate any command buffers.
     ncnn::VkMat first_device(elements, (size_t)4u, &blobs);
     ncnn::VkCompute rejected(vkdev);
     rejected.set_use_weight_upload_online(true);
@@ -720,9 +805,9 @@ static int test_weight_storage_record_time_preparation()
         const int dispatches = probe.dispatches;
         VulkanFailure failure(VulkanFailure::ALLOCATE_COMMAND);
         rejected.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), result);
-        if (!failure.triggered || probe.submissions != 0 || probe.dispatches != dispatches || probe.destroyed_recorded_buffer)
+        if (failure.triggered || probe.submissions == 0 || probe.dispatches != dispatches + (vkdev->info.support_VK_KHR_push_descriptor() ? 1 : 0) || probe.destroyed_recorded_buffer)
         {
-            fprintf(stderr, "weight preparation failure submitted work or lost a pending allocation\n");
+            fprintf(stderr, "weight recording allocated a command buffer or failed to stream work\n");
             return -1;
         }
     }
@@ -768,9 +853,9 @@ static int test_weight_storage_workspace_allocation()
     {
         WeightRecordingProbe probe(vkdev);
         cmd.record_clone(native, target, opt);
-        if (cmd.submit_and_wait() || probe.allocations != 0 || cmd.reset())
+        if (cmd.submit_and_wait() || probe.allocations != 0 || probe.semaphores != 0 || probe.destroyed_semaphores != 0 || cmd.reset())
         {
-            fprintf(stderr, "ordinary recording allocated temporary weight memory\n");
+            fprintf(stderr, "online recording allocated temporary weight memory or recreated semaphores\n");
             return -1;
         }
     }
@@ -778,7 +863,7 @@ static int test_weight_storage_workspace_allocation()
     {
         WeightRecordingProbe probe(vkdev);
         cmd.record_clone(weight, target, opt);
-        if ((round == 0 ? probe.allocations == 0 : probe.allocations != 0) || probe.submissions != 0 || probe.destroyed_recorded_buffer)
+        if ((round == 0 ? probe.allocations == 0 : probe.allocations != 0) || probe.submissions == 0 || probe.destroyed_recorded_buffer)
         {
             fprintf(stderr, "private weight pool was not allocated lazily or reused after reset round=%d\n", round);
             return -1;
@@ -842,7 +927,7 @@ static int test_weight_storage_private_pool()
         cmd.record_clone(replacement, ordinary, opt);
         cmd.record_clone(first, first_output, opt);
         cmd.record_clone(ordinary, ordinary_output, opt);
-        if (probe.submissions != 0 || probe.destroyed_recorded_buffer || cmd.submit_and_wait()
+        if (probe.submissions == 0 || probe.destroyed_recorded_buffer || cmd.submit_and_wait()
                 || CompareMat(input, first_output, 0.f) || CompareMat(replacement, ordinary_output, 0.f))
             return -1;
         bool found_weight_read = false;
@@ -864,9 +949,54 @@ static int test_weight_storage_private_pool()
     return 0;
 }
 
+static int test_weight_storage_sync_init_failure(VulkanFailure::Failure failure_type, int fail_at)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    const ncnn::Mat input = RandomMat(64);
+
+    WeightRecordingProbe probe(vkdev);
+    const bool command_failure = failure_type == VulkanFailure::ALLOCATE_COMMAND;
+    const int& created = command_failure ? probe.command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.fences : probe.semaphores;
+    const int& destroyed = command_failure ? probe.freed_command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.destroyed_fences : probe.destroyed_semaphores;
+    const int count = command_failure || failure_type == VulkanFailure::CREATE_FENCE ? 2 : 4;
+    const int released = command_failure ? 0 : fail_at - 1;
+    {
+        VulkanFailure failure(failure_type, fail_at);
+        ncnn::VkCompute cmd(vkdev);
+        if (!failure.triggered || created != fail_at - 1 || destroyed != released || cmd.submit_and_wait() == 0 || probe.submissions != 0)
+        {
+            fprintf(stderr, "sync initialization failure did not clean up failure=%d at=%d\n", failure_type, fail_at);
+            return -1;
+        }
+        if (cmd.reset() || created != released + count || destroyed != released)
+        {
+            fprintf(stderr, "sync initialization failure prevented reset failure=%d at=%d\n", failure_type, fail_at);
+            return -1;
+        }
+        cmd.set_use_weight_upload_online(true);
+        ncnn::VkMat device;
+        ncnn::Mat output;
+        cmd.record_clone(input, device, opt);
+        cmd.record_clone(device, output, opt);
+        if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
+            return -1;
+    }
+    if (created != released + count || probe.destroyed_semaphores != probe.semaphores || probe.destroyed_fences != probe.fences || probe.freed_command_buffers != probe.command_buffers)
+    {
+        fprintf(stderr, "sync resources leaked after initialization recovery failure=%d at=%d\n", failure_type, fail_at);
+        return -1;
+    }
+    return 0;
+}
+
 // Keep adjacent complete weight groups disjoint, then reuse the older group.
 // GPU-backed deferred sources exercise the upload graph even on unified memory.
-static int test_weight_storage_upload_overlap()
+static int test_weight_storage_upload_overlap(int submit_fail_at = 0, VulkanFailure::Failure failure_type = VulkanFailure::SUBMIT)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev, true);
@@ -893,6 +1023,7 @@ static int test_weight_storage_upload_overlap()
     }
     opt.blob_vkallocator = &blobs;
     int ret = 0;
+    WeightRecordingProbe probe(vkdev);
     {
         ncnn::VkCompute cmd(vkdev);
         cmd.set_use_weight_upload_online(true);
@@ -900,13 +1031,64 @@ static int test_weight_storage_upload_overlap()
         {
             ncnn::VkMat results[3];
             ncnn::Mat output[3];
-            WeightRecordingProbe probe(vkdev);
+            probe.copy_regions.clear();
+            probe.submit_records.clear();
+            probe.submissions = 0;
+            if (submit_fail_at && round == 0)
+            {
+                {
+                    VulkanFailure failure(failure_type, submit_fail_at);
+                    for (int i = 0; i < 3 && !failure.triggered; i++)
+                        cmd.record_clone(weight[i], results[i], opt);
+                    if (!failure.triggered)
+                    {
+                        fprintf(stderr, "streaming failure missing at %d type=%d\n", submit_fail_at, failure_type);
+                        ret = -1;
+                    }
+                }
+                // Reset waits for submitted work before discarding the open batch.
+                if (cmd.reset() || probe.semaphores != 4 + probe.destroyed_semaphores)
+                {
+                    fprintf(stderr, "streaming failure did not reset synchronization at %d\n", submit_fail_at);
+                    ret = -1;
+                }
+                continue;
+            }
             for (int i = 0; i < 3; i++)
                 cmd.record_clone(weight[i], results[i], opt);
             for (int i = 0; i < 3; i++)
                 cmd.record_clone(results[i], output[i], opt);
-            if (probe.submissions != 0 || cmd.submit_and_wait())
+            if (probe.submissions == 0 || cmd.submit_and_wait())
             {
+                ret = -1;
+                break;
+            }
+            int signal_count = 0;
+            for (size_t i = 0; i < probe.submit_records.size(); i++)
+            {
+                const WeightRecordingProbe::Submission& submission = probe.submit_records[i];
+                for (size_t s = 0; s < submission.signals.size(); s++)
+                {
+                    int wait_count = 0;
+                    for (size_t j = i + 1; j < probe.submit_records.size(); j++)
+                        for (size_t w = 0; w < probe.submit_records[j].waits.size(); w++)
+                            if (probe.submit_records[j].waits[w] == submission.signals[s] && probe.submit_records[j].wait_producers[w] == (int)i)
+                                wait_count++;
+                    if (wait_count != 1)
+                        ret = -1;
+                    signal_count++;
+                }
+            }
+            // The final compute also consumes the last upload-chain signal.
+            if (ret != 0 || signal_count != 12 || probe.semaphores != 4 + probe.destroyed_semaphores)
+            {
+                fprintf(stderr, "weight semaphore consumers or lifetime incorrect round=%d created=%d signaled=%d destroyed=%d\n", round, probe.semaphores, signal_count, probe.destroyed_semaphores);
+                ret = -1;
+                break;
+            }
+            if (probe.fences != 2 || probe.destroyed_fences != 0 || probe.command_buffers != 2 || probe.freed_command_buffers != 0)
+            {
+                fprintf(stderr, "compute and upload did not retain their command buffers and fences round=%d fences=%d destroyed=%d\n", round, probe.fences, probe.destroyed_fences);
                 ret = -1;
                 break;
             }
@@ -921,12 +1103,12 @@ static int test_weight_storage_upload_overlap()
                 {
                     if (copy.source == weight[i].buffer() && copy.region.srcOffset == weight[i].buffer_offset())
                     {
-                        uploads[i] = probe.submission_index(copy.command);
+                        uploads[i] = copy.submission;
                         targets[i] = copy.target;
                         offsets[i] = copy.region.dstOffset;
                     }
                     if (copy.target == results[i].buffer() && copy.region.dstOffset == results[i].buffer_offset())
-                        computes[i] = probe.submission_index(copy.command);
+                        computes[i] = copy.submission;
                 }
             }
             for (int i = 0; i < 3; i++)
@@ -961,6 +1143,114 @@ static int test_weight_storage_upload_overlap()
     {
         weight[i].data->storage_type = storage_types[i];
     }
+    if (probe.semaphores != probe.destroyed_semaphores || probe.fences != probe.destroyed_fences || probe.command_buffers != probe.freed_command_buffers)
+    {
+        fprintf(stderr, "weight synchronization resources leaked after command destruction\n");
+        ret = -1;
+    }
+    return ret;
+}
+
+static int test_weight_storage_group_signal()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev, true);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::Mat input[9];
+    ncnn::VkMat weight[9];
+    ncnn::VkTransfer upload(vkdev);
+    for (int i = 0; i < 9; i++)
+    {
+        input[i] = RandomMat(64);
+        upload.record_upload(input[i], weight[i], opt);
+    }
+    if (upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+
+    const char shader[] = "#version 450\n"
+                          "layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;\n"
+                          "layout(binding = 0) readonly buffer A { float a[]; };\n"
+                          "layout(binding = 1) readonly buffer B { float b[]; };\n"
+                          "layout(binding = 2) readonly buffer C { float c[]; };\n"
+                          "layout(binding = 3) writeonly buffer D { float d[]; };\n"
+                          "void main() { uint i = gl_GlobalInvocationID.x; if (i < 64) d[i] = a[i] + b[i] + c[i]; }\n";
+    std::vector<uint32_t> spirv;
+    if (ncnn::compile_spirv_module(shader, opt, spirv))
+        return -1;
+    ncnn::Pipeline pipeline(vkdev);
+    pipeline.set_local_size_xyz(64, 1, 1);
+    if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), std::vector<ncnn::vk_specialization_type>()))
+        return -1;
+
+    int storage_types[9];
+    for (int i = 0; i < 9; i++)
+    {
+        storage_types[i] = weight[i].data->storage_type;
+        weight[i].data->storage_type = 1;
+    }
+    opt.blob_vkallocator = &blobs;
+    int ret = 0;
+    WeightRecordingProbe probe(vkdev);
+    {
+        ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(true);
+        for (int round = 0; round < 2 && ret == 0; round++)
+        {
+            ncnn::VkMat results[3];
+            ncnn::Mat output[3];
+            probe.dispatch_commands.clear();
+            probe.dispatch_submissions.clear();
+            probe.copy_regions.clear();
+            probe.submit_records.clear();
+            for (int i = 0; i < 3; i++)
+            {
+                results[i].create(64, (size_t)4u, &blobs);
+                std::vector<ncnn::VkMat> bindings(4);
+                for (int j = 0; j < 3; j++)
+                    bindings[j] = weight[i * 3 + j];
+                bindings[3] = results[i];
+                cmd.record_pipeline(&pipeline, bindings, std::vector<ncnn::vk_constant_type>(), results[i]);
+            }
+            for (int i = 0; i < 3; i++)
+                cmd.record_clone(results[i], output[i], opt);
+            if (cmd.submit_and_wait() || probe.dispatch_commands.size() != 3 || probe.semaphores != 4 || probe.destroyed_semaphores != 0 || probe.fences != 2 || probe.destroyed_fences != 0 || probe.command_buffers != 2 || probe.freed_command_buffers != 0)
+            {
+                ret = -1;
+                break;
+            }
+            int notifications = 0;
+            for (size_t i = 0; i < probe.submit_records.size(); i++)
+                if (!probe.submit_records[i].command)
+                    notifications++;
+            if (notifications != 3)
+                ret = -1;
+            for (int i = 0; i < 3; i++)
+            {
+                const int compute = probe.dispatch_submissions[i];
+                // One preceding-compute wait and one ready wait for all three weights.
+                // The last compute additionally drains the upload-chain tail.
+                if (compute < 0 || probe.submit_records[compute].waits.size() != (i == 2 ? 3u : 2u))
+                    ret = -1;
+                ncnn::Mat expected(64);
+                for (int j = 0; j < 64; j++)
+                    expected[j] = input[i * 3][j] + input[i * 3 + 1][j] + input[i * 3 + 2][j];
+                if (CompareMat(expected, output[i], 0.001f))
+                    ret = -1;
+            }
+            if (cmd.reset())
+                ret = -1;
+        }
+    }
+    for (int i = 0; i < 9; i++)
+        weight[i].data->storage_type = storage_types[i];
+    if (probe.semaphores != probe.destroyed_semaphores || probe.fences != probe.destroyed_fences || probe.command_buffers != probe.freed_command_buffers)
+        ret = -1;
+    if (ret != 0)
+        fprintf(stderr, "multiple weight uploads did not share one ready signal per compute\n");
     return ret;
 }
 
@@ -1168,7 +1458,7 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
         ncnn::VkCompute cmd(vkdev);
         cmd.set_use_weight_upload_online(true);
         {
-            // Command/fence/semaphore allocation happens while recording.
+            // Hundreds of logical batches reuse two already allocated command buffers.
             VulkanFailure check(failure, 5);
             int recorded = 0;
             for (; recorded < count; recorded++)
@@ -1177,23 +1467,23 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
                 if (check.triggered)
                     break;
             }
-            if (check.submission_count() != 0 || (failure != VulkanFailure::TRACK_COMMANDS && !check.triggered))
+            if (check.submission_count() == 0 || check.command_allocations != 0)
             {
-                fprintf(stderr, "recording did not prepare execution resources or submitted work\n");
+                fprintf(stderr, "recording allocated command buffers or did not stream work\n");
                 return -1;
             }
             if (failure == VulkanFailure::TRACK_COMMANDS)
             {
                 ret = cmd.submit_and_wait();
-                if (ret != 0 || check.reused_command || check.resets != 0 || check.submission_count() <= count + 4)
+                if (ret != 0 || check.triggered || recorded != count || !check.reused_command || check.unsafe_command_reset || check.command_allocations != 0 || check.submission_count() <= count + 4)
                 {
-                    fprintf(stderr, "execution resources reused a submitted command or insufficient task coverage count=%d reused=%d resets=%d\n", check.submission_count(), check.reused_command, check.resets);
+                    fprintf(stderr, "execution resources did not safely reuse commands or insufficient task coverage count=%d reused=%d\n", check.submission_count(), check.reused_command);
                     ret = -1;
                 }
             }
             else
             {
-                ret = recorded < count && output[recorded].empty() && check.triggered && check.submission_count() == 0 ? 0 : -1;
+                ret = check.triggered && recorded < count && check.command_allocations == 0 ? 0 : -1;
             }
         }
         if (ret == 0 && failure == VulkanFailure::TRACK_COMMANDS)
@@ -1204,7 +1494,7 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
             ret = -1;
 
         // Reuse the same command across ordinary and paged recordings, including
-        // recovery after a partially allocated batch.
+        // recovery after interrupted command recording.
         for (int round = 0; round < 3 && ret == 0; round++)
         {
             const int output_count = round == 1 ? count : 1;
@@ -1259,9 +1549,17 @@ int main()
                     || test_weight_storage_workspace_wait_failure(true)
                     || test_weight_storage_workspace_wait_failure(false)
                     || test_weight_storage_execution_resources(VulkanFailure::TRACK_COMMANDS)
-                    || test_weight_storage_execution_resources(VulkanFailure::ALLOCATE_COMMAND)
-                    || test_weight_storage_execution_resources(VulkanFailure::CREATE_FENCE)
-                    || test_weight_storage_execution_resources(VulkanFailure::CREATE_SEMAPHORE)
+                    || test_weight_storage_execution_resources(VulkanFailure::RESET_COMMAND)
+                    || test_weight_storage_execution_resources(VulkanFailure::BEGIN_COMMAND)
+                    || test_weight_storage_execution_resources(VulkanFailure::END_COMMAND)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::ALLOCATE_COMMAND, 1)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::ALLOCATE_COMMAND, 2)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_FENCE, 1)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_FENCE, 2)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_SEMAPHORE, 1)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_SEMAPHORE, 2)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_SEMAPHORE, 3)
+                    || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_SEMAPHORE, 4)
                     || test_weight_storage_workspace_failure(VulkanFailure::ALLOCATE_MEMORY)
                     || test_weight_storage_workspace_failure(VulkanFailure::SUBMIT)
                     || test_weight_storage_transfer_failure(VulkanFailure::SUBMIT)
@@ -1272,6 +1570,19 @@ int main()
                     || test_weight_storage_workspace_allocation()
                     || test_weight_storage_private_pool()
                     || test_weight_storage_upload_overlap()
+                    || test_weight_storage_upload_overlap(1)
+                    || test_weight_storage_upload_overlap(2)
+                    || test_weight_storage_upload_overlap(3)
+                    || test_weight_storage_upload_overlap(4)
+                    || test_weight_storage_upload_overlap(1, VulkanFailure::RESET_COMMAND)
+                    || test_weight_storage_upload_overlap(3, VulkanFailure::RESET_COMMAND)
+                    || test_weight_storage_upload_overlap(1, VulkanFailure::BEGIN_COMMAND)
+                    || test_weight_storage_upload_overlap(3, VulkanFailure::BEGIN_COMMAND)
+                    || test_weight_storage_upload_overlap(1, VulkanFailure::END_COMMAND)
+                    || test_weight_storage_upload_overlap(3, VulkanFailure::END_COMMAND)
+                    || test_weight_storage_upload_overlap(1, VulkanFailure::RESET_FENCE)
+                    || test_weight_storage_upload_overlap(3, VulkanFailure::RESET_FENCE)
+                    || test_weight_storage_group_signal()
                     || test_weight_storage_resident_batches()
                     || test_weight_storage_resident_failure()
                     || test_weight_storage_midflight_failure(2)
