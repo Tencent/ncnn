@@ -220,8 +220,9 @@ recording. They are not saved as a command-wide error for a later
 `submit_and_wait()` call. Reset an incomplete recording before using the command
 again. Output allocation failures retain the empty-output convention.
 `submit_and_wait()` returns errors from its own recording, submission and waiting
-operations. A nonterminal fence error retains pending work and its resources;
-reset or destruction must complete the wait before releasing them.
+operations. A fence error retains pending work and its resources. Reset returns
+an error if waiting fails again. Destruction attempts each pending wait once
+before cleanup; it does not retry failed waits or recover a lost device.
 
 For direct allocator use, configure `VkWeightAllocator` before allocation with
 `set_weights_in_disk()`, `set_weight_memory_limit(device_limit, host_limit)` and optionally `set_weight_file_directory()`.
@@ -237,7 +238,7 @@ an error status. `submit_and_wait()` and `reset()` return errors from their own
 operations; a successful final submit does not certify earlier void recording
 operations. Net does not aggregate recording failures into a load error.
 After a submission or wait failure, discard the command; destruction
-drains any work still in flight. Finalization flushes
+attempts to wait once for work still in flight before cleanup. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
 work have been released. Unmapped destinations are filled through a reusable

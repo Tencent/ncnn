@@ -1359,7 +1359,7 @@ static int test_weight_storage_transfer_wait_failure(bool record_chunk)
     ncnn::Mat input = RandomMat(record_chunk ? 16384 : 256);
     ncnn::VkMat target;
     {
-        VulkanFailure fail(VulkanFailure::FENCE_WAIT, 3);
+        VulkanFailure fail(VulkanFailure::FENCE_WAIT);
         {
             ncnn::VkTransfer upload(vkdev);
             upload.record_upload(input, target, opt);
@@ -1374,7 +1374,6 @@ static int test_weight_storage_transfer_wait_failure(bool record_chunk)
                 return -1;
             }
         }
-        // The destructor retries two more transient errors before the real wait.
     }
     return staging.frees == 1 ? 0 : -1;
 }
@@ -1409,13 +1408,13 @@ static int test_weight_storage_workspace_wait_failure(bool deferred_weight)
         cmd->record_clone(ordinary, output, opt);
     }
     const int frees_before = staging.frees;
-    VulkanFailure fail(VulkanFailure::FENCE_STATUS, 3);
+    VulkanFailure fail(VulkanFailure::FENCE_STATUS, 2);
     const int result = cmd->submit_and_wait();
     const bool retained = result != 0 && fail.triggered && cmd->reset() != 0 && staging.frees == frees_before;
-    // Keep injection active during destruction: repeated query errors must not
-    // release source/destination/staging resources before a real completed wait.
+    // The submit and reset failures retain resources until destruction waits
+    // for the pending commands without another injected error.
     delete cmd;
-    if (!retained || fail.status_errors != 3 || staging.frees <= frees_before)
+    if (!retained || fail.status_errors != 2 || staging.frees <= frees_before)
     {
         fprintf(stderr, "compute fence query failure lost pending execution or staging lifetime deferred=%d\n", deferred_weight);
         return -1;
