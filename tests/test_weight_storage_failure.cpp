@@ -959,37 +959,43 @@ static int test_weight_storage_sync_init_failure(VulkanFailure::Failure failure_
     opt.staging_vkallocator = &staging;
     const ncnn::Mat input = RandomMat(64);
 
-    WeightRecordingProbe probe(vkdev);
     const bool command_failure = failure_type == VulkanFailure::ALLOCATE_COMMAND;
-    const int& created = command_failure ? probe.command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.fences : probe.semaphores;
-    const int& destroyed = command_failure ? probe.freed_command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.destroyed_fences : probe.destroyed_semaphores;
     const int count = command_failure || failure_type == VulkanFailure::CREATE_FENCE ? 2 : 4;
-    const int released = command_failure ? 0 : fail_at - 1;
+    for (int recover = 0; recover < 2; recover++)
     {
-        VulkanFailure failure(failure_type, fail_at);
-        ncnn::VkCompute cmd(vkdev);
-        if (!failure.triggered || created != fail_at - 1 || destroyed != released || cmd.submit_and_wait() == 0 || probe.submissions != 0)
+        WeightRecordingProbe probe(vkdev);
+        const int& created = command_failure ? probe.command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.fences : probe.semaphores;
+        const int& destroyed = command_failure ? probe.freed_command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.destroyed_fences : probe.destroyed_semaphores;
         {
-            fprintf(stderr, "sync initialization failure did not clean up failure=%d at=%d\n", failure_type, fail_at);
+            VulkanFailure failure(failure_type, fail_at);
+            ncnn::VkCompute cmd(vkdev);
+            if (!failure.triggered || created != fail_at - 1 || destroyed != 0 || cmd.submit_and_wait() == 0 || probe.submissions != 0)
+            {
+                fprintf(stderr, "sync initialization failure did not retain resources failure=%d at=%d\n", failure_type, fail_at);
+                return -1;
+            }
+            if (recover)
+            {
+                // Reset creates only the missing resources.
+                if (cmd.reset() || created != count || destroyed != 0)
+                {
+                    fprintf(stderr, "sync initialization failure prevented reset failure=%d at=%d\n", failure_type, fail_at);
+                    return -1;
+                }
+                cmd.set_use_weight_upload_online(true);
+                ncnn::VkMat device;
+                ncnn::Mat output;
+                cmd.record_clone(input, device, opt);
+                cmd.record_clone(device, output, opt);
+                if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
+                    return -1;
+            }
+        }
+        if (created != (recover ? count : fail_at - 1) || probe.destroyed_semaphores != probe.semaphores || probe.destroyed_fences != probe.fences || probe.freed_command_buffers != probe.command_buffers)
+        {
+            fprintf(stderr, "sync resources leaked after initialization failure=%d at=%d recover=%d\n", failure_type, fail_at, recover);
             return -1;
         }
-        if (cmd.reset() || created != released + count || destroyed != released)
-        {
-            fprintf(stderr, "sync initialization failure prevented reset failure=%d at=%d\n", failure_type, fail_at);
-            return -1;
-        }
-        cmd.set_use_weight_upload_online(true);
-        ncnn::VkMat device;
-        ncnn::Mat output;
-        cmd.record_clone(input, device, opt);
-        cmd.record_clone(device, output, opt);
-        if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
-            return -1;
-    }
-    if (created != released + count || probe.destroyed_semaphores != probe.semaphores || probe.destroyed_fences != probe.fences || probe.freed_command_buffers != probe.command_buffers)
-    {
-        fprintf(stderr, "sync resources leaked after initialization recovery failure=%d at=%d\n", failure_type, fail_at);
-        return -1;
     }
     return 0;
 }
@@ -1286,15 +1292,14 @@ static int test_weight_storage_staging_flush_failure()
         ncnn::VkCompute cmd(vkdev);
         staging.fail = true;
         staging.flushes = 0;
+        WeightRecordingProbe probe(vkdev);
         if (upload)
             cmd.record_upload(input, device, opt);
         else
             cmd.record_clone(input, device, opt);
-        cmd.record_download(device, output, opt);
-        WeightRecordingProbe probe(vkdev);
-        if (staging.flushes != 0 || cmd.submit_and_wait() == 0 || staging.flushes != 1 || probe.submissions != 0)
+        if (staging.flushes != 1 || !device.empty() || probe.copies != 0 || probe.dispatches != 0 || probe.submissions != 0)
         {
-            fprintf(stderr, "staging flush failure was not returned before GPU submission\n");
+            fprintf(stderr, "staging flush failure did not stop recording upload=%d\n", upload);
             return -1;
         }
         if (cmd.reset())
@@ -1302,7 +1307,7 @@ static int test_weight_storage_staging_flush_failure()
         staging.fail = false;
         cmd.record_clone(input, device, opt);
         cmd.record_clone(device, output, opt);
-        if (cmd.submit_and_wait() || CompareMat(input, output, 0.f))
+        if (staging.flushes != 2 || cmd.submit_and_wait() || staging.flushes != 2 || CompareMat(input, output, 0.f))
         {
             fprintf(stderr, "staging flush failure prevented reuse after reset\n");
             return -1;

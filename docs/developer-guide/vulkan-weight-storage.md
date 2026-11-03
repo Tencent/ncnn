@@ -115,6 +115,9 @@ configuration and returns from that operation.
 `init()` creates the private weight allocator, prepares the compute and upload
 command pools and starts the initial compute command buffer. Both command pools
 remain available until command destruction.
+If command-buffer or synchronization-object creation fails, already created
+resources remain owned by the command. `reset()` creates only missing handles;
+destruction releases the retained resources.
 Temporary weight and staging allocations are still created only when needed.
 
 Each command owns an independent temporary weight pool. It cannot be replaced
@@ -193,7 +196,7 @@ Host copies read source and destination mappings directly, including allocation
 and chunk offsets. They execute while recording, after any preceding use of the
 destination or staging range completes. Non-coherent destinations are flushed
 before GPU submission, including alignment padding. Ordinary staging uploads
-also call `allocator->flush()` before their compute batch is submitted.
+call `allocator->flush()` immediately after the host copy while recording.
 
 Online upload streams batches from `record_*()`. A new weight group submits the
 preceding compute batch, prepares and submits its own uploads, then waits before
