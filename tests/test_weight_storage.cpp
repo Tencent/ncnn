@@ -1293,7 +1293,7 @@ static int test_weight_storage_upload_staging(bool custom_staging)
         const WeightStorageUploadProbe::Copy& first = probe.copies[first_copy];
         const WeightStorageUploadProbe::Copy& second = probe.copies[first_copy + 1];
         if (first.source == second.source || first.command != second.command
-            || first.region.size != targets[0].buffer_capacity() || second.region.size != targets[1].buffer_capacity())
+                || first.region.size != targets[0].buffer_capacity() || second.region.size != targets[1].buffer_capacity())
         {
             fprintf(stderr, "weights did not retain independent complete staging allocations\n");
             return -1;

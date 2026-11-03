@@ -2935,7 +2935,7 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
     coherent = vkdev->is_coherent(buffer_memory_type_index);
     const VkPhysicalDeviceMemoryProperties& properties = vkdev->info.physicalDeviceMemoryProperties();
     if ((vkdev->info.max_memory_allocation_size() && memoryRequirements.size > vkdev->info.max_memory_allocation_size())
-        || memoryRequirements.size > properties.memoryHeaps[properties.memoryTypes[buffer_memory_type_index].heapIndex].size)
+            || memoryRequirements.size > properties.memoryHeaps[properties.memoryTypes[buffer_memory_type_index].heapIndex].size)
     {
         NCNN_LOGE("weight staging allocation exceeds device or memory heap limit");
         vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);

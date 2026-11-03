@@ -1272,7 +1272,7 @@ static int test_weight_storage_group_signal(bool staged)
                 {
                     const WeightRecordingProbe::Copy& copy = probe.copy_regions[i * 3 + j];
                     if (copy.submission < 0 || copy.submission != probe.copy_regions[i * 3].submission
-                        || copy.region.size != weight[i * 3 + j].data->capacity || copy.source_destroyed)
+                            || copy.region.size != weight[i * 3 + j].data->capacity || copy.source_destroyed)
                         ret = -1;
                     if (staged)
                         for (int k = 0; k < j; k++)
