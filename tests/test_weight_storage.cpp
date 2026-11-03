@@ -833,7 +833,7 @@ static int test_weight_storage_subview_copy(bool file, bool force_staging)
             continue;
         uploads++;
         if (copy.region.size != view_bytes
-            || (!file && (copy.source != view.buffer() || copy.region.srcOffset != view.buffer_offset())))
+                || (!file && (copy.source != view.buffer() || copy.region.srcOffset != view.buffer_offset())))
         {
             fprintf(stderr, "subview upload lost tensor extent or source offset file=%d staging=%d\n", file, force_staging);
             return -1;
