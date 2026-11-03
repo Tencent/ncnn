@@ -207,8 +207,11 @@ remains deferred until `submit_and_wait()`.
 
 Each command owns one compute command buffer and one upload command buffer,
 allocated at initialization and retained across reset. Two fences and four binary
-semaphores are also reused. The last upload chunk signals readiness once for all
-weights in its group. `submit_and_wait()` submits the remaining compute batch,
+semaphores are also reused. Open-upload state is local to each recording call
+and shared across that call's weight bindings. The compute execution flag clears
+after its fence wait; the upload-chain flag stays set through the final upload
+fence wait. The last upload chunk signals readiness once for all weights in its
+group. `submit_and_wait()` submits the remaining compute batch,
 consumes outstanding chain signals and waits for completion before downloads.
 Reset and destruction wait for already submitted work before releasing its
 resources; reset discards any unsubmitted recording. An interrupted stream may

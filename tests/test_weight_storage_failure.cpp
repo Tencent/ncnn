@@ -1422,6 +1422,46 @@ static int test_weight_storage_workspace_wait_failure(bool deferred_weight)
     return 0;
 }
 
+static int test_weight_storage_upload_wait_failure(bool submit)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator weights(vkdev, true);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    CountingWeightStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    ncnn::VkTransfer upload(vkdev);
+    ncnn::VkMat weight;
+    upload.record_upload(RandomMat(256), weight, opt);
+    if (upload.submit_and_wait() != 0 || weights.finalize_weights() != 0)
+        return -1;
+
+    // Exercise the upload queue even on unified-memory devices.
+    const int storage_type = weight.data->storage_type;
+    weight.data->storage_type = 1;
+    opt.blob_vkallocator = &blobs;
+    ncnn::Mat output;
+    ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev);
+    cmd->set_use_weight_upload_online(true);
+    VulkanFailure fail(VulkanFailure::UPLOAD_FENCE_STATUS, 2);
+    cmd->record_clone(weight, output, opt);
+    const int frees_before = staging.frees;
+
+    // Compute has completed when the upload wait fails, both after final submit
+    // and when resetting an unsubmitted compute recording.
+    const int result = submit ? cmd->submit_and_wait() : cmd->reset();
+    const bool retained = result != 0 && fail.triggered && cmd->reset() != 0 && staging.frees == frees_before;
+    delete cmd;
+    weight.data->storage_type = storage_type;
+    if (!retained || fail.status_errors != 2 || staging.frees <= frees_before)
+    {
+        fprintf(stderr, "upload fence query failure lost pending work or staging lifetime submit=%d\n", submit);
+        return -1;
+    }
+    return 0;
+}
+
 static int test_weight_storage_execution_resources(VulkanFailure::Failure failure)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -1547,6 +1587,8 @@ int main()
                     || test_weight_storage_transfer_wait_failure(true)
                     || test_weight_storage_workspace_wait_failure(true)
                     || test_weight_storage_workspace_wait_failure(false)
+                    || test_weight_storage_upload_wait_failure(true)
+                    || test_weight_storage_upload_wait_failure(false)
                     || test_weight_storage_execution_resources(VulkanFailure::TRACK_COMMANDS)
                     || test_weight_storage_execution_resources(VulkanFailure::RESET_COMMAND)
                     || test_weight_storage_execution_resources(VulkanFailure::BEGIN_COMMAND)

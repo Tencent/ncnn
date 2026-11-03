@@ -21,6 +21,7 @@ public:
         SECOND_SUBMIT,
         FENCE_WAIT,
         FENCE_STATUS,
+        UPLOAD_FENCE_STATUS,
         ALLOCATE_COMMAND,
         RESET_COMMAND,
         BEGIN_COMMAND,
@@ -42,6 +43,7 @@ public:
         command_allocations = 0;
         resets = 0;
         status_errors = 0;
+        upload_fence = 0;
         g_vulkan_failure = this;
         ncnn::vkAllocateMemory = allocate_memory;
         ncnn::vkBindBufferMemory = bind_memory;
@@ -122,6 +124,8 @@ private:
     {
         VulkanFailure* f = g_vulkan_failure;
         f->submissions++;
+        if (f->failure == UPLOAD_FENCE_STATUS && count == 2 && submits[1].commandBufferCount == 0)
+            f->upload_fence = fence;
         if (f->failure == TRACK_COMMANDS)
         {
             for (uint32_t i = 0; i < count; i++)
@@ -264,7 +268,7 @@ private:
     static VKAPI_ATTR VkResult VKAPI_CALL get_fence_status(VkDevice device, VkFence fence)
     {
         VulkanFailure* f = g_vulkan_failure;
-        if (f->failure == FENCE_STATUS && f->calls++ < f->fail_at)
+        if ((f->failure == FENCE_STATUS || (f->failure == UPLOAD_FENCE_STATUS && fence == f->upload_fence)) && f->calls++ < f->fail_at)
         {
             f->triggered = true;
             f->status_errors++;
@@ -274,6 +278,7 @@ private:
     }
 
     int calls;
+    VkFence upload_fence;
     PFN_vkAllocateCommandBuffers allocate_command;
     PFN_vkCreateFence create_fence;
     PFN_vkCreateSemaphore create_semaphore;
