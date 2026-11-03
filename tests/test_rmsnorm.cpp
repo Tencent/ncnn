@@ -38,7 +38,8 @@ static int test_rmsnorm_0()
            || test_rmsnorm(RandomMat(5, 6, 12), 5, 0.02f, 1)
            || test_rmsnorm(RandomMat(4, 7, 16), 4, 0.02f, 1)
            || test_rmsnorm(RandomMat(6, 7, 24), 6, 0.001f, 1)
-           || test_rmsnorm(RandomMat(5, 8, 32), 5, 0.001f, 1);
+           || test_rmsnorm(RandomMat(5, 8, 32), 5, 0.001f, 1)
+           || test_rmsnorm(RandomMat(127, 4, 8), 127, 0.001f, 1);
 }
 
 static int test_rmsnorm_1()
@@ -51,6 +52,7 @@ static int test_rmsnorm_1()
            || test_rmsnorm(RandomMat(4, 7, 16), 28, 0.02f, 0)
            || test_rmsnorm(RandomMat(6, 7, 24), 42, 0.001f, 0)
            || test_rmsnorm(RandomMat(5, 8, 32), 40, 0.001f, 0)
+           || test_rmsnorm(RandomMat(16, 8, 8), 128, 0.001f, 0)
            || test_rmsnorm(RandomMat(6, 4, 2), 24, 0.01f, 1)
            || test_rmsnorm(RandomMat(4, 5, 6), 20, 0.01f, 1)
            || test_rmsnorm(RandomMat(3, 3, 8), 9, 0.002f, 1)
@@ -70,13 +72,16 @@ static int test_rmsnorm_2()
            || test_rmsnorm(RandomMat(4, 16), 4, 0.02f, 0)
            || test_rmsnorm(RandomMat(7, 24), 7, 0.001f, 0)
            || test_rmsnorm(RandomMat(8, 32), 8, 0.001f, 0)
+           || test_rmsnorm(RandomMat(80, 4), 80, 0.001f, 0)
            || test_rmsnorm(RandomMat(4, 2), 4, 0.01f, 1)
            || test_rmsnorm(RandomMat(5, 6), 5, 0.01f, 1)
+           || test_rmsnorm(RandomMat(5, 16), 5, 0.001f, 1)
            || test_rmsnorm(RandomMat(3, 8), 3, 0.002f, 1)
            || test_rmsnorm(RandomMat(6, 12), 6, 0.02f, 1)
            || test_rmsnorm(RandomMat(4, 16), 4, 0.02f, 1)
            || test_rmsnorm(RandomMat(7, 24), 7, 0.001f, 1)
-           || test_rmsnorm(RandomMat(8, 32), 8, 0.001f, 1);
+           || test_rmsnorm(RandomMat(8, 32), 8, 0.001f, 1)
+           || test_rmsnorm(RandomMat(79, 16), 79, 0.001f, 1);
 }
 
 static int test_rmsnorm_3()
@@ -89,13 +94,16 @@ static int test_rmsnorm_3()
            || test_rmsnorm(RandomMat(16), 16, 0.02f, 0)
            || test_rmsnorm(RandomMat(24), 24, 0.001f, 0)
            || test_rmsnorm(RandomMat(32), 32, 0.001f, 0)
+           || test_rmsnorm(RandomMat(63), 63, 0.001f, 0)
+           || test_rmsnorm(RandomMat(65), 65, 0.001f, 0)
            || test_rmsnorm(RandomMat(2), 2, 0.01f, 1)
            || test_rmsnorm(RandomMat(6), 6, 0.01f, 1)
            || test_rmsnorm(RandomMat(8), 8, 0.002f, 1)
            || test_rmsnorm(RandomMat(12), 12, 0.02f, 1)
            || test_rmsnorm(RandomMat(16), 16, 0.02f, 1)
            || test_rmsnorm(RandomMat(24), 24, 0.001f, 1)
-           || test_rmsnorm(RandomMat(32), 32, 0.001f, 1);
+           || test_rmsnorm(RandomMat(32), 32, 0.001f, 1)
+           || test_rmsnorm(RandomMat(64), 64, 0.001f, 1);
 }
 
 static int test_rmsnorm_4()
@@ -106,7 +114,8 @@ static int test_rmsnorm_4()
            || test_rmsnorm(RandomMat(5, 3, 2, 8), 15, 0.002f, 0)
            || test_rmsnorm(RandomMat(4, 3, 2, 5), 12, 0.002f, 1)
            || test_rmsnorm(RandomMat(5, 3, 2, 8), 30, 0.001f, 0)
-           || test_rmsnorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1);
+           || test_rmsnorm(RandomMat(4, 3, 2, 5), 24, 0.001f, 1)
+           || test_rmsnorm(RandomMat(43, 3, 2, 8), 129, 0.001f, 1);
 }
 
 static int test_rmsnorm_5()
@@ -217,34 +226,6 @@ static int test_rmsnorm_gpu_fp16a()
 }
 #endif // NCNN_VULKAN
 
-static int test_rmsnorm_simd_boundaries()
-{
-    // Exercise packed lengths around the 64-float block and every SIMD tail.
-    const int widths[] = {3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33};
-    for (int i = 0; i < (int)(sizeof(widths) / sizeof(widths[0])); i++)
-    {
-        const int w = widths[i];
-        for (int affine = 0; affine < 2; affine++)
-        {
-            if (test_rmsnorm(RandomMat(w, 16), w, 0.001f, affine))
-                return -1;
-        }
-    }
-
-    for (int w = 63; w <= 80; w++)
-    {
-        for (int affine = 0; affine < 2; affine++)
-        {
-            if (test_rmsnorm(RandomMat(w), w, 0.001f, affine)
-                    || test_rmsnorm(RandomMat(w, 16), w, 0.001f, affine)
-                    || test_rmsnorm(RandomMat(w + 64), w + 64, 0.001f, affine))
-                return -1;
-        }
-    }
-
-    return 0;
-}
-
 int main()
 {
     SRAND(7767517);
@@ -256,7 +237,6 @@ int main()
            || test_rmsnorm_3()
            || test_rmsnorm_4()
            || test_rmsnorm_5()
-           || test_rmsnorm_simd_boundaries()
 #if NCNN_VULKAN
            || test_rmsnorm_gpu_fp16a()
 #endif // NCNN_VULKAN
