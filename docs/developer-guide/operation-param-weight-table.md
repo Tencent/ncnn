@@ -11,6 +11,7 @@
 ||1|with_scalar|0|
 ||2|b|0.f|
 |BNLL|||
+|CELU|0|alpha|1.f|
 |Cast|0|type_from|0|
 ||1|type_to|0|
 |Clip|0|min|-FLT_MAX|
@@ -123,6 +124,7 @@
 ||1|input_dim|0|
 ||2|bias_term|0|
 ||3|weight_data_size|0|
+|Erf|||
 |Exp|0|base|-1.f|
 ||1|scale|1.f|
 ||2|shift|0.f|
@@ -131,6 +133,7 @@
 ||2|expand_c|0|
 ||3|axes|[ ]|
 |Flatten|||
+|GELU|0|fast_gelu|0|
 |Gemm|0|alpha|1.f|A_data B_data C_data A_data_int8_scales B_data_int8_scales/B_data_quantize_scales B_data_input_scales|
 ||1|beta|1.f|
 ||2|transA|0|
