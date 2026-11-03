@@ -3752,13 +3752,10 @@ public:
     int init();
     int begin_command_buffer();
     int end_command_buffer();
-    int finish_upload(int error = 0);
 
     const VulkanDevice* vkdev;
 
     uint64_t pending_upload_total;
-    bool compute_command_pending;
-    bool upload_command_pending;
 
     VkCommandPool compute_command_pool;
     VkCommandPool transfer_command_pool;
@@ -3771,7 +3768,6 @@ public:
     VkFence upload_command_fence;
     VkFence compute_command_fence;
 
-    VkAllocator* local_staging_vkallocator;
     std::vector<VkMat> upload_staging_buffers;
 };
 
@@ -3779,8 +3775,6 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
     pending_upload_total = 0;
-    compute_command_pending = false;
-    upload_command_pending = false;
 
     compute_command_pool = 0;
     transfer_command_pool = 0;
@@ -3793,21 +3787,14 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     upload_command_fence = 0;
     compute_command_fence = 0;
 
-    local_staging_vkallocator = 0;
-
     init();
 }
 
 VkTransferPrivate::~VkTransferPrivate()
 {
-    finish_upload();
-    upload_staging_buffers.clear();
-    delete local_staging_vkallocator;
-
     vkDestroyFence(vkdev->vkdevice(), compute_command_fence, 0);
 
-    if (compute_command_buffer)
-        vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffer);
+    vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffer);
     vkDestroyCommandPool(vkdev->vkdevice(), compute_command_pool, 0);
 
     if (!vkdev->info.unified_compute_transfer_queue())
@@ -3816,16 +3803,13 @@ VkTransferPrivate::~VkTransferPrivate()
 
         vkDestroySemaphore(vkdev->vkdevice(), upload_compute_semaphore, 0);
 
-        if (upload_command_buffer)
-            vkFreeCommandBuffers(vkdev->vkdevice(), transfer_command_pool, 1, &upload_command_buffer);
+        vkFreeCommandBuffers(vkdev->vkdevice(), transfer_command_pool, 1, &upload_command_buffer);
         vkDestroyCommandPool(vkdev->vkdevice(), transfer_command_pool, 0);
     }
 }
 
 int VkTransferPrivate::init()
 {
-    local_staging_vkallocator = new VkWeightStagingAllocator(vkdev);
-
     // compute_command_pool
     {
         VkCommandPoolCreateInfo commandPoolCreateInfo;
@@ -3940,7 +3924,9 @@ int VkTransferPrivate::init()
         }
     }
 
-    return begin_command_buffer();
+    begin_command_buffer();
+
+    return 0;
 }
 
 int VkTransferPrivate::begin_command_buffer()
@@ -4007,30 +3993,6 @@ int VkTransferPrivate::end_command_buffer()
     return 0;
 }
 
-int VkTransferPrivate::finish_upload(int error)
-{
-    VkFence fences[2];
-    uint32_t count = 0;
-    if (upload_command_pending)
-        fences[count++] = upload_command_fence;
-    if (compute_command_pending)
-        fences[count++] = compute_command_fence;
-    if (count)
-    {
-        const VkResult ret = vkWaitForFences(vkdev->vkdevice(), count, fences, VK_TRUE, (uint64_t)-1);
-        if (ret != VK_SUCCESS)
-        {
-            NCNN_LOGE("vkWaitForFences failed %d", ret);
-            return -1;
-        }
-        compute_command_pending = false;
-        upload_command_pending = false;
-    }
-    if (error == 0)
-        pending_upload_total = 0;
-    return error;
-}
-
 VkTransfer::VkTransfer(const VulkanDevice* _vkdev)
     : vkdev(_vkdev), d(new VkTransferPrivate(_vkdev))
 {
@@ -4043,9 +4005,6 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten)
 {
-    if (d->compute_command_pending || d->upload_command_pending)
-        return;
-
     if (src.empty())
         return;
 
@@ -4144,14 +4103,14 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
         return;
     }
-    // create staging for the complete weight
-    VkAllocator* staging_vkallocator = opt.staging_vkallocator ? opt.staging_vkallocator : d->local_staging_vkallocator;
-    if (staging_vkallocator->vkdev != vkdev)
+
+    // create staging
+    if (opt.staging_vkallocator->vkdev != vkdev)
     {
         NCNN_LOGE("weight staging allocator uses a different Vulkan device");
         return;
     }
-    VkMat dst_staging(1, dst.buffer_capacity(), 1, staging_vkallocator);
+    VkMat dst_staging(1, dst.buffer_capacity(), 1, opt.staging_vkallocator);
     if (dst_staging.empty() || !dst_staging.mapped_ptr())
         return;
 
@@ -4265,16 +4224,16 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         }
     }
 
-    d->upload_staging_buffers.push_back(dst_staging);
-    d->pending_upload_total += dst.buffer_capacity();
     dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
     dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    // stash staging
+    d->upload_staging_buffers.push_back(dst_staging);
+    d->pending_upload_total += dst.buffer_capacity();
 }
 
 int VkTransfer::submit_and_wait()
 {
-    if (d->compute_command_pending || d->upload_command_pending)
-        return -1;
     if (d->pending_upload_total == 0)
         return 0;
 
@@ -4282,16 +4241,14 @@ int VkTransfer::submit_and_wait()
 
     // end command buffer
     {
-        int ret = d->end_command_buffer();
-        if (ret != 0)
-            return d->finish_upload(ret);
+        d->end_command_buffer();
     }
 
     VkQueue compute_queue = vkdev->acquire_queue(vkdev->info.compute_queue_family_index());
     if (compute_queue == 0)
     {
         NCNN_LOGE("out of compute queue");
-        return d->finish_upload(-1);
+        return -1;
     }
 
     if (vkdev->info.unified_compute_transfer_queue())
@@ -4314,9 +4271,8 @@ int VkTransfer::submit_and_wait()
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return d->finish_upload(-1);
+                return -1;
             }
-            d->compute_command_pending = true;
         }
     }
     else
@@ -4326,7 +4282,7 @@ int VkTransfer::submit_and_wait()
         {
             NCNN_LOGE("out of transfer queue");
             vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-            return d->finish_upload(-1);
+            return -1;
         }
 
         // submit upload compute
@@ -4348,9 +4304,8 @@ int VkTransfer::submit_and_wait()
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return d->finish_upload(-1);
+                return -1;
             }
-            d->upload_command_pending = true;
         }
         {
             VkPipelineStageFlags wait_dst_stage = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT; // FIXME
@@ -4372,9 +4327,8 @@ int VkTransfer::submit_and_wait()
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return d->finish_upload(-1);
+                return -1;
             }
-            d->compute_command_pending = true;
         }
 
         vkdev->reclaim_queue(vkdev->info.transfer_queue_family_index(), transfer_queue);
@@ -4382,13 +4336,36 @@ int VkTransfer::submit_and_wait()
 
     vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
 
-    return d->finish_upload();
+    // wait
+    if (vkdev->info.unified_compute_transfer_queue())
+    {
+        VkResult ret = vkWaitForFences(vkdev->vkdevice(), 1, &d->compute_command_fence, VK_TRUE, (uint64_t)-1);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkWaitForFences failed %d", ret);
+            return -1;
+        }
+    }
+    else
+    {
+        VkFence fences[2] = {d->upload_command_fence, d->compute_command_fence};
+
+        VkResult ret = vkWaitForFences(vkdev->vkdevice(), 2, fences, VK_TRUE, (uint64_t)-1);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkWaitForFences failed %d", ret);
+            return -1;
+        }
+    }
+
+    d->pending_upload_total = 0;
+
+    return 0;
 }
 
 int VkTransfer::reset()
 {
-    if (d->compute_command_pending || d->upload_command_pending)
-        return -1;
+    d->upload_staging_buffers.clear();
 
     d->pending_upload_total = 0;
 
@@ -4430,9 +4407,9 @@ int VkTransfer::reset()
         }
     }
 
-    d->upload_staging_buffers.clear();
+    d->begin_command_buffer();
 
-    return d->begin_command_buffer();
+    return 0;
 }
 
 uint64_t VkTransfer::pending_upload_total() const

@@ -246,16 +246,17 @@ loading order. Recording failures end the current operation without retaining
 an error status. `submit_and_wait()` and `reset()` return errors from their own
 operations; a successful final submit does not certify earlier void recording
 operations. Net does not aggregate recording failures into a load error.
-After a submission or wait failure, discard the command; destruction
-attempts to wait once for work still in flight before cleanup. Finalization flushes
+Submission and wait errors follow the ordinary `VkTransfer` behavior; reset and
+destruction do not wait for unfinished work after an error. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
 work have been released. Each unmapped destination gets a complete staging
-`VkMat`, allocated through the supplied staging allocator or a command-owned
-`VkWeightStagingAllocator`. Recording copies the source bytes and alignment
+`VkMat`, allocated through `opt.staging_vkallocator`, which the caller supplies
+and keeps alive until the staging buffers are released. Net supplies its weight
+staging allocator. Recording copies the source bytes and alignment
 padding into staging, flushes immediately, and records one buffer copy. The
-command retains its staging buffers until reset or destruction, after pending
-work has completed. A failed fence wait leaves those buffers alive.
+command retains its staging buffers until reset or destruction. Complete
+submitted work before resetting or destroying the command.
 
 Net submits and resets when pending uploads exceed 256 MiB, checked after each
 layer, and submits the final remainder after loading. `record_upload()` does not

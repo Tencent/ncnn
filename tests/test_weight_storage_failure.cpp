@@ -118,7 +118,11 @@ static int test_weight_storage_transfer_failure(VulkanFailure::Failure failure)
     cmd.record_upload(RandomMat(256), weight, opt);
     {
         VulkanFailure fail(failure);
-        if (cmd.submit_and_wait() == 0 || !fail.triggered)
+        const int ret = cmd.submit_and_wait();
+        // A failed second submit can leave the upload in flight. Drain it in
+        // the test before destroying the command and its staging allocations.
+        ncnn::vkDeviceWaitIdle(vkdev->vkdevice());
+        if (ret == 0 || !fail.triggered)
         {
             fprintf(stderr, "test_weight_storage_transfer_failure error missing failure=%d\n", failure);
             return -1;
@@ -230,12 +234,14 @@ static int test_weight_storage_resident_failure()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     UnmappedWeightAllocator weights(vkdev);
+    ncnn::VkWeightStagingAllocator staging(vkdev);
     weights.set_weights_in_disk(true);
     weights.set_weight_file_directory(weight_storage_test_directory());
     if (weights.set_weight_memory_limit(16384, 16384))
         return -1;
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
     ncnn::VkMat weight;
     ncnn::VkTransfer upload(vkdev);
     VulkanFailure fail(VulkanFailure::SUBMIT);
@@ -1445,9 +1451,13 @@ static int test_weight_storage_transfer_wait_failure(bool multiple_weights)
                 fprintf(stderr, "weight recording unexpectedly waited for a submission\n");
                 return -1;
             }
-            if (upload.submit_and_wait() == 0 || !fail.triggered || staging.frees != 0 || upload.reset() == 0)
+            const int ret = upload.submit_and_wait();
+            // The command does not retry a failed wait during reset or destruction.
+            // Complete the actual work before exercising ordinary reset cleanup.
+            ncnn::vkDeviceWaitIdle(vkdev->vkdevice());
+            if (ret == 0 || !fail.triggered || staging.frees != 0 || upload.reset() != 0 || staging.frees != count)
             {
-                fprintf(stderr, "failed fence wait prematurely released transfer staging\n");
+                fprintf(stderr, "transfer wait error or staging cleanup failed\n");
                 return -1;
             }
         }

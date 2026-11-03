@@ -1253,14 +1253,15 @@ static int test_weight_storage_upload_recording()
     return 0;
 }
 
-static int test_weight_storage_upload_staging(bool custom_staging)
+static int test_weight_storage_upload_staging(bool pooled_staging)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     UnmappedWeightAllocator weights(vkdev);
     ncnn::VkWeightStagingAllocator staging(vkdev);
+    ncnn::VkStagingAllocator pooled(vkdev);
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
-    opt.staging_vkallocator = custom_staging ? &staging : 0;
+    opt.staging_vkallocator = pooled_staging ? (ncnn::VkAllocator*)&pooled : &staging;
     ncnn::VkTransfer upload(vkdev);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
     WeightStorageUploadProbe probe(vkdev);
@@ -1306,7 +1307,7 @@ static int test_weight_storage_upload_staging(bool custom_staging)
         }
         if (upload.submit_and_wait() || upload.pending_upload_total() != 0 || upload.reset())
         {
-            fprintf(stderr, "complete weight upload failed custom=%d round=%d\n", custom_staging, round);
+            fprintf(stderr, "complete weight upload failed pooled=%d round=%d\n", pooled_staging, round);
             return -1;
         }
         ncnn::VkCompute download(vkdev);
@@ -1317,7 +1318,7 @@ static int test_weight_storage_upload_staging(bool custom_staging)
             download.record_clone(targets[i], results[i], download_opt);
         if (download.submit_and_wait())
         {
-            fprintf(stderr, "complete weight download failed custom=%d round=%d\n", custom_staging, round);
+            fprintf(stderr, "complete weight download failed pooled=%d round=%d\n", pooled_staging, round);
             return -1;
         }
         for (int i = 0; i < 2; i++)
@@ -1325,13 +1326,13 @@ static int test_weight_storage_upload_staging(bool custom_staging)
             for (int j = 0; j < sizes[i]; j++)
                 if (((const unsigned char*)results[i].data)[j] != (unsigned char)(j * 17 + i + round))
                 {
-                    fprintf(stderr, "complete weight value mismatch custom=%d round=%d weight=%d byte=%d actual=%d\n", custom_staging, round, i, j, ((const unsigned char*)results[i].data)[j]);
+                    fprintf(stderr, "complete weight value mismatch pooled=%d round=%d weight=%d byte=%d actual=%d\n", pooled_staging, round, i, j, ((const unsigned char*)results[i].data)[j]);
                     return -1;
                 }
             for (size_t j = sizes[i]; j < targets[i].buffer_capacity(); j++)
                 if (((const unsigned char*)results[i].data)[j] != 0)
                 {
-                    fprintf(stderr, "complete weight padding mismatch custom=%d round=%d weight=%d byte=%lu\n", custom_staging, round, i, (unsigned long)j);
+                    fprintf(stderr, "complete weight padding mismatch pooled=%d round=%d weight=%d byte=%lu\n", pooled_staging, round, i, (unsigned long)j);
                     return -1;
                 }
         }
@@ -1344,6 +1345,7 @@ static int test_weight_storage_upload_allocator_switch()
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     UnmappedWeightAllocator weights(vkdev);
     ncnn::VkWeightStagingAllocator staging(vkdev);
+    ncnn::VkWeightStagingAllocator other_staging(vkdev);
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     ncnn::VkTransfer upload(vkdev);
@@ -1352,7 +1354,7 @@ static int test_weight_storage_upload_allocator_switch()
     for (int i = 0; i < 4; i++)
     {
         inputs[i] = RandomMat(63 + i);
-        opt.staging_vkallocator = i == 1 ? &staging : 0;
+        opt.staging_vkallocator = i == 1 ? &staging : &other_staging;
         upload.record_upload(inputs[i], targets[i], opt);
         if (targets[i].empty())
             return -1;
