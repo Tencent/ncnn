@@ -1014,7 +1014,7 @@ static int test_weight_storage_sync_init_failure(VulkanFailure::Failure failure_
         {
             VulkanFailure failure(failure_type, fail_at);
             ncnn::VkCompute cmd(vkdev);
-            if (!failure.triggered || created != fail_at - 1 || destroyed != 0 || cmd.submit_and_wait() == 0 || probe.submissions != 0)
+            if (!failure.triggered || created != fail_at - 1 || destroyed != 0 || probe.submissions != 0)
             {
                 fprintf(stderr, "sync initialization failure did not retain resources failure=%d at=%d\n", failure_type, fail_at);
                 return -1;

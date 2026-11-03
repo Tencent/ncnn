@@ -114,7 +114,8 @@ configuration and returns from that operation.
 
 `init()` creates the private weight allocator, prepares the compute and upload
 command pools and starts the initial compute command buffer. Both command pools
-remain available until command destruction.
+remain available until command destruction. Recording and submission assume
+successful initialization.
 If command-buffer or synchronization-object creation fails, already created
 resources remain owned by the command until destruction. `reset()` does not
 recreate missing command buffers or fences. It still recreates semaphores when

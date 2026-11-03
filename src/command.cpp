@@ -1323,9 +1323,6 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
     {
         // submit preceding compute
         {
-            if (!d->upload_compute_semaphore)
-                return;
-
             // flush deferred records
             {
                 if (!vkdev->info.support_VK_KHR_push_descriptor())
@@ -1416,9 +1413,6 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
         // submit recorded uploads
         if (upload_recording)
         {
-            if (!d->upload_upload_semaphore)
-                return;
-
             // end command buffer
             {
                 d->end_upload_command_buffer();
@@ -1742,9 +1736,6 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
     {
         // submit preceding compute
         {
-            if (!d->upload_compute_semaphore)
-                return;
-
             // flush deferred records
             {
                 if (!vkdev->info.support_VK_KHR_push_descriptor())
@@ -1835,9 +1826,6 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         // submit recorded uploads
         if (upload_recording)
         {
-            if (!d->upload_upload_semaphore)
-                return;
-
             // end command buffer
             {
                 d->end_upload_command_buffer();
@@ -2261,9 +2249,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     {
         // submit preceding compute
         {
-            if (!d->upload_compute_semaphore)
-                return;
-
             // flush deferred records
             {
                 if (!vkdev->info.support_VK_KHR_push_descriptor())
@@ -2354,9 +2339,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         // submit recorded uploads
         if (upload_recording)
         {
-            if (!d->upload_upload_semaphore)
-                return;
-
             // end command buffer
             {
                 d->end_upload_command_buffer();
@@ -3031,7 +3013,7 @@ int VkCompute::submit_and_wait()
 {
     //     NCNN_LOGE("submit_and_wait");
 
-    if ((!d->use_weight_upload_online && d->executing) || !d->upload_compute_semaphore)
+    if (!d->use_weight_upload_online && d->executing)
         return -1;
     int ret = 0;
     if (d->use_weight_upload_online)
