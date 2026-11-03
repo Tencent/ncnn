@@ -27,6 +27,12 @@ Bias_loongarch::Bias_loongarch()
 
 int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    // bias_ptr[q] is read for every channel q
+    if (bias_data.w < bottom_top_blob.c * bottom_top_blob.elempack)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);

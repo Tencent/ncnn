@@ -114,6 +114,12 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     if (weight_data.empty())
         return -100;
 
+#if NCNN_VALIDATION
+    // int8 weights are only usable together with the int8 scale records
+    if (weight_data.elemsize == (size_t)1u && !int8_scale_term)
+        return -1;
+#endif // NCNN_VALIDATION
+
     if (bias_term)
     {
         bias_data = mb.load(num_output, 1);
@@ -126,6 +132,8 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     {
         weight_data_int8_scales = mb.load(group, 1);
         bottom_blob_int8_scales = mb.load(1, 1);
+        if (weight_data_int8_scales.empty() || bottom_blob_int8_scales.empty())
+            return -100;
 
         float bottom_blob_int8_scale = bottom_blob_int8_scales[0];
         bottom_blob_int8_scales = Mat(group);
@@ -135,6 +143,8 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     {
         weight_data_int8_scales = mb.load(1, 1);
         bottom_blob_int8_scales = mb.load(1, 1);
+        if (weight_data_int8_scales.empty() || bottom_blob_int8_scales.empty())
+            return -100;
 
         // extend group if only one provided
         float weight_data_int8_scale = weight_data_int8_scales[0];
@@ -149,6 +159,8 @@ int ConvolutionDepthWise::load_model(const ModelBin& mb)
     if (int8_scale_term > 100)
     {
         top_blob_int8_scales = mb.load(1, 1);
+        if (top_blob_int8_scales.empty())
+            return -100;
 
         float top_blob_int8_scale = top_blob_int8_scales[0];
         top_blob_int8_scales = Mat(group);

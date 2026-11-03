@@ -160,6 +160,12 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
     const int* indices_ptr = indices;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
+#if NCNN_VALIDATION
+    // slices_ptr[i] / indices_ptr[i] are read for every top blob
+    if (indices_ptr ? indices.w < (int)top_blobs.size() - 1 : slices.w < (int)top_blobs.size())
+        return -1;
+#endif // NCNN_VALIDATION
+
     if (dims == 1) // positive_axis == 0
     {
         // slice vector

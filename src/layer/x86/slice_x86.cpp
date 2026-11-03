@@ -35,6 +35,12 @@ int Slice_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     const int* indices_ptr = indices;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
+#if NCNN_VALIDATION
+    // slices_ptr[i] / indices_ptr[i] are read for every top blob
+    if (indices_ptr ? indices.w < (int)top_blobs.size() - 1 : slices.w < (int)top_blobs.size())
+        return -1;
+#endif // NCNN_VALIDATION
+
     if (bottom_blob.elembits() == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 
