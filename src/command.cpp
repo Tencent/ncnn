@@ -2042,7 +2042,20 @@ int VkCompute::submit_and_wait()
             {
                 const VkMat src_b = src.batch(b);
                 Mat dst_b = dst.batch(b);
-                memcpy(dst_b.data, src_b.mapped_ptr(), dst_b.total() * dst_b.elemsize);
+                if (src_b.cstep == dst_b.cstep)
+                {
+                    memcpy(dst_b.data, src_b.mapped_ptr(), dst_b.total() * dst_b.elemsize);
+                }
+                else
+                {
+                    const unsigned char* src_ptr = (const unsigned char*)src_b.mapped_ptr();
+                    const size_t channel_bytes = (size_t)dst_b.w * dst_b.h * dst_b.d * dst_b.elemsize;
+                    for (int q = 0; q < dst_b.c; q++)
+                    {
+                        memcpy(dst_b.channel(q),
+                               src_ptr + q * src_b.cstep * src_b.elemsize, channel_bytes);
+                    }
+                }
             }
             break;
         }
