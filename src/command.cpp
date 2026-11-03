@@ -15,10 +15,21 @@ static bool is_deferred_buffer(const VkBufferMemory* memory)
     return memory && memory->storage_type != 0;
 }
 
-static bool needs_host_copy(const VkMat& src)
+class VkComputeWeightAllocator : public VkBlobAllocator
 {
-    return src.data->storage_type == 2 || !src.buffer();
-}
+public:
+    explicit VkComputeWeightAllocator(const VulkanDevice* vkdev)
+        : VkBlobAllocator(vkdev)
+    {
+    }
+
+    virtual VkBufferMemory* fastMalloc(size_t size)
+    {
+        // mapped writes must not share a non-coherent atom with another allocation
+        const size_t alignment = std::max(vkdev->info.memory_map_alignment(), vkdev->info.non_coherent_atom_size());
+        return VkBlobAllocator::fastMalloc(alignSize(size, alignment));
+    }
+};
 
 class VkComputePrivate
 {
@@ -38,7 +49,7 @@ public:
     int reset_upload_command_buffer();
     int wait_upload_command_buffer();
 
-    int record_resolve(const VkMat& src, VkMat& dst, bool& upload_recording);
+    void record_resolve(const VkMat& src, VkMat& dst, bool& has_upload);
 
     void flush_records();
     void clear_records(bool all = true);
@@ -344,7 +355,7 @@ VkComputePrivate::~VkComputePrivate()
 
 int VkComputePrivate::init()
 {
-    local_weight_vkallocator = new VkBlobAllocator(vkdev);
+    local_weight_vkallocator = new VkComputeWeightAllocator(vkdev);
     local_staging_vkallocator = new VkWeightStagingAllocator(vkdev);
 
     // compute_command_pool
@@ -628,75 +639,76 @@ int VkComputePrivate::wait_upload_command_buffer()
     return 0;
 }
 
-int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& upload_recording)
+void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& has_upload)
 {
     if (!is_deferred_buffer(src.data))
     {
         dst = src;
-        return 0;
+        return;
     }
 
-    if (!use_weight_upload_online)
-    {
-        NCNN_LOGE("deferred weight requires set_use_weight_upload_online(true) before recording");
-        return -1;
-    }
+    // create dst
+    dst.create_like(src, local_weight_vkallocator);
+    if (dst.empty())
+        return;
 
-    // create dst for the complete allocation, including bytes outside the view
-    const size_t size = src.data->capacity;
-    {
-        // mapped writes must not share a non-coherent atom with another allocation
-        const size_t alignment = std::max(vkdev->info.memory_map_alignment(), vkdev->info.non_coherent_atom_size());
-        dst.release();
-        dst.create(1, alignSize(size, alignment), 1, local_weight_vkallocator);
-        if (dst.empty())
-            return -100;
-        dst.dims = src.dims;
-        dst.w = src.w;
-        dst.h = src.h;
-        dst.d = src.d;
-        dst.c = src.c;
-        dst.cstep = src.cstep;
-        dst.elemsize = src.elemsize;
-        dst.elempack = src.elempack;
-#if NCNN_BATCH
-        dst.n = src.n;
-        dst.nstep = src.nstep;
-        dst.offset = src.offset;
-#endif
-    }
+    const size_t size = dst.buffer_capacity();
 
     VkAccessFlags upload_access = 0;
     VkPipelineStageFlags upload_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
     uint32_t src_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
     uint32_t dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
 
+    VkMat dst_staging;
+
     // earlier groups completed before the preceding compute buffer was reused
     // the preceding group is still pinned, so this allocation cannot overwrite it
-    if ((vkdev->info.type() == 1 || vkdev->info.type() == 3) && dst.data->mapped_ptr && needs_host_copy(src))
+    if (src.data->storage_type == 2 || !src.buffer())
     {
         if (!src.data->mapped_ptr)
-            return -100;
-        unsigned char* ptr = (unsigned char*)dst.data->mapped_ptr + dst.data->offset;
-        memcpy(ptr, (const unsigned char*)src.data->mapped_ptr + src.data->offset, size);
-        memset(ptr + size, 0, alignSize(size, 4) - size);
-        if (!vkdev->is_coherent(dst.data->memory_type_index))
         {
-            const size_t atom = vkdev->info.non_coherent_atom_size();
-            VkMappedMemoryRange range;
-            range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-            range.pNext = 0;
-            range.memory = dst.data->memory;
-            range.offset = dst.data->offset / atom * atom;
-            range.size = alignSize(dst.data->offset + alignSize(size, 4), atom) - range.offset;
-            VkResult ret = vkFlushMappedMemoryRanges(vkdev->vkdevice(), 1, &range);
-            if (ret != VK_SUCCESS)
+            dst.release();
+            return;
+        }
+
+        // use the mapped destination or a separate staging allocation
+        if (dst.allocator->mappable && dst.data->mapped_ptr)
+        {
+            dst_staging = dst;
+        }
+        else
+        {
+            dst_staging.create_like(dst, local_staging_vkallocator);
+            if (dst_staging.empty() || !dst_staging.mapped_ptr())
             {
-                NCNN_LOGE("vkFlushMappedMemoryRanges failed %d", ret);
-                return ret;
+                dst.release();
+                return;
             }
         }
 
+        // memcpy src to device
+        unsigned char* ptr = (unsigned char*)dst_staging.mapped_ptr();
+        memcpy(ptr, src.mapped_ptr(), size);
+        memset(ptr + size, 0, alignSize(size, 4) - size);
+        if (dst_staging.allocator->flush(dst_staging.data) != 0)
+        {
+            dst.release();
+            return;
+        }
+
+        // stash staging
+        if (dst_staging.data != dst.data)
+        {
+            weight_staging_buffers.push_back(dst_staging);
+        }
+    }
+    else
+    {
+        dst_staging = src;
+    }
+
+    if (dst_staging.data == dst.data)
+    {
         upload_access = VK_ACCESS_HOST_WRITE_BIT;
         upload_stage = VK_PIPELINE_STAGE_HOST_BIT;
     }
@@ -708,78 +720,33 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& upload_
             dst_queue_family_index = vkdev->info.compute_queue_family_index();
         }
 
-        // begin one upload command buffer for the whole group
-        if (!upload_recording)
-        {
-            if (upload_upload_pending)
-            {
-                int ret = wait_upload_command_buffer();
-                if (ret != 0)
-                    return ret;
-            }
-
-            {
-                int ret = reset_upload_command_buffer();
-                if (ret != 0)
-                    return ret;
-            }
-            weight_staging_buffers.clear();
-            {
-                begin_upload_command_buffer();
-                upload_recording = true;
-            }
-        }
-
-        const size_t upload_size = alignSize(size, 4);
-        const VkBufferMemory* src_upload = src.data;
-        if (needs_host_copy(src))
-        {
-            if (!src.data->mapped_ptr)
-                return -100;
-
-            VkMat src_staging(1, upload_size, 1, local_staging_vkallocator);
-            if (src_staging.empty() || !src_staging.mapped_ptr())
-                return -100;
-
-            unsigned char* ptr = (unsigned char*)src_staging.mapped_ptr();
-            memcpy(ptr, (const unsigned char*)src.data->mapped_ptr + src.data->offset, size);
-            memset(ptr + size, 0, upload_size - size);
-            int ret = src_staging.allocator->flush(src_staging.data);
-            if (ret != 0)
-                return ret;
-
-            // keep each staging allocation until this group's upload completes
-            weight_staging_buffers.push_back(src_staging);
-            src_upload = src_staging.data;
-        }
-
         // barrier upload host-write to transfer-read
         {
             VkBufferMemoryBarrier barrier;
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
             barrier.pNext = 0;
-            barrier.srcAccessMask = src_upload->mapped_ptr ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
+            barrier.srcAccessMask = dst_staging.data->mapped_ptr ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_MEMORY_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-            barrier.buffer = src_upload->buffer;
-            barrier.offset = src_upload->offset;
-            barrier.size = upload_size;
+            barrier.buffer = dst_staging.buffer();
+            barrier.offset = dst_staging.buffer_offset();
+            barrier.size = size;
 
-            VkPipelineStageFlags src_stage = src_upload->mapped_ptr ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+            VkPipelineStageFlags src_stage = dst_staging.data->mapped_ptr ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
 
             vkCmdPipelineBarrier(upload_command_buffer, src_stage, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, &barrier, 0, 0);
         }
 
-        // overwrite the complete range after its older compute has finished;
+        // overwrite the tensor range after its older compute has finished;
         // the upload queue acquires reused storage without preserving old contents
         {
             VkBufferCopy region;
-            region.srcOffset = src_upload->offset;
-            region.dstOffset = dst.data->offset;
-            region.size = upload_size;
+            region.srcOffset = dst_staging.buffer_offset();
+            region.dstOffset = dst.buffer_offset();
+            region.size = size;
 
-            vkCmdCopyBuffer(upload_command_buffer, src_upload->buffer, dst.data->buffer, 1, &region);
+            vkCmdCopyBuffer(upload_command_buffer, dst_staging.buffer(), dst.buffer(), 1, &region);
         }
 
         // release uploaded weights from transfer to compute
@@ -797,6 +764,8 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& upload_
 
             vkCmdPipelineBarrier(upload_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
         }
+
+        has_upload = true;
     }
 
     // acquire uploaded weights for shader-read and transfer-read
@@ -830,11 +799,6 @@ int VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& upload_
         dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
         dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     }
-
-    // keep these weights live while the next operation allocates its weights
-    weight_buffers.push_back(dst);
-
-    return 0;
 }
 
 void VkComputePrivate::flush_records()
@@ -1317,10 +1281,13 @@ void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
 
 void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
 {
-    // keep the preceding weights live while resolving this operation
-    std::vector<VkMat> previous_weights;
-    if (d->use_weight_upload_online && is_deferred_buffer(_src.data))
+    VkMat src = _src;
+
+    if (is_deferred_buffer(_src.data))
     {
+        // collect the new group while the command retains the preceding weights
+        std::vector<VkMat> weight_buffers;
+
         // submit preceding compute
         {
             // flush deferred records
@@ -1397,28 +1364,43 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
             d->upload_compute_pending = false;
         }
 
-        std::swap(previous_weights, d->weight_buffers);
-    }
-
-    bool upload_recording = false;
-    VkMat src;
-    {
-        int ret = d->record_resolve(_src, src, upload_recording);
-        if (ret != 0)
-            return;
-    }
-
-    if (d->use_weight_upload_online && is_deferred_buffer(_src.data))
-    {
-        // submit recorded uploads
-        if (upload_recording)
+        // begin one upload command buffer for the whole group
         {
-            // end command buffer
+            if (d->upload_upload_pending)
             {
-                d->end_upload_command_buffer();
-                upload_recording = false;
+                int ret = d->wait_upload_command_buffer();
+                if (ret != 0)
+                    return;
             }
 
+            {
+                int ret = d->reset_upload_command_buffer();
+                if (ret != 0)
+                    return;
+            }
+            d->weight_staging_buffers.clear();
+            {
+                d->begin_upload_command_buffer();
+            }
+        }
+
+        // resolve weight
+        bool has_upload = false;
+        {
+            d->record_resolve(_src, src, has_upload);
+            if (src.empty())
+                return;
+            weight_buffers.push_back(src);
+        }
+
+        // end upload command buffer
+        {
+            d->end_upload_command_buffer();
+        }
+
+        // submit recorded uploads
+        if (has_upload)
+        {
             // reset fence
             {
                 VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->upload_command_fence);
@@ -1481,13 +1463,18 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
             d->upload_compute_pending = true;
         }
 
-        // wait before reusing the compute command buffer
+        // wait before releasing the preceding weights and reusing the compute command buffer
         {
             int ret = d->wait_compute_command_buffer();
             if (ret != 0)
+            {
+                // retain both groups while submitted work may still be using them
+                d->weight_buffers.insert(d->weight_buffers.end(), weight_buffers.begin(), weight_buffers.end());
                 return;
+            }
             d->executing = false;
         }
+        d->weight_buffers = weight_buffers;
 
         // reset and begin compute command buffer
         {
@@ -1730,10 +1717,13 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
 void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& opt)
 {
-    // keep the preceding weights live while resolving this operation
-    std::vector<VkMat> previous_weights;
-    if (d->use_weight_upload_online && is_deferred_buffer(_src.data))
+    VkMat src = _src;
+
+    if (is_deferred_buffer(_src.data))
     {
+        // collect the new group while the command retains the preceding weights
+        std::vector<VkMat> weight_buffers;
+
         // submit preceding compute
         {
             // flush deferred records
@@ -1810,28 +1800,43 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
             d->upload_compute_pending = false;
         }
 
-        std::swap(previous_weights, d->weight_buffers);
-    }
-
-    bool upload_recording = false;
-    VkMat src;
-    {
-        int ret = d->record_resolve(_src, src, upload_recording);
-        if (ret != 0)
-            return;
-    }
-
-    if (d->use_weight_upload_online && is_deferred_buffer(_src.data))
-    {
-        // submit recorded uploads
-        if (upload_recording)
+        // begin one upload command buffer for the whole group
         {
-            // end command buffer
+            if (d->upload_upload_pending)
             {
-                d->end_upload_command_buffer();
-                upload_recording = false;
+                int ret = d->wait_upload_command_buffer();
+                if (ret != 0)
+                    return;
             }
 
+            {
+                int ret = d->reset_upload_command_buffer();
+                if (ret != 0)
+                    return;
+            }
+            d->weight_staging_buffers.clear();
+            {
+                d->begin_upload_command_buffer();
+            }
+        }
+
+        // resolve weight
+        bool has_upload = false;
+        {
+            d->record_resolve(_src, src, has_upload);
+            if (src.empty())
+                return;
+            weight_buffers.push_back(src);
+        }
+
+        // end upload command buffer
+        {
+            d->end_upload_command_buffer();
+        }
+
+        // submit recorded uploads
+        if (has_upload)
+        {
             // reset fence
             {
                 VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->upload_command_fence);
@@ -1894,13 +1899,18 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
             d->upload_compute_pending = true;
         }
 
-        // wait before reusing the compute command buffer
+        // wait before releasing the preceding weights and reusing the compute command buffer
         {
             int ret = d->wait_compute_command_buffer();
             if (ret != 0)
+            {
+                // retain both groups while submitted work may still be using them
+                d->weight_buffers.insert(d->weight_buffers.end(), weight_buffers.begin(), weight_buffers.end());
                 return;
+            }
             d->executing = false;
         }
+        d->weight_buffers = weight_buffers;
 
         // reset and begin compute command buffer
         {
@@ -2243,10 +2253,11 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
     }
 
-    // keep the preceding weights live while resolving this operation
-    std::vector<VkMat> previous_weights;
-    if (need_resolve && d->use_weight_upload_online)
+    if (need_resolve)
     {
+        // collect the new group while the command retains the preceding weights
+        std::vector<VkMat> weight_buffers;
+
         // submit preceding compute
         {
             // flush deferred records
@@ -2323,28 +2334,50 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             d->upload_compute_pending = false;
         }
 
-        std::swap(previous_weights, d->weight_buffers);
-    }
-
-    bool upload_recording = false;
-    for (size_t i = 0; i < buffer_bindings.size(); i++)
-    {
-        int ret = d->record_resolve(_buffer_bindings[i], buffer_bindings[i], upload_recording);
-        if (ret != 0)
-            return;
-    }
-
-    if (need_resolve && d->use_weight_upload_online)
-    {
-        // submit recorded uploads
-        if (upload_recording)
+        // begin one upload command buffer for the whole group
         {
-            // end command buffer
+            if (d->upload_upload_pending)
             {
-                d->end_upload_command_buffer();
-                upload_recording = false;
+                int ret = d->wait_upload_command_buffer();
+                if (ret != 0)
+                    return;
             }
 
+            {
+                int ret = d->reset_upload_command_buffer();
+                if (ret != 0)
+                    return;
+            }
+            d->weight_staging_buffers.clear();
+            {
+                d->begin_upload_command_buffer();
+            }
+        }
+
+        // resolve buffer bindings
+        bool has_upload = false;
+        for (size_t i = 0; i < buffer_bindings.size(); i++)
+        {
+            d->record_resolve(_buffer_bindings[i], buffer_bindings[i], has_upload);
+            if (is_deferred_buffer(_buffer_bindings[i].data))
+            {
+                if (buffer_bindings[i].empty())
+                {
+                    d->weight_buffers.insert(d->weight_buffers.end(), weight_buffers.begin(), weight_buffers.end());
+                    return;
+                }
+                weight_buffers.push_back(buffer_bindings[i]);
+            }
+        }
+
+        // end upload command buffer
+        {
+            d->end_upload_command_buffer();
+        }
+
+        // submit recorded uploads
+        if (has_upload)
+        {
             // reset fence
             {
                 VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &d->upload_command_fence);
@@ -2407,13 +2440,18 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             d->upload_compute_pending = true;
         }
 
-        // wait before reusing the compute command buffer
+        // wait before releasing the preceding weights and reusing the compute command buffer
         {
             int ret = d->wait_compute_command_buffer();
             if (ret != 0)
+            {
+                // retain both groups while submitted work may still be using them
+                d->weight_buffers.insert(d->weight_buffers.end(), weight_buffers.begin(), weight_buffers.end());
                 return;
+            }
             d->executing = false;
         }
+        d->weight_buffers = weight_buffers;
 
         // reset and begin compute command buffer
         {

@@ -6,7 +6,7 @@
 
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
 // Inspect native uploads without exposing the command's private weight pool.
-// On unified devices, hide one successful target mapping to exercise staging;
+// With a mappable target allocator, hide one target mapping to exercise staging;
 // the allocator still owns and unmaps the real mapping when it clears its pool.
 class WeightStorageUploadProbe;
 static WeightStorageUploadProbe* g_weight_storage_upload_probe = 0;
@@ -14,8 +14,13 @@ class WeightStorageUploadProbe
 {
 public:
     explicit WeightStorageUploadProbe(const ncnn::VulkanDevice* vkdev)
-        : hide_next_map(vkdev->info.type() == 1 || vkdev->info.type() == 3), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer), create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
+        : hide_next_map(false), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer), create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
     {
+        {
+            ncnn::VkBlobAllocator blobs(vkdev, 4096);
+            ncnn::VkMat target(1, (size_t)4u, &blobs);
+            hide_next_map = !target.empty() && blobs.mappable;
+        }
         g_weight_storage_upload_probe = this;
         ncnn::vkMapMemory = map_memory;
         ncnn::vkCmdCopyBuffer = record_copy;
@@ -143,13 +148,8 @@ static int test_weight_storage_upload_mode()
 
     ncnn::VkCompute cmd(vkdev);
     ncnn::Mat output;
-    output.release();
-    cmd.record_clone(weight, output, opt);
-    if (!output.empty() || cmd.submit_and_wait() || cmd.reset())
-    {
-        fprintf(stderr, "deferred weight unexpectedly enabled online upload\n");
+    if (cmd.submit_and_wait() || cmd.reset())
         return -1;
-    }
 
     cmd.set_use_weight_upload_online(true);
     for (int round = 0; round < 2; round++)
@@ -179,13 +179,6 @@ static int test_weight_storage_upload_mode()
     cmd.record_clone(ordinary, output, opt);
     if (cmd.submit_and_wait() || CompareMat(input, output, 0.f) || cmd.reset())
         return -1;
-    output.release();
-    cmd.record_clone(weight, output, opt);
-    if (!output.empty() || cmd.submit_and_wait() || cmd.reset())
-    {
-        fprintf(stderr, "disabled online weight upload was changed by recording\n");
-        return -1;
-    }
 
     return 0;
 }
@@ -782,6 +775,88 @@ static int test_weight_storage_recorded_weight_lifetime()
     return 0;
 }
 
+static int test_weight_storage_subview_copy(bool file, bool force_staging)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator store(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    store.set_weights_in_disk(file);
+    store.set_weight_file_directory(weight_storage_test_directory());
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &store;
+    opt.staging_vkallocator = &staging;
+    int first = 0;
+#if NCNN_BATCH
+    first = std::max(4, (int)(vkdev->info.buffer_offset_alignment() / sizeof(float)));
+#endif
+    ncnn::Mat input = RandomMat(first + 257);
+    ncnn::VkMat weight;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(input, weight, opt);
+    if (weight.empty() || upload.submit_and_wait() || store.finalize_weights())
+        return -1;
+
+    // Borrow the backing buffer and exercise HOST resolution even on UMA.
+    ncnn::VkBufferMemory memory = *weight.data;
+    if (!file)
+        memory.storage_type = 1;
+    ncnn::VkMat view(7, &memory, (size_t)4u, &store);
+#if NCNN_BATCH
+    view.offset = first * sizeof(float);
+    view.nstep = weight.nstep; // a single view can inherit a larger batch stride
+#endif
+    opt.blob_vkallocator = &blobs;
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    WeightStorageUploadProbe probe(vkdev);
+    if (!force_staging)
+        probe.hide_next_map = false;
+#else
+    (void)force_staging;
+#endif
+    ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
+    ncnn::VkMat result;
+    cmd.record_clone(view, result, opt);
+    const size_t view_bytes = ncnn::alignSize(7 * sizeof(float), 16);
+    if (result.empty() || result.w != 7 || result.buffer_capacity() != view_bytes)
+    {
+        fprintf(stderr, "subview copy retained the source allocation extent file=%d staging=%d\n", file, force_staging);
+        return -1;
+    }
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+    int uploads = 0;
+    for (size_t i = 0; i < probe.copies.size(); i++)
+    {
+        const WeightStorageUploadProbe::Copy& copy = probe.copies[i];
+        if (copy.target == result.buffer())
+            continue;
+        uploads++;
+        if (copy.region.size != view_bytes
+            || (!file && (copy.source != view.buffer() || copy.region.srcOffset != view.buffer_offset())))
+        {
+            fprintf(stderr, "subview upload lost tensor extent or source offset file=%d staging=%d\n", file, force_staging);
+            return -1;
+        }
+    }
+    if (uploads > 1 || ((!file || force_staging) && uploads != 1))
+    {
+        fprintf(stderr, "unexpected subview uploads=%d file=%d staging=%d\n", uploads, file, force_staging);
+        return -1;
+    }
+#endif
+    ncnn::Mat expected(7);
+    memcpy(expected.data, (const float*)input.data + first, 7 * sizeof(float));
+    ncnn::Mat output;
+    cmd.record_clone(result, output, opt);
+    if (cmd.submit_and_wait() || CompareMat(expected, output, 0.f) || cmd.reset())
+    {
+        fprintf(stderr, "test_weight_storage_subview_copy failed file=%d staging=%d\n", file, force_staging);
+        return -1;
+    }
+    return 0;
+}
+
 static int test_weight_storage_recorded_subview()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -811,7 +886,7 @@ static int test_weight_storage_recorded_subview()
     }
 
     // A legitimate borrowed tensor view is smaller than its backing source.
-    // Recording it first must not truncate the temporary allocation or its padding.
+    // Resolving it copies only the view, while a later full-weight use stays intact.
     ncnn::VkMat view(7, weight.data, (size_t)4u, &store);
 #if NCNN_BATCH
     view.offset = first * sizeof(float);
@@ -867,8 +942,8 @@ static int test_weight_storage_recorded_subview()
     if (cmd.submit_and_wait())
         return -1;
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    // The preceding full allocation remains leased while the next view is
-    // resolved. Adjacent groups may share a backing buffer, but not its range.
+    // The preceding tensor remains leased while the next one is resolved.
+    // Adjacent groups may share a backing buffer, but not its range.
     if (probe.copies.empty())
         return -1;
     const WeightStorageUploadProbe::Copy& first_upload = probe.copies[0];
@@ -876,21 +951,22 @@ static int test_weight_storage_recorded_subview()
     for (size_t i = 0; i < probe.copies.size(); i++)
     {
         const WeightStorageUploadProbe::Copy& copy = probe.copies[i];
-        if (copy.source != first_upload.source)
+        if (copy.target != first_upload.target)
             continue;
+        const size_t expected_size = uploads == 0 ? view.buffer_capacity() : weight.buffer_capacity();
         uploads++;
-        if (copy.region.size != weight.data->capacity
+        if (copy.region.size != expected_size
                 || (i != 0 && copy.target == first_upload.target
                     && copy.region.dstOffset < first_upload.region.dstOffset + first_upload.region.size
                     && first_upload.region.dstOffset < copy.region.dstOffset + copy.region.size))
         {
-            fprintf(stderr, "adjacent resolved groups overlapped or lost their complete source extent\n");
+            fprintf(stderr, "adjacent resolved views overlapped or copied the wrong tensor extent\n");
             return -1;
         }
     }
     if (uploads != 2)
     {
-        fprintf(stderr, "adjacent subview resolves did not record two complete uploads\n");
+        fprintf(stderr, "subview and full-weight resolves did not record their uploads\n");
         return -1;
     }
 #endif
@@ -1105,7 +1181,7 @@ static int test_weight_storage_workspace_upload()
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
     // A weight larger than the former staging window is uploaded in one copy.
-    // The native probe forces staging on unified devices.
+    // The native probe forces staging when the target allocator is mappable.
     ncnn::Mat input(16 * 1024 * 1024 / 4 + 17);
     for (int i = 0; i < input.w; i++)
         ((float*)input)[i] = (float)(i % 257);
@@ -1134,9 +1210,9 @@ static int test_weight_storage_workspace_upload()
     for (size_t i = 0; i < probe.copies.size(); i++)
         if (probe.copies[i].target == first.target)
             uploads++;
-    if (uploads != 1 || first.region.size != weight.data->capacity)
+    if (uploads != 1 || first.region.size != weight.buffer_capacity())
     {
-        fprintf(stderr, "temporary weight was not uploaded as one complete allocation\n");
+        fprintf(stderr, "temporary weight was not uploaded as one complete tensor\n");
         return -1;
     }
 #endif
@@ -1160,9 +1236,9 @@ static int test_weight_storage_workspace_upload()
             continue;
         if (barrier.srcQueueFamilyIndex != vkdev->info.transfer_queue_family_index()
                 || barrier.dstQueueFamilyIndex != vkdev->info.compute_queue_family_index()
-                || barrier.offset != first.region.dstOffset || barrier.size != weight.data->capacity)
+                || barrier.offset != first.region.dstOffset || barrier.size != weight.buffer_capacity())
         {
-            fprintf(stderr, "temporary weight ownership transfer lost its complete allocation\n");
+            fprintf(stderr, "temporary weight ownership transfer lost its tensor extent\n");
             return -1;
         }
         if (entry.command == first.command && barrier.srcAccessMask == VK_ACCESS_TRANSFER_WRITE_BIT && barrier.dstAccessMask == 0
@@ -1413,6 +1489,9 @@ int main()
                     || test_weight_storage_mixed_recording()
                     || test_weight_storage_image_descriptors()
                     || test_weight_storage_recorded_weight_lifetime()
+                    || test_weight_storage_subview_copy(false, false)
+                    || test_weight_storage_subview_copy(true, false)
+                    || test_weight_storage_subview_copy(true, true)
                     || test_weight_storage_recorded_subview();
     if (directory.remove() != 0)
     {

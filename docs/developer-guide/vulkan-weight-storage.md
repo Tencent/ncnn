@@ -109,8 +109,8 @@ cmd.set_use_weight_upload_online(net.opt.use_weights_in_host_memory || net.opt.u
 The setting defaults to `false` and survives `submit_and_wait()` and `reset()`.
 It stays fixed while commands are recorded. Enable it for an external command
 that uses deferred host or disk weights, including when several Nets share the
-command. With this mode disabled, recording a deferred weight logs the missing
-configuration and returns from that operation.
+command. Recording a deferred weight assumes this mode is already enabled;
+the resolve path does not check or change the setting.
 
 `init()` creates the private weight allocator, prepares the compute and upload
 command pools and starts the initial compute command buffer. Both command pools
@@ -136,9 +136,11 @@ Model backing must remain valid and immutable until execution completes and the
 recording is reset. Clearing a Net invalidates its weights and existing
 Extractors. Use `clear()`, `load_param()` and `load_model()` to replace a model.
 
-The private `record_resolve()` creates a temporary `VkMat` from the private
-pool, records the complete source upload and
-returns a view with the original shape, packing and offset. Ordinary buffers
+The private `record_resolve()` uses `create_like()` to create a temporary `VkMat`
+from the private pool with the source shape and packing. It copies from the
+source view's offset into the new tensor, whose view offset is zero and whose
+strides follow the ordinary tensor layout. It returns `void`; a failed resolve
+leaves `dst` empty, so the caller stops recording that operation. Ordinary buffers
 pass through. `record_pipeline()` first scans for weight bindings that need
 resolving. If present, it submits the preceding compute batch, resolves each
 weight independently in a second pass, then begins the next compute batch after
@@ -151,11 +153,14 @@ and owns its independent output.
 There is one private pool, not two alternating pools. After a weight-consuming
 dispatch or clone is recorded, the command retains its complete resolved group
 as owning `VkMat` references. The next such operation keeps that preceding
-group alive while allocating and recording its own group, so adjacent groups
-cannot overlap in storage. At the end of that recording call, the older group
-is released and the command retains the new group. Each retained view keeps its
-whole allocation alive, including when a shader binds only a subview. An
-operation two generations later may reuse a released range. Submission completion
+group in the command while collecting newly resolved weights in a local vector,
+so adjacent groups cannot overlap in storage. After the preceding compute batch
+completes, the caller replaces the retained group with the new one before
+recording the current dispatch or clone. If that wait fails after uploads were
+submitted, the command retains both groups until cleanup. Each retained view
+keeps the resolved tensor's allocation alive. A source subview needs only its
+own tensor extent in the private pool. An operation two generations later may
+reuse a released range. Submission completion
 or reset discards retained references only after pending work is drained.
 
 Temporary weight uploads reuse the existing device transfer-family selector,
@@ -182,26 +187,32 @@ conservative batch dependencies, not a per-range reader table or a global
 planner. Actual overlap and performance depend on the selected queues, device
 and workload; a separate transfer family alone is not a performance guarantee.
 
-On unified-memory devices, a mapped target is filled directly after the older
-compute batch N-1 completes, using the same two-generation lifetime rule. An
-unmapped target uses staging. Other devices copy host-resident Vulkan buffers
-directly or fill a separate command-owned staging buffer for each file weight.
+Sources requiring a host copy fill the target directly when its allocator is
+mappable and its mapping is valid, after the older compute batch N-1 completes.
+This uses the same two-generation lifetime rule and does not depend on device
+type or queue-family selection. An unavailable target mapping uses staging.
+The upload path copies host-resident Vulkan buffers directly or fills a separate
+command-owned staging buffer for each file weight.
 Each weight is copied in full, and all GPU uploads for one operation are recorded
-in the same upload command buffer and submitted together. Staging allocations
+in the same upload command buffer and submitted together. The caller waits for
+upload command buffer reuse, resets it, releases the preceding staging buffers,
+and begins recording before resolving the group. It ends recording afterward
+and submits only if the group recorded GPU copies. A group with only mapped
+writes prepares the command buffer but does not submit an empty upload. Staging allocations
 remain live until the upload completes; the preceding group's staging is released
 before recording the next upload group. Temporary staging memory therefore grows
 with the sum of weights requiring staging in one group, rather than a fixed
-16 MiB window. Uploads cover the complete allocation capacity, including
-alignment padding, even when the consumer binds a subview. File mappings reserve
-that same capacity and initialize the allocation's trailing padding to zero.
-Host and file sources use the existing mapped pointer and allocation offset;
-the tensor view keeps its separate offset.
+16 MiB window. Uploads cover the resolved tensor's logical buffer capacity,
+including its layout padding, rather than the source allocation's spare bytes.
+Host and file sources use `mapped_ptr()` or `buffer_offset()` to include the
+source view offset. The private weight allocator retains the alignment needed
+to keep mapped writes in separate non-coherent atoms.
 
 Host copies read source and destination mappings directly, including allocation
 offsets. They execute while recording, after any preceding use of the destination
-completes. Non-coherent destinations are flushed
-before GPU submission, including alignment padding. Ordinary staging uploads
-call `allocator->flush()` immediately after the host copy while recording.
+completes. Direct target writes and staging writes share the same copy and
+padding code, followed immediately by `allocator->flush()`. Non-coherent
+destinations are flushed before GPU submission, including alignment padding.
 
 Online upload streams batches from `record_*()`. A new weight group submits the
 preceding compute batch, prepares and submits its own uploads, then waits before
@@ -215,8 +226,8 @@ remains deferred until `submit_and_wait()`.
 
 Each command owns one compute command buffer and one upload command buffer,
 allocated at initialization and retained across reset. Two fences and four binary
-semaphores are also reused. Open-upload state is local to each recording call
-and shared across that call's weight bindings. The compute execution flag clears
+semaphores are also reused. A local flag accumulates whether any resolved weight
+recorded a GPU copy; it does not control command buffer begin/end. The compute execution flag clears
 after its fence wait; the upload-chain flag stays set through the final upload
 fence wait. Each upload group signals readiness once for all its weights.
 `submit_and_wait()` submits the remaining compute batch,
