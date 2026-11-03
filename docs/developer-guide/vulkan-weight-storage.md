@@ -45,7 +45,8 @@ int inference(const ncnn::Mat& input, ncnn::Mat& output)
 
 The input and output names depend on the model. Keep the Net loaded when running
 inference repeatedly. Each `Mat` extraction uses a local command. Its private
-temporary weight pool is created lazily and destroyed with the command. External
+weight allocator is created during command initialization; pool memory is
+allocated lazily and destroyed with the command. External
 commands retain their own pool across `reset()` calls.
 
 ## memory settings
@@ -111,8 +112,9 @@ that uses deferred host or disk weights, including when several Nets share the
 command. With this mode disabled, recording a deferred weight logs the missing
 configuration and returns from that operation.
 
-`init()` prepares the compute and upload command pools and starts the initial
-compute command buffer. Both pools remain available until command destruction.
+`init()` creates the private weight allocator, prepares the compute and upload
+command pools and starts the initial compute command buffer. Both command pools
+remain available until command destruction.
 Temporary weight and staging allocations are still created only when needed.
 
 Each command owns an independent temporary weight pool. It cannot be replaced
