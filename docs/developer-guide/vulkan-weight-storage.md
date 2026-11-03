@@ -160,12 +160,12 @@ Temporary weight uploads reuse the existing device transfer-family selector,
 which prefers a transfer-only family and otherwise selects a transfer-capable
 family. The selected family may be the same as the compute family.
 Temporary weight backing buffers use the ordinary EXCLUSIVE blob allocator.
-When the two families differ, the final upload chunk releases the complete
+When the two families differ, each upload releases the complete
 weight range to the compute family, and its consumer acquires the same range
 after waiting for the upload semaphore. A range's older compute consumer has
 completed before the range is reused and every byte overwritten; the upload family can acquire
 that range with its old contents discarded. The private file-upload staging
-buffer is EXCLUSIVE and used only by the upload family. Ordinary activation and
+buffers are EXCLUSIVE and used only by the upload family. Ordinary activation and
 workspace buffers keep their existing sharing and ownership rules.
 
 Queue-family sharing does not replace synchronization. Before recording weight
@@ -183,25 +183,28 @@ and workload; a separate transfer family alone is not a performance guarantee.
 On unified-memory devices, a mapped target is filled directly after the older
 compute batch N-1 completes, using the same two-generation lifetime rule. An
 unmapped target uses staging. Other devices copy host-resident Vulkan buffers
-directly or fill a command-owned staging buffer from file mappings. File uploads
-use chunks of at most 16 MiB, waiting for the previous upload before overwriting
-staging. These transfer chunks do not slice the weight's mathematical operation
-or its shader binding. Uploads cover the complete allocation capacity, including
+directly or fill a separate command-owned staging buffer for each file weight.
+Each weight is copied in full, and all GPU uploads for one operation are recorded
+in the same upload command buffer and submitted together. Staging allocations
+remain live until the upload completes; the preceding group's staging is released
+before recording the next upload group. Temporary staging memory therefore grows
+with the sum of weights requiring staging in one group, rather than a fixed
+16 MiB window. Uploads cover the complete allocation capacity, including
 alignment padding, even when the consumer binds a subview. File mappings reserve
 that same capacity and initialize the allocation's trailing padding to zero.
 Host and file sources use the existing mapped pointer and allocation offset;
 the tensor view keeps its separate offset.
 
 Host copies read source and destination mappings directly, including allocation
-and chunk offsets. They execute while recording, after any preceding use of the
-destination or staging range completes. Non-coherent destinations are flushed
+offsets. They execute while recording, after any preceding use of the destination
+completes. Non-coherent destinations are flushed
 before GPU submission, including alignment padding. Ordinary staging uploads
 call `allocator->flush()` immediately after the host copy while recording.
 
 Online upload streams batches from `record_*()`. A new weight group submits the
 preceding compute batch, prepares and submits its own uploads, then waits before
-resetting the compute command buffer for reuse. Upload chunks similarly wait
-only when their upload buffer or staging storage must be reused. Uploads for the
+resetting the compute command buffer for reuse. The upload command buffer waits
+before reuse at the next group boundary. Uploads for the
 next group can overlap the preceding compute. Push descriptor devices encode
 compute commands directly; other devices replay the current batch's logical
 commands at submission. A pipeline bind through its dispatch stays in one batch.
@@ -213,8 +216,8 @@ allocated at initialization and retained across reset. Two fences and four binar
 semaphores are also reused. Open-upload state is local to each recording call
 and shared across that call's weight bindings. The compute execution flag clears
 after its fence wait; the upload-chain flag stays set through the final upload
-fence wait. The last upload chunk signals readiness once for all weights in its
-group. `submit_and_wait()` submits the remaining compute batch,
+fence wait. Each upload group signals readiness once for all its weights.
+`submit_and_wait()` submits the remaining compute batch,
 consumes outstanding chain signals and waits for completion before downloads.
 Reset and destruction wait for already submitted work before releasing its
 resources; reset discards any unsubmitted recording. An interrupted stream may
@@ -247,17 +250,20 @@ After a submission or wait failure, discard the command; destruction
 attempts to wait once for work still in flight before cleanup. Finalization flushes
 and seals file mappings; resident weights have already been uploaded directly
 to their final locations. Keep the allocator alive until its views and recorded
-work have been released. Unmapped destinations are filled through a reusable
-staging buffer of at most 8 MiB, reduced to fit the configured host memory limit.
-Recording copies source bytes directly into staging, batching small weights.
-When staging fills, recording submits and waits before reusing it; large weights
-are transferred in chunks during the same call. No whole-weight CPU snapshots or
-pending source queue are retained. The final `submit_and_wait()` completes the
-remaining commands. Net also submits when pending uploads exceed 256 MiB,
-checked after each layer. File-backed and host-mappable weights are copied
-directly into their mappings while recording. Host-mappable Vulkan allocations
-are flushed at that point. Staging is flushed before submission and remains
-alive until all submitted work completes, including after a failed fence wait.
+work have been released. Each unmapped destination gets a complete staging
+`VkMat`, allocated through the supplied staging allocator or a command-owned
+`VkWeightStagingAllocator`. Recording copies the source bytes and alignment
+padding into staging, flushes immediately, and records one buffer copy. The
+command retains its staging buffers until reset or destruction, after pending
+work has completed. A failed fence wait leaves those buffers alive.
+
+Net submits and resets when pending uploads exceed 256 MiB, checked after each
+layer, and submits the final remainder after loading. `record_upload()` does not
+submit internally. The threshold is a layer-boundary trigger; one layer can
+exceed it. Temporary staging grows with the pending batch and is outside the
+resident weight memory limits. File-backed and host-mappable weights are copied
+directly into their mappings while recording, with Vulkan mappings flushed then.
+
 
 `get_weight_memory_usage()` reports actual device and host resident Vulkan
 allocation bytes, including padding. It excludes file mappings, temporary
@@ -281,8 +287,7 @@ completion.
 The `perf_weight_storage` target compares device, host and disk storage using a
 fixed workload. Build with `NCNN_VULKAN=ON` and `NCNN_BUILD_TESTS=ON`, then run
 `tests/perf/perf_weight_storage` without arguments. It reports model loading and
-inference times. `NCNN_BENCHMARK` additionally prints an upload summary with bytes
-read, bytes uploaded and elapsed time.
+inference times.
 
 ## limitations
 

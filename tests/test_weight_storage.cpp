@@ -1093,7 +1093,7 @@ static int test_weight_storage_allocation_failure(bool disk)
     return 0;
 }
 
-static int test_weight_storage_workspace_chunks()
+static int test_weight_storage_workspace_upload()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator weights(vkdev);
@@ -1104,7 +1104,8 @@ static int test_weight_storage_workspace_chunks()
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
-    // Cross the staging chunk boundary; the native probe forces staging on unified devices.
+    // A weight larger than the former staging window is uploaded in one copy.
+    // The native probe forces staging on unified devices.
     ncnn::Mat input(16 * 1024 * 1024 / 4 + 17);
     for (int i = 0; i < input.w; i++)
         ((float*)input)[i] = (float)(i % 257);
@@ -1128,26 +1129,20 @@ static int test_weight_storage_workspace_chunks()
     if (cmd.submit_and_wait())
         return -1;
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    if (probe.copies.size() < 2)
-    {
-        fprintf(stderr, "temporary weight did not record both staging chunks\n");
-        return -1;
-    }
     const WeightStorageUploadProbe::Copy first = probe.copies[0];
-    const WeightStorageUploadProbe::Copy second = probe.copies[1];
-    const VkDeviceSize chunk_size = (VkDeviceSize)16 * 1024 * 1024;
-    if (first.source != second.source || first.target != second.target
-            || first.region.srcOffset != second.region.srcOffset
-            || first.region.size != chunk_size || second.region.size != weight.data->capacity - (size_t)chunk_size
-            || second.region.dstOffset != first.region.dstOffset + chunk_size)
+    int uploads = 0;
+    for (size_t i = 0; i < probe.copies.size(); i++)
+        if (probe.copies[i].target == first.target)
+            uploads++;
+    if (uploads != 1 || first.region.size != weight.data->capacity)
     {
-        fprintf(stderr, "temporary weight staging chunks lost their complete allocation or reusable staging range\n");
+        fprintf(stderr, "temporary weight was not uploaded as one complete allocation\n");
         return -1;
     }
 #endif
     if (CompareMat(input, output, 0.f))
     {
-        fprintf(stderr, "temporary weight staging chunks corrupted the complete allocation\n");
+        fprintf(stderr, "temporary weight upload corrupted the complete allocation\n");
         return -1;
     }
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
@@ -1170,10 +1165,10 @@ static int test_weight_storage_workspace_chunks()
             fprintf(stderr, "temporary weight ownership transfer lost its complete allocation\n");
             return -1;
         }
-        if (entry.command == second.command && barrier.srcAccessMask == VK_ACCESS_TRANSFER_WRITE_BIT && barrier.dstAccessMask == 0
+        if (entry.command == first.command && barrier.srcAccessMask == VK_ACCESS_TRANSFER_WRITE_BIT && barrier.dstAccessMask == 0
                 && entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
             releases++;
-        else if (entry.command != second.command && barrier.srcAccessMask == 0
+        else if (entry.command != first.command && barrier.srcAccessMask == 0
                  && barrier.dstAccessMask == (VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT)
                  && entry.src_stage == VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
                  && entry.dst_stage == (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT))
@@ -1258,7 +1253,7 @@ static int test_weight_storage_upload_recording()
     return 0;
 }
 
-static int test_weight_storage_upload_chunks(bool custom_staging)
+static int test_weight_storage_upload_staging(bool custom_staging)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     UnmappedWeightAllocator weights(vkdev);
@@ -1266,14 +1261,12 @@ static int test_weight_storage_upload_chunks(bool custom_staging)
     ncnn::Option opt = weight_storage_option();
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = custom_staging ? &staging : 0;
-    opt.weight_host_memory_limit = 16384;
     ncnn::VkTransfer upload(vkdev);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
     WeightStorageUploadProbe probe(vkdev);
     probe.hide_next_map = false;
-    VkBuffer source_buffer = 0;
 #endif
-    const int sizes[2] = {7, 65543};
+    const int sizes[2] = {7, 8 * 1024 * 1024 + 7};
     for (int round = 0; round < 2; round++)
     {
         ncnn::VkMat targets[2];
@@ -1292,25 +1285,28 @@ static int test_weight_storage_upload_chunks(bool custom_staging)
             memset(source.data, 91, sizes[i]);
         }
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-        if (probe.copies.size() - first_copy < 3)
+        if (probe.copies.size() - first_copy != 2)
         {
-            fprintf(stderr, "weight copies were not recorded before submit\n");
+            fprintf(stderr, "weights were not recorded as one copy each\n");
             return -1;
         }
-        if (!source_buffer)
-            source_buffer = probe.copies[first_copy].source;
-        for (size_t i = first_copy; i < probe.copies.size(); i++)
+        const WeightStorageUploadProbe::Copy& first = probe.copies[first_copy];
+        const WeightStorageUploadProbe::Copy& second = probe.copies[first_copy + 1];
+        if (first.source == second.source || first.command != second.command
+            || first.region.size != targets[0].buffer_capacity() || second.region.size != targets[1].buffer_capacity())
         {
-            if (probe.copies[i].source != source_buffer || probe.copies[i].region.size > opt.weight_host_memory_limit)
-            {
-                fprintf(stderr, "weight upload did not reuse bounded staging\n");
-                return -1;
-            }
+            fprintf(stderr, "weights did not retain independent complete staging allocations\n");
+            return -1;
         }
 #endif
-        if (upload.submit_and_wait() || upload.reset())
+        if (upload.pending_upload_total() != targets[0].buffer_capacity() + targets[1].buffer_capacity())
         {
-            fprintf(stderr, "chunked weight upload failed custom=%d round=%d\n", custom_staging, round);
+            fprintf(stderr, "recording submitted weights before the caller's batch boundary\n");
+            return -1;
+        }
+        if (upload.submit_and_wait() || upload.pending_upload_total() != 0 || upload.reset())
+        {
+            fprintf(stderr, "complete weight upload failed custom=%d round=%d\n", custom_staging, round);
             return -1;
         }
         ncnn::VkCompute download(vkdev);
@@ -1321,7 +1317,7 @@ static int test_weight_storage_upload_chunks(bool custom_staging)
             download.record_clone(targets[i], results[i], download_opt);
         if (download.submit_and_wait())
         {
-            fprintf(stderr, "chunked weight download failed custom=%d round=%d\n", custom_staging, round);
+            fprintf(stderr, "complete weight download failed custom=%d round=%d\n", custom_staging, round);
             return -1;
         }
         for (int i = 0; i < 2; i++)
@@ -1329,15 +1325,57 @@ static int test_weight_storage_upload_chunks(bool custom_staging)
             for (int j = 0; j < sizes[i]; j++)
                 if (((const unsigned char*)results[i].data)[j] != (unsigned char)(j * 17 + i + round))
                 {
-                    fprintf(stderr, "chunked weight value mismatch custom=%d round=%d weight=%d byte=%d actual=%d\n", custom_staging, round, i, j, ((const unsigned char*)results[i].data)[j]);
+                    fprintf(stderr, "complete weight value mismatch custom=%d round=%d weight=%d byte=%d actual=%d\n", custom_staging, round, i, j, ((const unsigned char*)results[i].data)[j]);
                     return -1;
                 }
             for (size_t j = sizes[i]; j < targets[i].buffer_capacity(); j++)
                 if (((const unsigned char*)results[i].data)[j] != 0)
                 {
-                    fprintf(stderr, "chunked weight padding mismatch custom=%d round=%d weight=%d byte=%lu\n", custom_staging, round, i, (unsigned long)j);
+                    fprintf(stderr, "complete weight padding mismatch custom=%d round=%d weight=%d byte=%lu\n", custom_staging, round, i, (unsigned long)j);
                     return -1;
                 }
+        }
+    }
+    return 0;
+}
+
+static int test_weight_storage_upload_allocator_switch()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    UnmappedWeightAllocator weights(vkdev);
+    ncnn::VkWeightStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    ncnn::VkTransfer upload(vkdev);
+    ncnn::Mat inputs[4];
+    ncnn::VkMat targets[4];
+    for (int i = 0; i < 4; i++)
+    {
+        inputs[i] = RandomMat(63 + i);
+        opt.staging_vkallocator = i == 1 ? &staging : 0;
+        upload.record_upload(inputs[i], targets[i], opt);
+        if (targets[i].empty())
+            return -1;
+    }
+    uint64_t pending = 0;
+    for (int i = 0; i < 4; i++)
+        pending += targets[i].buffer_capacity();
+    if (upload.pending_upload_total() != pending || upload.submit_and_wait())
+        return -1;
+
+    ncnn::VkCompute download(vkdev);
+    ncnn::Mat outputs[4];
+    opt.staging_vkallocator = &staging;
+    for (int i = 0; i < 4; i++)
+        download.record_clone(targets[i], outputs[i], opt);
+    if (download.submit_and_wait())
+        return -1;
+    for (int i = 0; i < 4; i++)
+    {
+        if (CompareMat(inputs[i], outputs[i], 0.f))
+        {
+            fprintf(stderr, "weight staging allocator switch corrupted pending upload %d\n", i);
+            return -1;
         }
     }
     return 0;
@@ -1358,10 +1396,11 @@ int main()
 
     const int ret = 0
                     || test_weight_storage_upload_mode()
-                    || test_weight_storage_workspace_chunks()
+                    || test_weight_storage_workspace_upload()
                     || test_weight_storage_upload_recording()
-                    || test_weight_storage_upload_chunks(false)
-                    || test_weight_storage_upload_chunks(true)
+                    || test_weight_storage_upload_allocator_switch()
+                    || test_weight_storage_upload_staging(false)
+                    || test_weight_storage_upload_staging(true)
                     || test_weight_storage_precisions()
                     || test_weight_storage_workspace_reuse()
 

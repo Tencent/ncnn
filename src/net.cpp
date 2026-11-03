@@ -2387,11 +2387,6 @@ int Net::load_model(const DataReader& dr)
         opt_upload.blob_vkallocator = d->weight_vkallocator;
         opt_upload.workspace_vkallocator = d->weight_vkallocator;
         opt_upload.staging_vkallocator = d->weight_staging_vkallocator;
-        if (opt.use_weights_in_disk && opt.weight_host_memory_limit)
-        {
-            const size_t staging_limit = (size_t)16 * 1024 * 1024;
-            opt_upload.weight_host_memory_limit = std::min(opt.weight_host_memory_limit, staging_limit);
-        }
     }
 #endif // NCNN_VULKAN
 
