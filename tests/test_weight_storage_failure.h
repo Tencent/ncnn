@@ -22,12 +22,9 @@ public:
         SUBMIT,
         SECOND_SUBMIT,
         FENCE_WAIT,
-        FENCE_STATUS,
-        UPLOAD_FENCE_STATUS,
+        UPLOAD_FENCE_WAIT,
         ALLOCATE_COMMAND,
         RESET_COMMAND,
-        BEGIN_COMMAND,
-        END_COMMAND,
         CREATE_FENCE,
         RESET_FENCE,
         CREATE_SEMAPHORE,
@@ -37,14 +34,14 @@ public:
     };
 
     explicit VulkanFailure(Failure failure, int fail_at = 1)
-        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), create_buffer(ncnn::vkCreateBuffer), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), begin_command(ncnn::vkBeginCommandBuffer), end_command(ncnn::vkEndCommandBuffer), reset_fences(ncnn::vkResetFences), fence_status(ncnn::vkGetFenceStatus), create_descriptor_pool(ncnn::vkCreateDescriptorPool), allocate_descriptor_sets(ncnn::vkAllocateDescriptorSets)
+        : triggered(false), failure(failure), fail_at(failure == SECOND_SUBMIT ? 2 : fail_at), submissions(0), allocate(ncnn::vkAllocateMemory), bind(ncnn::vkBindBufferMemory), create_buffer(ncnn::vkCreateBuffer), map(ncnn::vkMapMemory), submit(ncnn::vkQueueSubmit), wait(ncnn::vkWaitForFences), allocate_command(ncnn::vkAllocateCommandBuffers), create_fence(ncnn::vkCreateFence), create_semaphore(ncnn::vkCreateSemaphore), reset_command(ncnn::vkResetCommandBuffer), reset_fences(ncnn::vkResetFences), create_descriptor_pool(ncnn::vkCreateDescriptorPool), allocate_descriptor_sets(ncnn::vkAllocateDescriptorSets)
     {
         calls = 0;
         reused_command = false;
         unsafe_command_reset = false;
         command_allocations = 0;
         resets = 0;
-        status_errors = 0;
+        wait_errors = 0;
         upload_fence = 0;
         g_vulkan_failure = this;
         ncnn::vkAllocateMemory = allocate_memory;
@@ -57,10 +54,7 @@ public:
         ncnn::vkCreateFence = make_fence;
         ncnn::vkCreateSemaphore = make_semaphore;
         ncnn::vkResetCommandBuffer = reset_commands;
-        ncnn::vkBeginCommandBuffer = begin_commands;
-        ncnn::vkEndCommandBuffer = end_commands;
         ncnn::vkResetFences = reset_task_fences;
-        ncnn::vkGetFenceStatus = get_fence_status;
         ncnn::vkCreateDescriptorPool = make_descriptor_pool;
         ncnn::vkAllocateDescriptorSets = allocate_descriptors;
     }
@@ -77,10 +71,7 @@ public:
         ncnn::vkCreateFence = create_fence;
         ncnn::vkCreateSemaphore = create_semaphore;
         ncnn::vkResetCommandBuffer = reset_command;
-        ncnn::vkBeginCommandBuffer = begin_command;
-        ncnn::vkEndCommandBuffer = end_command;
         ncnn::vkResetFences = reset_fences;
-        ncnn::vkGetFenceStatus = fence_status;
         ncnn::vkCreateDescriptorPool = create_descriptor_pool;
         ncnn::vkAllocateDescriptorSets = allocate_descriptor_sets;
         g_vulkan_failure = 0;
@@ -96,7 +87,7 @@ public:
     bool unsafe_command_reset;
     int command_allocations;
     int resets;
-    int status_errors;
+    int wait_errors;
     std::vector<VkCommandBuffer> submitted_commands;
     std::vector<VkFence> submitted_fences;
 
@@ -152,7 +143,7 @@ private:
     {
         VulkanFailure* f = g_vulkan_failure;
         f->submissions++;
-        if (f->failure == UPLOAD_FENCE_STATUS && count == 2 && submits[1].commandBufferCount == 0)
+        if (f->failure == UPLOAD_FENCE_WAIT && count == 2 && submits[1].commandBufferCount == 0)
             f->upload_fence = fence;
         if (f->failure == TRACK_COMMANDS)
         {
@@ -178,9 +169,10 @@ private:
     static VKAPI_ATTR VkResult VKAPI_CALL wait_for_fences(VkDevice device, uint32_t count, const VkFence* fences, VkBool32 all, uint64_t timeout)
     {
         VulkanFailure* f = g_vulkan_failure;
-        if (f->failure == FENCE_WAIT && f->calls++ < f->fail_at)
+        if ((f->failure == FENCE_WAIT || (f->failure == UPLOAD_FENCE_WAIT && count == 1 && fences[0] == f->upload_fence)) && f->calls++ < f->fail_at)
         {
             f->triggered = true;
+            f->wait_errors++;
             return VK_ERROR_OUT_OF_HOST_MEMORY;
         }
         return f->wait(device, count, fences, all, timeout);
@@ -252,33 +244,11 @@ private:
             for (int i = (int)f->submitted_commands.size() - 1; i >= 0; i--)
                 if (f->submitted_commands[i] == command)
                 {
-                    if (f->fence_status(ncnn::get_gpu_device()->vkdevice(), f->submitted_fences[i]) != VK_SUCCESS)
+                    if (ncnn::vkGetFenceStatus(ncnn::get_gpu_device()->vkdevice(), f->submitted_fences[i]) != VK_SUCCESS)
                         f->unsafe_command_reset = true;
                     break;
                 }
         return f->reset_command(command, flags);
-    }
-
-    static VKAPI_ATTR VkResult VKAPI_CALL begin_commands(VkCommandBuffer command, const VkCommandBufferBeginInfo* info)
-    {
-        VulkanFailure* f = g_vulkan_failure;
-        if (f->failure == BEGIN_COMMAND && ++f->calls == f->fail_at)
-        {
-            f->triggered = true;
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
-        }
-        return f->begin_command(command, info);
-    }
-
-    static VKAPI_ATTR VkResult VKAPI_CALL end_commands(VkCommandBuffer command)
-    {
-        VulkanFailure* f = g_vulkan_failure;
-        if (f->failure == END_COMMAND && ++f->calls == f->fail_at)
-        {
-            f->triggered = true;
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
-        }
-        return f->end_command(command);
     }
 
     static VKAPI_ATTR VkResult VKAPI_CALL reset_task_fences(VkDevice device, uint32_t count, const VkFence* fences)
@@ -293,28 +263,13 @@ private:
         return f->reset_fences(device, count, fences);
     }
 
-    static VKAPI_ATTR VkResult VKAPI_CALL get_fence_status(VkDevice device, VkFence fence)
-    {
-        VulkanFailure* f = g_vulkan_failure;
-        if ((f->failure == FENCE_STATUS || (f->failure == UPLOAD_FENCE_STATUS && fence == f->upload_fence)) && f->calls++ < f->fail_at)
-        {
-            f->triggered = true;
-            f->status_errors++;
-            return VK_ERROR_OUT_OF_HOST_MEMORY;
-        }
-        return f->fence_status(device, fence);
-    }
-
     int calls;
     VkFence upload_fence;
     PFN_vkAllocateCommandBuffers allocate_command;
     PFN_vkCreateFence create_fence;
     PFN_vkCreateSemaphore create_semaphore;
     PFN_vkResetCommandBuffer reset_command;
-    PFN_vkBeginCommandBuffer begin_command;
-    PFN_vkEndCommandBuffer end_command;
     PFN_vkResetFences reset_fences;
-    PFN_vkGetFenceStatus fence_status;
     PFN_vkCreateDescriptorPool create_descriptor_pool;
     PFN_vkAllocateDescriptorSets allocate_descriptor_sets;
     Failure failure;

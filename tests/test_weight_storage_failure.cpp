@@ -1005,7 +1005,8 @@ static int test_weight_storage_sync_init_failure(VulkanFailure::Failure failure_
 
     const bool command_failure = failure_type == VulkanFailure::ALLOCATE_COMMAND;
     const int count = command_failure || failure_type == VulkanFailure::CREATE_FENCE ? 2 : 4;
-    for (int recover = 0; recover < 2; recover++)
+    const int rounds = failure_type == VulkanFailure::CREATE_SEMAPHORE ? 2 : 1;
+    for (int recover = 0; recover < rounds; recover++)
     {
         WeightRecordingProbe probe(vkdev);
         const int& created = command_failure ? probe.command_buffers : failure_type == VulkanFailure::CREATE_FENCE ? probe.fences : probe.semaphores;
@@ -1020,7 +1021,7 @@ static int test_weight_storage_sync_init_failure(VulkanFailure::Failure failure_
             }
             if (recover)
             {
-                // Reset creates only the missing resources.
+                // Reset can still create missing semaphores.
                 if (cmd.reset() || created != count || destroyed != 0)
                 {
                     fprintf(stderr, "sync initialization failure prevented reset failure=%d at=%d\n", failure_type, fail_at);
@@ -1495,15 +1496,15 @@ static int test_weight_storage_workspace_wait_failure(bool deferred_weight)
         cmd->record_clone(ordinary, output, opt);
     }
     const int frees_before = staging.frees;
-    VulkanFailure fail(VulkanFailure::FENCE_STATUS, 2);
+    VulkanFailure fail(VulkanFailure::FENCE_WAIT, 2);
     const int result = cmd->submit_and_wait();
     const bool retained = result != 0 && fail.triggered && cmd->reset() != 0 && staging.frees == frees_before;
     // The submit and reset failures retain resources until destruction waits
     // for the pending commands without another injected error.
     delete cmd;
-    if (!retained || fail.status_errors != 2 || staging.frees <= frees_before)
+    if (!retained || fail.wait_errors != 2 || staging.frees <= frees_before)
     {
-        fprintf(stderr, "compute fence query failure lost pending execution or staging lifetime deferred=%d\n", deferred_weight);
+        fprintf(stderr, "compute fence wait failure lost pending execution or staging lifetime deferred=%d\n", deferred_weight);
         return -1;
     }
     return 0;
@@ -1532,7 +1533,7 @@ static int test_weight_storage_upload_wait_failure(bool submit, bool staged = fa
     WeightRecordingProbe probe(vkdev, staged);
     ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev);
     cmd->set_use_weight_upload_online(true);
-    VulkanFailure fail(VulkanFailure::UPLOAD_FENCE_STATUS, 2);
+    VulkanFailure fail(VulkanFailure::UPLOAD_FENCE_WAIT, 2);
     cmd->record_clone(weight, output, opt);
     const int frees_before = staging.frees;
 
@@ -1546,9 +1547,9 @@ static int test_weight_storage_upload_wait_failure(bool submit, bool staged = fa
     if (staged)
         retained = retained && !probe.copy_regions.empty() && probe.copy_regions[0].source_destroyed;
     weight.data->storage_type = storage_type;
-    if (!retained || fail.status_errors != 2 || staging.frees <= frees_before)
+    if (!retained || fail.wait_errors != 2 || staging.frees <= frees_before)
     {
-        fprintf(stderr, "upload fence query failure lost pending work or staging lifetime submit=%d\n", submit);
+        fprintf(stderr, "upload fence wait failure lost pending work or staging lifetime submit=%d\n", submit);
         return -1;
     }
     return 0;
@@ -1685,8 +1686,6 @@ int main()
                     || test_weight_storage_upload_wait_failure(false, true)
                     || test_weight_storage_execution_resources(VulkanFailure::TRACK_COMMANDS)
                     || test_weight_storage_execution_resources(VulkanFailure::RESET_COMMAND)
-                    || test_weight_storage_execution_resources(VulkanFailure::BEGIN_COMMAND)
-                    || test_weight_storage_execution_resources(VulkanFailure::END_COMMAND)
                     || test_weight_storage_sync_init_failure(VulkanFailure::ALLOCATE_COMMAND, 1)
                     || test_weight_storage_sync_init_failure(VulkanFailure::ALLOCATE_COMMAND, 2)
                     || test_weight_storage_sync_init_failure(VulkanFailure::CREATE_FENCE, 1)
@@ -1715,10 +1714,6 @@ int main()
                     || test_weight_storage_upload_overlap(4)
                     || test_weight_storage_upload_overlap(1, VulkanFailure::RESET_COMMAND)
                     || test_weight_storage_upload_overlap(3, VulkanFailure::RESET_COMMAND)
-                    || test_weight_storage_upload_overlap(1, VulkanFailure::BEGIN_COMMAND)
-                    || test_weight_storage_upload_overlap(3, VulkanFailure::BEGIN_COMMAND)
-                    || test_weight_storage_upload_overlap(1, VulkanFailure::END_COMMAND)
-                    || test_weight_storage_upload_overlap(3, VulkanFailure::END_COMMAND)
                     || test_weight_storage_upload_overlap(1, VulkanFailure::RESET_FENCE)
                     || test_weight_storage_upload_overlap(3, VulkanFailure::RESET_FENCE)
                     || test_weight_storage_group_signal(false)

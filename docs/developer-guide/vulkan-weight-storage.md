@@ -116,8 +116,9 @@ configuration and returns from that operation.
 command pools and starts the initial compute command buffer. Both command pools
 remain available until command destruction.
 If command-buffer or synchronization-object creation fails, already created
-resources remain owned by the command. `reset()` creates only missing handles;
-destruction releases the retained resources.
+resources remain owned by the command until destruction. `reset()` does not
+recreate missing command buffers or fences. It still recreates semaphores when
+an interrupted recording leaves signals without matching waits.
 Temporary weight and staging allocations are still created only when needed.
 
 Each command owns an independent temporary weight pool. It cannot be replaced
@@ -228,9 +229,11 @@ Recording failures return from the current operation, following the ordinary
 recording. They are not saved as a command-wide error for a later
 `submit_and_wait()` call. Reset an incomplete recording before using the command
 again. Output allocation failures retain the empty-output convention.
-`submit_and_wait()` returns errors from its own recording, submission and waiting
-operations. A fence error retains pending work and its resources. Reset returns
-an error if waiting fails again. Destruction attempts each pending wait once
+Begin/end command-buffer helpers log native errors; their callers follow the
+ordinary command path without propagating those return values.
+`submit_and_wait()` checks submission, fence reset, waiting and download
+invalidation errors. A fence error retains pending work and its resources.
+Reset returns an error if waiting fails again. Destruction attempts each pending wait once
 before cleanup; it does not retry failed waits or recover a lost device.
 
 For direct allocator use, configure `VkWeightAllocator` before allocation with
