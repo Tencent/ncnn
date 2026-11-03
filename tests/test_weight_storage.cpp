@@ -6,30 +6,22 @@
 
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
 // Inspect native uploads without exposing the command's private weight pool.
-// With a mappable target allocator, hide one target mapping to exercise staging;
-// the allocator still owns and unmaps the real mapping when it clears its pool.
+// The target can be made unmappable to exercise GPU uploads on UMA devices.
 class WeightStorageUploadProbe;
 static WeightStorageUploadProbe* g_weight_storage_upload_probe = 0;
 class WeightStorageUploadProbe
 {
 public:
-    explicit WeightStorageUploadProbe(const ncnn::VulkanDevice* vkdev)
-        : hide_next_map(false), hidden_maps(0), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer), create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
+    explicit WeightStorageUploadProbe(const ncnn::VulkanDevice* vkdev, bool force_upload = true)
+        : target(vkdev, force_upload), copy(ncnn::vkCmdCopyBuffer), create(ncnn::vkCreateBuffer), barrier(ncnn::vkCmdPipelineBarrier)
     {
-        {
-            ncnn::VkBlobAllocator blobs(vkdev, 4096);
-            ncnn::VkMat target(1, (size_t)4u, &blobs);
-            hide_next_map = !target.empty() && blobs.mappable;
-        }
         g_weight_storage_upload_probe = this;
-        ncnn::vkMapMemory = map_memory;
         ncnn::vkCmdCopyBuffer = record_copy;
         ncnn::vkCreateBuffer = create_buffer;
         ncnn::vkCmdPipelineBarrier = record_barrier;
     }
     ~WeightStorageUploadProbe()
     {
-        ncnn::vkMapMemory = map;
         ncnn::vkCmdCopyBuffer = copy;
         ncnn::vkCreateBuffer = create;
         ncnn::vkCmdPipelineBarrier = barrier;
@@ -57,24 +49,10 @@ public:
         VkBufferMemoryBarrier buffer_barrier;
     };
     std::vector<Barrier> barriers;
-    bool hide_next_map;
-    int hidden_maps;
 
 private:
     WeightStorageUploadProbe(const WeightStorageUploadProbe&);
     WeightStorageUploadProbe& operator=(const WeightStorageUploadProbe&);
-    static VKAPI_ATTR VkResult VKAPI_CALL map_memory(VkDevice device, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** data)
-    {
-        WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
-        const VkResult ret = p->map(device, memory, offset, size, flags, data);
-        if (ret == VK_SUCCESS && p->hide_next_map)
-        {
-            *data = 0;
-            p->hide_next_map = false;
-            p->hidden_maps++;
-        }
-        return ret;
-    }
     static VKAPI_ATTR void VKAPI_CALL record_copy(VkCommandBuffer command, VkBuffer source, VkBuffer target, uint32_t count, const VkBufferCopy* regions)
     {
         WeightStorageUploadProbe* p = g_weight_storage_upload_probe;
@@ -118,7 +96,7 @@ private:
         }
         p->barrier(command, src_stage, dst_stage, flags, memory_count, memory_barriers, buffer_count, buffer_barriers, image_count, image_barriers);
     }
-    PFN_vkMapMemory map;
+    UnmappableWeightTarget target;
     PFN_vkCmdCopyBuffer copy;
     PFN_vkCreateBuffer create;
     PFN_vkCmdPipelineBarrier barrier;
@@ -775,7 +753,7 @@ static int test_weight_storage_recorded_weight_lifetime()
     return 0;
 }
 
-static int test_weight_storage_subview_copy(bool file, bool force_staging)
+static int test_weight_storage_subview_copy(bool file, bool force_upload)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     ncnn::VkWeightAllocator store(vkdev);
@@ -808,11 +786,9 @@ static int test_weight_storage_subview_copy(bool file, bool force_staging)
 #endif
     opt.blob_vkallocator = &blobs;
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    WeightStorageUploadProbe probe(vkdev);
-    if (!force_staging)
-        probe.hide_next_map = false;
+    WeightStorageUploadProbe probe(vkdev, force_upload);
 #else
-    (void)force_staging;
+    (void)force_upload;
 #endif
     ncnn::VkCompute cmd(vkdev);
     cmd.set_use_weight_upload_online(true);
@@ -821,7 +797,7 @@ static int test_weight_storage_subview_copy(bool file, bool force_staging)
     const size_t view_bytes = ncnn::alignSize(7 * sizeof(float), 16);
     if (result.empty() || result.w != 7 || result.buffer_capacity() != view_bytes)
     {
-        fprintf(stderr, "subview copy retained the source allocation extent file=%d staging=%d\n", file, force_staging);
+        fprintf(stderr, "subview copy retained the source allocation extent file=%d upload=%d\n", file, force_upload);
         return -1;
     }
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
@@ -835,13 +811,13 @@ static int test_weight_storage_subview_copy(bool file, bool force_staging)
         if (copy.region.size != view_bytes
                 || (!file && (copy.source != view.buffer() || copy.region.srcOffset != view.buffer_offset())))
         {
-            fprintf(stderr, "subview upload lost tensor extent or source offset file=%d staging=%d\n", file, force_staging);
+            fprintf(stderr, "subview upload lost tensor extent or source offset file=%d upload=%d\n", file, force_upload);
             return -1;
         }
     }
-    if (uploads > 1 || ((!file || force_staging) && uploads != 1))
+    if (uploads != (force_upload || !blobs.mappable ? 1 : 0))
     {
-        fprintf(stderr, "unexpected subview uploads=%d file=%d staging=%d\n", uploads, file, force_staging);
+        fprintf(stderr, "unexpected subview uploads=%d file=%d upload=%d\n", uploads, file, force_upload);
         return -1;
     }
 #endif
@@ -851,7 +827,7 @@ static int test_weight_storage_subview_copy(bool file, bool force_staging)
     cmd.record_clone(result, output, opt);
     if (cmd.submit_and_wait() || CompareMat(expected, output, 0.f) || cmd.reset())
     {
-        fprintf(stderr, "test_weight_storage_subview_copy failed file=%d staging=%d\n", file, force_staging);
+        fprintf(stderr, "test_weight_storage_subview_copy failed file=%d upload=%d\n", file, force_upload);
         return -1;
     }
     return 0;
@@ -1181,7 +1157,7 @@ static int test_weight_storage_workspace_upload()
     opt.blob_vkallocator = &weights;
     opt.staging_vkallocator = &staging;
     // A weight larger than the former staging window is uploaded in one copy.
-    // The native probe forces staging when the target allocator is mappable.
+    // The native probe selects an unmappable target to exercise staging.
     ncnn::Mat input(16 * 1024 * 1024 / 4 + 17);
     for (int i = 0; i < input.w; i++)
         ((float*)input)[i] = (float)(i % 257);
@@ -1340,8 +1316,7 @@ static int test_weight_storage_upload_staging(bool pooled_staging)
     opt.staging_vkallocator = pooled_staging ? (ncnn::VkAllocator*)&pooled : &staging;
     ncnn::VkTransfer upload(vkdev);
 #if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
-    WeightStorageUploadProbe probe(vkdev);
-    probe.hide_next_map = false;
+    WeightStorageUploadProbe probe(vkdev, false);
 #endif
     const int sizes[2] = {7, 8 * 1024 * 1024 + 7};
     for (int round = 0; round < 2; round++)
@@ -1490,6 +1465,7 @@ int main()
                     || test_weight_storage_image_descriptors()
                     || test_weight_storage_recorded_weight_lifetime()
                     || test_weight_storage_subview_copy(false, false)
+                    || test_weight_storage_subview_copy(false, true)
                     || test_weight_storage_subview_copy(true, false)
                     || test_weight_storage_subview_copy(true, true)
                     || test_weight_storage_recorded_subview();

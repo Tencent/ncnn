@@ -414,17 +414,10 @@ static WeightRecordingProbe* g_weight_recording_probe = 0;
 class WeightRecordingProbe
 {
 public:
-    explicit WeightRecordingProbe(const ncnn::VulkanDevice* vkdev, bool force_staging = false)
-        : copies(0), dispatches(0), submissions(0), semaphores(0), destroyed_semaphores(0), fences(0), destroyed_fences(0), command_buffers(0), freed_command_buffers(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), hide_next_map(false), map(ncnn::vkMapMemory), copy(ncnn::vkCmdCopyBuffer), dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), create_semaphore(ncnn::vkCreateSemaphore), destroy_semaphore(ncnn::vkDestroySemaphore), create_fence(ncnn::vkCreateFence), destroy_fence(ncnn::vkDestroyFence), allocate_command(ncnn::vkAllocateCommandBuffers), free_command(ncnn::vkFreeCommandBuffers), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), properties(vkdev->info.physicalDeviceMemoryProperties())
+    explicit WeightRecordingProbe(const ncnn::VulkanDevice* vkdev, bool force_upload = false)
+        : copies(0), dispatches(0), submissions(0), semaphores(0), destroyed_semaphores(0), fences(0), destroyed_fences(0), command_buffers(0), freed_command_buffers(0), destroyed_recorded_buffer(false), allocations(0), device_bytes(0), host_bytes(0), peak_device_bytes(0), peak_host_bytes(0), target(vkdev, force_upload), copy(ncnn::vkCmdCopyBuffer), dispatch(ncnn::vkCmdDispatch), submit(ncnn::vkQueueSubmit), create_semaphore(ncnn::vkCreateSemaphore), destroy_semaphore(ncnn::vkDestroySemaphore), create_fence(ncnn::vkCreateFence), destroy_fence(ncnn::vkDestroyFence), allocate_command(ncnn::vkAllocateCommandBuffers), free_command(ncnn::vkFreeCommandBuffers), destroy(ncnn::vkDestroyBuffer), allocate(ncnn::vkAllocateMemory), free(ncnn::vkFreeMemory), properties(vkdev->info.physicalDeviceMemoryProperties())
     {
-        if (force_staging)
-        {
-            ncnn::VkBlobAllocator blobs(vkdev, 4096);
-            ncnn::VkMat target(1, (size_t)4u, &blobs);
-            hide_next_map = !target.empty() && blobs.mappable;
-        }
         g_weight_recording_probe = this;
-        ncnn::vkMapMemory = map_memory;
         ncnn::vkCmdCopyBuffer = record_copy;
         ncnn::vkCmdDispatch = record_dispatch;
         ncnn::vkQueueSubmit = queue_submit;
@@ -440,7 +433,6 @@ public:
     }
     ~WeightRecordingProbe()
     {
-        ncnn::vkMapMemory = map;
         ncnn::vkCmdCopyBuffer = copy;
         ncnn::vkCmdDispatch = dispatch;
         ncnn::vkQueueSubmit = submit;
@@ -526,17 +518,6 @@ private:
     };
     WeightRecordingProbe(const WeightRecordingProbe&);
     WeightRecordingProbe& operator=(const WeightRecordingProbe&);
-    static VKAPI_ATTR VkResult VKAPI_CALL map_memory(VkDevice device, VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** data)
-    {
-        WeightRecordingProbe* p = g_weight_recording_probe;
-        const VkResult ret = p->map(device, memory, offset, size, flags, data);
-        if (ret == VK_SUCCESS && p->hide_next_map)
-        {
-            *data = 0;
-            p->hide_next_map = false;
-        }
-        return ret;
-    }
     static VKAPI_ATTR void VKAPI_CALL record_copy(VkCommandBuffer command, VkBuffer src, VkBuffer dst, uint32_t count, const VkBufferCopy* regions)
     {
         WeightRecordingProbe* p = g_weight_recording_probe;
@@ -694,8 +675,7 @@ private:
         }
         p->free(device, memory, callbacks);
     }
-    bool hide_next_map;
-    PFN_vkMapMemory map;
+    UnmappableWeightTarget target;
     PFN_vkCmdCopyBuffer copy;
     PFN_vkCmdDispatch dispatch;
     PFN_vkQueueSubmit submit;
@@ -1051,7 +1031,7 @@ static int test_weight_storage_sync_init_failure(VulkanFailure::Failure failure_
 }
 
 // Keep adjacent complete weight groups disjoint, then reuse the older group.
-// GPU-backed deferred sources exercise the upload graph even on unified memory.
+// An unmappable target exercises the upload graph even on unified memory.
 static int test_weight_storage_upload_overlap(int submit_fail_at = 0, VulkanFailure::Failure failure_type = VulkanFailure::SUBMIT)
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -1079,7 +1059,7 @@ static int test_weight_storage_upload_overlap(int submit_fail_at = 0, VulkanFail
     }
     opt.blob_vkallocator = &blobs;
     int ret = 0;
-    WeightRecordingProbe probe(vkdev);
+    WeightRecordingProbe probe(vkdev, true);
     {
         ncnn::VkCompute cmd(vkdev);
         cmd.set_use_weight_upload_online(true);
@@ -1260,10 +1240,10 @@ static int test_weight_storage_group_signal(bool staged, bool mapped = false)
     for (int i = 0; i < 9; i++)
     {
         storage_types[i] = weight[i].data->storage_type;
-        weight[i].data->storage_type = staged || mapped ? 2 : 1;
+        weight[i].data->storage_type = staged || (mapped && i % 2) ? 2 : 1;
     }
     int ret = 0;
-    WeightRecordingProbe probe(vkdev, staged);
+    WeightRecordingProbe probe(vkdev, !mapped);
     {
         ncnn::VkCompute cmd(vkdev);
         cmd.set_use_weight_upload_online(true);
@@ -1346,6 +1326,61 @@ static int test_weight_storage_group_signal(bool staged, bool mapped = false)
     if (ret != 0)
         fprintf(stderr, "multiple weight uploads did not share one submission and ready signal per compute staged=%d\n", staged);
     return ret;
+}
+
+static int test_weight_storage_resolve_mapping_failure(bool file, bool missing_source)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkMat target(64, (size_t)4u, &blobs);
+    if (target.empty() || !blobs.mappable || !target.mapped_ptr())
+        return 0;
+    ncnn::VkWeightAllocator weights(vkdev, true);
+    ncnn::VkStagingAllocator staging(vkdev);
+    weights.set_weights_in_disk(file);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &staging;
+    const ncnn::Mat input = RandomMat(64);
+    ncnn::VkMat weight;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(input, weight, opt);
+    if (weight.empty() || upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    ncnn::VkBufferMemory memory = *weight.data;
+    memory.storage_type = file ? 2 : 1;
+    ncnn::VkMat source(64, &memory, (size_t)4u, &weights);
+    opt.blob_vkallocator = &blobs;
+    {
+        WeightRecordingProbe probe(vkdev);
+        ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(true);
+        ncnn::VkMat rejected;
+        if (missing_source)
+        {
+            memory.mapped_ptr = 0;
+            cmd.record_clone(source, rejected, opt);
+            memory.mapped_ptr = weight.data->mapped_ptr;
+        }
+        else
+        {
+            VulkanFailure failure(VulkanFailure::MISSING_MAP);
+            cmd.record_clone(source, rejected, opt);
+            if (!failure.triggered)
+                return -1;
+        }
+        if (!rejected.empty() || probe.copies != 0 || cmd.reset())
+        {
+            fprintf(stderr, "missing weight mapping did not fail resolve file=%d source=%d\n", file, missing_source);
+            return -1;
+        }
+    }
+    ncnn::VkCompute recovered(vkdev);
+    recovered.set_use_weight_upload_online(true);
+    ncnn::Mat output;
+    recovered.record_clone(source, output, opt);
+    return recovered.submit_and_wait() || CompareMat(input, output, 0.f);
 }
 
 class FailingFlushAllocator : public ncnn::VkStagingAllocator
@@ -1542,7 +1577,7 @@ static int test_weight_storage_upload_wait_failure(bool submit, bool staged = fa
     weight.data->storage_type = staged ? 2 : 1;
     opt.blob_vkallocator = &blobs;
     ncnn::Mat output;
-    WeightRecordingProbe probe(vkdev, staged);
+    WeightRecordingProbe probe(vkdev, true);
     ncnn::VkCompute* cmd = new ncnn::VkCompute(vkdev);
     cmd->set_use_weight_upload_online(true);
     VulkanFailure fail(VulkanFailure::UPLOAD_FENCE_WAIT, 2);
@@ -1598,6 +1633,7 @@ static int test_weight_storage_execution_resources(VulkanFailure::Failure failur
     opt.blob_vkallocator = &blobs;
 
     int ret = 0;
+    UnmappableWeightTarget target(vkdev);
     {
         ncnn::VkCompute cmd(vkdev);
         cmd.set_use_weight_upload_online(true);
@@ -1732,6 +1768,10 @@ int main()
                     || test_weight_storage_group_signal(false)
                     || test_weight_storage_group_signal(true)
                     || test_weight_storage_group_signal(false, true)
+                    || test_weight_storage_resolve_mapping_failure(false, false)
+                    || test_weight_storage_resolve_mapping_failure(false, true)
+                    || test_weight_storage_resolve_mapping_failure(true, false)
+                    || test_weight_storage_resolve_mapping_failure(true, true)
                     || test_weight_storage_resident_batches()
                     || test_weight_storage_resident_failure()
                     || test_weight_storage_midflight_failure(2)

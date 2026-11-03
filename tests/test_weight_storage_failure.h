@@ -19,6 +19,7 @@ public:
         BIND_MEMORY,
         CREATE_BUFFER,
         MAP_MEMORY,
+        MISSING_MAP,
         SUBMIT,
         SECOND_SUBMIT,
         FENCE_WAIT,
@@ -136,7 +137,14 @@ private:
             f->triggered = true;
             return VK_ERROR_MEMORY_MAP_FAILED;
         }
-        return f->map(device, memory, offset, size, flags, data);
+        const VkResult ret = f->map(device, memory, offset, size, flags, data);
+        if (f->failure == MISSING_MAP && ret == VK_SUCCESS)
+        {
+            // Keep the native mapping valid for allocator cleanup.
+            *data = 0;
+            f->triggered = true;
+        }
+        return ret;
     }
 
     static VKAPI_ATTR VkResult VKAPI_CALL queue_submit(VkQueue queue, uint32_t count, const VkSubmitInfo* submits, VkFence fence)

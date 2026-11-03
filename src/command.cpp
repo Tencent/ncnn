@@ -49,7 +49,7 @@ public:
     int reset_upload_command_buffer();
     int wait_upload_command_buffer();
 
-    void record_resolve(const VkMat& src, VkMat& dst, bool& has_upload);
+    void record_resolve(const VkMat& src, VkMat& dst);
 
     void flush_records();
     void clear_records(bool all = true);
@@ -639,7 +639,7 @@ int VkComputePrivate::wait_upload_command_buffer()
     return 0;
 }
 
-void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& has_upload)
+void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
 {
     if (!is_deferred_buffer(src.data))
     {
@@ -660,33 +660,30 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& has_up
     uint32_t dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED;
 
     VkMat dst_staging;
+    if (dst.allocator->mappable)
+    {
+        dst_staging = dst;
+    }
+    else if (src.data->storage_type == 2 || !src.buffer())
+    {
+        dst_staging.create_like(dst, local_staging_vkallocator);
+    }
+    else
+    {
+        dst_staging = src;
+    }
 
     // earlier groups completed before the preceding compute buffer was reused
     // the preceding group is still pinned, so this allocation cannot overwrite it
-    if (src.data->storage_type == 2 || !src.buffer())
+    if (dst_staging.data != src.data)
     {
-        if (!src.data->mapped_ptr)
+        if (dst_staging.empty() || !dst_staging.mapped_ptr() || !src.mapped_ptr())
         {
             dst.release();
             return;
         }
 
-        // use the mapped destination or a separate staging allocation
-        if (dst.allocator->mappable && dst.data->mapped_ptr)
-        {
-            dst_staging = dst;
-        }
-        else
-        {
-            dst_staging.create_like(dst, local_staging_vkallocator);
-            if (dst_staging.empty() || !dst_staging.mapped_ptr())
-            {
-                dst.release();
-                return;
-            }
-        }
-
-        // memcpy src to device
+        // memcpy src to device or staging
         unsigned char* ptr = (unsigned char*)dst_staging.mapped_ptr();
         memcpy(ptr, src.mapped_ptr(), size);
         memset(ptr + size, 0, alignSize(size, 4) - size);
@@ -702,12 +699,8 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& has_up
             weight_staging_buffers.push_back(dst_staging);
         }
     }
-    else
-    {
-        dst_staging = src;
-    }
 
-    if (dst_staging.data == dst.data)
+    if (dst.allocator->mappable)
     {
         upload_access = VK_ACCESS_HOST_WRITE_BIT;
         upload_stage = VK_PIPELINE_STAGE_HOST_BIT;
@@ -764,8 +757,6 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst, bool& has_up
 
             vkCmdPipelineBarrier(upload_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
         }
-
-        has_upload = true;
     }
 
     // acquire uploaded weights for shader-read and transfer-read
@@ -1385,9 +1376,8 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
         }
 
         // resolve weight
-        bool has_upload = false;
         {
-            d->record_resolve(_src, src, has_upload);
+            d->record_resolve(_src, src);
             if (src.empty())
                 return;
             weight_buffers.push_back(src);
@@ -1399,7 +1389,7 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
         }
 
         // submit recorded uploads
-        if (has_upload)
+        if (!d->local_weight_vkallocator->mappable)
         {
             // reset fence
             {
@@ -1821,9 +1811,8 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         }
 
         // resolve weight
-        bool has_upload = false;
         {
-            d->record_resolve(_src, src, has_upload);
+            d->record_resolve(_src, src);
             if (src.empty())
                 return;
             weight_buffers.push_back(src);
@@ -1835,7 +1824,7 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         }
 
         // submit recorded uploads
-        if (has_upload)
+        if (!d->local_weight_vkallocator->mappable)
         {
             // reset fence
             {
@@ -2355,10 +2344,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
 
         // resolve buffer bindings
-        bool has_upload = false;
         for (size_t i = 0; i < buffer_bindings.size(); i++)
         {
-            d->record_resolve(_buffer_bindings[i], buffer_bindings[i], has_upload);
+            d->record_resolve(_buffer_bindings[i], buffer_bindings[i]);
             if (is_deferred_buffer(_buffer_bindings[i].data))
             {
                 if (buffer_bindings[i].empty())
@@ -2376,7 +2364,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
 
         // submit recorded uploads
-        if (has_upload)
+        if (!d->local_weight_vkallocator->mappable)
         {
             // reset fence
             {

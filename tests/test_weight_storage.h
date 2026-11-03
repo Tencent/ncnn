@@ -103,6 +103,50 @@ static ncnn::Option weight_storage_option()
     return opt;
 }
 
+#if NCNN_WEIGHT_STORAGE_NATIVE_PROBE
+// Let the next allocator select device memory without mapping it, even on UMA.
+// Restore the reported capabilities before allocation so staging stays mappable.
+class UnmappableWeightTarget;
+static UnmappableWeightTarget* g_unmappable_weight_target = 0;
+class UnmappableWeightTarget
+{
+public:
+    explicit UnmappableWeightTarget(const ncnn::VulkanDevice* vkdev, bool enable = true)
+        : properties(const_cast<VkPhysicalDeviceMemoryProperties&>(vkdev->info.physicalDeviceMemoryProperties())), saved(properties), enabled(enable), allocate(ncnn::vkAllocateMemory)
+    {
+        if (!enabled)
+            return;
+        for (uint32_t i = 0; i < properties.memoryTypeCount; i++)
+            if (properties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+                properties.memoryTypes[i].propertyFlags &= ~VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
+        g_unmappable_weight_target = this;
+        ncnn::vkAllocateMemory = allocate_memory;
+    }
+    ~UnmappableWeightTarget()
+    {
+        if (!enabled)
+            return;
+        properties = saved;
+        ncnn::vkAllocateMemory = allocate;
+        g_unmappable_weight_target = 0;
+    }
+
+private:
+    UnmappableWeightTarget(const UnmappableWeightTarget&);
+    UnmappableWeightTarget& operator=(const UnmappableWeightTarget&);
+    static VKAPI_ATTR VkResult VKAPI_CALL allocate_memory(VkDevice device, const VkMemoryAllocateInfo* info, const VkAllocationCallbacks* callbacks, VkDeviceMemory* memory)
+    {
+        UnmappableWeightTarget* p = g_unmappable_weight_target;
+        p->properties = p->saved;
+        return p->allocate(device, info, callbacks, memory);
+    }
+    VkPhysicalDeviceMemoryProperties& properties;
+    VkPhysicalDeviceMemoryProperties saved;
+    bool enabled;
+    PFN_vkAllocateMemory allocate;
+};
+#endif
+
 // Exercise staging transfers even on a device with host-visible device memory.
 class UnmappedWeightAllocator : public ncnn::VkWeightAllocator
 {

@@ -187,18 +187,21 @@ conservative batch dependencies, not a per-range reader table or a global
 planner. Actual overlap and performance depend on the selected queues, device
 and workload; a separate transfer family alone is not a performance guarantee.
 
-Sources requiring a host copy fill the target directly when its allocator is
-mappable and its mapping is valid, after the older compute batch N-1 completes.
-This uses the same two-generation lifetime rule and does not depend on device
-type or queue-family selection. An unavailable target mapping uses staging.
-The upload path copies host-resident Vulkan buffers directly or fills a separate
-command-owned staging buffer for each file weight.
+The private weight allocator determines the copy path after its first allocation.
+When it is mappable, both host and file weights are copied directly from their
+CPU mappings into the target, after the older compute batch N-1 completes.
+A missing source or target mapping fails the resolve. When the allocator is
+not mappable, the upload path copies host-resident Vulkan buffers directly or
+fills a separate command-owned staging buffer for each file weight. This uses
+the same two-generation lifetime rule and does not depend on device type or
+queue-family selection.
 Each weight is copied in full, and all GPU uploads for one operation are recorded
 in the same upload command buffer and submitted together. The caller waits for
 upload command buffer reuse, resets it, releases the preceding staging buffers,
 and begins recording before resolving the group. It ends recording afterward
-and submits only if the group recorded GPU copies. A group with only mapped
-writes prepares the command buffer but does not submit an empty upload. Staging allocations
+and, once every resolve succeeds, submits only if the private allocator is not
+mappable. Mapped writes prepare the command buffer but do not submit an empty
+upload. Staging allocations
 remain live until the upload completes; the preceding group's staging is released
 before recording the next upload group. Temporary staging memory therefore grows
 with the sum of weights requiring staging in one group, rather than a fixed
@@ -226,8 +229,9 @@ remains deferred until `submit_and_wait()`.
 
 Each command owns one compute command buffer and one upload command buffer,
 allocated at initialization and retained across reset. Two fences and four binary
-semaphores are also reused. A local flag accumulates whether any resolved weight
-recorded a GPU copy; it does not control command buffer begin/end. The compute execution flag clears
+semaphores are also reused. The allocator's mapping capability selects submission
+for the whole group; resolving individual weights does not return an upload flag.
+The compute execution flag clears
 after its fence wait; the upload-chain flag stays set through the final upload
 fence wait. Each upload group signals readiness once for all its weights.
 `submit_and_wait()` submits the remaining compute batch,
