@@ -191,6 +191,13 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                       && (!kv_cache || past_key.empty() || (past_key.elembits() == 32 && past_value.elembits() == 32))
                       && (!attn_mask || attn_mask_blob.elembits() == 32);
 
+#if NCNN_ARM82
+    const bool fp16 = int8_scale_term == 0 && opt.use_fp16_storage
+                      && query.elembits() == 16 && cur_key.elembits() == 16 && cur_value.elembits() == 16
+                      && (!kv_cache || past_key.empty() || (past_key.elembits() == 16 && past_value.elembits() == 16))
+                      && (!attn_mask || attn_mask_blob.elembits() == 16);
+#endif
+
     Mat key;
     Mat value;
     if (kv_cache)
@@ -235,6 +242,19 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
         return sdpa_decode<float>(query, key, value, attn_mask_blob, top_blob, _scale, opt);
     }
+
+#if NCNN_ARM82
+    if (fp16 && src_seqlen == 1)
+    {
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(out_embed_dim, src_seqlen, num_heads, 2u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        return forward_decode_fp16s(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+    }
+#endif
 
     const int num_heads_per_group = num_heads / num_group;
 
