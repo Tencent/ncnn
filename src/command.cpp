@@ -3955,29 +3955,30 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     if (dst.empty())
         return;
 
-    const size_t size = src_flattened.total() * src_flattened.elemsize;
-    if (size > dst.buffer_capacity() || dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
+    if (dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
     {
         NCNN_LOGE("weight upload exceeds destination capacity");
         return;
     }
-    if (dst.data->storage_type == 3)
+    if (dst.data->storage_type == 3 && (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.mapped_ptr()))
     {
-        if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.mapped_ptr())
-        {
-            NCNN_LOGE("disk weight requires a writable source range during upload");
-            return;
-        }
-        unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
-        memcpy(ptr, src_flattened.data, size);
-        memset(ptr + size, 0, dst.buffer_capacity() - size);
+        NCNN_LOGE("disk weight requires a writable source range during upload");
         return;
     }
     if (dst.mapped_ptr())
     {
-        unsigned char* ptr = (unsigned char*)dst.mapped_ptr();
-        memcpy(ptr, src_flattened.data, size);
-        memset(ptr + size, 0, dst.buffer_capacity() - size);
+        // memcpy src_flattened to device
+        for (int b = 0; b < src_flattened.n; b++)
+        {
+            const Mat src_b = src_flattened.batch(b);
+            VkMat dst_b = dst.batch(b);
+            memcpy(dst_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
+        }
+
+        // file mappings are flushed by finalize_weights()
+        if (dst.data->storage_type == 3)
+            return;
+
         int ret = dst.allocator->flush(dst.data);
         if (ret != 0)
             return;
@@ -4015,14 +4016,18 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         NCNN_LOGE("weight staging allocator uses a different Vulkan device");
         return;
     }
-    VkMat dst_staging(1, dst.buffer_capacity(), 1, opt.staging_vkallocator);
+    VkMat dst_staging;
+    dst_staging.create_like(src_flattened, opt.staging_vkallocator);
     if (dst_staging.empty() || !dst_staging.mapped_ptr())
         return;
 
     // memcpy src_flattened to staging
-    unsigned char* ptr = (unsigned char*)dst_staging.mapped_ptr();
-    memcpy(ptr, src_flattened.data, size);
-    memset(ptr + size, 0, dst.buffer_capacity() - size);
+    for (int b = 0; b < src_flattened.n; b++)
+    {
+        const Mat src_b = src_flattened.batch(b);
+        VkMat staging_b = dst_staging.batch(b);
+        memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
+    }
     if (dst_staging.allocator->flush(dst_staging.data))
         return;
 
