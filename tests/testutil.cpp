@@ -1031,6 +1031,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
     ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
 
+    g_weight_vkallocator.set_weights_in_disk(opt.use_weights_in_disk);
+
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -1060,6 +1062,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->upload_model(cmd, opt_upload);
 
         cmd.submit_and_wait();
+
+        g_weight_vkallocator.finalize_weights();
     }
 
     d.resize(top_blob_count);
@@ -1070,6 +1074,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         // forward
         ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(opt.use_weights_in_disk);
 
         {
             std::vector<ncnn::VkMat> a_gpu(a.size());
@@ -1609,6 +1614,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     ncnn::VkWeightAllocator g_weight_vkallocator(vkdev);
     ncnn::VkWeightStagingAllocator g_weight_staging_vkallocator(vkdev);
 
+    g_weight_vkallocator.set_weights_in_disk(opt.use_weights_in_disk);
+
     ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
 
@@ -1638,6 +1645,8 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         op->upload_model(cmd, opt_upload);
 
         cmd.submit_and_wait();
+
+        g_weight_vkallocator.finalize_weights();
     }
 
     ncnn::Mat dx;
@@ -1645,6 +1654,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         // forward
         ncnn::VkCompute cmd(vkdev);
+        cmd.set_use_weight_upload_online(opt.use_weights_in_disk);
 
         {
             ncnn::VkMat a_gpu;
@@ -2031,8 +2041,8 @@ int test_layer_opt(const char* layer_type, const ncnn::ParamDict& pd, const std:
 
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const std::vector<ncnn::Mat>& a, int top_blob_count, float epsilon, int flag)
 {
-    // pack fp16p fp16s fp16a bf16p bf16s flag
-    const int options[][7] = {
+    // pack fp16p fp16s fp16a bf16p bf16s flag disk
+    const int options[][8] = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 0, 0, 0},
@@ -2040,7 +2050,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {1, 0, 0, 0, 0, 0, 0},
 #if NCNN_VULKAN
         {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING, 1},
         {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
         {1, 0, 1, 0, 0, 0, 0},
@@ -2060,6 +2070,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_fp16_arithmetic = options[i][3];
         opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][5];
+        opt.use_weights_in_disk = options[i][7];
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, top_blob_count, epsilon, flag | options[i][6]);
         if (ret != 0)
@@ -2071,8 +2082,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
 int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vector<ncnn::Mat>& weights, const ncnn::Mat& a, float epsilon, int flag)
 {
-    // pack fp16p fp16s fp16a bf16p bf16s flag
-    const int options[][7] = {
+    // pack fp16p fp16s fp16a bf16p bf16s flag disk
+    const int options[][8] = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0, 0, 0},
         {0, 0, 1, 1, 0, 0, 0},
@@ -2080,7 +2091,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {1, 0, 0, 0, 0, 0, 0},
 #if NCNN_VULKAN
         {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
-        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING, 1},
         {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
         {1, 0, 1, 0, 0, 0, 0},
@@ -2100,6 +2111,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         opt.use_fp16_arithmetic = options[i][3];
         opt.use_bf16_packed = options[i][4];
         opt.use_bf16_storage = options[i][5];
+        opt.use_weights_in_disk = options[i][7];
 
         int ret = test_layer_opt(layer_type, pd, weights, opt, a, epsilon, flag | options[i][6]);
         if (ret != 0)

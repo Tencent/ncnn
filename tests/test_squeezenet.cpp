@@ -520,7 +520,7 @@ int main()
     ncnn::UnlockedPoolAllocator g_blob_pool_allocator;
     ncnn::PoolAllocator g_workspace_pool_allocator;
 
-    ncnn::Option opts[4];
+    ncnn::Option opts[6];
 
     opts[0].use_packing_layout = false;
     opts[0].use_fp16_packed = false;
@@ -551,14 +551,39 @@ int main()
     opts[3].blob_allocator = &g_blob_pool_allocator;
     opts[3].workspace_allocator = &g_workspace_pool_allocator;
 
-    int load_model_types[4] = {0, 1, 2, 3};
+    opts[4].use_packing_layout = true;
+    opts[4].use_fp16_packed = true;
+    opts[4].use_fp16_storage = true;
+    opts[4].use_fp16_arithmetic = false;
+    opts[4].use_bf16_storage = false;
+    opts[4].use_weights_in_disk = true;
 
-    for (int i = 0; i < 4; i++)
+    opts[5].use_packing_layout = true;
+    opts[5].use_fp16_packed = false;
+    opts[5].use_fp16_storage = false;
+    opts[5].use_fp16_arithmetic = false;
+    opts[5].use_bf16_storage = false;
+    opts[5].use_weights_in_disk = true;
+#if NCNN_VULKAN
+    {
+        // explicit limits require a usable temporary file
+        ncnn::TemporaryFile weight_file;
+        if (weight_file.open() == 0)
+        {
+            opts[5].weight_device_memory_limit = 1024 * 1024;
+            opts[5].weight_host_memory_limit = 1024 * 1024;
+        }
+    }
+#endif // NCNN_VULKAN
+
+    int load_model_types[6] = {0, 1, 2, 3, 1, 3};
+
+    for (int i = 0; i < 6; i++)
     {
         opts[i].num_threads = 1;
     }
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 6; i++)
     {
         const ncnn::Option& opt = opts[i];
 
@@ -613,7 +638,7 @@ int main()
 
 #if NCNN_BATCH
     // batch inference tests
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 6; i++)
     {
         const ncnn::Option& opt = opts[i];
 

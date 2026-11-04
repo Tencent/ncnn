@@ -3,6 +3,7 @@
 
 #include "platform.h"
 
+#include <stdio.h>
 #include <string.h>
 
 #if NCNN_STDIO && (!defined(__ANDROID__) || __ANDROID_API__ >= 21) && ((defined(_WIN32) && !NCNN_WINXP) || defined(__ANDROID__) || defined(__OHOS__) || defined(__linux__) || __APPLE__)
@@ -73,14 +74,14 @@ public:
     }
 };
 
-#define CHECK_TEMPORARY_FILE(condition)                                   \
-    do                                                                    \
-    {                                                                     \
-        if (!(condition))                                                 \
-        {                                                                 \
-            NCNN_LOGE("test_temporary_file failed at line %d", __LINE__); \
-            return -1;                                                    \
-        }                                                                 \
+#define CHECK_TEMPORARY_FILE(condition)                                           \
+    do                                                                            \
+    {                                                                             \
+        if (!(condition))                                                         \
+        {                                                                         \
+            fprintf(stderr, "test_temporary_file failed at line %d\n", __LINE__); \
+            return -1;                                                            \
+        }                                                                         \
     } while (0)
 
 static int test_temporary_file()
