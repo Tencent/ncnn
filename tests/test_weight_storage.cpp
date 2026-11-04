@@ -120,7 +120,7 @@ static int test_weight_storage_upload_mode()
     upload.record_upload(input, weight, opt);
     if (upload.submit_and_wait() || weights.finalize_weights())
         return -1;
-    if (weight.data->storage_type != 2)
+    if (weight.data->storage_type != 3)
         return 0;
     opt.blob_vkallocator = &blobs;
 

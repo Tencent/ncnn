@@ -237,7 +237,7 @@ public:
     int refcount;
 
     // storage type
-    // 0 = device, 1 = host, 2 = disk
+    // 0 = device VkBuffer, 1 = host VkBuffer, 2 = cpu memory, 3 = file
     int storage_type;
 };
 
@@ -360,7 +360,7 @@ public:
     // flush and seal file weights after uploads complete
     int finalize_weights();
 
-    // actual resident Vulkan allocations, including padding; excludes temporary weights and file mappings
+    // actual resident Vulkan and CPU host allocations, including padding; excludes temporary weights and file mappings
     void get_weight_memory_usage(uint64_t& device_bytes, uint64_t& host_bytes) const;
 
 public:

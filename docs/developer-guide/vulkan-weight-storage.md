@@ -7,6 +7,25 @@ file, reducing resident model storage at the cost of file reads and uploads.
 Temporary weight buffers use a private, command-owned `VkBlobAllocator` pool,
 separate from activation and layer workspace allocations.
 
+Host storage prefers a host-visible Vulkan buffer. If its creation, allocation,
+binding or mapping fails, or no suitable host memory type is available, buffer
+weights fall back to ordinary aligned CPU memory. This applies both to
+`use_weights_in_host_memory` and to the host tier of explicit disk-model
+residency. Further allocations reuse existing blocks and continue in the CPU
+pool after fallback; they do not repeatedly attempt new host Vulkan allocations.
+
+The allocator owns and frees the CPU blocks. Their views use `storage_type = 2`,
+null `buffer` and `memory` handles, an invalid `memory_type_index`, and a valid
+`mapped_ptr`. They require no Vulkan memory import or flush. Layers keep using
+the same `VkMat` upload and binding interfaces.
+
+| storage_type | weight backing | execution |
+| --- | --- | --- |
+| 0 | DEVICE Vulkan buffer | bind directly |
+| 1 | HOST Vulkan buffer | CPU copy to a mappable target, otherwise direct buffer upload |
+| 2 | ordinary CPU memory | CPU copy to a mappable target, otherwise staging upload |
+| 3 | mapped file | CPU copy to a mappable target, otherwise staging upload |
+
 ## usage
 
 Configure storage before loading the model. The following example loads a model
@@ -59,12 +78,18 @@ commands retain their own pool across `reset()` calls.
 
 With both limits set to zero, disk weights remain in the file. With explicit
 limits, loading places weights in order into device memory, host memory, and
-then the file. Placement accounts for Vulkan allocation padding and does not
-sort or relocate the model. Device-resident weights need no temporary copy.
+then the file. Host Vulkan buffers and ordinary CPU blocks share the host limit.
+Placement accounts for allocation padding and does not sort or relocate the
+model. Device-resident weights need no temporary copy.
 
 Discrete GPUs require both limits when enabling resident placement. Integrated
 GPUs and CPU Vulkan devices use one resident allocation tier: one positive limit
 is enough, and the smaller value applies when both are positive.
+If unified Vulkan allocation fails, ordinary CPU blocks share that same total
+limit with the successful Vulkan allocations. They still require temporary
+Vulkan buffers during execution. Exhausting a resident limit places subsequent
+weights in the file; CPU fallback does not bypass the limit. Failure to allocate
+the CPU backing returns an empty weight.
 
 These limits apply to model-owned resident allocations. They do not include
 activation buffers, temporary weights, staging, or allocator pool reserves.
@@ -285,11 +310,12 @@ resident weight memory limits. File-backed and host-mappable weights are copied
 directly into their mappings while recording, with Vulkan mappings flushed then.
 
 
-`get_weight_memory_usage()` reports actual device and host resident Vulkan
-allocation bytes, including padding. It excludes file mappings, temporary
-weights and private pool reserves. Check allocation results and the return
-value of `finalize_weights()` directly; memory usage does not certify upload
-completion.
+`get_weight_memory_usage()` reports actual device and host resident allocation
+bytes, including padding. The host count includes ordinary CPU blocks, also on
+UMA where the sum of both counts uses the unified limit. It excludes file
+mappings, temporary weights and private pool reserves. Check allocation results
+and the return value of `finalize_weights()` directly; memory usage does not
+certify upload completion.
 
 ## best practice
 
@@ -311,8 +337,8 @@ inference times.
 
 ## limitations
 
-Memory limits cover resident model-weight Vulkan allocations, including padding.
-They are not a process or device-wide quota. Temporary weight workspaces,
+Memory limits cover resident model-weight Vulkan and CPU allocations, including
+padding. They are not a process or device-wide quota. Temporary weight workspaces,
 activations, KV caches, CPU model preparation, OS file cache and driver
 allocations are outside these limits. Concurrent commands always use separate
 temporary weight pools, even if their Extractors share ordinary allocators.

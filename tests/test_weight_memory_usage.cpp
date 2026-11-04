@@ -37,6 +37,12 @@ static int test_weight_memory_usage(bool host)
     ncnn::vkAllocateMemory = original_allocate_memory;
     if (first.empty() || second.empty() || image.empty())
         return -1;
+    // Ordinary CPU fallback uses the same preferred block size, without a
+    // native Vulkan allocation. Count a shared backing block only once.
+    if (!first.buffer())
+        allocated_bytes[1] += std::max((size_t)4096, first.data->capacity);
+    if (!second.buffer() && second.data->mapped_ptr != first.data->mapped_ptr)
+        allocated_bytes[1] += std::max((size_t)4096, second.data->capacity);
     weights.get_weight_memory_usage(device_bytes, host_bytes);
     if (device_bytes != allocated_bytes[0] || host_bytes != allocated_bytes[1])
     {

@@ -12,20 +12,50 @@ static int test_weight_storage_allocator_failure(VulkanFailure::Failure failure)
     weights.set_weight_file_directory(weight_storage_test_directory());
     if (weights.set_weight_memory_limit(16384, 16384))
         return -1;
+    const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
     {
         VulkanFailure fail(failure);
-        ncnn::VkMat rejected(256, (size_t)4u, &weights);
-        if (!rejected.empty() || !fail.triggered)
+        ncnn::VkMat weight(256, (size_t)4u, &weights);
+        if (!fail.triggered)
+        {
+            fprintf(stderr, "resident allocation failure was not triggered\n");
+            return -1;
+        }
+        if (unified)
+        {
+            if (weight.empty() || weight.data->storage_type != 2 || weight.buffer() || !weight.mapped_ptr())
+            {
+                fprintf(stderr, "unified resident allocation did not fall back to CPU memory\n");
+                return -1;
+            }
+        }
+        else if (!weight.empty())
         {
             fprintf(stderr, "resident allocation failure was not returned to the caller\n");
             return -1;
         }
     }
+
     uint64_t device_bytes, host_bytes;
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes != 0)
+        return -1;
+    if (unified)
+    {
+        if (host_bytes == 0 || host_bytes > 16384)
+            return -1;
+    }
+    else if (host_bytes != 0)
+    {
+        return -1;
+    }
+
+    // Clearing the allocator also clears the CPU fallback pool and its accounting.
+    weights.clear();
     weights.get_weight_memory_usage(device_bytes, host_bytes);
     if (device_bytes || host_bytes)
         return -1;
-    // One failed allocation does not disable later independent allocations.
+
     ncnn::VkMat weight(256, (size_t)4u, &weights);
     if (weight.empty() || weight.data->storage_type != 0 || weights.finalize_weights())
         return -1;
@@ -693,6 +723,211 @@ private:
     std::vector<VkBuffer> buffers;
 };
 
+static int test_weight_storage_cpu_memory(VulkanFailure::Failure failure, bool force_upload)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    size_t block_size = 16384;
+    if (vkdev->info.support_VK_EXT_external_memory_host())
+        block_size = std::max(block_size, (size_t)vkdev->info.queryExternalMemoryHostProperties().minImportedHostPointerAlignment * 4);
+    ncnn::VkWeightAllocator weights(vkdev, true, block_size);
+    ncnn::VkWeightStagingAllocator upload_staging(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &upload_staging;
+    ncnn::Mat input[2] = {RandomMat(257), RandomMat(129)};
+    ncnn::VkMat weight[2];
+    ncnn::VkTransfer upload(vkdev);
+    {
+        VulkanFailure fail(failure);
+        upload.record_upload(input[0], weight[0], opt);
+        if (failure == VulkanFailure::CREATE_BUFFER && !fail.triggered)
+            return -1;
+    }
+    // Keep using CPU backing after the native failure is removed.
+    upload.record_upload(input[1], weight[1], opt);
+    if (upload.pending_upload_total() || upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    uint64_t device_bytes, host_bytes;
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (device_bytes || host_bytes != block_size)
+    {
+        fprintf(stderr, "CPU weight backing was not accounted once failure=%d\n", failure);
+        return -1;
+    }
+    for (int i = 0; i < 2; i++)
+    {
+        if (weight[i].empty() || weight[i].data->storage_type != 2 || weight[i].buffer() || weight[i].data->memory
+            || !weight[i].mapped_ptr() || weight[i].data->memory_type_index != (uint32_t)-1)
+        {
+            fprintf(stderr, "invalid ordinary CPU weight failure=%d index=%d\n", failure, i);
+            return -1;
+        }
+        if (weights.flush(weight[i].data) != 0 || weights.invalidate(weight[i].data) != 0)
+        {
+            fprintf(stderr, "CPU weight flush or invalidate failed failure=%d index=%d\n", failure, i);
+            return -1;
+        }
+        if (memcmp(weight[i].mapped_ptr(), input[i].data, input[i].total() * input[i].elemsize) != 0)
+        {
+            fprintf(stderr, "CPU weight upload data mismatch failure=%d index=%d\n", failure, i);
+            return -1;
+        }
+    }
+    if (weight[0].data->mapped_ptr != weight[1].data->mapped_ptr || !weight[1].data->offset)
+        return -1;
+
+    ncnn::VkMat view(7, weight[1].data, (size_t)4u, &weights);
+    int first = 0;
+#if NCNN_BATCH
+    first = 4;
+    view.offset = first * sizeof(float);
+    view.nstep = weight[1].nstep;
+#endif
+    ncnn::Mat expected(7);
+    memcpy(expected.data, (const float*)input[1].data + first, 7 * sizeof(float));
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    WeightRecordingProbe probe(vkdev, force_upload);
+    ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
+    for (int round = 0; round < 2; round++)
+    {
+        ncnn::VkMat result;
+        const size_t copy_begin = probe.copy_regions.size();
+        cmd.record_clone(view, result, opt);
+        if (result.empty())
+            return -1;
+        int uploads = 0;
+        for (size_t i = copy_begin; i < probe.copy_regions.size(); i++)
+        {
+            const WeightRecordingProbe::Copy& copy = probe.copy_regions[i];
+            if (!copy.source || !copy.target)
+                return -1;
+            if (copy.target != result.buffer())
+            {
+                uploads++;
+                if (copy.region.size != ncnn::alignSize(7 * sizeof(float), 16))
+                    return -1;
+            }
+        }
+        if (uploads != (force_upload || !blobs.mappable ? 1 : 0))
+        {
+            fprintf(stderr, "unexpected CPU weight upload count=%d failure=%d\n", uploads, failure);
+            return -1;
+        }
+        ncnn::Mat output[3];
+        cmd.record_clone(result, output[0], opt);
+        cmd.record_clone(weight[0], output[1], opt);
+        cmd.record_clone(weight[1], output[2], opt);
+        if (cmd.submit_and_wait() || CompareMat(expected, output[0], 0.f)
+            || CompareMat(input[0], output[1], 0.f) || CompareMat(input[1], output[2], 0.f) || cmd.reset())
+        {
+            fprintf(stderr, "CPU weight inference failed failure=%d upload=%d round=%d\n", failure, force_upload, round);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int test_weight_storage_cpu_memory_limit()
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
+    ncnn::VkWeightAllocator weights(vkdev, false, 8192);
+    ncnn::VkWeightStagingAllocator upload_staging(vkdev);
+    ncnn::VkBlobAllocator blobs(vkdev);
+    ncnn::VkStagingAllocator staging(vkdev);
+    weights.set_weights_in_disk(true);
+    weights.set_weight_file_directory(weight_storage_test_directory());
+    if (weights.set_weight_memory_limit(16384, 16384))
+        return -1;
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = &weights;
+    opt.staging_vkallocator = &upload_staging;
+    ncnn::Mat input[3] = {RandomMat(unified ? 2048 : 4096), RandomMat(unified ? 2048 : 4096), RandomMat(257)};
+    ncnn::VkMat weight[3];
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(input[0], weight[0], opt);
+    if (weight[0].empty() || weight[0].data->storage_type != 0 || upload.submit_and_wait() || upload.reset())
+        return -1;
+    {
+        VulkanFailure fail(VulkanFailure::ALLOCATE_MEMORY);
+        upload.record_upload(input[1], weight[1], opt);
+        if (weight[1].empty() || weight[1].data->storage_type != 2 || weight[1].buffer() || !weight[1].mapped_ptr())
+        {
+            fprintf(stderr, "bounded host allocation did not fall back to CPU memory\n");
+            return -1;
+        }
+    }
+    upload.record_upload(input[2], weight[2], opt);
+    if (weight[2].empty() || weight[2].data->storage_type != 3 || upload.submit_and_wait() || weights.finalize_weights())
+        return -1;
+    uint64_t device_bytes, host_bytes;
+    weights.get_weight_memory_usage(device_bytes, host_bytes);
+    if (!device_bytes || !host_bytes || device_bytes > 16384 || host_bytes > 16384 || (unified && device_bytes + host_bytes > 16384))
+    {
+        fprintf(stderr, "CPU weight fallback exceeded the resident budget\n");
+        return -1;
+    }
+    opt.blob_vkallocator = &blobs;
+    opt.staging_vkallocator = &staging;
+    ncnn::VkCompute cmd(vkdev);
+    cmd.set_use_weight_upload_online(true);
+    ncnn::Mat output[3];
+    for (int i = 0; i < 3; i++)
+        cmd.record_clone(weight[i], output[i], opt);
+    if (cmd.submit_and_wait())
+        return -1;
+    for (int i = 0; i < 3; i++)
+        if (CompareMat(input[i], output[i], 0.f))
+            return -1;
+    return 0;
+}
+
+static int test_weight_storage_cpu_memory_network(bool fp16, bool bf16)
+{
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    if ((fp16 && !vkdev->info.support_fp16_storage()) || (bf16 && !vkdev->info.support_bf16_storage()))
+        return 0;
+    ncnn::Option opt = weight_storage_option();
+    opt.use_weights_in_host_memory = true;
+    opt.use_fp16_storage = fp16;
+    opt.use_fp16_packed = fp16;
+    opt.use_bf16_storage = bf16;
+    ncnn::Net net;
+    {
+        VulkanFailure fail(VulkanFailure::CREATE_BUFFER);
+        if (load_weight_storage_net(net, opt, 1.f, 12, true) || !fail.triggered)
+        {
+            fprintf(stderr, "CPU weight model load failed fp16=%d bf16=%d\n", fp16, bf16);
+            return -1;
+        }
+    }
+    ncnn::Net reference;
+    ncnn::Option cpu_opt = weight_storage_option();
+    cpu_opt.use_vulkan_compute = false;
+    if (load_weight_storage_net(reference, cpu_opt, 1.f, 12, true))
+        return -1;
+    ncnn::Mat input = RandomMat(16, 8);
+    ncnn::Mat expected;
+    ncnn::Extractor cpu = reference.create_extractor();
+    if (cpu.input("b0", input) || cpu.extract("b12", expected))
+        return -1;
+    for (int i = 0; i < 2; i++)
+    {
+        ncnn::Extractor ex = net.create_extractor();
+        ncnn::Mat output;
+        if (ex.input("b0", input) || ex.extract("b12", output) || CompareMat(expected, output, 0.02f))
+        {
+            fprintf(stderr, "CPU weight model inference failed fp16=%d bf16=%d\n", fp16, bf16);
+            return -1;
+        }
+    }
+    return 0;
+}
+
 static int test_weight_storage_record_time_preparation()
 {
     const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
@@ -1240,7 +1475,7 @@ static int test_weight_storage_group_signal(bool staged, bool mapped = false)
     for (int i = 0; i < 9; i++)
     {
         storage_types[i] = weight[i].data->storage_type;
-        weight[i].data->storage_type = staged || (mapped && i % 2) ? 2 : 1;
+        weight[i].data->storage_type = staged || (mapped && i % 2) ? 3 : 1;
     }
     int ret = 0;
     WeightRecordingProbe probe(vkdev, !mapped);
@@ -1349,7 +1584,7 @@ static int test_weight_storage_resolve_mapping_failure(bool file, bool missing_s
     if (weight.empty() || upload.submit_and_wait() || weights.finalize_weights())
         return -1;
     ncnn::VkBufferMemory memory = *weight.data;
-    memory.storage_type = file ? 2 : 1;
+    memory.storage_type = file ? 3 : 1;
     ncnn::VkMat source(64, &memory, (size_t)4u, &weights);
     opt.blob_vkallocator = &blobs;
     {
@@ -1574,7 +1809,7 @@ static int test_weight_storage_upload_wait_failure(bool submit, bool staged = fa
 
     // Exercise the upload queue even on unified-memory devices.
     const int storage_type = weight.data->storage_type;
-    weight.data->storage_type = staged ? 2 : 1;
+    weight.data->storage_type = staged ? 3 : 1;
     opt.blob_vkallocator = &blobs;
     ncnn::Mat output;
     WeightRecordingProbe probe(vkdev, true);
@@ -1723,6 +1958,18 @@ int main()
     const int ret = 0
                     || test_weight_storage_allocator_failure(VulkanFailure::ALLOCATE_MEMORY)
                     || test_weight_storage_allocator_failure(VulkanFailure::BIND_MEMORY)
+                    || test_weight_storage_cpu_memory(VulkanFailure::CREATE_BUFFER, false)
+                    || test_weight_storage_cpu_memory(VulkanFailure::CREATE_BUFFER, true)
+                    || test_weight_storage_cpu_memory(VulkanFailure::ALLOCATE_MEMORY, false)
+                    || test_weight_storage_cpu_memory(VulkanFailure::ALLOCATE_MEMORY, true)
+                    || test_weight_storage_cpu_memory(VulkanFailure::BIND_MEMORY, false)
+                    || test_weight_storage_cpu_memory(VulkanFailure::BIND_MEMORY, true)
+                    || test_weight_storage_cpu_memory(VulkanFailure::MAP_MEMORY, false)
+                    || test_weight_storage_cpu_memory(VulkanFailure::MAP_MEMORY, true)
+                    || test_weight_storage_cpu_memory_limit()
+                    || test_weight_storage_cpu_memory_network(false, false)
+                    || test_weight_storage_cpu_memory_network(true, false)
+                    || test_weight_storage_cpu_memory_network(false, true)
                     || test_weight_storage_staging_flush_failure()
                     || test_weight_storage_transfer_wait_failure(false)
                     || test_weight_storage_transfer_wait_failure(true)

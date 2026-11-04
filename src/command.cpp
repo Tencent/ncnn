@@ -664,7 +664,7 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
     {
         dst_staging = dst;
     }
-    else if (src.data->storage_type == 2 || !src.buffer())
+    else if (src.data->storage_type >= 2)
     {
         dst_staging.create_like(dst, local_staging_vkallocator);
     }
@@ -3949,7 +3949,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         NCNN_LOGE("weight upload exceeds destination capacity");
         return;
     }
-    if (dst.data->storage_type == 2)
+    if (dst.data->storage_type == 3)
     {
         if (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.mapped_ptr())
         {
@@ -3969,7 +3969,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         int ret = dst.allocator->flush(dst.data);
         if (ret != 0)
             return;
-        if (dst.data->storage_type != 1)
+        if (dst.data->storage_type == 0)
         {
             // barrier device host-write @ null to shader-read @ compute
             {
@@ -3992,8 +3992,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
 
             d->pending_upload_total += dst.buffer_capacity();
         }
-        dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
-        dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        dst.data->access_flags = dst.data->storage_type == 0 ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_HOST_WRITE_BIT;
+        dst.data->stage_flags = dst.data->storage_type == 0 ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_HOST_BIT;
         return;
     }
 
@@ -4117,8 +4117,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         }
     }
 
-    dst.data->access_flags = dst.data->storage_type == 1 ? VK_ACCESS_HOST_WRITE_BIT : VK_ACCESS_SHADER_READ_BIT;
-    dst.data->stage_flags = dst.data->storage_type == 1 ? VK_PIPELINE_STAGE_HOST_BIT : VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+    dst.data->access_flags = dst.data->storage_type == 0 ? VK_ACCESS_SHADER_READ_BIT : VK_ACCESS_HOST_WRITE_BIT;
+    dst.data->stage_flags = dst.data->storage_type == 0 ? VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT : VK_PIPELINE_STAGE_HOST_BIT;
 
     // stash staging
     d->upload_staging_buffers.push_back(dst_staging);
