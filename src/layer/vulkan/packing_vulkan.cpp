@@ -365,7 +365,7 @@ int Packing_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             constants[2].u32 = stride / 4;
 
             VkMat dispatcher;
-            dispatcher.w = n / 4;
+            dispatcher.w = std::min(n, stride) / 4;
             dispatcher.h = c;
             dispatcher.c = 1;
 

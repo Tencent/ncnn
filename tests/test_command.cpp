@@ -256,10 +256,68 @@ static int test_command_download_capacity()
     return ret;
 }
 
+static int test_command_download_capacity_1()
+{
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkStagingAllocator upload_allocator(vkdev);
+    ncnn::VkStagingAllocator download_allocator(vkdev);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_packing_layout = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_packed = false;
+    opt.use_bf16_storage = false;
+    opt.use_bf16_packed = false;
+    opt.blob_vkallocator = &upload_allocator;
+    opt.staging_vkallocator = &upload_allocator;
+
+    int ret = 0;
+    {
+        ncnn::Mat input(8, 4, 2);
+        ncnn::Mat expected(8, 1, 2);
+        for (int q = 0; q < input.c; q++)
+        {
+            float* ptr = input.channel(q);
+            for (int i = 0; i < input.w * input.h; i++)
+                ptr[i] = float(q * 100 + i);
+            memcpy(expected.channel(q), ptr, expected.w * sizeof(float));
+        }
+
+        ncnn::VkMat gpu;
+        ncnn::VkCompute upload(vkdev);
+        upload.record_upload(input, gpu, opt);
+        ret = upload.submit_and_wait();
+        if (ret == 0)
+        {
+            // shorten the logical view without changing its channel stride
+            gpu.h = expected.h;
+
+            // use another allocator to force a gpu copy before the cpu download
+            ncnn::Option opt_download = opt;
+            opt_download.blob_vkallocator = &download_allocator;
+            opt_download.staging_vkallocator = &download_allocator;
+
+            ncnn::Mat output;
+            ncnn::VkCompute download(vkdev);
+            download.record_download(gpu, output, opt_download);
+            ret = download.submit_and_wait();
+            if (ret == 0)
+                ret = CompareMat(expected, output, 0.f);
+        }
+    }
+
+    if (ret != 0)
+        fprintf(stderr, "test_command_download_capacity_1 failed\n");
+    return ret;
+}
+
 int main()
 {
     SRAND(7767517);
 
     return test_command_0() || test_command_1() || test_command_2()
-           || test_command_download_capacity();
+           || test_command_download_capacity()
+           || test_command_download_capacity_1();
 }
