@@ -727,6 +727,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
             ptr->access_flags = 0;
             ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            ptr->storage_type = 0;
 
             // adjust buffer_budgets
             if (budget_size == aligned_size)
@@ -805,6 +806,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     }
 
     block->memory_type_index = buffer_memory_type_index;
+    block->storage_type = 0;
 
     d->buffer_blocks.push_back(block);
 
@@ -819,6 +821,7 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
     ptr->memory_type_index = block->memory_type_index;
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->storage_type = 0;
 
     // adjust buffer_budgets
     std::list<std::pair<size_t, size_t> > budget;
@@ -2991,6 +2994,7 @@ VkBufferMemory* VkStagingAllocator::fastMalloc(size_t size)
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->storage_type = 0;
 
     //     NCNN_LOGE("VkStagingAllocator M %p %lu", ptr->buffer, size);
 
@@ -3158,6 +3162,7 @@ VkBufferMemory* VkWeightStagingAllocator::fastMalloc(size_t size)
 
     ptr->access_flags = 0;
     ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    ptr->storage_type = 0;
 
     //     NCNN_LOGE("VkWeightStagingAllocator M %p %lu", ptr->buffer, size);
 

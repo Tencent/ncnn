@@ -212,11 +212,6 @@ class VulkanDevice;
 class NCNN_EXPORT VkBufferMemory
 {
 public:
-    VkBufferMemory()
-        : mapped_ptr(0), storage_type(0)
-    {
-    }
-
     VkBuffer buffer;
 
     // the base offset assigned by allocator
@@ -224,7 +219,6 @@ public:
     size_t capacity;
 
     VkDeviceMemory memory;
-    // non-null when this allocation can be accessed by the host
     void* mapped_ptr;
 
     uint32_t memory_type_index;
@@ -236,8 +230,11 @@ public:
     // initialize and modified by mat
     int refcount;
 
-    // storage type
-    // 0 = device VkBuffer, 1 = host VkBuffer, 2 = cpu memory, 3 = file
+    // storage type assigned by allocator
+    // 0 = device buffer
+    // 1 = host buffer
+    // 2 = cpu memory
+    // 3 = file mapping
     int storage_type;
 };
 

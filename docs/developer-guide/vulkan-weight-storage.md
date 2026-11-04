@@ -362,3 +362,5 @@ work still refers to them is unsupported.
 Applications and custom allocators must be rebuilt with the matching ncnn
 headers and library. The added weight metadata changes `VkBufferMemory` layout;
 appending fields does not preserve compatibility with older binary allocators.
+Custom buffer allocators must set `storage_type = 0` on every `VkBufferMemory`
+they return, like the other fields.
