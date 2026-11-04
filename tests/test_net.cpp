@@ -805,6 +805,38 @@ static int test_external_input()
     return 0;
 }
 
+static int test_extract_input_with_custom_blob_allocator()
+{
+    ncnn::PoolAllocator blob_allocator;
+    LayerState state;
+    ncnn::Net net;
+    net.opt.use_vulkan_compute = false;
+    net.opt.use_packing_layout = false;
+    // Use a custom allocator so Net does not create a local blob pool.
+    net.opt.use_local_pool_allocator = true;
+    net.opt.blob_allocator = &blob_allocator;
+    net.register_custom_layer("Test", create_test_layer, destroy_test_layer, &state);
+    if (net.load_param_mem("7767517\n1 1\nTest input 0 1 data\n") != 0)
+        return -1;
+    ncnn::DataReader dr;
+    if (net.load_model(dr) != 0)
+        return -1;
+
+    ncnn::Mat input(8);
+    input.fill(0.25f);
+    ncnn::Extractor ex = net.create_extractor();
+    ncnn::Mat output;
+    if (ex.input("data", input) != 0 || ex.extract("data", output, 1) != 0)
+        return -1;
+
+    if (output.data != input.data)
+    {
+        fprintf(stderr, "test_net extract unexpectedly cloned the input\n");
+        return -1;
+    }
+    return 0;
+}
+
 static int test_binary_layer_types()
 {
     LayerState state;
@@ -1471,6 +1503,7 @@ int main()
            || test_recreate_layer()
            || test_recreate_layer_null_creator()
            || test_external_input()
+           || test_extract_input_with_custom_blob_allocator()
            || test_binary_layer_types()
            || test_magic_mismatch()
            || test_feature_mask()
