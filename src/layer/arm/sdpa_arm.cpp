@@ -3,10 +3,20 @@
 
 #include "sdpa_arm.h"
 
+#include <float.h>
+
+#if __ARM_NEON
+#include <arm_neon.h>
+#include "neon_mathfun.h"
+#endif // __ARM_NEON
+
+#include "arm_usability.h"
 #include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+#include "sdpa_decode.h"
 
 SDPA_arm::SDPA_arm()
 {
@@ -175,6 +185,21 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
     const size_t elemsize = query.elemsize;
+
+    const bool fp32 = int8_scale_term == 0
+                      && query.elembits() == 32 && cur_key.elembits() == 32 && cur_value.elembits() == 32
+                      && (!attn_mask || attn_mask_blob.elembits() == 32);
+
+    if (fp32 && !kv_cache && src_seqlen == 1)
+    {
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        return sdpa_decode(query, cur_key, cur_value, attn_mask_blob, top_blob, _scale, opt);
+    }
 
     Mat key;
     Mat value;
