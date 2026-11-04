@@ -951,10 +951,11 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
     int failed = 0;
 
     // count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(| \
+: failed)
     for (int i = 0; i < file_count; i++)
-    {
-        if (i % 100 == 0)
+{
+    if (i % 100 == 0)
         {
             fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
@@ -1007,23 +1008,24 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
     }
 
     if (failed)
-        return -1;
+    return -1;
 
     // initialize histogram
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
-    {
-        QuantBlobStat& stat = quant_blob_stats[i];
+{
+    QuantBlobStat& stat = quant_blob_stats[i];
 
         stat.histogram.resize(num_histogram_bins, 0);
         stat.histogram_normed.resize(num_histogram_bins, 0);
     }
 
     // build histogram
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(| \
+: failed)
     for (int i = 0; i < file_count; i++)
-    {
-        if (i % 100 == 0)
+{
+    if (i % 100 == 0)
         {
             fprintf(stderr, "build histogram %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
@@ -1531,10 +1533,11 @@ int QuantNet::quantize_ACIQ()
     int failed = 0;
 
     // count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(| \
+: failed)
     for (int i = 0; i < file_count; i++)
-    {
-        if (i % 100 == 0)
+{
+    if (i % 100 == 0)
         {
             fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / file_count, i, file_count);
         }
@@ -1588,13 +1591,13 @@ int QuantNet::quantize_ACIQ()
     }
 
     if (failed)
-        return -1;
+    return -1;
 
     // alpha gaussian
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
-    {
-        QuantBlobStat& stat = quant_blob_stats[i];
+{
+    QuantBlobStat& stat = quant_blob_stats[i];
 
         stat.threshold = compute_aciq_gaussian_clip(stat.absmax, stat.total);
         float scale = 127 / stat.threshold;
@@ -1773,10 +1776,11 @@ int QuantNet::quantize_EQ()
             std::vector<double> avgsims(search_steps, 0.0);
             int failed = 0;
 
-            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
+            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(| \
+: failed)
             for (int ii = 0; ii < file_count; ii++)
-            {
-                if (ii % 100 == 0)
+        {
+            if (ii % 100 == 0)
                 {
                     fprintf(stderr, "search weight scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / file_count, ii, file_count, j, weight_scale.w, i, conv_layer_count);
                 }
@@ -1887,15 +1891,15 @@ int QuantNet::quantize_EQ()
             }
 
             if (failed)
-                return -1;
+            return -1;
 
             double max_avgsim = 0.0;
             float new_scale = scale;
 
             // find the scale with min cosine distance
             for (int k = 0; k < search_steps; k++)
-            {
-                if (max_avgsim < avgsims[k])
+        {
+            if (max_avgsim < avgsims[k])
                 {
                     max_avgsim = avgsims[k];
                     new_scale = scale_lower + k * scale_step;
@@ -1917,10 +1921,11 @@ int QuantNet::quantize_EQ()
             std::vector<double> avgsims(search_steps, 0.0);
             int failed = 0;
 
-            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
+            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(| \
+: failed)
             for (int ii = 0; ii < file_count; ii++)
-            {
-                if (ii % 100 == 0)
+        {
+            if (ii % 100 == 0)
                 {
                     fprintf(stderr, "search bottom blob scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / file_count, ii, file_count, j, bottom_blob_scale.w, i, conv_layer_count);
                 }
@@ -2031,15 +2036,15 @@ int QuantNet::quantize_EQ()
             }
 
             if (failed)
-                return -1;
+            return -1;
 
             double max_avgsim = 0.0;
             float new_scale = scale;
 
             // find the scale with min cosine distance
             for (int k = 0; k < search_steps; k++)
-            {
-                if (max_avgsim < avgsims[k])
+        {
+            if (max_avgsim < avgsims[k])
                 {
                     max_avgsim = avgsims[k];
                     new_scale = scale_lower + k * scale_step;

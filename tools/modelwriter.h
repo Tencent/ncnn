@@ -954,7 +954,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", channels)
             fprintf_param_value(" 1=%e", eps)
 
-            ret |= fwrite_weight_data(op->slope_data, bp);
+            ret
+            |= fwrite_weight_data(op->slope_data, bp);
             ret |= fwrite_weight_data(op->mean_data, bp);
             ret |= fwrite_weight_data(op->var_data, bp);
             ret |= fwrite_weight_data(op->bias_data, bp);
@@ -966,7 +967,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", bias_data_size)
 
-            ret |= fwrite_weight_data(op->bias_data, bp);
+            ret
+            |= fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "BinaryOp")
         {
@@ -1823,7 +1825,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", scale_data_size)
             fprintf_param_value(" 1=%d", bias_data_size)
 
-            ret |= fwrite_weight_data(op->scale_data, bp);
+            ret
+            |= fwrite_weight_data(op->scale_data, bp);
             if (op->bias_data_size)
             {
                 ret |= fwrite_weight_data(op->bias_data, bp);
@@ -1886,7 +1889,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", weight_data_size)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
-            ret |= fwrite_weight_tag_data(op->weight_data, bp);
+            ret
+            |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
                 ret |= fwrite_weight_data(op->bias_data, bp);
@@ -2085,7 +2089,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", direction)
             fprintf_param_value(" 8=%d", int8_scale_term)
 
-            ret |= fwrite_weight_tag_data(op->weight_xc_data, bp);
+            ret
+            |= fwrite_weight_tag_data(op->weight_xc_data, bp);
             ret |= fwrite_weight_tag_data(op->bias_c_data, bp);
             ret |= fwrite_weight_tag_data(op->weight_hc_data, bp);
 
@@ -2239,7 +2244,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", hidden_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
 
-            ret |= fwrite_weight_tag_data(op->weight_xc_data, bp);
+            ret
+            |= fwrite_weight_tag_data(op->weight_xc_data, bp);
             ret |= fwrite_weight_tag_data(op->bias_c_data, bp);
             ret |= fwrite_weight_tag_data(op->weight_hc_data, bp);
 
@@ -2390,7 +2396,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", across_channel)
             fprintf_param_value(" 9=%d", eps_mode)
 
-            ret |= fwrite_weight_data(op->scale_data, bp);
+            ret
+            |= fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Padding")
         {
@@ -2534,7 +2541,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_slope)
 
-            ret |= fwrite_weight_data(op->slope_data, bp);
+            ret
+            |= fwrite_weight_data(op->slope_data, bp);
         }
         else if (layer->type == "PriorBox")
         {
@@ -2591,7 +2599,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", scale_data_size)
 
-            ret |= fwrite_weight_data(op->scale_data, bp);
+            ret
+            |= fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Reduction")
         {
@@ -2685,7 +2694,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", direction)
             fprintf_param_value(" 8=%d", int8_scale_term)
 
-            ret |= fwrite_weight_tag_data(op->weight_xc_data, bp);
+            ret
+            |= fwrite_weight_tag_data(op->weight_xc_data, bp);
             ret |= fwrite_weight_tag_data(op->bias_c_data, bp);
             ret |= fwrite_weight_tag_data(op->weight_hc_data, bp);
 

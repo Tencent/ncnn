@@ -7,13 +7,13 @@
 #include <cstdio>
 
 #define NCNN_QUANTIZE_CHECK(operation, ...) \
-    do \
-    { \
-        if ((operation) != 0) \
-        { \
-            fprintf(stderr, __VA_ARGS__); \
-            return -1; \
-        } \
+    do                                      \
+    {                                       \
+        if ((operation) != 0)               \
+        {                                   \
+            fprintf(stderr, __VA_ARGS__);   \
+            return -1;                      \
+        }                                   \
     } while (0)
 
 #endif // NCNN_QUANTIZE_ERROR_H
