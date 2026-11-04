@@ -759,7 +759,7 @@ static int test_weight_storage_cpu_memory(VulkanFailure::Failure failure, bool f
     for (int i = 0; i < 2; i++)
     {
         if (weight[i].empty() || weight[i].data->storage_type != 2 || weight[i].buffer() || weight[i].data->memory
-            || !weight[i].mapped_ptr() || weight[i].data->memory_type_index != (uint32_t)-1)
+                || !weight[i].mapped_ptr() || weight[i].data->memory_type_index != (uint32_t)-1)
         {
             fprintf(stderr, "invalid ordinary CPU weight failure=%d index=%d\n", failure, i);
             return -1;
@@ -822,7 +822,7 @@ static int test_weight_storage_cpu_memory(VulkanFailure::Failure failure, bool f
         cmd.record_clone(weight[0], output[1], opt);
         cmd.record_clone(weight[1], output[2], opt);
         if (cmd.submit_and_wait() || CompareMat(expected, output[0], 0.f)
-            || CompareMat(input[0], output[1], 0.f) || CompareMat(input[1], output[2], 0.f) || cmd.reset())
+                || CompareMat(input[0], output[1], 0.f) || CompareMat(input[1], output[2], 0.f) || cmd.reset())
         {
             fprintf(stderr, "CPU weight inference failed failure=%d upload=%d round=%d\n", failure, force_upload, round);
             return -1;
