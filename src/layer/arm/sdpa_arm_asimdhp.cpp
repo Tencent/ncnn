@@ -47,7 +47,7 @@ static inline void sdpa_store4(__fp16* p, float32x4_t _v)
 
 int SDPA_arm::forward_decode_fp16s(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt) const
 {
-    return sdpa_decode<__fp16>(query, key, value, attn_mask_blob, top_blob, scale, opt);
+    return sdpa_decode<__fp16, __fp16>(query, key, value, attn_mask_blob, top_blob, scale, opt);
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 

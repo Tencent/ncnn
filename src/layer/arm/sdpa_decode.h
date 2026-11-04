@@ -6,9 +6,9 @@
 // query heads sharing the same kv head are processed together, 4 at a time
 // scores are computed block by block and merged with online softmax
 //
-// the kernels are templates over the storage type T of key, value, mask and output,
-// they compute in fp32. the element access helpers below are for fp32 storage,
-// other storage types declare their own overloads before including this file
+// the kernels are templates over the storage type T of query, key, value and mask,
+// and the output type TO, they compute in fp32. the element access helpers below
+// are for fp32, other types declare their own overloads before including this file
 
 static inline float sdpa_cvt(float v)
 {
@@ -113,8 +113,8 @@ static const T* sdpa_decode_get_mask_ptr(const Mat& attn_mask_blob, int q)
 // one query head
 // qptr[head_dim] is already multiplied by scale
 // workspace: score[block_n] out[value_dim]
-template<typename T>
-static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, const Mat& value_head, const T* maskptr, T* outptr, int block_n, float* score, float* out)
+template<typename T, typename TO>
+static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, const Mat& value_head, const T* maskptr, TO* outptr, int block_n, float* score, float* out)
 {
     const int head_dim = key_head.w;
     const int value_dim = value_head.w;
@@ -448,8 +448,8 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 // qT[head_dim][4] is already multiplied by scale
 // maskptrs[4] are per head mask rows, or all null
 // workspace: scoreT[block_n][4] outT[value_dim][4]
-template<typename T>
-static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const Mat& value_head, const T* const* maskptrs, T* const* outptrs, int block_n, float* scoreT, float* outT)
+template<typename T, typename TO>
+static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const Mat& value_head, const T* const* maskptrs, TO* const* outptrs, int block_n, float* scoreT, float* outT)
 {
     const int head_dim = key_head.w;
     const int value_dim = value_head.w;
@@ -842,7 +842,7 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
     }
 }
 
-template<typename T>
+template<typename T, typename TO>
 static int sdpa_decode(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt)
 {
     const int head_dim = query.w;
@@ -890,14 +890,14 @@ static int sdpa_decode(const Mat& query, const Mat& key, const Mat& value, const
             }
 
             const T* maskptrs[4];
-            T* outptrs[4];
+            TO* outptrs[4];
             for (int h = 0; h < 4; h++)
             {
                 maskptrs[h] = sdpa_decode_get_mask_ptr<T>(attn_mask_blob, q0 + h);
                 outptrs[h] = top_blob.channel(q0 + h);
             }
 
-            sdpa_decode_attention_4<T>(qbuf, key_head, value_head, maskptrs, outptrs, block_n, score, out);
+            sdpa_decode_attention_4<T, TO>(qbuf, key_head, value_head, maskptrs, outptrs, block_n, score, out);
         }
         else
         {
@@ -910,8 +910,8 @@ static int sdpa_decode(const Mat& query, const Mat& key, const Mat& value, const
                     qbuf[d] = sdpa_cvt(qptr[d]) * scale;
                 }
 
-                T* outptr = top_blob.channel(q);
-                sdpa_decode_attention_1<T>(qbuf, key_head, value_head, sdpa_decode_get_mask_ptr<T>(attn_mask_blob, q), outptr, block_n, score, out);
+                TO* outptr = top_blob.channel(q);
+                sdpa_decode_attention_1<T, TO>(qbuf, key_head, value_head, sdpa_decode_get_mask_ptr<T>(attn_mask_blob, q), outptr, block_n, score, out);
             }
         }
     }
