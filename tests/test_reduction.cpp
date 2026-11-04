@@ -39,10 +39,15 @@ static void print_int_array(const std::vector<int>& a)
 static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 {
     ncnn::Mat a = _a;
-    if (op_type == 9 || op_type == 10)
+    if (op_type == 9)
     {
-        // value must be positive for logsum and logsumexp
+        // value must be positive for logsum
         Randomize(a, 0.001f, 2.f);
+    }
+    if (op_type == 10)
+    {
+        // exp overflows above 88 unless the max is subtracted
+        Randomize(a, -100.f, 100.f);
     }
 
     ncnn::ParamDict pd;
@@ -65,10 +70,15 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const std::vector<int>& axes_array)
 {
     ncnn::Mat a = _a;
-    if (op_type == 9 || op_type == 10)
+    if (op_type == 9)
     {
-        // value must be positive for logsum and logsumexp
+        // value must be positive for logsum
         Randomize(a, 0.001f, 2.f);
+    }
+    if (op_type == 10)
+    {
+        // exp overflows above 88 unless the max is subtracted
+        Randomize(a, -100.f, 100.f);
     }
 
     ncnn::Mat axes(axes_array.size());
@@ -198,6 +208,46 @@ static int test_reduction_numeric_boundaries()
     return 0;
 }
 
+static int test_reduction_logsumexp_shift()
+{
+    // exp overflows at 1000 and underflows at -1000 unless the max is subtracted
+    const float offsets[2] = {1000.f, -1000.f};
+    for (int i = 0; i < 2; i++)
+    {
+        ncnn::Mat a(7, 5);
+        float sum = 0.f;
+        for (int j = 0; j < 35; j++)
+        {
+            a[j] = offsets[i] - j * 0.25f;
+            sum += expf(-j * 0.25f);
+        }
+
+        const float expected = offsets[i] + logf(sum);
+
+        ncnn::ParamDict pd;
+        pd.set(0, 10);
+        pd.set(1, 1); // reduce_all
+
+        std::vector<ncnn::Mat> weights(0);
+        ncnn::Mat b;
+
+        int ret = test_layer_naive(ncnn::LayerType::Reduction, pd, weights, a, b, 0);
+        if (ret == 0 && (b.empty() || !NearlyEqual(b[0], expected, 0.001)))
+            ret = -1;
+
+        if (ret == 0)
+            ret = test_layer("Reduction", pd, weights, a, 0.001);
+
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_reduction_logsumexp_shift failed offset=%f expected=%f\n", offsets[i], expected);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -309,6 +359,7 @@ int main()
     op_type = 0;
     return test_reduction_geometry()
            || test_reduction_numeric_boundaries()
+           || test_reduction_logsumexp_shift()
 #if NCNN_VALIDATION
            || test_reduction_load_param()
            || test_reduction_load_param_type()

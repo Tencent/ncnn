@@ -158,14 +158,6 @@ struct reduction_op_sumsq
     }
 };
 
-struct reduction_op_sumexp
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return x + expf(y);
-    }
-};
-
 struct reduction_op_max
 {
     float operator()(const float& x, const float& y) const
@@ -190,7 +182,6 @@ static float reduction(float v0, const float* ptr, int size, int op_type)
     if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size);
     if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size);
     if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size);
-    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size);
 
     // should never reach here
     return v0;
@@ -204,7 +195,6 @@ static float reduction(float v0, const float* ptr, int size, int stride, int op_
     if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size, stride);
     if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size, stride);
     if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size, stride);
-    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size, stride);
 
     // should never reach here
     return v0;
@@ -218,7 +208,6 @@ static float reduction(float v0, const float* ptr, int size0, int size1, int str
     if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size0, size1, stride1);
     if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size0, size1, stride1);
     if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size0, size1, stride1);
-    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size0, size1, stride1);
 
     // should never reach here
     return v0;
@@ -232,7 +221,6 @@ static float reduction(float v0, const float* ptr, int size0, int stride0, int s
     if (op_type == Reduction::ReductionOp_PROD) return reduction<reduction_op_mul>(v0, ptr, size0, stride0, size1, stride1);
     if (op_type == Reduction::ReductionOp_MAX) return reduction<reduction_op_max>(v0, ptr, size0, stride0, size1, stride1);
     if (op_type == Reduction::ReductionOp_MIN) return reduction<reduction_op_min>(v0, ptr, size0, stride0, size1, stride1);
-    if (op_type == Reduction::ReductionOp_LogSumExp) return reduction<reduction_op_sumexp>(v0, ptr, size0, stride0, size1, stride1);
 
     // should never reach here
     return v0;
@@ -283,11 +271,6 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         op_type = Reduction::ReductionOp_PROD;
         op2_type = Reduction::ReductionOp_PROD;
         v0 = 1.f;
-        break;
-    }
-    case Reduction::ReductionOp_LogSumExp:
-    {
-        op_type = Reduction::ReductionOp_LogSumExp;
         break;
     }
     default:
@@ -706,7 +689,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         }
     }
 
-    if (operation == Reduction::ReductionOp_LogSum || operation == Reduction::ReductionOp_LogSumExp)
+    if (operation == Reduction::ReductionOp_LogSum)
     {
         const int size = b.total();
 
@@ -770,6 +753,100 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         {
             b[i] = b[i] * coeff;
         }
+    }
+
+    return 0;
+}
+
+static float reduction_sumexp(const float* ptr, int size, float max_value)
+{
+    float sum = 0.f;
+    for (int i = 0; i < size; i++)
+    {
+        sum += expf(ptr[i] - max_value);
+    }
+
+    return sum;
+}
+
+static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, int keepdims, float coeff, const Option& opt)
+{
+    // subtracting the max keeps every exp argument non-positive
+    int ret = reduction_op(a, b, reduce_w, reduce_h, reduce_d, reduce_c, keepdims, Reduction::ReductionOp_MAX, 1.f, opt);
+    if (ret != 0)
+        return ret;
+
+    const int w = a.w;
+    const int h = a.h;
+    const int d = a.d;
+    const int channels = a.c;
+
+    const int outsize = b.w * b.h * b.d;
+    const int outcount = outsize * b.c;
+
+    if (outcount == 1)
+    {
+        // w h d c -> X X X X
+        // every row shares the global max, so the row sums add up directly
+        const int rows = h * d;
+
+        Mat sums(channels * rows, a.elemsize, opt.workspace_allocator);
+        if (sums.empty())
+            return -100;
+
+        const float max_value = b[0];
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < channels * rows; i++)
+        {
+            const float* ptr = (const float*)a.channel(i / rows) + i % rows * w;
+
+            sums[i] = reduction_sumexp(ptr, w, max_value);
+        }
+
+        const float sum = reduction<reduction_op_add>(0.f, sums, channels * rows);
+
+        b[0] = (max_value + logf(sum)) * coeff;
+
+        return 0;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < outcount; i++)
+    {
+        // locate the first element reduced into this output
+        int j = i;
+        const int iw = reduce_w ? 0 : j % w;
+        if (!reduce_w) j /= w;
+        const int ih = reduce_h ? 0 : j % h;
+        if (!reduce_h) j /= h;
+        const int id = reduce_d ? 0 : j % d;
+        if (!reduce_d) j /= d;
+        const int ic = reduce_c ? 0 : j;
+
+        const int size = reduce_w ? w : 1;
+        const int end_h = reduce_h ? h : ih + 1;
+        const int end_d = reduce_d ? d : id + 1;
+        const int end_c = reduce_c ? channels : ic + 1;
+
+        float* outptr = (float*)b.channel(i / outsize) + i % outsize;
+        const float max_value = outptr[0];
+
+        float sum = 0.f;
+        for (int q = ic; q < end_c; q++)
+        {
+            const float* ptr = a.channel(q);
+
+            for (int z = id; z < end_d; z++)
+            {
+                for (int y = ih; y < end_h; y++)
+                {
+                    sum += reduction_sumexp(ptr + (z * h + y) * w + iw, size, max_value);
+                }
+            }
+        }
+
+        outptr[0] = (max_value + logf(sum)) * coeff;
     }
 
     return 0;
@@ -880,87 +957,6 @@ void Reduction::resolve_reduce_flags_and_output_shape(const Mat& blob, bool& red
     }
 }
 
-static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, float coeff, const Option& opt)
-{
-    const int out_inner = b.w * b.h * b.d;
-    const int out_size = out_inner * b.c;
-    const unsigned int inf_bits = 0x7f800000u;
-    float inf;
-    memcpy(&inf, &inf_bits, sizeof(inf));
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < out_size; i++)
-    {
-        int t = i;
-        const int iw = reduce_w ? 0 : t % a.w;
-        if (!reduce_w) t /= a.w;
-        const int ih = reduce_h ? 0 : t % a.h;
-        if (!reduce_h) t /= a.h;
-        const int id = reduce_d ? 0 : t % a.d;
-        if (!reduce_d) t /= a.d;
-        const int ic = reduce_c ? 0 : t;
-
-        const int end_w = reduce_w ? a.w : iw + 1;
-        const int end_h = reduce_h ? a.h : ih + 1;
-        const int end_d = reduce_d ? a.d : id + 1;
-        const int end_c = reduce_c ? a.c : ic + 1;
-
-        float max_value = -inf;
-        bool has_nan = false;
-        for (int q = ic; q < end_c; q++)
-        {
-            const float* ptr = a.channel(q);
-            for (int z = id; z < end_d; z++)
-                for (int y = ih; y < end_h; y++)
-                    for (int x = iw; x < end_w; x++)
-                    {
-                        const float v = ptr[(z * a.h + y) * a.w + x];
-                        unsigned int v_bits;
-                        memcpy(&v_bits, &v, sizeof(v_bits));
-                        if ((v_bits & 0x7fffffff) > 0x7f800000)
-                        {
-                            max_value = v;
-                            has_nan = true;
-                        }
-                        else if (!has_nan && v > max_value)
-                        {
-                            max_value = v;
-                        }
-                    }
-        }
-
-        float value = max_value;
-        unsigned int max_bits;
-        memcpy(&max_bits, &max_value, sizeof(max_bits));
-        // Floating-point infinity/NaN comparisons can be removed by fast-math.
-        if ((max_bits & 0x7fffffff) < 0x7f800000)
-        {
-            double sum = 0.;
-            for (int q = ic; q < end_c; q++)
-            {
-                const float* ptr = a.channel(q);
-                for (int z = id; z < end_d; z++)
-                    for (int y = ih; y < end_h; y++)
-                        for (int x = iw; x < end_w; x++)
-                        {
-                            const float v = ptr[(z * a.h + y) * a.w + x];
-                            unsigned int v_bits;
-                            memcpy(&v_bits, &v, sizeof(v_bits));
-                            // Negative infinity contributes zero; fast-math expf(-inf) can return NaN on x87.
-                            if (v_bits != 0xff800000u)
-                                sum += expf(v - max_value);
-                        }
-            }
-            value = max_value + logf((float)sum);
-        }
-
-        float* outptr = b.channel(i / out_inner);
-        outptr[i % out_inner] = value * coeff;
-    }
-
-    return 0;
-}
-
 int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     bool reduce_w, reduce_h, reduce_d, reduce_c;
@@ -993,7 +989,7 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         return -100;
 
     if (operation == ReductionOp_LogSumExp)
-        return reduction_logsumexp(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, coeff, opt);
+        return reduction_logsumexp(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, keepdims, coeff, opt);
 
     return reduction_op(bottom_blob, top_blob, reduce_w, reduce_h, reduce_d, reduce_c, keepdims, operation, coeff, opt);
 }
