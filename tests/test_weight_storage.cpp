@@ -1199,9 +1199,9 @@ static int test_weight_storage_workspace_upload()
         const WeightStorageUploadProbe::Barrier& entry = probe.barriers[i];
         const VkBufferMemoryBarrier& barrier = entry.buffer_barrier;
         if (vkdev->info.unified_compute_transfer_queue() && barrier.buffer == first.target
-            && ((entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
-                || (entry.src_stage == VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
-                    && entry.dst_stage == (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT))))
+                && ((entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+                    || (entry.src_stage == VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+                        && entry.dst_stage == (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT))))
         {
             fprintf(stderr, "same-family temporary weight upload has redundant ownership barriers\n");
             return -1;
@@ -1264,7 +1264,7 @@ static int test_weight_storage_upload_subview(bool force_staging)
     view.offset = width * sizeof(float);
     upload.record_upload(replacement, view, opt);
     if (view.data != backing.data || view.offset != width * sizeof(float)
-        || upload.submit_and_wait())
+            || upload.submit_and_wait())
         return -1;
 
     ncnn::VkCompute download(vkdev);
