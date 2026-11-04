@@ -28,6 +28,7 @@
 
 // npy format header
 #include "npy.hpp"
+#include "quantize_error.h"
 
 // ncnn public header
 #include "benchmark.h"
@@ -123,6 +124,7 @@ public:
     void print_quant_info() const;
     int save_table(const char* tablepath);
     void initialize_static_weight_scales(bool initialize_conv_weight_scales = false);
+    int input_sample(ncnn::Extractor& ex, int sample_index) const;
     int build_activation_histogram(int num_histogram_bins);
     int quantize_KL();
     int quantize_percentile(const std::vector<float>& percentiles);
@@ -407,7 +409,9 @@ int QuantNet::save_table(const char* tablepath)
         fprintf(fp, "\n");
     }
 
-    fclose(fp);
+    const bool write_failed = ferror(fp) != 0;
+    const int close_ret = fclose(fp);
+    NCNN_QUANTIZE_CHECK(write_failed || close_ret, "write calibration table %s failed, output may be incomplete\n", tablepath);
 
     fprintf(stderr, "ncnn int8 calibration table create success, best wish for your int8 inference has a low accuracy loss...\\(^0^)/...233...\n");
 
@@ -448,7 +452,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
     catch (const std::exception& e)
     {
         fprintf(stderr, "npy::read_npy exception: %s\n", e.what());
-        std::exit(EXIT_FAILURE);
+        return ncnn::Mat();
     }
 
     std::vector<unsigned long> npy_shape = d.shape;
@@ -457,7 +461,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
     if (dims != npy_shape.size())
     {
         fprintf(stderr, "expect %d dims, but got: %d\n", (int)dims, (int)npy_shape.size());
-        std::exit(EXIT_FAILURE);
+        return ncnn::Mat();
     }
 
     for (size_t i = 0; i < dims; ++i)
@@ -465,7 +469,7 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
         if (static_cast<unsigned long>(shape[i]) != npy_shape[dims - 1 - i])
         {
             fprintf(stderr, "shape mismatch!\n");
-            std::exit(EXIT_FAILURE);
+            return ncnn::Mat();
         }
     }
 
@@ -497,9 +501,14 @@ inline ncnn::Mat read_npy(const std::vector<int>& shape, const std::string& npyp
 
 inline ncnn::Mat read_and_resize_image(const std::vector<int>& shape, const std::string& imagepath, int pixel_convert_type)
 {
+    if (shape.size() < 2)
+        return ncnn::Mat();
+
     int target_w = shape[0];
     int target_h = shape[1];
     cv::Mat bgr = cv::imread(imagepath, 1);
+    if (bgr.empty())
+        return ncnn::Mat();
     if (target_h <= 0 && target_w <= 0)
     {
         return ncnn::Mat::from_pixels(bgr.data, pixel_convert_type, bgr.cols, bgr.rows);
@@ -519,6 +528,37 @@ inline ncnn::Mat read_and_resize_image(const std::vector<int>& shape, const std:
         }
     }
     return ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+}
+
+int QuantNet::input_sample(ncnn::Extractor& ex, int sample_index) const
+{
+    for (int j = 0; j < (int)input_blobs.size(); j++)
+    {
+        ncnn::Mat in;
+        const std::string& path = listspaths[j][sample_index];
+        if (file_type == 0)
+        {
+            int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
+            if (type_to_pixels[j] != pixel_convert_type)
+                pixel_convert_type |= type_to_pixels[j] << ncnn::Mat::PIXEL_CONVERT_SHIFT;
+
+            in = read_and_resize_image(shapes[j], path, pixel_convert_type);
+            if (!in.empty())
+                in.substract_mean_normalize(means[j].data(), norms[j].data());
+        }
+        else
+        {
+            in = read_npy(shapes[j], path);
+        }
+
+        if (in.empty())
+        {
+            fprintf(stderr, "load calibration sample %s for input %d failed\n", path.c_str(), j);
+            return -1;
+        }
+        NCNN_QUANTIZE_CHECK(ex.input(input_blobs[j], in), "input calibration sample %s for input %d failed\n", path.c_str(), j);
+    }
+    return 0;
 }
 
 void QuantNet::initialize_static_weight_scales(bool initialize_conv_weight_scales)
@@ -889,7 +929,6 @@ static float compute_kl_divergence(const std::vector<float>& a, const std::vecto
 
 int QuantNet::build_activation_histogram(int num_histogram_bins)
 {
-    const int input_blob_count = (int)input_blobs.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int file_count = (int)listspaths[0].size();
 
@@ -909,8 +948,10 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
         stat.histogram_normed.clear();
     }
 
+    int failed = 0;
+
     // count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
     for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
@@ -925,36 +966,21 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
         ex.set_blob_allocator(&blob_allocators[thread_num]);
         ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
-        for (int j = 0; j < input_blob_count; j++)
+        if (input_sample(ex, i) != 0)
         {
-            ncnn::Mat in;
-
-            if (0 == file_type)
-            {
-                const int type_to_pixel = type_to_pixels[j];
-                const std::vector<float>& mean_vals = means[j];
-                const std::vector<float>& norm_vals = norms[j];
-
-                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                if (type_to_pixel != pixel_convert_type)
-                {
-                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
-                }
-                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-            }
-            else
-            {
-                in = read_npy(shapes[j], listspaths[j][i]);
-            }
-
-            ex.input(input_blobs[j], in);
+            failed = 1;
+            continue;
         }
 
         for (int j = 0; j < conv_bottom_blob_count; j++)
         {
             ncnn::Mat out;
-            ex.extract(conv_bottom_blobs[j], out);
+            if (ex.extract(conv_bottom_blobs[j], out) != 0 || out.empty())
+            {
+                fprintf(stderr, "extract calibration sample %d blob %s failed\n", i, blobs[conv_bottom_blobs[j]].name.c_str());
+                failed = 1;
+                break;
+            }
 
             // count absmax
             {
@@ -980,6 +1006,9 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
         }
     }
 
+    if (failed)
+        return -1;
+
     // initialize histogram
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_bottom_blob_count; i++)
@@ -991,7 +1020,7 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
     }
 
     // build histogram
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
     for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
@@ -1006,36 +1035,21 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
         ex.set_blob_allocator(&blob_allocators[thread_num]);
         ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
-        for (int j = 0; j < input_blob_count; j++)
+        if (input_sample(ex, i) != 0)
         {
-            ncnn::Mat in;
-
-            if (0 == file_type)
-            {
-                const int type_to_pixel = type_to_pixels[j];
-                const std::vector<float>& mean_vals = means[j];
-                const std::vector<float>& norm_vals = norms[j];
-
-                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                if (type_to_pixel != pixel_convert_type)
-                {
-                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
-                }
-                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-            }
-            else
-            {
-                in = read_npy(shapes[j], listspaths[j][i]);
-            }
-
-            ex.input(input_blobs[j], in);
+            failed = 1;
+            continue;
         }
 
         for (int j = 0; j < conv_bottom_blob_count; j++)
         {
             ncnn::Mat out;
-            ex.extract(conv_bottom_blobs[j], out);
+            if (ex.extract(conv_bottom_blobs[j], out) != 0 || out.empty())
+            {
+                fprintf(stderr, "extract calibration sample %d blob %s failed\n", i, blobs[conv_bottom_blobs[j]].name.c_str());
+                failed = 1;
+                break;
+            }
 
             // count histogram bin
             {
@@ -1077,7 +1091,7 @@ int QuantNet::build_activation_histogram(int num_histogram_bins)
         }
     }
 
-    return 0;
+    return failed ? -1 : 0;
 }
 
 int QuantNet::quantize_KL()
@@ -1092,7 +1106,7 @@ int QuantNet::quantize_KL()
 
     const int num_histogram_bins = 2048;
 
-    build_activation_histogram(num_histogram_bins);
+    NCNN_QUANTIZE_CHECK(build_activation_histogram(num_histogram_bins), "build activation histogram failed\n");
 
     // using kld to find the best threshold value
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -1300,7 +1314,7 @@ int QuantNet::quantize_percentile(const std::vector<float>& percentiles)
 
     const int num_histogram_bins = 2048;
 
-    build_activation_histogram(num_histogram_bins);
+    NCNN_QUANTIZE_CHECK(build_activation_histogram(num_histogram_bins), "build activation histogram failed\n");
 
     // using percentile to find the threshold value
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -1396,7 +1410,6 @@ static float compute_aciq_gaussian_clip(float absmax, int N, int num_bits = 8)
 
 int QuantNet::quantize_ACIQ()
 {
-    const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
@@ -1515,8 +1528,10 @@ int QuantNet::quantize_ACIQ()
     std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
     std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
+    int failed = 0;
+
     // count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
     for (int i = 0; i < file_count; i++)
     {
         if (i % 100 == 0)
@@ -1531,36 +1546,21 @@ int QuantNet::quantize_ACIQ()
         ex.set_blob_allocator(&blob_allocators[thread_num]);
         ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
-        for (int j = 0; j < input_blob_count; j++)
+        if (input_sample(ex, i) != 0)
         {
-            ncnn::Mat in;
-
-            if (0 == file_type)
-            {
-                const int type_to_pixel = type_to_pixels[j];
-                const std::vector<float>& mean_vals = means[j];
-                const std::vector<float>& norm_vals = norms[j];
-
-                int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                if (type_to_pixel != pixel_convert_type)
-                {
-                    pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
-                }
-                in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-                in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-            }
-            else
-            {
-                in = read_npy(shapes[j], listspaths[j][i]);
-            }
-
-            ex.input(input_blobs[j], in);
+            failed = 1;
+            continue;
         }
 
         for (int j = 0; j < conv_bottom_blob_count; j++)
         {
             ncnn::Mat out;
-            ex.extract(conv_bottom_blobs[j], out);
+            if (ex.extract(conv_bottom_blobs[j], out) != 0 || out.empty())
+            {
+                fprintf(stderr, "extract calibration sample %d blob %s failed\n", i, blobs[conv_bottom_blobs[j]].name.c_str());
+                failed = 1;
+                break;
+            }
 
             // count absmax
             {
@@ -1586,6 +1586,9 @@ int QuantNet::quantize_ACIQ()
             }
         }
     }
+
+    if (failed)
+        return -1;
 
     // alpha gaussian
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -1732,11 +1735,10 @@ static int get_layer_weights(const ncnn::Layer* layer, std::vector<ncnn::Mat>& w
 int QuantNet::quantize_EQ()
 {
     // find the initial scale via KL
-    quantize_KL();
+    NCNN_QUANTIZE_CHECK(quantize_KL(), "initial KL calibration failed\n");
 
     print_quant_info();
 
-    const int input_blob_count = (int)input_blobs.size();
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
@@ -1769,8 +1771,9 @@ int QuantNet::quantize_EQ()
             const float scale_step = (scale_upper - scale_lower) / search_steps;
 
             std::vector<double> avgsims(search_steps, 0.0);
+            int failed = 0;
 
-            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
             for (int ii = 0; ii < file_count; ii++)
             {
                 if (ii % 100 == 0)
@@ -1785,71 +1788,94 @@ int QuantNet::quantize_EQ()
                 ex.set_blob_allocator(&blob_allocators[thread_num]);
                 ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
-                for (int jj = 0; jj < input_blob_count; jj++)
+                if (input_sample(ex, ii) != 0)
                 {
-                    ncnn::Mat in;
-
-                    if (0 == file_type)
-                    {
-                        const int type_to_pixel = type_to_pixels[j];
-                        const std::vector<float>& mean_vals = means[j];
-                        const std::vector<float>& norm_vals = norms[j];
-
-                        int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                        if (type_to_pixel != pixel_convert_type)
-                        {
-                            pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
-                        }
-                        in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-                        in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-                    }
-                    else
-                    {
-                        in = read_npy(shapes[j], listspaths[j][i]);
-                    }
-
-                    ex.input(input_blobs[j], in);
+                    failed = 1;
+                    continue;
                 }
 
                 ncnn::Mat in;
-                ex.extract(conv_bottom_blobs[i], in);
-
                 ncnn::Mat out;
-                ex.extract(conv_top_blobs[i], out);
+                if (ex.extract(conv_bottom_blobs[i], in) != 0 || in.empty() || ex.extract(conv_top_blobs[i], out) != 0 || out.empty())
+                {
+                    fprintf(stderr, "extract EQ sample %d for layer %s failed\n", ii, layer->name.c_str());
+                    failed = 1;
+                    continue;
+                }
 
                 ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
+                if (!layer_int8)
+                {
+                    fprintf(stderr, "create EQ layer %s failed\n", layer->name.c_str());
+                    failed = 1;
+                    continue;
+                }
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
                 pd.set(8, 1); //int8_scale_term
-                layer_int8->load_param(pd);
+                if (layer_int8->load_param(pd) != 0)
+                {
+                    fprintf(stderr, "load_param EQ layer %s failed\n", layer->name.c_str());
+                    delete layer_int8;
+                    failed = 1;
+                    continue;
+                }
 
+                bool sample_failed = false;
                 std::vector<float> sims(search_steps);
                 for (int k = 0; k < search_steps; k++)
                 {
                     ncnn::Mat new_weight_scale = weight_scale.clone();
+                    if (new_weight_scale.empty())
+                    {
+                        fprintf(stderr, "clone EQ scale for layer %s failed\n", layer->name.c_str());
+                        sample_failed = true;
+                        break;
+                    }
                     new_weight_scale[j] = scale_lower + k * scale_step;
 
                     std::vector<ncnn::Mat> weights;
                     get_layer_weights(layer, weights);
                     weights.push_back(new_weight_scale);
                     weights.push_back(bottom_blob_scale);
-                    layer_int8->load_model(ncnn::ModelBinFromMatArray(weights.data()));
+                    if (layer_int8->load_model(ncnn::ModelBinFromMatArray(weights.data())) != 0)
+                    {
+                        fprintf(stderr, "load_model EQ layer %s failed\n", layer->name.c_str());
+                        sample_failed = true;
+                        break;
+                    }
 
                     ncnn::Option opt_int8;
                     opt_int8.use_packing_layout = false;
 
-                    layer_int8->create_pipeline(opt_int8);
+                    if (layer_int8->create_pipeline(opt_int8) != 0)
+                    {
+                        fprintf(stderr, "create_pipeline EQ layer %s failed\n", layer->name.c_str());
+                        layer_int8->destroy_pipeline(opt_int8);
+                        sample_failed = true;
+                        break;
+                    }
 
                     ncnn::Mat out_int8;
-                    layer_int8->forward(in, out_int8, opt_int8);
-
-                    layer_int8->destroy_pipeline(opt_int8);
+                    const int forward_ret = layer_int8->forward(in, out_int8, opt_int8);
+                    const int destroy_ret = layer_int8->destroy_pipeline(opt_int8);
+                    if (forward_ret != 0 || out_int8.empty() || destroy_ret != 0)
+                    {
+                        fprintf(stderr, "forward or destroy_pipeline EQ layer %s failed\n", layer->name.c_str());
+                        sample_failed = true;
+                        break;
+                    }
 
                     sims[k] = cosine_similarity(out, out_int8);
                 }
 
                 delete layer_int8;
+                if (sample_failed)
+                {
+                    failed = 1;
+                    continue;
+                }
 
                 #pragma omp critical
                 {
@@ -1859,6 +1885,9 @@ int QuantNet::quantize_EQ()
                     }
                 }
             }
+
+            if (failed)
+                return -1;
 
             double max_avgsim = 0.0;
             float new_scale = scale;
@@ -1886,8 +1915,9 @@ int QuantNet::quantize_EQ()
             const float scale_step = (scale_upper - scale_lower) / search_steps;
 
             std::vector<double> avgsims(search_steps, 0.0);
+            int failed = 0;
 
-            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
+            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1) reduction(|:failed)
             for (int ii = 0; ii < file_count; ii++)
             {
                 if (ii % 100 == 0)
@@ -1902,71 +1932,94 @@ int QuantNet::quantize_EQ()
                 ex.set_blob_allocator(&blob_allocators[thread_num]);
                 ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
-                for (int jj = 0; jj < input_blob_count; jj++)
+                if (input_sample(ex, ii) != 0)
                 {
-                    ncnn::Mat in;
-
-                    if (0 == file_type)
-                    {
-                        const int type_to_pixel = type_to_pixels[j];
-                        const std::vector<float>& mean_vals = means[j];
-                        const std::vector<float>& norm_vals = norms[j];
-
-                        int pixel_convert_type = ncnn::Mat::PIXEL_BGR;
-                        if (type_to_pixel != pixel_convert_type)
-                        {
-                            pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
-                        }
-                        in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
-                        in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
-                    }
-                    else
-                    {
-                        in = read_npy(shapes[j], listspaths[j][i]);
-                    }
-
-                    ex.input(input_blobs[j], in);
+                    failed = 1;
+                    continue;
                 }
 
                 ncnn::Mat in;
-                ex.extract(conv_bottom_blobs[i], in);
-
                 ncnn::Mat out;
-                ex.extract(conv_top_blobs[i], out);
+                if (ex.extract(conv_bottom_blobs[i], in) != 0 || in.empty() || ex.extract(conv_top_blobs[i], out) != 0 || out.empty())
+                {
+                    fprintf(stderr, "extract EQ sample %d for layer %s failed\n", ii, layer->name.c_str());
+                    failed = 1;
+                    continue;
+                }
 
                 ncnn::Layer* layer_int8 = ncnn::create_layer_cpu(layer->typeindex);
+                if (!layer_int8)
+                {
+                    fprintf(stderr, "create EQ layer %s failed\n", layer->name.c_str());
+                    failed = 1;
+                    continue;
+                }
 
                 ncnn::ParamDict pd;
                 get_layer_param(layer, pd);
                 pd.set(8, 1); //int8_scale_term
-                layer_int8->load_param(pd);
+                if (layer_int8->load_param(pd) != 0)
+                {
+                    fprintf(stderr, "load_param EQ layer %s failed\n", layer->name.c_str());
+                    delete layer_int8;
+                    failed = 1;
+                    continue;
+                }
 
+                bool sample_failed = false;
                 std::vector<float> sims(search_steps);
                 for (int k = 0; k < search_steps; k++)
                 {
                     ncnn::Mat new_bottom_blob_scale = bottom_blob_scale.clone();
+                    if (new_bottom_blob_scale.empty())
+                    {
+                        fprintf(stderr, "clone EQ scale for layer %s failed\n", layer->name.c_str());
+                        sample_failed = true;
+                        break;
+                    }
                     new_bottom_blob_scale[j] = scale_lower + k * scale_step;
 
                     std::vector<ncnn::Mat> weights;
                     get_layer_weights(layer, weights);
                     weights.push_back(weight_scale);
                     weights.push_back(new_bottom_blob_scale);
-                    layer_int8->load_model(ncnn::ModelBinFromMatArray(weights.data()));
+                    if (layer_int8->load_model(ncnn::ModelBinFromMatArray(weights.data())) != 0)
+                    {
+                        fprintf(stderr, "load_model EQ layer %s failed\n", layer->name.c_str());
+                        sample_failed = true;
+                        break;
+                    }
 
                     ncnn::Option opt_int8;
                     opt_int8.use_packing_layout = false;
 
-                    layer_int8->create_pipeline(opt_int8);
+                    if (layer_int8->create_pipeline(opt_int8) != 0)
+                    {
+                        fprintf(stderr, "create_pipeline EQ layer %s failed\n", layer->name.c_str());
+                        layer_int8->destroy_pipeline(opt_int8);
+                        sample_failed = true;
+                        break;
+                    }
 
                     ncnn::Mat out_int8;
-                    layer_int8->forward(in, out_int8, opt_int8);
-
-                    layer_int8->destroy_pipeline(opt_int8);
+                    const int forward_ret = layer_int8->forward(in, out_int8, opt_int8);
+                    const int destroy_ret = layer_int8->destroy_pipeline(opt_int8);
+                    if (forward_ret != 0 || out_int8.empty() || destroy_ret != 0)
+                    {
+                        fprintf(stderr, "forward or destroy_pipeline EQ layer %s failed\n", layer->name.c_str());
+                        sample_failed = true;
+                        break;
+                    }
 
                     sims[k] = cosine_similarity(out, out_int8);
                 }
 
                 delete layer_int8;
+                if (sample_failed)
+                {
+                    failed = 1;
+                    continue;
+                }
 
                 #pragma omp critical
                 {
@@ -1976,6 +2029,9 @@ int QuantNet::quantize_EQ()
                     }
                 }
             }
+
+            if (failed)
+                return -1;
 
             double max_avgsim = 0.0;
             float new_scale = scale;
@@ -2336,10 +2392,9 @@ int main(int argc, char** argv)
 
     QuantNet net;
     net.opt = opt;
-    net.load_param(inparam);
-    net.load_model(inbin);
-
-    net.init();
+    NCNN_QUANTIZE_CHECK(net.load_param(inparam), "load_param %s failed\n", inparam);
+    NCNN_QUANTIZE_CHECK(net.load_model(inbin), "load_model %s failed\n", inbin);
+    NCNN_QUANTIZE_CHECK(net.init(), "initialize quantization failed\n");
 
     const char* outtable = 0;
     int kv_start = 0;
@@ -2452,7 +2507,23 @@ int main(int argc, char** argv)
         fprintf(stderr, "expect %d pixels, but got %d\n", (int)input_blob_count, (int)net.type_to_pixels.size());
         return -1;
     }
-    if (net.quantize_num_threads < 0)
+    if (net.use_calibration_dataset && !net.conv_layers.empty())
+    {
+        if (input_blob_count == 0 || net.listspaths[0].empty())
+        {
+            fprintf(stderr, "empty calibration dataset\n");
+            return -1;
+        }
+        for (size_t i = 1; i < input_blob_count; i++)
+        {
+            if (net.listspaths[i].size() != net.listspaths[0].size())
+            {
+                fprintf(stderr, "calibration input lists have different sample counts\n");
+                return -1;
+            }
+        }
+    }
+    if (net.quantize_num_threads <= 0)
     {
         fprintf(stderr, "malformed thread %d\n", net.quantize_num_threads);
         return -1;
@@ -2501,21 +2572,22 @@ int main(int argc, char** argv)
         fprintf(stderr, "---------------------------------------\n");
     }
 
+    int ret = 0;
     if (method == "kl")
     {
-        net.quantize_KL();
+        ret = net.quantize_KL();
     }
     else if (method == "aciq")
     {
-        net.quantize_ACIQ();
+        ret = net.quantize_ACIQ();
     }
     else if (method == "percentile")
     {
-        net.quantize_percentile(percentiles);
+        ret = net.quantize_percentile(percentiles);
     }
     else if (method == "eq")
     {
-        net.quantize_EQ();
+        ret = net.quantize_EQ();
     }
     else
     {
@@ -2524,9 +2596,11 @@ int main(int argc, char** argv)
         return -1;
     }
 
+    NCNN_QUANTIZE_CHECK(ret, "quantization method %s failed\n", method.c_str());
+
     net.print_quant_info();
 
-    net.save_table(outtable);
+    NCNN_QUANTIZE_CHECK(net.save_table(outtable), "save calibration table failed\n");
 
     return 0;
 }

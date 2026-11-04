@@ -689,7 +689,12 @@ static void fwrite_weight_data_little_endian(ncnn::Mat& data, FILE* bp)
 
 int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
-    int p0 = ftell(bp);
+    long p0 = ftell(bp);
+    if (p0 < 0)
+    {
+        fprintf(stderr, "ftell failed\n");
+        return -1;
+    }
 
     const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
     if (data_size > (size_t)INT_MAX)
@@ -743,10 +748,17 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
     else
     {
         fprintf(stderr, "unknown weight data type %d\n", (int)data_flattened.elemsize);
+        return -1;
     }
 
     // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
+    long p1 = ftell(bp);
+    if (p1 < p0)
+    {
+        fprintf(stderr, "ftell failed\n");
+        return -1;
+    }
+    size_t nwrite = (size_t)(p1 - p0);
     size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
@@ -761,7 +773,12 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, bool ra
 
 int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
-    int p0 = ftell(bp);
+    long p0 = ftell(bp);
+    if (p0 < 0)
+    {
+        fprintf(stderr, "ftell failed\n");
+        return -1;
+    }
 
     const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
     if (data_size > (size_t)INT_MAX)
@@ -782,7 +799,13 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
     fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
 
     // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
+    long p1 = ftell(bp);
+    if (p1 < p0)
+    {
+        fprintf(stderr, "ftell failed\n");
+        return -1;
+    }
+    size_t nwrite = (size_t)(p1 - p0);
     size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
@@ -797,6 +820,7 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, bool random
 
 int ModelWriter::save(const char* parampath, const char* binpath)
 {
+    int ret = 0;
     uint64_t mac = 0;
 
     FILE* pp = fopen(parampath, "wb");
@@ -930,10 +954,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", channels)
             fprintf_param_value(" 1=%e", eps)
 
-            fwrite_weight_data(op->slope_data, bp);
-            fwrite_weight_data(op->mean_data, bp);
-            fwrite_weight_data(op->var_data, bp);
-            fwrite_weight_data(op->bias_data, bp);
+            ret |= fwrite_weight_data(op->slope_data, bp);
+            ret |= fwrite_weight_data(op->mean_data, bp);
+            ret |= fwrite_weight_data(op->var_data, bp);
+            ret |= fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "Bias")
         {
@@ -942,7 +966,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", bias_data_size)
 
-            fwrite_weight_data(op->bias_data, bp);
+            ret |= fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "BinaryOp")
         {
@@ -1015,21 +1039,21 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
 
 #if NCNN_INT8
                 // write int8_scale data
                 if (op->int8_scale_term)
                 {
-                    fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
-                    fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                    ret |= fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                    ret |= fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
                     if (op->int8_scale_term > 100)
                     {
-                        fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                        ret |= fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
                     }
                 }
 #endif // NCNN_INT8
@@ -1069,10 +1093,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
 
@@ -1128,10 +1152,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
             if (shape_ready)
@@ -1186,10 +1210,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
 
 #if NCNN_INT8
@@ -1210,11 +1234,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
                 if (op->int8_scale_term)
                 {
-                    fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
-                    fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                    ret |= fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                    ret |= fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
                     if (op->int8_scale_term > 100)
                     {
-                        fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
+                        ret |= fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
                     }
                 }
 #endif // NCNN_INT8
@@ -1255,10 +1279,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
 
@@ -1315,10 +1339,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
             if (shape_ready)
@@ -1437,10 +1461,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
 
@@ -1479,10 +1503,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
 
@@ -1547,10 +1571,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
             if (shape_ready)
@@ -1611,10 +1635,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
 
@@ -1654,10 +1678,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->dynamic_weight == 0)
             {
-                fwrite_weight_tag_data(op->weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
 
@@ -1723,10 +1747,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
             if (shape_ready)
@@ -1775,10 +1799,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
             if (shape_ready)
@@ -1799,10 +1823,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", scale_data_size)
             fprintf_param_value(" 1=%d", bias_data_size)
 
-            fwrite_weight_data(op->scale_data, bp);
+            ret |= fwrite_weight_data(op->scale_data, bp);
             if (op->bias_data_size)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
         }
         else if (layer->type == "DetectionOutput")
@@ -1862,10 +1886,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", weight_data_size)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
 #if NCNN_INT8
@@ -1874,7 +1898,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 ncnn::Mat weight_data_int8_scales(1);
                 weight_data_int8_scales[0] = op->weight_data_int8_scale;
-                fwrite_weight_data(weight_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(weight_data_int8_scales, bp, 90, 100);
             }
 #endif // NCNN_INT8
         }
@@ -1970,22 +1994,22 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->constantA == 1)
             {
-                fwrite_weight_tag_data(op->A_data, bp);
+                ret |= fwrite_weight_tag_data(op->A_data, bp);
             }
             if (op->constantB == 1)
             {
                 if (weight_block_quantize)
                 {
-                    fwrite_weight_data(op->B_data, bp, false);
+                    ret |= fwrite_weight_data(op->B_data, bp, false);
                 }
                 else
                 {
-                    fwrite_weight_tag_data(op->B_data, bp);
+                    ret |= fwrite_weight_tag_data(op->B_data, bp);
                 }
             }
             if (op->constantC == 1 && op->constant_broadcast_type_C != -1)
             {
-                fwrite_weight_tag_data(op->C_data, bp);
+                ret |= fwrite_weight_tag_data(op->C_data, bp);
             }
 
 #if NCNN_WEIGHT_QUANT
@@ -1993,10 +2017,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (op->constantB == 1)
                 {
-                    fwrite_weight_data(op->B_data_quantize_scales, bp, false);
+                    ret |= fwrite_weight_data(op->B_data_quantize_scales, bp, false);
                     if (modelwriter_weight_block_quantize_has_input_scale(op->quantize_term))
                     {
-                        fwrite_weight_data(op->B_data_input_scales, bp, false);
+                        ret |= fwrite_weight_data(op->B_data_input_scales, bp, false);
                     }
                 }
             }
@@ -2007,13 +2031,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (op->constantA == 1)
                 {
-                    fwrite_weight_data(op->A_data_int8_scales, bp, 90, 100);
+                    ret |= fwrite_weight_data(op->A_data_int8_scales, bp, 90, 100);
                 }
                 if (op->constantB == 1)
                 {
                     ncnn::Mat B_data_int8_scales(1);
                     B_data_int8_scales[0] = op->B_data_int8_scale;
-                    fwrite_weight_data(B_data_int8_scales, bp, 90, 100);
+                    ret |= fwrite_weight_data(B_data_int8_scales, bp, 90, 100);
                 }
             }
 #endif // NCNN_INT8
@@ -2047,8 +2071,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->affine)
             {
-                fwrite_weight_data(op->gamma_data, bp);
-                fwrite_weight_data(op->beta_data, bp);
+                ret |= fwrite_weight_data(op->gamma_data, bp);
+                ret |= fwrite_weight_data(op->beta_data, bp);
             }
         }
         else if (layer->type == "GRU")
@@ -2061,16 +2085,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", direction)
             fprintf_param_value(" 8=%d", int8_scale_term)
 
-            fwrite_weight_tag_data(op->weight_xc_data, bp);
-            fwrite_weight_tag_data(op->bias_c_data, bp);
-            fwrite_weight_tag_data(op->weight_hc_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_xc_data, bp);
+            ret |= fwrite_weight_tag_data(op->bias_c_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_hc_data, bp);
 
 #if NCNN_INT8
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
             }
 #endif // NCNN_INT8
         }
@@ -2104,18 +2128,18 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_data, bp);
             if (op->bias_term)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
 
 #if NCNN_INT8
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                ret |= fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 
@@ -2149,8 +2173,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->affine)
             {
-                fwrite_weight_data(op->gamma_data, bp);
-                fwrite_weight_data(op->beta_data, bp);
+                ret |= fwrite_weight_data(op->gamma_data, bp);
+                ret |= fwrite_weight_data(op->beta_data, bp);
             }
         }
         else if (layer->type == "Interp")
@@ -2180,8 +2204,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->affine)
             {
-                fwrite_weight_data(op->gamma_data, bp);
-                fwrite_weight_data(op->beta_data, bp);
+                ret |= fwrite_weight_data(op->gamma_data, bp);
+                ret |= fwrite_weight_data(op->beta_data, bp);
             }
         }
         else if (layer->type == "Log")
@@ -2215,21 +2239,21 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", hidden_size)
             fprintf_param_value(" 8=%d", int8_scale_term)
 
-            fwrite_weight_tag_data(op->weight_xc_data, bp);
-            fwrite_weight_tag_data(op->bias_c_data, bp);
-            fwrite_weight_tag_data(op->weight_hc_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_xc_data, bp);
+            ret |= fwrite_weight_tag_data(op->bias_c_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_hc_data, bp);
 
             if (op->num_output != op->hidden_size)
             {
-                fwrite_weight_tag_data(op->weight_hr_data, bp);
+                ret |= fwrite_weight_tag_data(op->weight_hr_data, bp);
             }
 
 #if NCNN_INT8
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
             }
 #endif // NCNN_INT8
         }
@@ -2253,7 +2277,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (!op->data.empty())
             {
-                fwrite_weight_data(op->data, bp);
+                ret |= fwrite_weight_data(op->data, bp);
             }
         }
         else if (layer->type == "MultiHeadAttention")
@@ -2281,54 +2305,54 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (weight_block_quantize)
             {
-                fwrite_weight_data(op->q_weight_data, bp, false);
+                ret |= fwrite_weight_data(op->q_weight_data, bp, false);
             }
             else
             {
-                fwrite_weight_tag_data(op->q_weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->q_weight_data, bp);
             }
-            fwrite_weight_data(op->q_bias_data, bp);
+            ret |= fwrite_weight_data(op->q_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_data(op->k_weight_data, bp, false);
+                ret |= fwrite_weight_data(op->k_weight_data, bp, false);
             }
             else
             {
-                fwrite_weight_tag_data(op->k_weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->k_weight_data, bp);
             }
-            fwrite_weight_data(op->k_bias_data, bp);
+            ret |= fwrite_weight_data(op->k_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_data(op->v_weight_data, bp, false);
+                ret |= fwrite_weight_data(op->v_weight_data, bp, false);
             }
             else
             {
-                fwrite_weight_tag_data(op->v_weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->v_weight_data, bp);
             }
-            fwrite_weight_data(op->v_bias_data, bp);
+            ret |= fwrite_weight_data(op->v_bias_data, bp);
             if (weight_block_quantize)
             {
-                fwrite_weight_data(op->out_weight_data, bp, false);
+                ret |= fwrite_weight_data(op->out_weight_data, bp, false);
             }
             else
             {
-                fwrite_weight_tag_data(op->out_weight_data, bp);
+                ret |= fwrite_weight_tag_data(op->out_weight_data, bp);
             }
-            fwrite_weight_data(op->out_bias_data, bp);
+            ret |= fwrite_weight_data(op->out_bias_data, bp);
 
 #if NCNN_WEIGHT_QUANT
             if (weight_block_quantize)
             {
-                fwrite_weight_data(op->q_weight_data_quantize_scales, bp, false);
-                fwrite_weight_data(op->k_weight_data_quantize_scales, bp, false);
-                fwrite_weight_data(op->v_weight_data_quantize_scales, bp, false);
-                fwrite_weight_data(op->out_weight_data_quantize_scales, bp, false);
+                ret |= fwrite_weight_data(op->q_weight_data_quantize_scales, bp, false);
+                ret |= fwrite_weight_data(op->k_weight_data_quantize_scales, bp, false);
+                ret |= fwrite_weight_data(op->v_weight_data_quantize_scales, bp, false);
+                ret |= fwrite_weight_data(op->out_weight_data_quantize_scales, bp, false);
                 if (modelwriter_weight_block_quantize_has_input_scale(op->quantize_term))
                 {
-                    fwrite_weight_data(op->q_weight_data_input_scales, bp, false);
-                    fwrite_weight_data(op->k_weight_data_input_scales, bp, false);
-                    fwrite_weight_data(op->v_weight_data_input_scales, bp, false);
-                    fwrite_weight_data(op->out_weight_data_input_scales, bp, false);
+                    ret |= fwrite_weight_data(op->q_weight_data_input_scales, bp, false);
+                    ret |= fwrite_weight_data(op->k_weight_data_input_scales, bp, false);
+                    ret |= fwrite_weight_data(op->v_weight_data_input_scales, bp, false);
+                    ret |= fwrite_weight_data(op->out_weight_data_input_scales, bp, false);
                 }
             }
 #endif // NCNN_WEIGHT_QUANT
@@ -2336,12 +2360,12 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->quantize_term && !weight_block_quantize)
             {
-                fwrite_weight_data(op->q_weight_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->k_weight_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->v_weight_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->q_weight_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->k_weight_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->v_weight_data_int8_scales, bp, 90, 100);
                 ncnn::Mat out_weight_data_int8_scales(1);
                 out_weight_data_int8_scales[0] = op->out_weight_data_int8_scale;
-                fwrite_weight_data(out_weight_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(out_weight_data_int8_scales, bp, 90, 100);
             }
 #endif // NCNN_INT8
         }
@@ -2366,7 +2390,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 4=%d", across_channel)
             fprintf_param_value(" 9=%d", eps_mode)
 
-            fwrite_weight_data(op->scale_data, bp);
+            ret |= fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Padding")
         {
@@ -2385,7 +2409,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->per_channel_pad_data_size > 0)
             {
-                fwrite_weight_data(op->per_channel_pad_data, bp);
+                ret |= fwrite_weight_data(op->per_channel_pad_data, bp);
             }
         }
         else if (layer->type == "Permute")
@@ -2510,7 +2534,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", num_slope)
 
-            fwrite_weight_data(op->slope_data, bp);
+            ret |= fwrite_weight_data(op->slope_data, bp);
         }
         else if (layer->type == "PriorBox")
         {
@@ -2567,7 +2591,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%d", scale_data_size)
 
-            fwrite_weight_data(op->scale_data, bp);
+            ret |= fwrite_weight_data(op->scale_data, bp);
         }
         else if (layer->type == "Reduction")
         {
@@ -2617,11 +2641,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(4, op->activation_params, pp);
             }
 
-            fwrite_weight_data(op->scale_in_data, bp);
-            fwrite_weight_data(op->scale_out_data, bp);
+            ret |= fwrite_weight_data(op->scale_in_data, bp);
+            ret |= fwrite_weight_data(op->scale_out_data, bp);
             if (op->bias_data_size)
             {
-                fwrite_weight_data(op->bias_data, bp);
+                ret |= fwrite_weight_data(op->bias_data, bp);
             }
         }
         else if (layer->type == "Reshape")
@@ -2648,7 +2672,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->affine)
             {
-                fwrite_weight_data(op->gamma_data, bp);
+                ret |= fwrite_weight_data(op->gamma_data, bp);
             }
         }
         else if (layer->type == "RNN")
@@ -2661,16 +2685,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%d", direction)
             fprintf_param_value(" 8=%d", int8_scale_term)
 
-            fwrite_weight_tag_data(op->weight_xc_data, bp);
-            fwrite_weight_tag_data(op->bias_c_data, bp);
-            fwrite_weight_tag_data(op->weight_hc_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_xc_data, bp);
+            ret |= fwrite_weight_tag_data(op->bias_c_data, bp);
+            ret |= fwrite_weight_tag_data(op->weight_hc_data, bp);
 
 #if NCNN_INT8
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
-                fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->weight_xc_data_int8_scales, bp, 90, 100);
+                ret |= fwrite_weight_data(op->weight_hc_data_int8_scales, bp, 90, 100);
             }
 #endif // NCNN_INT8
         }
@@ -2712,10 +2736,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->scale_data_size != -233)
             {
-                fwrite_weight_data(op->scale_data, bp);
+                ret |= fwrite_weight_data(op->scale_data, bp);
                 if (op->bias_term)
                 {
-                    fwrite_weight_data(op->bias_data, bp);
+                    ret |= fwrite_weight_data(op->bias_data, bp);
                 }
             }
         }
@@ -2868,13 +2892,22 @@ int ModelWriter::save(const char* parampath, const char* binpath)
         delete layer_default;
     }
 
-    fclose(pp);
-    fclose(bp);
+    if (ferror(pp))
+        ret = -1;
+    if (ferror(bp))
+        ret = -1;
+    if (fclose(pp) != 0)
+        ret = -1;
+    if (fclose(bp) != 0)
+        ret = -1;
+
+    if (ret != 0)
+        fprintf(stderr, "save %s or %s failed, output may be incomplete\n", parampath, binpath);
 
     if (mac)
     {
         fprintf(stderr, "mac = %llu = %.2f M\n", static_cast<long long unsigned>(mac), mac / 1000000.0);
     }
 
-    return 0;
+    return ret;
 }
