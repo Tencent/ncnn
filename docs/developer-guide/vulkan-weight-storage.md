@@ -112,9 +112,10 @@ POSIX uses `TMPDIR` when set and otherwise uses `/tmp`. Windows uses
 weights are released. Space is reserved before exposing writable mappings.
 
 If the default directory is unavailable and no memory limits were configured,
-loading can fall back to resident weights. An explicit directory or explicit
-memory limits make file creation failure a load error. File reservation,
-mapping and finalization failures also fail loading.
+loading can fall back to resident weights. With an explicit directory or
+explicit memory limits, file creation, reservation and mapping failures leave
+the affected weights empty without failing the load, like other weight
+allocation failures. Finalization failures fail loading.
 
 Disk storage requires `NCNN_STDIO` and a supported file mapping platform:
 Windows, Linux, Android API 21 or newer, OpenHarmony or Apple platforms. Other builds use the

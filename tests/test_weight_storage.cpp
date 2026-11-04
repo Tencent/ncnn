@@ -11,12 +11,11 @@
 
 // gemm chain with distinct per-layer weights and a memorydata bias
 // input b0 and output out are both w=16 h=8
-static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, int seed, const char* directory = 0)
+static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, int seed)
 {
     const int layer_count = 6;
 
     net.opt = opt;
-    net.set_weight_file_directory(directory);
 
     char line[256];
     sprintf(line, "7767517\n%d %d\nInput input 0 1 b0\n", layer_count + 3, layer_count + 3);
@@ -519,43 +518,28 @@ static int test_weight_storage_3()
            || test_weight_storage_allocator(1048576, 1048576);
 }
 
+// discrete gpu requires both device and host limits
 static int test_weight_storage_4()
 {
-    // an explicit weight file directory must be writable
-    {
-        ncnn::Option opt = weight_storage_option(0);
-        opt.use_weights_in_disk = true;
+    const ncnn::GpuInfo& info = ncnn::get_gpu_info();
+    const bool unified = info.type() == 1 || info.type() == 3;
 
-        ncnn::Net net;
-        if (load_weight_storage_net(net, opt, 0, "ncnn-weight-storage-missing/weights") == 0)
-        {
-            fprintf(stderr, "test_weight_storage_4 unwritable weight file directory accepted\n");
-            return -1;
-        }
+    ncnn::Option opt = weight_storage_option(0);
+    opt.use_weights_in_disk = true;
+    opt.weight_device_memory_limit = 4096;
+    opt.weight_host_memory_limit = 0;
+
+    ncnn::Net net;
+    int ret = load_weight_storage_net(net, opt, 0);
+    if (unified && ret != 0)
+    {
+        fprintf(stderr, "test_weight_storage_4 single weight memory limit rejected on unified memory\n");
+        return -1;
     }
-
-    // discrete gpu requires both device and host limits
+    if (!unified && ret == 0)
     {
-        const ncnn::GpuInfo& info = ncnn::get_gpu_info();
-        const bool unified = info.type() == 1 || info.type() == 3;
-
-        ncnn::Option opt = weight_storage_option(0);
-        opt.use_weights_in_disk = true;
-        opt.weight_device_memory_limit = 4096;
-        opt.weight_host_memory_limit = 0;
-
-        ncnn::Net net;
-        int ret = load_weight_storage_net(net, opt, 0);
-        if (unified && ret != 0)
-        {
-            fprintf(stderr, "test_weight_storage_4 single weight memory limit rejected on unified memory\n");
-            return -1;
-        }
-        if (!unified && ret == 0)
-        {
-            fprintf(stderr, "test_weight_storage_4 single weight memory limit accepted on discrete memory\n");
-            return -1;
-        }
+        fprintf(stderr, "test_weight_storage_4 single weight memory limit accepted on discrete memory\n");
+        return -1;
     }
 
     return 0;
