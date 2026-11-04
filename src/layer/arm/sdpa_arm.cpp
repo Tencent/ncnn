@@ -233,7 +233,7 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             return -100;
 
         const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
-        return sdpa_decode(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+        return sdpa_decode<float>(query, key, value, attn_mask_blob, top_blob, _scale, opt);
     }
 
     const int num_heads_per_group = num_heads / num_group;

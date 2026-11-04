@@ -5,8 +5,37 @@
 // key and value are plain [seqlen][dim] rows of one kv head
 // query heads sharing the same kv head are processed together, 4 at a time
 // scores are computed block by block and merged with online softmax
+//
+// the kernels are templates over the storage type T of key, value, mask and output,
+// they compute in fp32. the element access helpers below are for fp32 storage,
+// other storage types declare their own overloads before including this file
+
+static inline float sdpa_cvt(float v)
+{
+    return v;
+}
+
+static inline void sdpa_store1(float* p, float v)
+{
+    *p = v;
+}
 
 #if __ARM_NEON
+static inline float32x4_t sdpa_load4(const float* p)
+{
+    return vld1q_f32(p);
+}
+
+static inline float32x4_t sdpa_load4_dup(const float* p)
+{
+    return vld1q_dup_f32(p);
+}
+
+static inline void sdpa_store4(float* p, float32x4_t _v)
+{
+    vst1q_f32(p, _v);
+}
+
 static inline float32x4_t sdpa_fmaq(float32x4_t _c, float32x4_t _a, float32x4_t _b)
 {
 #if __aarch64__
@@ -69,7 +98,8 @@ static int sdpa_decode_get_optimal_tile_n(int value_dim, int key_seqlen)
     return TILE_N;
 }
 
-static const float* sdpa_decode_get_mask_ptr(const Mat& attn_mask_blob, int q)
+template<typename T>
+static const T* sdpa_decode_get_mask_ptr(const Mat& attn_mask_blob, int q)
 {
     if (attn_mask_blob.empty())
         return 0;
@@ -83,7 +113,8 @@ static const float* sdpa_decode_get_mask_ptr(const Mat& attn_mask_blob, int q)
 // one query head
 // qptr[head_dim] is already multiplied by scale
 // workspace: score[block_n] out[value_dim]
-static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, const Mat& value_head, const float* maskptr, float* outptr, int block_n, float* score, float* out)
+template<typename T>
+static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, const Mat& value_head, const T* maskptr, T* outptr, int block_n, float* score, float* out)
 {
     const int head_dim = key_head.w;
     const int value_dim = value_head.w;
@@ -100,8 +131,8 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
         // qk
         float block_max = -FLT_MAX;
         {
-            const float* kptr = key_head.row(n);
-            const float* mptr = maskptr ? maskptr + n : 0;
+            const T* kptr = key_head.row<const T>(n);
+            const T* mptr = maskptr ? maskptr + n : 0;
 
             int j = 0;
 #if __ARM_NEON
@@ -109,14 +140,14 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 #if __aarch64__
             for (; j + 7 < max_jj; j += 8)
             {
-                const float* k0 = kptr + (size_t)j * head_dim;
-                const float* k1 = k0 + head_dim;
-                const float* k2 = k1 + head_dim;
-                const float* k3 = k2 + head_dim;
-                const float* k4 = k3 + head_dim;
-                const float* k5 = k4 + head_dim;
-                const float* k6 = k5 + head_dim;
-                const float* k7 = k6 + head_dim;
+                const T* k0 = kptr + (size_t)j * head_dim;
+                const T* k1 = k0 + head_dim;
+                const T* k2 = k1 + head_dim;
+                const T* k3 = k2 + head_dim;
+                const T* k4 = k3 + head_dim;
+                const T* k5 = k4 + head_dim;
+                const T* k6 = k5 + head_dim;
+                const T* k7 = k6 + head_dim;
 
                 float32x4_t _s0 = vdupq_n_f32(0.f);
                 float32x4_t _s1 = vdupq_n_f32(0.f);
@@ -131,14 +162,14 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                 for (; d + 3 < head_dim; d += 4)
                 {
                     float32x4_t _q = vld1q_f32(qptr + d);
-                    _s0 = vfmaq_f32(_s0, _q, vld1q_f32(k0 + d));
-                    _s1 = vfmaq_f32(_s1, _q, vld1q_f32(k1 + d));
-                    _s2 = vfmaq_f32(_s2, _q, vld1q_f32(k2 + d));
-                    _s3 = vfmaq_f32(_s3, _q, vld1q_f32(k3 + d));
-                    _s4 = vfmaq_f32(_s4, _q, vld1q_f32(k4 + d));
-                    _s5 = vfmaq_f32(_s5, _q, vld1q_f32(k5 + d));
-                    _s6 = vfmaq_f32(_s6, _q, vld1q_f32(k6 + d));
-                    _s7 = vfmaq_f32(_s7, _q, vld1q_f32(k7 + d));
+                    _s0 = vfmaq_f32(_s0, _q, sdpa_load4(k0 + d));
+                    _s1 = vfmaq_f32(_s1, _q, sdpa_load4(k1 + d));
+                    _s2 = vfmaq_f32(_s2, _q, sdpa_load4(k2 + d));
+                    _s3 = vfmaq_f32(_s3, _q, sdpa_load4(k3 + d));
+                    _s4 = vfmaq_f32(_s4, _q, sdpa_load4(k4 + d));
+                    _s5 = vfmaq_f32(_s5, _q, sdpa_load4(k5 + d));
+                    _s6 = vfmaq_f32(_s6, _q, sdpa_load4(k6 + d));
+                    _s7 = vfmaq_f32(_s7, _q, sdpa_load4(k7 + d));
                 }
 
                 float32x4_t _r0 = sdpa_hadd4(_s0, _s1, _s2, _s3);
@@ -150,14 +181,14 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                     for (; d < head_dim; d++)
                     {
                         const float q = qptr[d];
-                        tail[0] += q * k0[d];
-                        tail[1] += q * k1[d];
-                        tail[2] += q * k2[d];
-                        tail[3] += q * k3[d];
-                        tail[4] += q * k4[d];
-                        tail[5] += q * k5[d];
-                        tail[6] += q * k6[d];
-                        tail[7] += q * k7[d];
+                        tail[0] += q * sdpa_cvt(k0[d]);
+                        tail[1] += q * sdpa_cvt(k1[d]);
+                        tail[2] += q * sdpa_cvt(k2[d]);
+                        tail[3] += q * sdpa_cvt(k3[d]);
+                        tail[4] += q * sdpa_cvt(k4[d]);
+                        tail[5] += q * sdpa_cvt(k5[d]);
+                        tail[6] += q * sdpa_cvt(k6[d]);
+                        tail[7] += q * sdpa_cvt(k7[d]);
                     }
                     _r0 = vaddq_f32(_r0, vld1q_f32(tail));
                     _r1 = vaddq_f32(_r1, vld1q_f32(tail + 4));
@@ -165,8 +196,8 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 
                 if (mptr)
                 {
-                    _r0 = vaddq_f32(_r0, vld1q_f32(mptr + j));
-                    _r1 = vaddq_f32(_r1, vld1q_f32(mptr + j + 4));
+                    _r0 = vaddq_f32(_r0, sdpa_load4(mptr + j));
+                    _r1 = vaddq_f32(_r1, sdpa_load4(mptr + j + 4));
                 }
 
                 vst1q_f32(score + j, _r0);
@@ -176,10 +207,10 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 #endif // __aarch64__
             for (; j + 3 < max_jj; j += 4)
             {
-                const float* k0 = kptr + (size_t)j * head_dim;
-                const float* k1 = k0 + head_dim;
-                const float* k2 = k1 + head_dim;
-                const float* k3 = k2 + head_dim;
+                const T* k0 = kptr + (size_t)j * head_dim;
+                const T* k1 = k0 + head_dim;
+                const T* k2 = k1 + head_dim;
+                const T* k3 = k2 + head_dim;
 
                 float32x4_t _s0 = vdupq_n_f32(0.f);
                 float32x4_t _s1 = vdupq_n_f32(0.f);
@@ -190,10 +221,10 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                 for (; d + 3 < head_dim; d += 4)
                 {
                     float32x4_t _q = vld1q_f32(qptr + d);
-                    _s0 = sdpa_fmaq(_s0, _q, vld1q_f32(k0 + d));
-                    _s1 = sdpa_fmaq(_s1, _q, vld1q_f32(k1 + d));
-                    _s2 = sdpa_fmaq(_s2, _q, vld1q_f32(k2 + d));
-                    _s3 = sdpa_fmaq(_s3, _q, vld1q_f32(k3 + d));
+                    _s0 = sdpa_fmaq(_s0, _q, sdpa_load4(k0 + d));
+                    _s1 = sdpa_fmaq(_s1, _q, sdpa_load4(k1 + d));
+                    _s2 = sdpa_fmaq(_s2, _q, sdpa_load4(k2 + d));
+                    _s3 = sdpa_fmaq(_s3, _q, sdpa_load4(k3 + d));
                 }
 
                 float32x4_t _r = sdpa_hadd4(_s0, _s1, _s2, _s3);
@@ -204,16 +235,16 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                     for (; d < head_dim; d++)
                     {
                         const float q = qptr[d];
-                        tail[0] += q * k0[d];
-                        tail[1] += q * k1[d];
-                        tail[2] += q * k2[d];
-                        tail[3] += q * k3[d];
+                        tail[0] += q * sdpa_cvt(k0[d]);
+                        tail[1] += q * sdpa_cvt(k1[d]);
+                        tail[2] += q * sdpa_cvt(k2[d]);
+                        tail[3] += q * sdpa_cvt(k3[d]);
                     }
                     _r = vaddq_f32(_r, vld1q_f32(tail));
                 }
 
                 if (mptr)
-                    _r = vaddq_f32(_r, vld1q_f32(mptr + j));
+                    _r = vaddq_f32(_r, sdpa_load4(mptr + j));
 
                 vst1q_f32(score + j, _r);
                 _max = vmaxq_f32(_max, _r);
@@ -222,7 +253,7 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 #endif // __ARM_NEON
             for (; j < max_jj; j++)
             {
-                const float* k0 = kptr + (size_t)j * head_dim;
+                const T* k0 = kptr + (size_t)j * head_dim;
 
                 float sum = 0.f;
                 int d = 0;
@@ -230,17 +261,17 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                 float32x4_t _s = vdupq_n_f32(0.f);
                 for (; d + 3 < head_dim; d += 4)
                 {
-                    _s = sdpa_fmaq(_s, vld1q_f32(qptr + d), vld1q_f32(k0 + d));
+                    _s = sdpa_fmaq(_s, vld1q_f32(qptr + d), sdpa_load4(k0 + d));
                 }
                 sum = sdpa_reduce_add(_s);
 #endif // __ARM_NEON
                 for (; d < head_dim; d++)
                 {
-                    sum += qptr[d] * k0[d];
+                    sum += qptr[d] * sdpa_cvt(k0[d]);
                 }
 
                 if (mptr)
-                    sum += mptr[j];
+                    sum += sdpa_cvt(mptr[j]);
 
                 score[j] = sum;
                 block_max = std::max(block_max, sum);
@@ -278,7 +309,7 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 
         // pv
         {
-            const float* vptr = value_head.row(n);
+            const T* vptr = value_head.row<const T>(n);
 
             int d = 0;
 #if __ARM_NEON
@@ -303,26 +334,26 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                 float32x4_t _oe = vmulq_f32(vld1q_f32(out + d + 56), _alpha);
                 float32x4_t _of = vmulq_f32(vld1q_f32(out + d + 60), _alpha);
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
                     float32x4_t _p = vld1q_dup_f32(score + j);
-                    _o0 = vfmaq_f32(_o0, vld1q_f32(pV), _p);
-                    _o1 = vfmaq_f32(_o1, vld1q_f32(pV + 4), _p);
-                    _o2 = vfmaq_f32(_o2, vld1q_f32(pV + 8), _p);
-                    _o3 = vfmaq_f32(_o3, vld1q_f32(pV + 12), _p);
-                    _o4 = vfmaq_f32(_o4, vld1q_f32(pV + 16), _p);
-                    _o5 = vfmaq_f32(_o5, vld1q_f32(pV + 20), _p);
-                    _o6 = vfmaq_f32(_o6, vld1q_f32(pV + 24), _p);
-                    _o7 = vfmaq_f32(_o7, vld1q_f32(pV + 28), _p);
-                    _o8 = vfmaq_f32(_o8, vld1q_f32(pV + 32), _p);
-                    _o9 = vfmaq_f32(_o9, vld1q_f32(pV + 36), _p);
-                    _oa = vfmaq_f32(_oa, vld1q_f32(pV + 40), _p);
-                    _ob = vfmaq_f32(_ob, vld1q_f32(pV + 44), _p);
-                    _oc = vfmaq_f32(_oc, vld1q_f32(pV + 48), _p);
-                    _od = vfmaq_f32(_od, vld1q_f32(pV + 52), _p);
-                    _oe = vfmaq_f32(_oe, vld1q_f32(pV + 56), _p);
-                    _of = vfmaq_f32(_of, vld1q_f32(pV + 60), _p);
+                    _o0 = vfmaq_f32(_o0, sdpa_load4(pV), _p);
+                    _o1 = vfmaq_f32(_o1, sdpa_load4(pV + 4), _p);
+                    _o2 = vfmaq_f32(_o2, sdpa_load4(pV + 8), _p);
+                    _o3 = vfmaq_f32(_o3, sdpa_load4(pV + 12), _p);
+                    _o4 = vfmaq_f32(_o4, sdpa_load4(pV + 16), _p);
+                    _o5 = vfmaq_f32(_o5, sdpa_load4(pV + 20), _p);
+                    _o6 = vfmaq_f32(_o6, sdpa_load4(pV + 24), _p);
+                    _o7 = vfmaq_f32(_o7, sdpa_load4(pV + 28), _p);
+                    _o8 = vfmaq_f32(_o8, sdpa_load4(pV + 32), _p);
+                    _o9 = vfmaq_f32(_o9, sdpa_load4(pV + 36), _p);
+                    _oa = vfmaq_f32(_oa, sdpa_load4(pV + 40), _p);
+                    _ob = vfmaq_f32(_ob, sdpa_load4(pV + 44), _p);
+                    _oc = vfmaq_f32(_oc, sdpa_load4(pV + 48), _p);
+                    _od = vfmaq_f32(_od, sdpa_load4(pV + 52), _p);
+                    _oe = vfmaq_f32(_oe, sdpa_load4(pV + 56), _p);
+                    _of = vfmaq_f32(_of, sdpa_load4(pV + 60), _p);
                     pV += value_dim;
                 }
 
@@ -351,14 +382,14 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
                 float32x4_t _o2 = vmulq_f32(vld1q_f32(out + d + 8), _alpha);
                 float32x4_t _o3 = vmulq_f32(vld1q_f32(out + d + 12), _alpha);
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
                     float32x4_t _p = vld1q_dup_f32(score + j);
-                    _o0 = sdpa_fmaq(_o0, vld1q_f32(pV), _p);
-                    _o1 = sdpa_fmaq(_o1, vld1q_f32(pV + 4), _p);
-                    _o2 = sdpa_fmaq(_o2, vld1q_f32(pV + 8), _p);
-                    _o3 = sdpa_fmaq(_o3, vld1q_f32(pV + 12), _p);
+                    _o0 = sdpa_fmaq(_o0, sdpa_load4(pV), _p);
+                    _o1 = sdpa_fmaq(_o1, sdpa_load4(pV + 4), _p);
+                    _o2 = sdpa_fmaq(_o2, sdpa_load4(pV + 8), _p);
+                    _o3 = sdpa_fmaq(_o3, sdpa_load4(pV + 12), _p);
                     pV += value_dim;
                 }
 
@@ -371,10 +402,10 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
             {
                 float32x4_t _o = vmulq_f32(vld1q_f32(out + d), _alpha);
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
-                    _o = sdpa_fmaq(_o, vld1q_f32(pV), vld1q_dup_f32(score + j));
+                    _o = sdpa_fmaq(_o, sdpa_load4(pV), vld1q_dup_f32(score + j));
                     pV += value_dim;
                 }
 
@@ -385,10 +416,10 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
             {
                 float o = out[d] * alpha;
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
-                    o += score[j] * *pV;
+                    o += score[j] * sdpa_cvt(*pV);
                     pV += value_dim;
                 }
 
@@ -404,12 +435,12 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
     float32x4_t _inv_l = vdupq_n_f32(inv_l);
     for (; d + 3 < value_dim; d += 4)
     {
-        vst1q_f32(outptr + d, vmulq_f32(vld1q_f32(out + d), _inv_l));
+        sdpa_store4(outptr + d, vmulq_f32(vld1q_f32(out + d), _inv_l));
     }
 #endif // __ARM_NEON
     for (; d < value_dim; d++)
     {
-        outptr[d] = out[d] * inv_l;
+        sdpa_store1(outptr + d, out[d] * inv_l);
     }
 }
 
@@ -417,7 +448,8 @@ static void sdpa_decode_attention_1(const float* qptr, const Mat& key_head, cons
 // qT[head_dim][4] is already multiplied by scale
 // maskptrs[4] are per head mask rows, or all null
 // workspace: scoreT[block_n][4] outT[value_dim][4]
-static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const Mat& value_head, const float* const* maskptrs, float* const* outptrs, int block_n, float* scoreT, float* outT)
+template<typename T>
+static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const Mat& value_head, const T* const* maskptrs, T* const* outptrs, int block_n, float* scoreT, float* outT)
 {
     const int head_dim = key_head.w;
     const int value_dim = value_head.w;
@@ -444,17 +476,17 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
         float block_max[4] = {-FLT_MAX, -FLT_MAX, -FLT_MAX, -FLT_MAX};
 #endif
         {
-            const float* kptr = key_head.row(n);
+            const T* kptr = key_head.row<const T>(n);
 
             int j = 0;
 #if __ARM_NEON
 #if __aarch64__
             for (; j + 3 < max_jj; j += 4)
             {
-                const float* k0 = kptr + (size_t)j * head_dim;
-                const float* k1 = k0 + head_dim;
-                const float* k2 = k1 + head_dim;
-                const float* k3 = k2 + head_dim;
+                const T* k0 = kptr + (size_t)j * head_dim;
+                const T* k1 = k0 + head_dim;
+                const T* k2 = k1 + head_dim;
+                const T* k3 = k2 + head_dim;
 
                 // two accumulators per key for more independent fma chains
                 float32x4_t _s00 = vdupq_n_f32(0.f);
@@ -474,10 +506,10 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                     float32x4_t _q1 = vld1q_f32(pQ + 4);
                     float32x4_t _q2 = vld1q_f32(pQ + 8);
                     float32x4_t _q3 = vld1q_f32(pQ + 12);
-                    float32x4_t _k0 = vld1q_f32(k0 + d);
-                    float32x4_t _k1 = vld1q_f32(k1 + d);
-                    float32x4_t _k2 = vld1q_f32(k2 + d);
-                    float32x4_t _k3 = vld1q_f32(k3 + d);
+                    float32x4_t _k0 = sdpa_load4(k0 + d);
+                    float32x4_t _k1 = sdpa_load4(k1 + d);
+                    float32x4_t _k2 = sdpa_load4(k2 + d);
+                    float32x4_t _k3 = sdpa_load4(k3 + d);
                     _s00 = vfmaq_laneq_f32(_s00, _q0, _k0, 0);
                     _s10 = vfmaq_laneq_f32(_s10, _q0, _k1, 0);
                     _s20 = vfmaq_laneq_f32(_s20, _q0, _k2, 0);
@@ -499,10 +531,10 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                 for (; d < head_dim; d++)
                 {
                     float32x4_t _q = vld1q_f32(pQ);
-                    _s00 = vfmaq_n_f32(_s00, _q, k0[d]);
-                    _s10 = vfmaq_n_f32(_s10, _q, k1[d]);
-                    _s20 = vfmaq_n_f32(_s20, _q, k2[d]);
-                    _s30 = vfmaq_n_f32(_s30, _q, k3[d]);
+                    _s00 = vfmaq_n_f32(_s00, _q, sdpa_cvt(k0[d]));
+                    _s10 = vfmaq_n_f32(_s10, _q, sdpa_cvt(k1[d]));
+                    _s20 = vfmaq_n_f32(_s20, _q, sdpa_cvt(k2[d]));
+                    _s30 = vfmaq_n_f32(_s30, _q, sdpa_cvt(k3[d]));
                     pQ += 4;
                 }
 
@@ -516,18 +548,18 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                     const int jn = n + j;
                     if (mask_shared)
                     {
-                        _r0 = vaddq_f32(_r0, vld1q_dup_f32(maskptrs[0] + jn));
-                        _r1 = vaddq_f32(_r1, vld1q_dup_f32(maskptrs[0] + jn + 1));
-                        _r2 = vaddq_f32(_r2, vld1q_dup_f32(maskptrs[0] + jn + 2));
-                        _r3 = vaddq_f32(_r3, vld1q_dup_f32(maskptrs[0] + jn + 3));
+                        _r0 = vaddq_f32(_r0, sdpa_load4_dup(maskptrs[0] + jn));
+                        _r1 = vaddq_f32(_r1, sdpa_load4_dup(maskptrs[0] + jn + 1));
+                        _r2 = vaddq_f32(_r2, sdpa_load4_dup(maskptrs[0] + jn + 2));
+                        _r3 = vaddq_f32(_r3, sdpa_load4_dup(maskptrs[0] + jn + 3));
                     }
                     else
                     {
                         // mask rows are per head, transpose 4 keys x 4 heads
-                        float32x4_t _m0 = vld1q_f32(maskptrs[0] + jn);
-                        float32x4_t _m1 = vld1q_f32(maskptrs[1] + jn);
-                        float32x4_t _m2 = vld1q_f32(maskptrs[2] + jn);
-                        float32x4_t _m3 = vld1q_f32(maskptrs[3] + jn);
+                        float32x4_t _m0 = sdpa_load4(maskptrs[0] + jn);
+                        float32x4_t _m1 = sdpa_load4(maskptrs[1] + jn);
+                        float32x4_t _m2 = sdpa_load4(maskptrs[2] + jn);
+                        float32x4_t _m3 = sdpa_load4(maskptrs[3] + jn);
                         transpose4x4_ps(_m0, _m1, _m2, _m3);
                         _r0 = vaddq_f32(_r0, _m0);
                         _r1 = vaddq_f32(_r1, _m1);
@@ -545,7 +577,7 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
 #endif // __aarch64__
             for (; j < max_jj; j++)
             {
-                const float* k0 = kptr + (size_t)j * head_dim;
+                const T* k0 = kptr + (size_t)j * head_dim;
 
                 float32x4_t _s0 = vdupq_n_f32(0.f);
                 float32x4_t _s1 = vdupq_n_f32(0.f);
@@ -554,13 +586,13 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                 int d = 0;
                 for (; d + 1 < head_dim; d += 2)
                 {
-                    _s0 = sdpa_fmaq(_s0, vld1q_f32(pQ), vld1q_dup_f32(k0 + d));
-                    _s1 = sdpa_fmaq(_s1, vld1q_f32(pQ + 4), vld1q_dup_f32(k0 + d + 1));
+                    _s0 = sdpa_fmaq(_s0, vld1q_f32(pQ), sdpa_load4_dup(k0 + d));
+                    _s1 = sdpa_fmaq(_s1, vld1q_f32(pQ + 4), sdpa_load4_dup(k0 + d + 1));
                     pQ += 8;
                 }
                 for (; d < head_dim; d++)
                 {
-                    _s0 = sdpa_fmaq(_s0, vld1q_f32(pQ), vld1q_dup_f32(k0 + d));
+                    _s0 = sdpa_fmaq(_s0, vld1q_f32(pQ), sdpa_load4_dup(k0 + d));
                     pQ += 4;
                 }
 
@@ -571,11 +603,11 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                     const int jn = n + j;
                     if (mask_shared)
                     {
-                        _r = vaddq_f32(_r, vld1q_dup_f32(maskptrs[0] + jn));
+                        _r = vaddq_f32(_r, sdpa_load4_dup(maskptrs[0] + jn));
                     }
                     else
                     {
-                        float mask[4] = {maskptrs[0][jn], maskptrs[1][jn], maskptrs[2][jn], maskptrs[3][jn]};
+                        float mask[4] = {sdpa_cvt(maskptrs[0][jn]), sdpa_cvt(maskptrs[1][jn]), sdpa_cvt(maskptrs[2][jn]), sdpa_cvt(maskptrs[3][jn])};
                         _r = vaddq_f32(_r, vld1q_f32(mask));
                     }
                 }
@@ -586,16 +618,16 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
 #else  // __ARM_NEON
             for (; j < max_jj; j++)
             {
-                const float* k0 = kptr + (size_t)j * head_dim;
+                const T* k0 = kptr + (size_t)j * head_dim;
                 for (int h = 0; h < 4; h++)
                 {
                     float sum = 0.f;
                     for (int d = 0; d < head_dim; d++)
                     {
-                        sum += qT[d * 4 + h] * k0[d];
+                        sum += qT[d * 4 + h] * sdpa_cvt(k0[d]);
                     }
                     if (maskptrs[h])
-                        sum += maskptrs[h][n + j];
+                        sum += sdpa_cvt(maskptrs[h][n + j]);
                     scoreT[j * 4 + h] = sum;
                     block_max[h] = std::max(block_max[h], sum);
                 }
@@ -646,7 +678,7 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
 
         // pv, outT[d][4]
         {
-            const float* vptr = value_head.row(n);
+            const T* vptr = value_head.row<const T>(n);
 
             int d = 0;
 #if __ARM_NEON
@@ -671,14 +703,14 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                 float32x4_t _oe = vmulq_f32(vld1q_f32(pO + 56), _alpha);
                 float32x4_t _of = vmulq_f32(vld1q_f32(pO + 60), _alpha);
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
                     float32x4_t _p = vld1q_f32(scoreT + j * 4);
-                    float32x4_t _v0 = vld1q_f32(pV);
-                    float32x4_t _v1 = vld1q_f32(pV + 4);
-                    float32x4_t _v2 = vld1q_f32(pV + 8);
-                    float32x4_t _v3 = vld1q_f32(pV + 12);
+                    float32x4_t _v0 = sdpa_load4(pV);
+                    float32x4_t _v1 = sdpa_load4(pV + 4);
+                    float32x4_t _v2 = sdpa_load4(pV + 8);
+                    float32x4_t _v3 = sdpa_load4(pV + 12);
                     _o0 = vfmaq_laneq_f32(_o0, _p, _v0, 0);
                     _o1 = vfmaq_laneq_f32(_o1, _p, _v0, 1);
                     _o2 = vfmaq_laneq_f32(_o2, _p, _v0, 2);
@@ -724,14 +756,14 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                 float32x4_t _o2 = vmulq_f32(vld1q_f32(pO + 8), _alpha);
                 float32x4_t _o3 = vmulq_f32(vld1q_f32(pO + 12), _alpha);
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
                     float32x4_t _p = vld1q_f32(scoreT + j * 4);
-                    _o0 = sdpa_fmaq(_o0, _p, vld1q_dup_f32(pV));
-                    _o1 = sdpa_fmaq(_o1, _p, vld1q_dup_f32(pV + 1));
-                    _o2 = sdpa_fmaq(_o2, _p, vld1q_dup_f32(pV + 2));
-                    _o3 = sdpa_fmaq(_o3, _p, vld1q_dup_f32(pV + 3));
+                    _o0 = sdpa_fmaq(_o0, _p, sdpa_load4_dup(pV));
+                    _o1 = sdpa_fmaq(_o1, _p, sdpa_load4_dup(pV + 1));
+                    _o2 = sdpa_fmaq(_o2, _p, sdpa_load4_dup(pV + 2));
+                    _o3 = sdpa_fmaq(_o3, _p, sdpa_load4_dup(pV + 3));
                     pV += value_dim;
                 }
 
@@ -745,10 +777,10 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                 float* pO = outT + d * 4;
                 float32x4_t _o = vmulq_f32(vld1q_f32(pO), _alpha);
 
-                const float* pV = vptr + d;
+                const T* pV = vptr + d;
                 for (int j = 0; j < max_jj; j++)
                 {
-                    _o = sdpa_fmaq(_o, vld1q_f32(scoreT + j * 4), vld1q_dup_f32(pV));
+                    _o = sdpa_fmaq(_o, vld1q_f32(scoreT + j * 4), sdpa_load4_dup(pV));
                     pV += value_dim;
                 }
 
@@ -761,10 +793,10 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
                 {
                     float o = outT[d * 4 + h] * alpha[h];
 
-                    const float* pV = vptr + d;
+                    const T* pV = vptr + d;
                     for (int j = 0; j < max_jj; j++)
                     {
-                        o += scoreT[j * 4 + h] * *pV;
+                        o += scoreT[j * 4 + h] * sdpa_cvt(*pV);
                         pV += value_dim;
                     }
 
@@ -795,21 +827,22 @@ static void sdpa_decode_attention_4(const float* qT, const Mat& key_head, const 
         float32x4_t _r2 = vld1q_f32(outT + d * 4 + 8);
         float32x4_t _r3 = vld1q_f32(outT + d * 4 + 12);
         transpose4x4_ps(_r0, _r1, _r2, _r3);
-        vst1q_f32(outptrs[0] + d, vmulq_n_f32(_r0, inv_l[0]));
-        vst1q_f32(outptrs[1] + d, vmulq_n_f32(_r1, inv_l[1]));
-        vst1q_f32(outptrs[2] + d, vmulq_n_f32(_r2, inv_l[2]));
-        vst1q_f32(outptrs[3] + d, vmulq_n_f32(_r3, inv_l[3]));
+        sdpa_store4(outptrs[0] + d, vmulq_n_f32(_r0, inv_l[0]));
+        sdpa_store4(outptrs[1] + d, vmulq_n_f32(_r1, inv_l[1]));
+        sdpa_store4(outptrs[2] + d, vmulq_n_f32(_r2, inv_l[2]));
+        sdpa_store4(outptrs[3] + d, vmulq_n_f32(_r3, inv_l[3]));
     }
 #endif // __ARM_NEON
     for (; d < value_dim; d++)
     {
         for (int h = 0; h < 4; h++)
         {
-            outptrs[h][d] = outT[d * 4 + h] * inv_l[h];
+            sdpa_store1(outptrs[h] + d, outT[d * 4 + h] * inv_l[h]);
         }
     }
 }
 
+template<typename T>
 static int sdpa_decode(const Mat& query, const Mat& key, const Mat& value, const Mat& attn_mask_blob, Mat& top_blob, float scale, const Option& opt)
 {
     const int head_dim = query.w;
@@ -849,35 +882,36 @@ static int sdpa_decode(const Mat& query, const Mat& key, const Mat& value, const
             // qbuf[head_dim][4]
             for (int h = 0; h < 4; h++)
             {
-                const float* qptr = query.channel(q0 + h);
+                const T* qptr = query.channel(q0 + h);
                 for (int d = 0; d < head_dim; d++)
                 {
-                    qbuf[d * 4 + h] = qptr[d] * scale;
+                    qbuf[d * 4 + h] = sdpa_cvt(qptr[d]) * scale;
                 }
             }
 
-            const float* maskptrs[4];
-            float* outptrs[4];
+            const T* maskptrs[4];
+            T* outptrs[4];
             for (int h = 0; h < 4; h++)
             {
-                maskptrs[h] = sdpa_decode_get_mask_ptr(attn_mask_blob, q0 + h);
+                maskptrs[h] = sdpa_decode_get_mask_ptr<T>(attn_mask_blob, q0 + h);
                 outptrs[h] = top_blob.channel(q0 + h);
             }
 
-            sdpa_decode_attention_4(qbuf, key_head, value_head, maskptrs, outptrs, block_n, score, out);
+            sdpa_decode_attention_4<T>(qbuf, key_head, value_head, maskptrs, outptrs, block_n, score, out);
         }
         else
         {
             for (int qq = 0; qq < max_qq; qq++)
             {
                 const int q = q0 + qq;
-                const float* qptr = query.channel(q);
+                const T* qptr = query.channel(q);
                 for (int d = 0; d < head_dim; d++)
                 {
-                    qbuf[d] = qptr[d] * scale;
+                    qbuf[d] = sdpa_cvt(qptr[d]) * scale;
                 }
 
-                sdpa_decode_attention_1(qbuf, key_head, value_head, sdpa_decode_get_mask_ptr(attn_mask_blob, q), top_blob.channel(q), block_n, score, out);
+                T* outptr = top_blob.channel(q);
+                sdpa_decode_attention_1<T>(qbuf, key_head, value_head, sdpa_decode_get_mask_ptr<T>(attn_mask_blob, q), outptr, block_n, score, out);
             }
         }
     }
