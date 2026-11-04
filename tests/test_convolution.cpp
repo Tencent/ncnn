@@ -184,6 +184,29 @@ static int test_convolution_direct_geometry()
     return 0;
 }
 
+static int test_convolution_mish_large()
+{
+    // fused mish on large outputs, where exp(x) overflows in the gpu shader (#7191)
+    // a 1x1 identity convolution passes the inputs through to the activation
+    // compare the gpu result with the naive reference
+    const int c = 8;
+    ncnn::Mat a = RandomMat(6, 5, c, -100.f, 100.f);
+
+    ncnn::ParamDict pd;
+    pd.set(0, c);
+    pd.set(1, 1);
+    pd.set(6, c * c);
+    pd.set(9, 5);
+
+    std::vector<ncnn::Mat> weights(1);
+    weights[0] = ncnn::Mat(c * c);
+    weights[0].fill(0.f);
+    for (int i = 0; i < c; i++)
+        weights[0][i * c + i] = 1.f;
+
+    return test_layer("Convolution", pd, weights, a, 0.001, TEST_LAYER_DISABLE_CPU_TESTING);
+}
+
 static int test_convolution_hardswish_boundaries()
 {
     // outputs include values below, within and above the linear interval
@@ -888,6 +911,7 @@ int main()
            || test_convolution_fp16_generic_packing()
            || test_convolution_activation_params_text()
            || test_convolution_hardswish_boundaries()
+           || test_convolution_mish_large()
            || test_convolution_bf16_winograd_hardswish_boundaries()
            || test_convolution_scalar_activation_boundaries()
 #if NCNN_VALIDATION

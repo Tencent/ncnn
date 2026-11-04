@@ -27,10 +27,12 @@ afp activation_afp(afp v, int activation_type, float activation_param_0, float a
     }
     if (activation_type == 5)
     {
+        // clamp before exp to avoid overflow, see mish.comp
+        afp sp = log(exp(min(v, afp(10.f))) + afp(1.f));
 #if NCNN_moltenvk
-        v = v * afp(tanh(float(log(exp(v) + afp(1.f)))));
+        v = v * afp(tanh(float(sp)));
 #else
-        v = v * tanh(log(exp(v) + afp(1.f)));
+        v = v * tanh(sp);
 #endif
     }
     if (activation_type == 6)
@@ -66,10 +68,12 @@ afpvec4 activation_afpvec4(afpvec4 v, int activation_type, float activation_para
     }
     if (activation_type == 5)
     {
+        // clamp before exp to avoid overflow, see mish.comp
+        afpvec4 sp = log(exp(min(v, afpvec4(10.f))) + afp(1.f));
 #if NCNN_moltenvk
-        v = v * afpvec4(tanh(vec4(log(exp(v) + afp(1.f)))));
+        v = v * afpvec4(tanh(vec4(sp)));
 #else
-        v = v * tanh(log(exp(v) + afp(1.f)));
+        v = v * tanh(sp);
 #endif
     }
     if (activation_type == 6)

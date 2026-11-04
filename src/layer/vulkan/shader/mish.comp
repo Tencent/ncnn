@@ -21,10 +21,16 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
+    // softplus(x) = log(exp(x) + 1)
+    // exp(x) overflows above about 88 in fp32 and 11 in fp16, and some tanh implementations
+    // return nan for inf. tanh(softplus(10)) is 1 to within 1e-8, so clamp before exp,
+    // as the cpu reference does with its threshold.
+    afpvec4 sp = log(exp(min(v, afpvec4(10.f))) + afpvec4(1.f));
+
 #if NCNN_moltenvk
-    v = v * afpvec4(tanh(vec4(log(exp(v) + afpvec4(1.f)))));
+    v = v * afpvec4(tanh(vec4(sp)));
 #else
-    v = v * tanh(log(exp(v) + afpvec4(1.f)));
+    v = v * tanh(sp);
 #endif
 
     buffer_st4(bottom_top_blob_data, gi, v);
