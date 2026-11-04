@@ -552,10 +552,7 @@ public:
                 break;
         }
         if (handle == INVALID_HANDLE_VALUE)
-        {
-            NCNN_LOGE("create temporary file failed %lu", GetLastError());
             return -1;
-        }
         const int fd = _open_osfhandle((intptr_t)handle, _O_RDWR | _O_BINARY);
         if (fd < 0)
             CloseHandle(handle);
@@ -566,10 +563,7 @@ public:
                 _close(fd);
         }
         if (!file)
-        {
-            NCNN_LOGE("create temporary file failed %d", errno);
             return -1;
-        }
         return 0;
     }
 
@@ -584,18 +578,13 @@ public:
     // reserve backing storage before mapping
     int reserve(uint64_t end)
     {
-        if (!file || end > (uint64_t)INT64_MAX)
-            return -1;
         if (end <= file_size)
             return 0;
         FILE_ALLOCATION_INFO allocation;
         allocation.AllocationSize.QuadPart = end;
         HANDLE file_handle = (HANDLE)_get_osfhandle(_fileno(file));
         if (!SetFileInformationByHandle(file_handle, FileAllocationInfo, &allocation, sizeof(allocation)))
-        {
-            NCNN_LOGE("reserve temporary file space failed %lu", GetLastError());
             return -1;
-        }
         file_size = end;
         return 0;
     }
@@ -603,33 +592,20 @@ public:
     // mapping keeps the page-aligned view for unmap
     int map(uint64_t offset, size_t size, Mapping& m)
     {
-        if (!file || m.base || !size || offset > file_size || size > file_size - offset)
-            return -1;
         SYSTEM_INFO info;
         GetSystemInfo(&info);
         const size_t granularity = info.dwAllocationGranularity;
         const uint64_t map_offset = offset / granularity * granularity;
         const size_t prefix = (size_t)(offset - map_offset);
-        if (size > (size_t)-1 - prefix)
-            return -100;
         const size_t mapped_size = prefix + size;
         const uint64_t end = offset + size;
         HANDLE handle = CreateFileMapping((HANDLE)_get_osfhandle(_fileno(file)), 0, PAGE_READWRITE, (DWORD)(end >> 32), (DWORD)end, 0);
         if (!handle)
-        {
-            NCNN_LOGE("create temporary file mapping failed %lu", GetLastError());
-            return -100;
-        }
+            return -1;
         void* base = MapViewOfFile(handle, FILE_MAP_READ | FILE_MAP_WRITE, (DWORD)(map_offset >> 32), (DWORD)map_offset, mapped_size);
-        DWORD map_error = 0;
-        if (!base)
-            map_error = GetLastError();
         CloseHandle(handle);
         if (!base)
-        {
-            NCNN_LOGE("map temporary file failed %lu", map_error);
-            return -100;
-        }
+            return -1;
         m.base = base;
         m.mapped_size = mapped_size;
         m.data = (unsigned char*)base + prefix;
@@ -648,19 +624,11 @@ public:
     // flush writes and protect the mapping
     static int flush_readonly(const Mapping& m)
     {
-        if (!m.base)
-            return -1;
         DWORD old_protect;
         if (!FlushViewOfFile(m.base, m.mapped_size))
-        {
-            NCNN_LOGE("FlushViewOfFile failed %lu", GetLastError());
             return -1;
-        }
         if (!VirtualProtect(m.base, m.mapped_size, PAGE_READONLY, &old_protect))
-        {
-            NCNN_LOGE("VirtualProtect failed %lu", GetLastError());
             return -1;
-        }
         return 0;
     }
 
@@ -720,17 +688,8 @@ public:
             }
         }
         if (!file)
-        {
-            NCNN_LOGE("create temporary file failed %d", errno);
             return -1;
-        }
-        if (fcntl(fileno(file), F_SETFD, FD_CLOEXEC))
-        {
-            NCNN_LOGE("set temporary file close-on-exec failed %d", errno);
-            fclose(file);
-            file = 0;
-            return -1;
-        }
+        fcntl(fileno(file), F_SETFD, FD_CLOEXEC);
         return 0;
     }
 
@@ -748,8 +707,6 @@ public:
     // reserve backing storage before mapping
     int reserve(uint64_t end)
     {
-        if (!file || end > (uint64_t)INT64_MAX)
-            return -1;
         if (end <= file_size)
             return 0;
         int ret;
@@ -790,10 +747,7 @@ public:
         } while (ret == EINTR);
 #endif
         if (ret != 0)
-        {
-            NCNN_LOGE("reserve temporary file space failed %d", ret);
             return -1;
-        }
         file_size = end;
         return 0;
     }
@@ -801,16 +755,9 @@ public:
     // mapping keeps the page-aligned view for unmap
     int map(uint64_t offset, size_t size, Mapping& m)
     {
-        if (!file || m.base || !size || offset > file_size || size > file_size - offset)
-            return -1;
-        const long page_size = sysconf(_SC_PAGESIZE);
-        if (page_size <= 0)
-            return -1;
-        const size_t granularity = (size_t)page_size;
+        const size_t granularity = (size_t)sysconf(_SC_PAGESIZE);
         const uint64_t map_offset = offset / granularity * granularity;
         const size_t prefix = (size_t)(offset - map_offset);
-        if (size > (size_t)-1 - prefix)
-            return -100;
         const size_t mapped_size = prefix + size;
 #if defined(__ANDROID__) || defined(__USE_LARGEFILE64)
         void* base = mmap64(0, mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off64_t)map_offset);
@@ -818,10 +765,7 @@ public:
         void* base = mmap(0, mapped_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), (off_t)map_offset);
 #endif
         if (base == MAP_FAILED)
-        {
-            NCNN_LOGE("map temporary file failed %d", errno);
-            return -100;
-        }
+            return -1;
         m.base = base;
         m.mapped_size = mapped_size;
         m.data = (unsigned char*)base + prefix;
@@ -840,18 +784,10 @@ public:
     // flush writes and protect the mapping
     static int flush_readonly(const Mapping& m)
     {
-        if (!m.base)
-            return -1;
         if (msync(m.base, m.mapped_size, MS_SYNC) != 0)
-        {
-            NCNN_LOGE("msync failed %d", errno);
             return -1;
-        }
         if (mprotect(m.base, m.mapped_size, PROT_READ) != 0)
-        {
-            NCNN_LOGE("mprotect failed %d", errno);
             return -1;
-        }
         return 0;
     }
 

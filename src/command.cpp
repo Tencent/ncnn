@@ -243,7 +243,6 @@ public:
 #if NCNN_BENCHMARK
     uint32_t query_count;
     VkQueryPool query_pool;
-    bool query_results_ready;
 #endif // NCNN_BENCHMARK
 };
 
@@ -279,7 +278,6 @@ VkComputePrivate::VkComputePrivate(const VulkanDevice* _vkdev)
 #if NCNN_BENCHMARK
     query_count = 0;
     query_pool = 0;
-    query_results_ready = false;
 #endif // NCNN_BENCHMARK
 
     init();
@@ -291,16 +289,11 @@ VkComputePrivate::~VkComputePrivate()
         wait_compute_command_buffer();
     if (upload_upload_pending)
         wait_upload_command_buffer();
-    if (compute_command_buffer)
-        reset_compute_command_buffer();
-    if (upload_command_buffer)
-        reset_upload_command_buffer();
     vkDestroySemaphore(vkdev->vkdevice(), compute_compute_semaphore, 0);
     vkDestroySemaphore(vkdev->vkdevice(), upload_upload_semaphore, 0);
     vkDestroySemaphore(vkdev->vkdevice(), compute_upload_semaphore, 0);
     vkDestroySemaphore(vkdev->vkdevice(), upload_compute_semaphore, 0);
-    if (upload_command_buffer)
-        vkFreeCommandBuffers(vkdev->vkdevice(), upload_command_pool, 1, &upload_command_buffer);
+    vkFreeCommandBuffers(vkdev->vkdevice(), upload_command_pool, 1, &upload_command_buffer);
     vkDestroyCommandPool(vkdev->vkdevice(), upload_command_pool, 0);
     clear_records(true);
     weight_buffers.clear();
@@ -341,7 +334,7 @@ VkComputePrivate::~VkComputePrivate()
     if (query_pool)
     {
         // all submitted commands that refer to queryPool must have completed execution
-        reset_compute_command_buffer();
+        vkResetCommandBuffer(compute_command_buffer, 0);
 
         vkDestroyQueryPool(vkdev->vkdevice(), query_pool, 0);
     }
@@ -350,8 +343,7 @@ VkComputePrivate::~VkComputePrivate()
     vkDestroyFence(vkdev->vkdevice(), compute_command_fence, 0);
     vkDestroyFence(vkdev->vkdevice(), upload_command_fence, 0);
 
-    if (compute_command_buffer)
-        vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffer);
+    vkFreeCommandBuffers(vkdev->vkdevice(), compute_command_pool, 1, &compute_command_buffer);
     vkDestroyCommandPool(vkdev->vkdevice(), compute_command_pool, 0);
 }
 
@@ -405,7 +397,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
-            compute_command_buffer = 0;
             return -1;
         }
     }
@@ -423,7 +414,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
-            upload_command_buffer = 0;
             return -1;
         }
     }
@@ -444,7 +434,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateFence failed %d", ret);
-            compute_command_fence = 0;
             return -1;
         }
     }
@@ -460,7 +449,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateFence failed %d", ret);
-            upload_command_fence = 0;
             return -1;
         }
     }
@@ -476,7 +464,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            compute_compute_semaphore = 0;
             return -1;
         }
     }
@@ -492,7 +479,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            upload_upload_semaphore = 0;
             return -1;
         }
     }
@@ -508,7 +494,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            compute_upload_semaphore = 0;
             return -1;
         }
     }
@@ -524,7 +509,6 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            upload_compute_semaphore = 0;
             return -1;
         }
     }
@@ -679,7 +663,7 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
     // the preceding group is still pinned, so this allocation cannot overwrite it
     if (dst_staging.data != src.data)
     {
-        if (dst_staging.empty() || !dst_staging.mapped_ptr() || !src.mapped_ptr())
+        if (dst_staging.empty())
         {
             dst.release();
             return;
@@ -689,11 +673,7 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         unsigned char* ptr = (unsigned char*)dst_staging.mapped_ptr();
         memcpy(ptr, src.mapped_ptr(), size);
         memset(ptr + size, 0, alignSize(size, 4) - size);
-        if (dst_staging.allocator->flush(dst_staging.data) != 0)
-        {
-            dst.release();
-            return;
-        }
+        dst_staging.allocator->flush(dst_staging.data);
 
         // stash staging
         if (dst_staging.data != dst.data)
@@ -964,9 +944,6 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         src_fp16 = src;
     }
 
-    if (src_fp16.empty())
-        return;
-
     // vkdev->convert_packing only handles elempack=1/4
     if (src_fp16.elempack > 4)
     {
@@ -993,8 +970,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
         VkMat staging_b = dst_staging.batch(b);
         memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
-    if (dst_staging.allocator->flush(dst_staging.data))
-        return;
+    dst_staging.allocator->flush(dst_staging.data);
 
     // mark device host-write @ null
     dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
@@ -1064,13 +1040,63 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
 
     VkMat dst_staging;
     vkdev->convert_packing(src, dst_staging, dst_elempack, cast_type_to, *this, opt_staging);
-    if (dst_staging.empty())
-        return;
 
+    // barrier device any @ compute to host-read @ compute
+    if (dst_staging.data->access_flags & VK_ACCESS_HOST_WRITE_BIT || dst_staging.data->stage_flags != VK_PIPELINE_STAGE_HOST_BIT)
+    {
+        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        barriers[0].pNext = 0;
+        barriers[0].srcAccessMask = dst_staging.data->access_flags;
+        barriers[0].dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barriers[0].buffer = dst_staging.buffer();
+        barriers[0].offset = dst_staging.data->offset;
+        barriers[0].size = dst_staging.data->capacity;
+
+        VkPipelineStageFlags src_stage = dst_staging.data->stage_flags;
+        VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_HOST_BIT;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+            delete[] barriers;
+        }
+        else
+        {
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+            r.buffer_barrers.src_stage = src_stage;
+            r.buffer_barrers.dst_stage = dst_stage;
+            r.buffer_barrers.barrier_count = 1;
+            r.buffer_barrers.barriers = barriers;
+            d->delayed_records.push_back(r);
+        }
+
+        // mark device host-read @ any
+        dst_staging.data->access_flags = VK_ACCESS_HOST_READ_BIT;
+        dst_staging.data->stage_flags = VK_PIPELINE_STAGE_HOST_BIT;
+    }
+
+    // create dst
     Mat dst_fp16;
-    record_clone(dst_staging, dst_fp16, opt);
+    dst_fp16.create_like(dst_staging, opt.blob_allocator);
     if (dst_fp16.empty())
         return;
+
+    // download
+    d->download_post_buffers.push_back(dst_staging);
+    d->download_post_mats_fp16.push_back(dst_fp16);
+
+    // post memcpy device to dst
+    {
+        VkComputePrivate::record r;
+        r.type = VkComputePrivate::record::TYPE_post_download;
+        r.post_download.download_post_buffer_mat_offset = d->download_post_buffers.size() - 1;
+        r.post_download.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
+        d->delayed_records.push_back(r);
+    }
 
     // cast to fp32 (discrete gpu)
     if (dst_fp16.elemsize == dst_fp16.elempack * 2u)
@@ -1086,9 +1112,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 4)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
-
-            if (dst.empty())
-                return;
 
             d->download_post_mats.push_back(dst);
 
@@ -1110,9 +1133,6 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
             if (dims == 4)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, dst_fp16.n, opt.blob_allocator);
-
-            if (dst.empty())
-                return;
 
             d->download_post_mats.push_back(dst);
 
@@ -1151,8 +1171,7 @@ void VkCompute::record_clone(const Mat& src, VkMat& dst, const Option& opt)
         VkMat staging_b = dst_staging.batch(b);
         memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
-    if (dst_staging.allocator->flush(dst_staging.data))
-        return;
+    dst_staging.allocator->flush(dst_staging.data);
 
     // mark device host-write @ null
     dst_staging.data->access_flags = VK_ACCESS_HOST_WRITE_BIT;
@@ -1174,8 +1193,6 @@ void VkCompute::record_clone(const Mat& src, VkImageMat& dst, const Option& opt)
     Option opt_staging = opt;
     opt_staging.blob_vkallocator = opt.staging_vkallocator;
     record_clone(src, dst_staging, opt_staging);
-    if (dst_staging.empty())
-        return;
 
     // staging to image
     record_clone(dst_staging, dst, opt);
@@ -1194,8 +1211,6 @@ void VkCompute::record_clone(const VkMat& src, Mat& dst, const Option& opt)
         Option opt_staging = opt;
         opt_staging.blob_vkallocator = opt.staging_vkallocator;
         record_clone(src, src_staging, opt_staging);
-        if (src_staging.empty())
-            return;
     }
     else
     {
@@ -1268,8 +1283,6 @@ void VkCompute::record_clone(const VkImageMat& src, Mat& dst, const Option& opt)
     Option opt_staging = opt;
     opt_staging.blob_vkallocator = opt.staging_vkallocator;
     record_clone(src, src_staging, opt_staging);
-    if (src_staging.empty())
-        return;
 
     // staging to host
     record_clone(src_staging, dst, opt);
@@ -2801,9 +2814,7 @@ void VkCompute::record_write_timestamp(uint32_t query)
     if (vkdev->info.support_VK_KHR_push_descriptor())
     {
         if (d->query_pool)
-        {
             vkCmdWriteTimestamp(d->compute_command_buffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, d->query_pool, query);
-        }
     }
     else
     {
@@ -3051,8 +3062,6 @@ int VkCompute::submit_and_wait()
 {
     //     NCNN_LOGE("submit_and_wait");
 
-    if (!d->use_weight_upload_online && d->executing)
-        return -1;
     int ret = 0;
     if (d->use_weight_upload_online)
     {
@@ -3227,8 +3236,7 @@ int VkCompute::submit_and_wait()
 
             // NCNN_LOGE("post_download  %p +%d ~%d  -> %p", src.buffer(), src.buffer_offset(), src.buffer_capacity(), dst.data);
 
-            if (src.allocator->invalidate(src.data))
-                return -1;
+            src.allocator->invalidate(src.data);
             for (int b = 0; b < dst.n; b++)
             {
                 const VkMat src_b = src.batch(b);
@@ -3268,9 +3276,6 @@ int VkCompute::submit_and_wait()
         }
     }
 
-#if NCNN_BENCHMARK
-    d->query_results_ready = true;
-#endif // NCNN_BENCHMARK
     d->clear_records(true);
     d->weight_buffers.clear();
     d->weight_staging_buffers.clear();
@@ -3312,10 +3317,6 @@ int VkCompute::reset()
         d->compute_upload_pending = false;
         d->upload_compute_pending = false;
     }
-
-#if NCNN_BENCHMARK
-    d->query_results_ready = false;
-#endif // NCNN_BENCHMARK
 
     // reset command buffers before releasing upload and weight views
     if (d->reset_compute_command_buffer() != 0)
@@ -3387,7 +3388,6 @@ int VkCompute::reset()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            d->compute_compute_semaphore = 0;
             return -1;
         }
     }
@@ -3404,7 +3404,6 @@ int VkCompute::reset()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            d->upload_upload_semaphore = 0;
             return -1;
         }
     }
@@ -3421,7 +3420,6 @@ int VkCompute::reset()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            d->compute_upload_semaphore = 0;
             return -1;
         }
     }
@@ -3438,7 +3436,6 @@ int VkCompute::reset()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateSemaphore failed %d", ret);
-            d->upload_compute_semaphore = 0;
             return -1;
         }
     }
@@ -3490,8 +3487,6 @@ int VkCompute::create_query_pool(uint32_t _query_count)
 
 int VkCompute::get_query_pool_results(uint32_t first_query, uint32_t query_count, std::vector<uint64_t>& results)
 {
-    if (!d->query_results_ready || !d->query_pool || first_query > d->query_count || query_count > d->query_count - first_query)
-        return -1;
     if (results.size() < first_query + query_count)
     {
         NCNN_LOGE("results not large enough");
@@ -3512,9 +3507,6 @@ int VkCompute::get_query_pool_results(uint32_t first_query, uint32_t query_count
 
 void VkCompute::barrier_readwrite(const VkMat& binding)
 {
-    if (is_deferred_buffer(binding.data))
-        return;
-
     if (binding.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || binding.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
     {
         // barrier device any @ compute/null to shader-readwrite @ compute
@@ -3910,9 +3902,6 @@ VkTransfer::~VkTransfer()
 
 void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bool flatten)
 {
-    if (src.empty())
-        return;
-
     //     NCNN_LOGE("record_upload src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
     // NOTE keep the hack here ?
@@ -3938,16 +3927,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         }
     }
 
-    const size_t flattened_size = (size_t)src.w * src.h * src.d * src.c;
-    if (flatten && flattened_size > 2147483647)
-    {
-        NCNN_LOGE("weight exceeds maximum flattened dimension");
-        return;
-    }
-    Mat src_flattened = flatten ? src.reshape((int)flattened_size) : src;
-
-    if (src_flattened.empty())
-        return;
+    Mat src_flattened = flatten ? src.reshape(src.w * src.h * src.d * src.c) : src;
 
     // create dst
     dst.create_like(src_flattened, opt.blob_vkallocator);
@@ -3955,14 +3935,9 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     if (dst.empty())
         return;
 
-    if (dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
+    if (dst.data->storage_type == 3 && !(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT))
     {
-        NCNN_LOGE("weight upload exceeds destination capacity");
-        return;
-    }
-    if (dst.data->storage_type == 3 && (!(dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT) || !dst.mapped_ptr()))
-    {
-        NCNN_LOGE("disk weight requires a writable source range during upload");
+        NCNN_LOGE("disk weight is read-only after finalize_weights");
         return;
     }
     if (dst.mapped_ptr())
@@ -3979,9 +3954,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         if (dst.data->storage_type == 3)
             return;
 
-        int ret = dst.allocator->flush(dst.data);
-        if (ret != 0)
-            return;
+        dst.allocator->flush(dst.data);
         if (dst.data->storage_type == 0)
         {
             // barrier device host-write @ null to shader-read @ compute
@@ -4011,14 +3984,9 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     }
 
     // create staging
-    if (opt.staging_vkallocator->vkdev != vkdev)
-    {
-        NCNN_LOGE("weight staging allocator uses a different Vulkan device");
-        return;
-    }
     VkMat dst_staging;
     dst_staging.create_like(src_flattened, opt.staging_vkallocator);
-    if (dst_staging.empty() || !dst_staging.mapped_ptr())
+    if (dst_staging.empty())
         return;
 
     // memcpy src_flattened to staging
@@ -4028,8 +3996,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         VkMat staging_b = dst_staging.batch(b);
         memcpy(staging_b.mapped_ptr(), src_b.data, src_b.total() * src_b.elemsize);
     }
-    if (dst_staging.allocator->flush(dst_staging.data))
-        return;
+    dst_staging.allocator->flush(dst_staging.data);
 
     VkCommandBuffer command_buffer;
     if (vkdev->info.unified_compute_transfer_queue())
@@ -4144,9 +4111,6 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
 
 int VkTransfer::submit_and_wait()
 {
-    if (d->pending_upload_total == 0)
-        return 0;
-
     //     NCNN_LOGE("submit_and_wait");
 
     // end command buffer

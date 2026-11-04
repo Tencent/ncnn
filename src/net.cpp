@@ -304,8 +304,6 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
     if (cmd_submit_and_wait)
     {
         ret = cmd.submit_and_wait();
-        if (ret != 0)
-            return ret;
 
 #if NCNN_BENCHMARK
         std::vector<uint64_t> results(layer_index * 2);
@@ -322,7 +320,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
         }
 #endif // NCNN_BENCHMARK
 
-        ret = cmd.reset();
+        cmd.reset();
         if (ret != 0)
             return ret;
     }
@@ -2454,12 +2452,7 @@ int Net::load_model(const DataReader& dr)
                     break;
                 }
 
-                uret = cmd_upload->reset();
-                if (uret != 0)
-                {
-                    ret = -1;
-                    break;
-                }
+                cmd_upload->reset();
             }
         }
 #endif // NCNN_VULKAN

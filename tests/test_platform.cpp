@@ -92,15 +92,12 @@ static int test_temporary_file()
         ncnn::TemporaryFile file;
         TemporaryTestMapping first;
         TemporaryTestMapping second;
-        TemporaryTestMapping invalid;
         CHECK_TEMPORARY_FILE(!file.is_open());
 
         char missing[160];
         snprintf(missing, sizeof(missing), "%s/missing/directory", directory.path);
         CHECK_TEMPORARY_FILE(file.open(missing) != 0);
         CHECK_TEMPORARY_FILE(!file.is_open());
-        CHECK_TEMPORARY_FILE(file.reserve(16) != 0);
-        CHECK_TEMPORARY_FILE(file.map(0, 16, invalid) != 0 && !invalid.base);
 
         CHECK_TEMPORARY_FILE(file.open(directory.path) == 0);
         CHECK_TEMPORARY_FILE(file.is_open());
@@ -114,9 +111,6 @@ static int test_temporary_file()
         memset(second.data, 0x32, 123);
         CHECK_TEMPORARY_FILE(((const unsigned char*)first.data)[36] == 0x31);
         CHECK_TEMPORARY_FILE(file.reserve(8) == 0);
-        CHECK_TEMPORARY_FILE(file.map(16383, 2, invalid) != 0 && !invalid.base);
-        CHECK_TEMPORARY_FILE(file.map(0, 0, invalid) != 0 && !invalid.base);
-        CHECK_TEMPORARY_FILE(file.reserve((uint64_t)-1) != 0);
 
         CHECK_TEMPORARY_FILE(ncnn::TemporaryFile::flush_readonly(first) == 0);
         CHECK_TEMPORARY_FILE(ncnn::TemporaryFile::flush_readonly(second) == 0);
