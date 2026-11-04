@@ -44,12 +44,46 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
+        // Independent chains hide FMA latency without mixing packed lanes.
+        __m512 _rms1 = _mm512_setzero_ps();
+        __m512 _rms2 = _mm512_setzero_ps();
+        __m512 _rms3 = _mm512_setzero_ps();
+        for (; i + 63 < size; i += 64)
+        {
+            __m512 _p0 = _mm512_loadu_ps(ptr0);
+            __m512 _p1 = _mm512_loadu_ps(ptr0 + 16);
+            __m512 _p2 = _mm512_loadu_ps(ptr0 + 32);
+            __m512 _p3 = _mm512_loadu_ps(ptr0 + 48);
+            _rms_avx512 = _mm512_fmadd_ps(_p0, _p0, _rms_avx512);
+            _rms1 = _mm512_fmadd_ps(_p1, _p1, _rms1);
+            _rms2 = _mm512_fmadd_ps(_p2, _p2, _rms2);
+            _rms3 = _mm512_fmadd_ps(_p3, _p3, _rms3);
+            ptr0 += 64;
+        }
+        _rms_avx512 = _mm512_add_ps(_mm512_add_ps(_rms_avx512, _rms1), _mm512_add_ps(_rms2, _rms3));
         for (; i + 15 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr0);
             _rms_avx512 = _mm512_fmadd_ps(_p, _p, _rms_avx512);
             ptr0 += 16;
         }
+#else  // __AVX512F__
+        __m256 _rms1 = _mm256_setzero_ps();
+        __m256 _rms2 = _mm256_setzero_ps();
+        __m256 _rms3 = _mm256_setzero_ps();
+        for (; i + 31 < size; i += 32)
+        {
+            __m256 _p0 = _mm256_loadu_ps(ptr0);
+            __m256 _p1 = _mm256_loadu_ps(ptr0 + 8);
+            __m256 _p2 = _mm256_loadu_ps(ptr0 + 16);
+            __m256 _p3 = _mm256_loadu_ps(ptr0 + 24);
+            _rms_avx = _mm256_comp_fmadd_ps(_p0, _p0, _rms_avx);
+            _rms1 = _mm256_comp_fmadd_ps(_p1, _p1, _rms1);
+            _rms2 = _mm256_comp_fmadd_ps(_p2, _p2, _rms2);
+            _rms3 = _mm256_comp_fmadd_ps(_p3, _p3, _rms3);
+            ptr0 += 32;
+        }
+        _rms_avx = _mm256_add_ps(_mm256_add_ps(_rms_avx, _rms1), _mm256_add_ps(_rms2, _rms3));
 #endif // __AVX512F__
         for (; i + 7 < size; i += 8)
         {
@@ -57,6 +91,23 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
             _rms_avx = _mm256_comp_fmadd_ps(_p, _p, _rms_avx);
             ptr0 += 8;
         }
+#else  // __AVX__
+        __m128 _rms1 = _mm_setzero_ps();
+        __m128 _rms2 = _mm_setzero_ps();
+        __m128 _rms3 = _mm_setzero_ps();
+        for (; i + 15 < size; i += 16)
+        {
+            __m128 _p0 = _mm_loadu_ps(ptr0);
+            __m128 _p1 = _mm_loadu_ps(ptr0 + 4);
+            __m128 _p2 = _mm_loadu_ps(ptr0 + 8);
+            __m128 _p3 = _mm_loadu_ps(ptr0 + 12);
+            _rms = _mm_comp_fmadd_ps(_p0, _p0, _rms);
+            _rms1 = _mm_comp_fmadd_ps(_p1, _p1, _rms1);
+            _rms2 = _mm_comp_fmadd_ps(_p2, _p2, _rms2);
+            _rms3 = _mm_comp_fmadd_ps(_p3, _p3, _rms3);
+            ptr0 += 16;
+        }
+        _rms = _mm_add_ps(_mm_add_ps(_rms, _rms1), _mm_add_ps(_rms2, _rms3));
 #endif // __AVX__
         for (; i + 3 < size; i += 4)
         {
@@ -64,6 +115,15 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
             _rms = _mm_comp_fmadd_ps(_p, _p, _rms);
             ptr0 += 4;
         }
+#else  // __SSE2__
+        float rms1 = 0.f;
+        for (; i + 1 < size; i += 2)
+        {
+            rms += ptr0[0] * ptr0[0];
+            rms1 += ptr0[1] * ptr0[1];
+            ptr0 += 2;
+        }
+        rms += rms1;
 #endif // __SSE2__
         for (; i < size; i++)
         {

@@ -3465,7 +3465,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
         if (feat.empty())
             return -100;
 
-        if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+        if (d->opt.use_local_pool_allocator && d->net->d->local_blob_allocator && feat.allocator == d->net->d->local_blob_allocator)
         {
             // detach the returned mat from local pool allocator
             // so we could destroy net instance much earlier
