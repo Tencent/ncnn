@@ -492,16 +492,6 @@ static int test_weight_storage_automatic_workspace()
 }
 
 #if NCNN_BENCHMARK
-static bool weight_storage_has_timestamps(const ncnn::VulkanDevice* vkdev)
-{
-    uint32_t count = 0;
-    ncnn::vkGetPhysicalDeviceQueueFamilyProperties(vkdev->info.physical_device(), &count, 0);
-    std::vector<VkQueueFamilyProperties> properties(count);
-    ncnn::vkGetPhysicalDeviceQueueFamilyProperties(vkdev->info.physical_device(), &count, properties.data());
-    const uint32_t family = vkdev->info.compute_queue_family_index();
-    return family < count && properties[family].timestampValidBits != 0;
-}
-
 static int check_weight_storage_timestamps(ncnn::VkCompute& cmd)
 {
     std::vector<uint64_t> timestamps(2, (uint64_t)-1);
@@ -556,7 +546,7 @@ static int test_weight_storage_mixed_recording()
     ncnn::VkCompute cmd(vkdev);
     cmd.set_use_weight_upload_online(true);
 #if NCNN_BENCHMARK
-    const bool timestamps = weight_storage_has_timestamps(vkdev);
+    const bool timestamps = vkdev->info.physicalDeviceProperties().limits.timestampComputeAndGraphics;
     if (timestamps && cmd.create_query_pool(2))
         return -1;
 #endif
@@ -1208,6 +1198,14 @@ static int test_weight_storage_workspace_upload()
     {
         const WeightStorageUploadProbe::Barrier& entry = probe.barriers[i];
         const VkBufferMemoryBarrier& barrier = entry.buffer_barrier;
+        if (vkdev->info.unified_compute_transfer_queue() && barrier.buffer == first.target
+            && ((entry.src_stage == VK_PIPELINE_STAGE_TRANSFER_BIT && entry.dst_stage == VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT)
+                || (entry.src_stage == VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+                    && entry.dst_stage == (VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT))))
+        {
+            fprintf(stderr, "same-family temporary weight upload has redundant ownership barriers\n");
+            return -1;
+        }
         if (barrier.buffer != first.target || barrier.srcQueueFamilyIndex == barrier.dstQueueFamilyIndex)
             continue;
         if (barrier.srcQueueFamilyIndex != vkdev->info.transfer_queue_family_index()
@@ -1232,6 +1230,53 @@ static int test_weight_storage_workspace_upload()
         fprintf(stderr, "temporary weight requires exclusive sharing and matching upload release / compute acquire\n");
         return -1;
     }
+#endif
+    return 0;
+}
+
+static int test_weight_storage_upload_subview(bool force_staging)
+{
+#if NCNN_BATCH
+    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkWeightAllocator mapped_weights(vkdev);
+    UnmappedWeightAllocator unmapped_weights(vkdev);
+    ncnn::VkAllocator* weights = force_staging ? &unmapped_weights : &mapped_weights;
+    ncnn::VkStagingAllocator staging(vkdev);
+    ncnn::Option opt = weight_storage_option();
+    opt.blob_vkallocator = weights;
+    opt.staging_vkallocator = &staging;
+
+    const int width = std::max(16, (int)(vkdev->info.buffer_offset_alignment() / sizeof(float)));
+    ncnn::VkMat padding(width, (size_t)4u, weights);
+    ncnn::Mat input = RandomMat(width * 3);
+    ncnn::Mat replacement = RandomMat(width);
+    ncnn::Mat expected = input.clone();
+    memcpy((float*)expected + width, replacement.data, width * sizeof(float));
+
+    ncnn::VkMat backing;
+    ncnn::VkTransfer upload(vkdev);
+    upload.record_upload(input, backing, opt);
+    if (backing.empty() || upload.submit_and_wait() || upload.reset())
+        return -1;
+
+    // Reuse a nonzero-offset destination and preserve both neighboring ranges.
+    ncnn::VkMat view(width, backing.data, (size_t)4u, weights);
+    view.offset = width * sizeof(float);
+    upload.record_upload(replacement, view, opt);
+    if (view.data != backing.data || view.offset != width * sizeof(float)
+        || upload.submit_and_wait())
+        return -1;
+
+    ncnn::VkCompute download(vkdev);
+    ncnn::Mat output;
+    download.record_clone(backing, output, opt);
+    if (download.submit_and_wait() || CompareMat(expected, output, 0.f))
+    {
+        fprintf(stderr, "test_weight_storage_upload_subview failed staging=%d\n", force_staging);
+        return -1;
+    }
+#else
+    (void)force_staging;
 #endif
     return 0;
 }
@@ -1451,6 +1496,8 @@ int main()
                     || test_weight_storage_upload_mode()
                     || test_weight_storage_workspace_upload()
                     || test_weight_storage_upload_recording()
+                    || test_weight_storage_upload_subview(false)
+                    || test_weight_storage_upload_subview(true)
                     || test_weight_storage_upload_allocator_switch()
                     || test_weight_storage_upload_staging(false)
                     || test_weight_storage_upload_staging(true)

@@ -18,10 +18,12 @@ static bool is_deferred_buffer(const VkBufferMemory* memory)
 class VkComputeWeightAllocator : public VkBlobAllocator
 {
 public:
-    explicit VkComputeWeightAllocator(const VulkanDevice* vkdev)
-        : VkBlobAllocator(vkdev)
+    explicit VkComputeWeightAllocator(const VulkanDevice* _vkdev)
+        : VkBlobAllocator(_vkdev)
     {
     }
+
+    using VkBlobAllocator::fastMalloc;
 
     virtual VkBufferMemory* fastMalloc(size_t size)
     {
@@ -743,6 +745,7 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         }
 
         // release uploaded weights from transfer to compute
+        if (!vkdev->info.unified_compute_transfer_queue())
         {
             VkBufferMemoryBarrier barrier;
             barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -759,7 +762,9 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         }
     }
 
-    // acquire uploaded weights for shader-read and transfer-read
+    // same-family GPU uploads are synchronized by the upload semaphore
+    // mapped writes and queue-family transfers still need a buffer barrier
+    if (dst.allocator->mappable || !vkdev->info.unified_compute_transfer_queue())
     {
         VkBufferMemoryBarrier barrier;
         barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -785,11 +790,11 @@ void VkComputePrivate::record_resolve(const VkMat& src, VkMat& dst)
         r.buffer_barrers.barrier_count = 1;
         r.buffer_barrers.barriers = barriers;
         delayed_records.push_back(r);
-
-        // mark resolved weight shader-readonly @ compute
-        dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
-        dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     }
+
+    // mark resolved weight shader-readonly @ compute
+    dst.data->access_flags = VK_ACCESS_SHADER_READ_BIT;
+    dst.data->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 }
 
 void VkComputePrivate::flush_records()
@@ -3944,7 +3949,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         return;
 
     const size_t size = src_flattened.total() * src_flattened.elemsize;
-    if (size > dst.buffer_capacity() || dst.buffer_capacity() > dst.data->capacity)
+    if (size > dst.buffer_capacity() || dst.offset > dst.data->capacity || dst.buffer_capacity() > dst.data->capacity - dst.offset)
     {
         NCNN_LOGE("weight upload exceeds destination capacity");
         return;
@@ -3981,8 +3986,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
                 barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
                 barrier.buffer = dst.buffer();
-                barrier.offset = dst.data->offset;
-                barrier.size = dst.data->capacity;
+                barrier.offset = dst.buffer_offset();
+                barrier.size = dst.buffer_capacity();
 
                 VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_HOST_BIT;
                 VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
@@ -4034,7 +4039,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.buffer = dst_staging.buffer();
-        barrier.offset = dst_staging.data->offset;
+        barrier.offset = dst_staging.buffer_offset();
         barrier.size = dst.buffer_capacity();
 
         VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_HOST_BIT;
@@ -4046,8 +4051,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     // record staging to device
     {
         VkBufferCopy region;
-        region.srcOffset = dst_staging.data->offset;
-        region.dstOffset = dst.data->offset;
+        region.srcOffset = dst_staging.buffer_offset();
+        region.dstOffset = dst.buffer_offset();
         region.size = dst.buffer_capacity();
 
         vkCmdCopyBuffer(command_buffer, dst_staging.buffer(), dst.buffer(), 1, &region);
@@ -4065,7 +4070,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
             barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             barrier.buffer = dst.buffer();
-            barrier.offset = dst.data->offset;
+            barrier.offset = dst.buffer_offset();
             barrier.size = dst.buffer_capacity();
 
             VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -4088,7 +4093,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
             barrier.srcQueueFamilyIndex = vkdev->info.transfer_queue_family_index();
             barrier.dstQueueFamilyIndex = vkdev->info.compute_queue_family_index();
             barrier.buffer = dst.buffer();
-            barrier.offset = dst.data->offset;
+            barrier.offset = dst.buffer_offset();
             barrier.size = dst.buffer_capacity();
 
             VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -4107,7 +4112,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
             barrier.srcQueueFamilyIndex = vkdev->info.transfer_queue_family_index();
             barrier.dstQueueFamilyIndex = vkdev->info.compute_queue_family_index();
             barrier.buffer = dst.buffer();
-            barrier.offset = dst.data->offset;
+            barrier.offset = dst.buffer_offset();
             barrier.size = dst.buffer_capacity();
 
             VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;

@@ -192,6 +192,9 @@ Temporary weight uploads reuse the existing device transfer-family selector,
 which prefers a transfer-only family and otherwise selects a transfer-capable
 family. The selected family may be the same as the compute family.
 Temporary weight backing buffers use the ordinary EXCLUSIVE blob allocator.
+When the two families are the same, GPU copies rely on the upload semaphore
+without release/acquire buffer barriers. Direct mapped writes retain their
+host-write barrier.
 When the two families differ, each upload releases the complete
 weight range to the compute family, and its consumer acquires the same range
 after waiting for the upload semaphore. A range's older compute consumer has

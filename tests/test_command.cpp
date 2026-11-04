@@ -24,6 +24,7 @@ static int test_command_upload_download(const ncnn::Mat& a, bool online)
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
+    int ret;
     ncnn::Mat c;
     {
         ncnn::VkCompute cmd(vkdev);
@@ -33,12 +34,14 @@ static int test_command_upload_download(const ncnn::Mat& a, bool online)
         cmd.record_upload(a, b, opt);
         cmd.record_download(b, c, opt);
 
-        if (cmd.submit_and_wait())
-            return -1;
+        ret = cmd.submit_and_wait();
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
     vkdev->reclaim_staging_allocator(staging_allocator);
+
+    if (ret != 0)
+        return -1;
 
     if (CompareMat(a, c, 0.001) != 0)
     {
@@ -69,6 +72,7 @@ static int test_command_clone(const ncnn::Mat& a, bool online)
 
     const bool support_image_storage = vkdev->info.support_image_storage();
 
+    int ret;
     ncnn::Mat d;
     ncnn::Mat e;
     {
@@ -98,12 +102,14 @@ static int test_command_clone(const ncnn::Mat& a, bool online)
             cmd.record_clone(b2, d, opt);
         }
 
-        if (cmd.submit_and_wait())
-            return -1;
+        ret = cmd.submit_and_wait();
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
     vkdev->reclaim_staging_allocator(staging_allocator);
+
+    if (ret != 0)
+        return -1;
 
     if (CompareMat(a, d, 0.001) != 0)
     {
@@ -138,6 +144,7 @@ static int test_command_transfer(const ncnn::Mat& a, bool online)
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
+    int ret;
     ncnn::Mat c;
     {
         ncnn::VkTransfer cmd1(vkdev);
@@ -145,19 +152,24 @@ static int test_command_transfer(const ncnn::Mat& a, bool online)
         ncnn::VkMat b;
         cmd1.record_upload(a, b, opt, false);
 
-        cmd1.submit_and_wait();
+        ret = cmd1.submit_and_wait();
 
-        ncnn::VkCompute cmd2(vkdev);
-        cmd2.set_use_weight_upload_online(online);
+        if (ret == 0)
+        {
+            ncnn::VkCompute cmd2(vkdev);
+            cmd2.set_use_weight_upload_online(online);
 
-        cmd2.record_download(b, c, opt);
+            cmd2.record_download(b, c, opt);
 
-        if (cmd2.submit_and_wait())
-            return -1;
+            ret = cmd2.submit_and_wait();
+        }
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
     vkdev->reclaim_staging_allocator(staging_allocator);
+
+    if (ret != 0)
+        return -1;
 
     if (CompareMat(a, c, 0.001) != 0)
     {
