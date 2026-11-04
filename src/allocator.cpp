@@ -1253,7 +1253,7 @@ static bool unified_weight_memory(const VulkanDevice* vkdev)
     return vkdev->info.type() == 1 || vkdev->info.type() == 3;
 }
 
-static size_t weight_buffer_size_limit(const VulkanDevice* vkdev, bool host = false)
+static size_t weight_buffer_size_limit(const VulkanDevice* vkdev, bool host)
 {
     VkDeviceSize limit = (size_t)-1;
     if (vkdev->info.max_buffer_size())
@@ -1449,7 +1449,7 @@ int WeightFile::finalize()
     return 0;
 }
 
-// The allocator owns backing blocks; VkMat references own only their views.
+// allocator owns backing blocks, VkMat owns views
 struct VkWeightBufferMemory : public VkBufferMemory
 {
     VkWeightBufferMemory()
@@ -1462,18 +1462,6 @@ struct VkWeightBufferMemory : public VkBufferMemory
 class VkWeightAllocatorPrivate
 {
 public:
-    explicit VkWeightAllocatorPrivate(const VulkanDevice* device)
-        : vkdev(device), use_weights_in_disk(false), finalized(false)
-    {
-        memory_limits[0] = memory_limits[1] = 0;
-        allocated_sizes[0] = allocated_sizes[1] = 0;
-        resident_free[0] = resident_free[1] = 0;
-        cpu_memory_free = 0;
-    }
-
-    int allocate_cpu_memory(size_t size, size_t memory_limit, VkBufferMemory*& ptr);
-    int allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr);
-
     size_t block_size;
     size_t buffer_offset_alignment;
     size_t bind_memory_offset_alignment;
@@ -1485,7 +1473,6 @@ public:
     std::vector<VkDeviceMemory> dedicated_image_memory_blocks;
 
     bool prefer_host_memory;
-    const VulkanDevice* vkdev;
     bool use_weights_in_disk;
     WeightFile file;
     std::vector<VkBufferMemory*> file_weights;
@@ -1502,7 +1489,7 @@ public:
 };
 
 VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_host_memory, size_t preferred_block_size)
-    : VkAllocator(_vkdev), d(new VkWeightAllocatorPrivate(_vkdev))
+    : VkAllocator(_vkdev), d(new VkWeightAllocatorPrivate)
 {
     d->buffer_offset_alignment = vkdev->info.buffer_offset_alignment();
     d->bind_memory_offset_alignment = vkdev->info.buffer_image_granularity();
@@ -1532,6 +1519,12 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_ho
     d->block_size = alignSize(preferred_block_size, d->buffer_offset_alignment);
 
     d->prefer_host_memory = _prefer_host_memory;
+    d->use_weights_in_disk = false;
+    d->finalized = false;
+    d->memory_limits[0] = d->memory_limits[1] = 0;
+    d->allocated_sizes[0] = d->allocated_sizes[1] = 0;
+    d->resident_free[0] = d->resident_free[1] = 0;
+    d->cpu_memory_free = 0;
 }
 
 VkWeightAllocator::~VkWeightAllocator()
@@ -1728,28 +1721,28 @@ void VkWeightAllocator::get_weight_memory_usage(uint64_t& device_bytes, uint64_t
     host_bytes = d->allocated_sizes[1];
 }
 
-int VkWeightAllocatorPrivate::allocate_cpu_memory(size_t size, size_t memory_limit, VkBufferMemory*& ptr)
+int VkWeightAllocator::allocate_cpu_memory(size_t size, size_t memory_limit, VkBufferMemory*& ptr)
 {
     ptr = 0;
 
-    if (size > (size_t)-1 - buffer_offset_alignment)
+    if (size > (size_t)-1 - d->buffer_offset_alignment)
         return -100;
-    const size_t aligned_size = alignSize(size, buffer_offset_alignment);
+    const size_t aligned_size = alignSize(size, d->buffer_offset_alignment);
 
-    if (aligned_size > cpu_memory_free)
+    if (aligned_size > d->cpu_memory_free)
     {
-        size_t capacity = std::max(aligned_size, block_size);
+        size_t capacity = std::max(aligned_size, d->block_size);
         if (memory_limit)
         {
-            if (allocated_sizes[1] >= memory_limit)
+            if (d->allocated_sizes[1] >= memory_limit)
                 return 0;
-            const size_t available = memory_limit - (size_t)allocated_sizes[1];
-            capacity = std::min(capacity, available / buffer_offset_alignment * buffer_offset_alignment);
+            const size_t available = memory_limit - (size_t)d->allocated_sizes[1];
+            capacity = std::min(capacity, available / d->buffer_offset_alignment * d->buffer_offset_alignment);
             if (capacity < aligned_size)
                 return 0;
         }
 
-        void* cpu_ptr = fastMalloc_with_alignment(capacity, std::max(buffer_offset_alignment, sizeof(void*)));
+        void* cpu_ptr = fastMalloc_with_alignment(capacity, std::max(d->buffer_offset_alignment, sizeof(void*)));
         if (!cpu_ptr)
         {
             NCNN_LOGE("allocate cpu weight memory failed %zu", capacity);
@@ -1768,51 +1761,51 @@ int VkWeightAllocatorPrivate::allocate_cpu_memory(size_t size, size_t memory_lim
         block->refcount = 0;
         block->storage_type = 2;
 
-        cpu_memory_blocks.push_back(block);
-        cpu_memory_free = capacity;
-        allocated_sizes[1] += capacity;
+        d->cpu_memory_blocks.push_back(block);
+        d->cpu_memory_free = capacity;
+        d->allocated_sizes[1] += capacity;
     }
 
     // return sub buffer
-    const VkBufferMemory* block = cpu_memory_blocks.back();
+    const VkBufferMemory* block = d->cpu_memory_blocks.back();
     ptr = new VkWeightBufferMemory;
     *ptr = *block;
-    ptr->offset = block->capacity - cpu_memory_free;
+    ptr->offset = block->capacity - d->cpu_memory_free;
     ptr->capacity = aligned_size;
 
-    cpu_memory_free -= aligned_size;
+    d->cpu_memory_free -= aligned_size;
 
     return 0;
 }
 
-int VkWeightAllocatorPrivate::allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr)
+int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr)
 {
     ptr = 0;
     const size_t alignment = weight_buffer_alignment(vkdev);
     if (size > (size_t)-1 - alignment)
         return 0;
     const size_t aligned_size = alignSize(size, alignment);
-    size_t& free_size = resident_free[storage_type];
-    std::vector<VkBufferMemory*>& blocks = resident_blocks[storage_type];
+    size_t& free_size = d->resident_free[storage_type];
+    std::vector<VkBufferMemory*>& blocks = d->resident_blocks[storage_type];
     if (aligned_size > free_size)
     {
         const bool unified = unified_weight_memory(vkdev);
         const bool allow_cpu_memory = storage_type == 1 || unified;
-        const size_t host_limit = unified ? memory_limits[0] - (size_t)allocated_sizes[0] : memory_limits[1];
-        if (allow_cpu_memory && !cpu_memory_blocks.empty())
+        const size_t host_limit = unified ? d->memory_limits[0] - (size_t)d->allocated_sizes[0] : d->memory_limits[1];
+        if (allow_cpu_memory && !d->cpu_memory_blocks.empty())
         {
             if (host_limit == 0)
                 return 0;
 
             return allocate_cpu_memory(size, host_limit, ptr);
         }
-        const uint64_t used = unified ? allocated_sizes[0] + allocated_sizes[1] : allocated_sizes[storage_type];
-        if (used >= memory_limits[storage_type])
+        const uint64_t used = unified ? d->allocated_sizes[0] + d->allocated_sizes[1] : d->allocated_sizes[storage_type];
+        if (used >= d->memory_limits[storage_type])
             return 0;
-        const size_t available = memory_limits[storage_type] - (size_t)used;
+        const size_t available = d->memory_limits[storage_type] - (size_t)used;
         if (aligned_size > available)
             return 0;
-        size_t capacity = std::min(available, std::max(aligned_size, block_size));
+        size_t capacity = std::min(available, std::max(aligned_size, d->block_size));
         int ret = fit_weight_buffer_size(vkdev, available, storage_type == 1, capacity);
         if (ret != 0 || capacity < aligned_size)
         {
@@ -1965,7 +1958,7 @@ int VkWeightAllocatorPrivate::allocate_resident(size_t size, int storage_type, V
             block->mapped_ptr = mapped_ptr;
         }
 
-        allocated_sizes[storage_type] += (size_t)requirements.size;
+        d->allocated_sizes[storage_type] += (size_t)requirements.size;
         blocks.push_back(block);
         free_size = block->capacity;
     }
@@ -2008,13 +2001,13 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     }
     if (d->use_weights_in_disk && d->memory_limits[0])
     {
-        // Fill device, host and disk in loading order without relocating the model.
+        // fill device, host and disk in loading order
         for (int type = 0; type < 2; type++)
         {
             if (!d->memory_limits[type])
                 continue;
             VkBufferMemory* memory = 0;
-            int ret = d->allocate_resident(size, type, memory);
+            int ret = allocate_resident(size, type, memory);
             if (ret != 0)
                 return 0;
             if (memory)
@@ -2094,7 +2087,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     if (!d->cpu_memory_blocks.empty())
     {
         VkBufferMemory* ptr = 0;
-        d->allocate_cpu_memory(size, 0, ptr);
+        allocate_cpu_memory(size, 0, ptr);
         return ptr;
     }
 
@@ -2122,7 +2115,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             return 0;
 
         VkBufferMemory* ptr = 0;
-        d->allocate_cpu_memory(size, 0, ptr);
+        allocate_cpu_memory(size, 0, ptr);
         return ptr;
     }
     block->offset = 0;
@@ -2257,7 +2250,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                     delete block;
 
                     VkBufferMemory* ptr = 0;
-                    d->allocate_cpu_memory(size, 0, ptr);
+                    allocate_cpu_memory(size, 0, ptr);
                     return ptr;
                 }
 
@@ -2350,7 +2343,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             return 0;
 
         VkBufferMemory* ptr = 0;
-        d->allocate_cpu_memory(size, 0, ptr);
+        allocate_cpu_memory(size, 0, ptr);
         return ptr;
     }
 
@@ -2372,7 +2365,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 return 0;
 
             VkBufferMemory* ptr = 0;
-            d->allocate_cpu_memory(size, 0, ptr);
+            allocate_cpu_memory(size, 0, ptr);
             return ptr;
         }
     }
@@ -2398,7 +2391,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                 return 0;
 
             VkBufferMemory* ptr = 0;
-            d->allocate_cpu_memory(size, 0, ptr);
+            allocate_cpu_memory(size, 0, ptr);
             return ptr;
         }
     }

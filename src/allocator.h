@@ -377,6 +377,10 @@ public:
     virtual int invalidate(VkBufferMemory* ptr);
 
 private:
+    int allocate_cpu_memory(size_t size, size_t memory_limit, VkBufferMemory*& ptr);
+    int allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr);
+
+private:
     VkWeightAllocator(const VkWeightAllocator&);
     VkWeightAllocator& operator=(const VkWeightAllocator&);
 

@@ -54,7 +54,7 @@ public:
     void record_resolve(const VkMat& src, VkMat& dst);
 
     void flush_records();
-    void clear_records(bool all = true);
+    void clear_records(bool all);
 
     const VulkanDevice* vkdev;
 
@@ -302,7 +302,7 @@ VkComputePrivate::~VkComputePrivate()
     if (upload_command_buffer)
         vkFreeCommandBuffers(vkdev->vkdevice(), upload_command_pool, 1, &upload_command_buffer);
     vkDestroyCommandPool(vkdev->vkdevice(), upload_command_pool, 0);
-    clear_records();
+    clear_records(true);
     weight_buffers.clear();
     weight_staging_buffers.clear();
     delete local_weight_vkallocator;
@@ -388,7 +388,7 @@ int VkComputePrivate::init()
         if (ret != VK_SUCCESS)
         {
             NCNN_LOGE("vkCreateCommandPool failed %d", ret);
-            return ret;
+            return -1;
         }
     }
 
@@ -544,7 +544,7 @@ int VkComputePrivate::begin_compute_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
-        return ret;
+        return -1;
     }
 
     return 0;
@@ -559,7 +559,7 @@ int VkComputePrivate::end_compute_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
-        return ret;
+        return -1;
     }
 
     return 0;
@@ -571,7 +571,7 @@ int VkComputePrivate::reset_compute_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
-        return ret;
+        return -1;
     }
 
     return 0;
@@ -583,7 +583,7 @@ int VkComputePrivate::wait_compute_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkWaitForFences failed %d", ret);
-        return ret;
+        return -1;
     }
     return 0;
 }
@@ -600,7 +600,7 @@ int VkComputePrivate::begin_upload_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
-        return ret;
+        return -1;
     }
 
     return 0;
@@ -612,7 +612,7 @@ int VkComputePrivate::end_upload_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkEndCommandBuffer failed %d", ret);
-        return ret;
+        return -1;
     }
 
     return 0;
@@ -624,7 +624,7 @@ int VkComputePrivate::reset_upload_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
-        return ret;
+        return -1;
     }
 
     return 0;
@@ -636,7 +636,7 @@ int VkComputePrivate::wait_upload_command_buffer()
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkWaitForFences failed %d", ret);
-        return ret;
+        return -1;
     }
     return 0;
 }
@@ -2491,8 +2491,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         {
             const VkMat& binding = buffer_bindings[buffer_index];
             buffer_index++;
-            // Empty descriptors use device-owned placeholders below. They are
-            // not accessed by this dispatch and have no mutable command state.
+            // empty bindings use device-owned descriptors without mutable command state
             if (binding.empty())
                 continue;
 
@@ -2893,14 +2892,16 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
     }
     else
     {
-        VkComputePrivate::record r;
-        r.type = VkComputePrivate::record::TYPE_bind_pipeline;
-        r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
-        r.bind_pipeline.pipeline = pipeline->pipeline();
+        {
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_bind_pipeline;
+            r.bind_pipeline.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_pipeline.pipeline = pipeline->pipeline();
 #if NCNN_COVERAGE
-        r.bind_pipeline.pipeline_layout = pipeline->pipeline_layout();
+            r.bind_pipeline.pipeline_layout = pipeline->pipeline_layout();
 #endif
-        d->delayed_records.push_back(r);
+            d->delayed_records.push_back(r);
+        }
 
         const int binding_types[3] = {3, 1, 1};
         // create new descriptor_pool and descriptorset
@@ -3023,18 +3024,24 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets.data(), 0, 0);
         }
 
-        r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
-        r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
-        r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
-        r.bind_descriptorsets.descriptorset_count = 1;
-        r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
-        d->delayed_records.push_back(r);
+        {
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
+            r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
+            r.bind_descriptorsets.pipeline_layout = pipeline->pipeline_layout();
+            r.bind_descriptorsets.descriptorset_count = 1;
+            r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
+            d->delayed_records.push_back(r);
+        }
 
-        r.type = VkComputePrivate::record::TYPE_dispatch;
-        r.dispatch.group_count_x = group_count_x;
-        r.dispatch.group_count_y = group_count_y;
-        r.dispatch.group_count_z = group_count_z;
-        d->delayed_records.push_back(r);
+        {
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_dispatch;
+            r.dispatch.group_count_x = group_count_x;
+            r.dispatch.group_count_y = group_count_y;
+            r.dispatch.group_count_z = group_count_z;
+            d->delayed_records.push_back(r);
+        }
     }
 }
 #endif // __ANDROID_API__ >= 26
@@ -3163,7 +3170,7 @@ int VkCompute::submit_and_wait()
             {
                 NCNN_LOGE("vkQueueSubmit failed %d", ret);
                 vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), compute_queue);
-                return ret;
+                return -1;
             }
             d->executing = true;
         }
@@ -3176,18 +3183,18 @@ int VkCompute::submit_and_wait()
     {
         int ret = d->wait_compute_command_buffer();
         if (ret != 0)
-            return ret;
+            return -1;
         d->executing = false;
     }
     if (d->upload_upload_pending)
     {
         int ret = d->wait_upload_command_buffer();
         if (ret != 0)
-            return ret;
+            return -1;
         d->upload_upload_pending = false;
     }
 
-    // An interrupted submission may leave signals without their matching waits.
+    // discard unconsumed signals after interrupted submission
     if (d->use_weight_upload_online && d->compute_compute_pending)
     {
         vkDestroySemaphore(vkdev->vkdevice(), d->compute_compute_semaphore, 0);
@@ -3204,7 +3211,7 @@ int VkCompute::submit_and_wait()
         d->upload_compute_pending = false;
     }
     if (ret != 0)
-        return ret;
+        return -1;
 
     // handle deferred post records
     for (size_t i = 0; i < d->delayed_records.size(); i++)
@@ -3264,7 +3271,7 @@ int VkCompute::submit_and_wait()
 #if NCNN_BENCHMARK
     d->query_results_ready = true;
 #endif // NCNN_BENCHMARK
-    d->clear_records();
+    d->clear_records(true);
     d->weight_buffers.clear();
     d->weight_staging_buffers.clear();
 
@@ -3279,14 +3286,14 @@ int VkCompute::reset()
     {
         int ret = d->wait_compute_command_buffer();
         if (ret != 0)
-            return ret;
+            return -1;
         d->executing = false;
     }
     if (d->upload_upload_pending)
     {
         int ret = d->wait_upload_command_buffer();
         if (ret != 0)
-            return ret;
+            return -1;
         d->upload_upload_pending = false;
     }
 
@@ -3352,7 +3359,7 @@ int VkCompute::reset()
         d->descriptorsets.clear();
     }
 
-    d->clear_records();
+    d->clear_records(true);
     d->weight_buffers.clear();
     d->weight_staging_buffers.clear();
 
