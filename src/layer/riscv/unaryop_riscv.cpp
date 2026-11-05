@@ -16,9 +16,11 @@
 
 namespace ncnn {
 
-#if __riscv_vector
+namespace UnaryOp_riscv_functor {
+
 #include "unaryop_functor.h"
-#endif
+
+} // namespace UnaryOp_riscv_functor
 
 #if NCNN_BF16
 #include "unaryop_bf16s.h"
@@ -95,7 +97,7 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif
 
 #if __riscv_vector
-    using namespace unaryop_functor;
+    using namespace UnaryOp_riscv_functor;
 
     if (op_type == Operation_ABS)
         return unary_op_inplace<unary_op_abs>(bottom_top_blob, opt);
@@ -201,7 +203,111 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if NCNN_BF16
 int UnaryOp_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
-    return unaryop_bf16s(bottom_top_blob, op_type, opt);
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
+    if (cpu_support_riscv_zvfbfmin())
+    {
+        return unaryop_bf16s_zvfbfmin(bottom_top_blob, op_type, opt);
+    }
+#endif
+
+    using namespace UnaryOp_riscv_functor;
+
+    if (op_type == Operation_ABS)
+        return unary_op_inplace_bf16s<unary_op_abs>(bottom_top_blob, opt);
+
+    if (op_type == Operation_NEG)
+        return unary_op_inplace_bf16s<unary_op_neg>(bottom_top_blob, opt);
+
+    if (op_type == Operation_FLOOR)
+        return unary_op_inplace_bf16s<unary_op_floor>(bottom_top_blob, opt);
+
+    if (op_type == Operation_CEIL)
+        return unary_op_inplace_bf16s<unary_op_ceil>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQUARE)
+        return unary_op_inplace_bf16s<unary_op_square>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQRT)
+        return unary_op_inplace_bf16s<unary_op_sqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RSQRT)
+        return unary_op_inplace_bf16s<unary_op_rsqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXP)
+        return unary_op_inplace_bf16s<unary_op_exp>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG)
+        return unary_op_inplace_bf16s<unary_op_log>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIN)
+        return unary_op_inplace_bf16s<unary_op_sin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COS)
+        return unary_op_inplace_bf16s<unary_op_cos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TAN)
+        return unary_op_inplace_bf16s<unary_op_tan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASIN)
+        return unary_op_inplace_bf16s<unary_op_asin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOS)
+        return unary_op_inplace_bf16s<unary_op_acos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATAN)
+        return unary_op_inplace_bf16s<unary_op_atan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RECIPROCAL)
+        return unary_op_inplace_bf16s<unary_op_reciprocal>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TANH)
+        return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
+
+    return 0;
 }
 #endif // NCNN_BF16
 
