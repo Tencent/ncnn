@@ -44,6 +44,14 @@ public:
         Operation_RREMAINDER = 18
     };
 
+protected:
+#if NCNN_VALIDATION
+    int check_shape(const std::vector<Mat>& bottom_blobs) const;
+#if NCNN_VULKAN
+    int check_shape(const std::vector<VkMat>& bottom_blobs) const;
+#endif // NCNN_VULKAN
+#endif // NCNN_VALIDATION
+
 public:
     // param
     int op_type;
