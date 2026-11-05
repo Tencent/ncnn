@@ -350,7 +350,18 @@ int Eltwise_riscv::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vect
     if (top_blob.empty())
         return -100;
 
-    eltwise_bf16s(bottom_blobs, top_blob, op_type, coeffs, opt);
+    // per-thread fp32 accumulator row for more than two inputs
+    Mat top_blob_fp32;
+    if (bottom_blobs.size() > 2)
+    {
+        const Mat& bottom_blob = bottom_blobs[0];
+        const int size = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.elempack;
+        top_blob_fp32.create(size, opt.num_threads, 4u, opt.workspace_allocator);
+        if (top_blob_fp32.empty())
+            return -100;
+    }
+
+    eltwise_bf16s(bottom_blobs, top_blob, top_blob_fp32, op_type, coeffs, opt);
     return 0;
 }
 #endif // NCNN_BF16
