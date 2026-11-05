@@ -3,6 +3,10 @@
 
 #include "spectrogram.h"
 
+#include "spectrogram_fft.h"
+
+#include "cpu.h"
+
 #include <limits.h>
 
 namespace ncnn {
@@ -95,6 +99,23 @@ int Spectrogram::load_param(const ParamDict& pd)
         }
     }
 
+    // power-of-two fast path: precompute the half-length transform tables
+    if (fft_is_fast(n_fft))
+    {
+        fft_make_tables(n_fft / 2, fft_rev, fft_tw);
+        fft_tw_real.create(n_fft + 2);
+        if (fft_rev.empty() || fft_tw.empty() || fft_tw_real.empty())
+            return -100;
+        float* p = fft_tw_real;
+        const double pi = 3.14159265358979323846;
+        for (int k = 0; k <= n_fft / 2; k++)
+        {
+            const double angle = -2.0 * pi * k / n_fft;
+            p[2 * k] = (float)cos(angle);
+            p[2 * k + 1] = (float)sin(angle);
+        }
+    }
+
     return 0;
 }
 
@@ -137,63 +158,157 @@ int Spectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < freqs_onesided; i++)
+    if (fft_is_fast(n_fft))
     {
-        const float* ptr = bottom_blob_bordered;
-        float* outptr = power == 0 ? top_blob.channel(i) : top_blob.row(i);
+        // O(n log n) per frame: half-length complex transform + untangle
+        const int m = n_fft / 2;
+        int nbuffers = opt.num_threads < 1 ? 1 : opt.num_threads;
+        if (nbuffers > frames)
+            nbuffers = frames;
+        Mat scratch((size_t)(2 * m + n_fft + 2) * nbuffers, (size_t)4u, opt.workspace_allocator);
+        if (scratch.empty())
+            return -100;
 
-        for (int j = 0; j < frames; j++)
+        const float norm1 = 1.f / sqrt((float)n_fft);
+        const float norm2 = normalized == 2 ? window_data[n_fft] : 0.f;
+        const float* win = window_data;
+        const int* revh = (const int*)fft_rev;
+        const float* wh = fft_tw;
+        const float* wf = fft_tw_real;
+
+        if (power == 0)
         {
-            float re = 0.f;
-            float im = 0.f;
-            for (int k = 0; k < n_fft; k++)
+            #pragma omp parallel for num_threads(nbuffers) schedule(static)
+            for (int j = 0; j < frames; j++)
             {
-                float v = ptr[k];
+                const int tid = get_omp_thread_num();
+                float* zr = (float*)scratch + (size_t)tid * (2 * m + n_fft + 2);
+                float* zi = zr + m;
+                float* out = zi + m;
 
-                // apply window
-                v *= window_data[k];
+                fft_real_forward(n_fft, revh, wh, wf,
+                                 (const float*)bottom_blob_bordered + (size_t)j * hoplen,
+                                 win, zr, zi, out);
 
-                // dft
-                double angle = 2 * 3.14159265358979323846 * i * k / n_fft;
-
-                re += v * cosf(angle); // + imag * sinf(angle);
-                im -= v * sinf(angle); // + imag * cosf(angle);
+                for (int k = 0; k <= m; k++)
+                {
+                    float re = out[2 * k];
+                    float im = out[2 * k + 1];
+                    if (normalized == 1)
+                    {
+                        re *= norm1;
+                        im *= norm1;
+                    }
+                    if (normalized == 2)
+                    {
+                        re *= norm2;
+                        im *= norm2;
+                    }
+                    top_blob.channel(k).row(j)[0] = re;
+                    top_blob.channel(k).row(j)[1] = im;
+                }
             }
-
-            if (normalized == 1)
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(nbuffers) schedule(static)
+            for (int j = 0; j < frames; j++)
             {
-                float norm = 1.f / sqrt(n_fft);
-                re *= norm;
-                im *= norm;
-            }
-            if (normalized == 2)
-            {
-                float norm = window_data[n_fft];
-                re *= norm;
-                im *= norm;
-            }
+                const int tid = get_omp_thread_num();
+                float* zr = (float*)scratch + (size_t)tid * (2 * m + n_fft + 2);
+                float* zi = zr + m;
+                float* out = zi + m;
 
-            if (power == 0)
-            {
-                // complex as real
-                outptr[0] = re;
-                outptr[1] = im;
-                outptr += 2;
-            }
-            if (power == 1)
-            {
-                // magnitude
-                outptr[0] = sqrt(re * re + im * im);
-                outptr += 1;
-            }
-            if (power == 2)
-            {
-                outptr[0] = re * re + im * im;
-                outptr += 1;
-            }
+                fft_real_forward(n_fft, revh, wh, wf,
+                                 (const float*)bottom_blob_bordered + (size_t)j * hoplen,
+                                 win, zr, zi, out);
 
-            ptr += hoplen;
+                for (int k = 0; k <= m; k++)
+                {
+                    float re = out[2 * k];
+                    float im = out[2 * k + 1];
+                    if (normalized == 1)
+                    {
+                        re *= norm1;
+                        im *= norm1;
+                    }
+                    if (normalized == 2)
+                    {
+                        re *= norm2;
+                        im *= norm2;
+                    }
+                    if (power == 1)
+                    {
+                        top_blob.row(k)[j] = sqrt(re * re + im * im);
+                    }
+                    if (power == 2)
+                    {
+                        top_blob.row(k)[j] = re * re + im * im;
+                    }
+                }
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < freqs_onesided; i++)
+        {
+            const float* ptr = bottom_blob_bordered;
+            float* outptr = power == 0 ? top_blob.channel(i) : top_blob.row(i);
+
+            for (int j = 0; j < frames; j++)
+            {
+                float re = 0.f;
+                float im = 0.f;
+                for (int k = 0; k < n_fft; k++)
+                {
+                    float v = ptr[k];
+
+                    // apply window
+                    v *= window_data[k];
+
+                    // dft
+                    double angle = 2 * 3.14159265358979323846 * i * k / n_fft;
+
+                    re += v * cosf(angle); // + imag * sinf(angle);
+                    im -= v * sinf(angle); // + imag * cosf(angle);
+                }
+
+                if (normalized == 1)
+                {
+                    float norm = 1.f / sqrt(n_fft);
+                    re *= norm;
+                    im *= norm;
+                }
+                if (normalized == 2)
+                {
+                    float norm = window_data[n_fft];
+                    re *= norm;
+                    im *= norm;
+                }
+
+                if (power == 0)
+                {
+                    // complex as real
+                    outptr[0] = re;
+                    outptr[1] = im;
+                    outptr += 2;
+                }
+                if (power == 1)
+                {
+                    // magnitude
+                    outptr[0] = sqrt(re * re + im * im);
+                    outptr += 1;
+                }
+                if (power == 2)
+                {
+                    outptr[0] = re * re + im * im;
+                    outptr += 1;
+                }
+
+                ptr += hoplen;
+            }
         }
     }
 

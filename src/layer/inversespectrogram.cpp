@@ -3,7 +3,12 @@
 
 #include "inversespectrogram.h"
 
+#include "spectrogram_fft.h"
+
+#include "cpu.h"
+
 #include <limits.h>
+#include <string.h>
 
 namespace ncnn {
 
@@ -90,6 +95,23 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
         }
     }
 
+    // power-of-two fast path: precompute the half-length transform tables
+    if (fft_is_fast(n_fft))
+    {
+        fft_make_tables(n_fft / 2, fft_rev, fft_tw);
+        fft_tw_real.create(n_fft + 2);
+        if (fft_rev.empty() || fft_tw.empty() || fft_tw_real.empty())
+            return -100;
+        float* p = fft_tw_real;
+        const double pi = 3.14159265358979323846;
+        for (int k = 0; k <= n_fft / 2; k++)
+        {
+            const double angle = -2.0 * pi * k / n_fft;
+            p[2 * k] = (float)cos(angle);
+            p[2 * k + 1] = (float)sin(angle);
+        }
+    }
+
     return 0;
 }
 
@@ -128,92 +150,226 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     top_blob.fill(0.f);
     window_sumsquare.fill(0.f);
 
-    for (int j = 0; j < frames; j++)
+    if (fft_is_fast(n_fft) && onesided == 1)
     {
-        // collect complex
-        Mat sp(2, n_fft);
-        if (onesided == 1)
+        // O(n log n) per frame: tangle the one-sided spectrum into the
+        // half-length spectrum, inverse transform, overlap-add. frames
+        // are distributed over threads with per-thread accumulators;
+        // the overlap-add is associative, so the serial merge at the
+        // end is exact.
+        //
+        // the paired bins 1..m-1 are Hermitian and reconstruct exactly
+        // through the half-length transform. the endpoint bins k = 0
+        // and k = m are not a Hermitian pair for arbitrary complex
+        // input, so their imaginary parts are carried separately:
+        //   y_im[n] = (Im X[0] + (-1)^n Im X[m]) / n_fft
+        // and the real transform runs on the endpoint bins with their
+        // real parts only.
+        const int m = n_fft / 2;
+        int nbuffers = opt.num_threads < 1 ? 1 : opt.num_threads;
+        if (nbuffers > frames)
+            nbuffers = frames;
+
+        const size_t valw = returns == 0 ? (size_t)2 * outsize : (size_t)outsize;
+        const size_t tstride = (size_t)(n_fft + 2) + m + m + n_fft + valw + outsize;
+        Mat scratch(tstride * nbuffers, (size_t)4u, opt.workspace_allocator);
+        if (scratch.empty())
+            return -100;
+
+        const float norm1 = sqrt((float)n_fft);
+        const float norm2 = normalized == 2 ? window_data[n_fft] : 0.f;
+        const float inv_nfft = 1.f / n_fft;
+        const float* win = window_data;
+        const int* revh = (const int*)fft_rev;
+        const float* wh = fft_tw;
+        const float* wf = fft_tw_real;
+
+        #pragma omp parallel num_threads(nbuffers)
         {
-            for (int k = 0; k < n_fft / 2 + 1; k++)
-            {
-                sp.row(k)[0] = bottom_blob.channel(k).row(j)[0];
-                sp.row(k)[1] = bottom_blob.channel(k).row(j)[1];
-            }
-            for (int k = n_fft / 2 + 1; k < n_fft; k++)
-            {
-                sp.row(k)[0] = bottom_blob.channel(n_fft - k).row(j)[0];
-                sp.row(k)[1] = -bottom_blob.channel(n_fft - k).row(j)[1];
-            }
-        }
-        else
-        {
-            for (int k = 0; k < n_fft; k++)
-            {
-                sp.row(k)[0] = bottom_blob.channel(k).row(j)[0];
-                sp.row(k)[1] = bottom_blob.channel(k).row(j)[1];
-            }
-        }
+            const int tid = get_omp_thread_num();
+            float* xin = (float*)scratch + (size_t)tid * tstride;
+            float* zr = xin + (n_fft + 2);
+            float* zi = zr + m;
+            float* xr = zi + m;
+            float* val = xr + n_fft;
+            float* sq = val + valw;
+            memset(val, 0, valw * sizeof(float));
+            memset(sq, 0, outsize * sizeof(float));
 
-        if (normalized == 1)
-        {
-            float norm = sqrt(n_fft);
-            for (int i = 0; i < 2 * n_fft; i++)
+            #pragma omp for schedule(static)
+            for (int j = 0; j < frames; j++)
             {
-                sp[i] *= norm;
-            }
-        }
-        if (normalized == 2)
-        {
-            float norm = window_data[n_fft];
-            for (int i = 0; i < 2 * n_fft; i++)
-            {
-                sp[i] *= norm;
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < n_fft; i++)
-        {
-            // inverse dft
-            float re = 0.f;
-            float im = 0.f;
-            for (int k = 0; k < n_fft; k++)
-            {
-                double angle = 2 * 3.14159265358979323846 * i * k / n_fft;
-
-                re += sp.row(k)[0] * cosf(angle) - sp.row(k)[1] * sinf(angle);
-                im += sp.row(k)[0] * sinf(angle) + sp.row(k)[1] * cosf(angle);
-            }
-
-            re /= n_fft;
-            im /= n_fft;
-
-            // apply window
-            re *= window_data[i];
-            im *= window_data[i];
-
-            int output_index = j * hoplen + i;
-            if (center == 1)
-            {
-                output_index -= n_fft / 2;
-            }
-            if (output_index >= 0 && output_index < outsize)
-            {
-                // square window
-                window_sumsquare[output_index] += window_data[i] * window_data[i];
-
-                if (returns == 0)
+                // collect the one-sided spectrum; fft_real_inverse tangles
+                // the Hermitian mirror internally, so bins m+1..n-1 are
+                // never materialized
+                for (int k = 0; k <= m; k++)
                 {
-                    top_blob.row(output_index)[0] += re;
-                    top_blob.row(output_index)[1] += im;
+                    xin[2 * k] = bottom_blob.channel(k).row(j)[0];
+                    xin[2 * k + 1] = bottom_blob.channel(k).row(j)[1];
                 }
-                if (returns == 1)
+
+                if (normalized == 1)
                 {
-                    top_blob[output_index] += re;
+                    for (int i = 0; i < 2 * (m + 1); i++)
+                    {
+                        xin[i] *= norm1;
+                    }
                 }
-                if (returns == 2)
+                if (normalized == 2)
                 {
-                    top_blob[output_index] += im;
+                    for (int i = 0; i < 2 * (m + 1); i++)
+                    {
+                        xin[i] *= norm2;
+                    }
+                }
+
+                // split off the non-Hermitian endpoint imaginary parts
+                const float imx0 = xin[1];
+                const float imxm = xin[2 * m + 1];
+                xin[1] = 0.f;
+                xin[2 * m + 1] = 0.f;
+
+                fft_real_inverse(n_fft, revh, wh, wf, xin, zr, zi, xr);
+
+                for (int i = 0; i < n_fft; i++)
+                {
+                    const float wv = win[i];
+                    const float vre = xr[i] * wv;
+                    const float vim = (imx0 + ((i & 1) ? -imxm : imxm)) * inv_nfft * wv;
+                    int output_index = j * hoplen + i;
+                    if (center == 1)
+                    {
+                        output_index -= n_fft / 2;
+                    }
+                    if (output_index >= 0 && output_index < outsize)
+                    {
+                        // square window
+                        sq[output_index] += wv * wv;
+
+                        if (returns == 0)
+                        {
+                            val[2 * output_index] += vre;
+                            val[2 * output_index + 1] += vim;
+                        }
+                        if (returns == 1)
+                        {
+                            val[output_index] += vre;
+                        }
+                        if (returns == 2)
+                        {
+                            val[output_index] += vim;
+                        }
+                    }
+                }
+            }
+        }
+
+        // merge the per-thread accumulators
+        float* top = (float*)top_blob;
+        float* wss = (float*)window_sumsquare;
+        for (int t = 0; t < nbuffers; t++)
+        {
+            const float* val = (float*)scratch + (size_t)t * tstride + (n_fft + 2) + m + m + n_fft;
+            const float* sq = val + valw;
+            for (size_t i = 0; i < valw; i++)
+            {
+                top[i] += val[i];
+            }
+            for (int i = 0; i < outsize; i++)
+            {
+                wss[i] += sq[i];
+            }
+        }
+    }
+    else
+    {
+        for (int j = 0; j < frames; j++)
+        {
+            // collect complex
+            Mat sp(2, n_fft);
+            if (onesided == 1)
+            {
+                for (int k = 0; k < n_fft / 2 + 1; k++)
+                {
+                    sp.row(k)[0] = bottom_blob.channel(k).row(j)[0];
+                    sp.row(k)[1] = bottom_blob.channel(k).row(j)[1];
+                }
+                for (int k = n_fft / 2 + 1; k < n_fft; k++)
+                {
+                    sp.row(k)[0] = bottom_blob.channel(n_fft - k).row(j)[0];
+                    sp.row(k)[1] = -bottom_blob.channel(n_fft - k).row(j)[1];
+                }
+            }
+            else
+            {
+                for (int k = 0; k < n_fft; k++)
+                {
+                    sp.row(k)[0] = bottom_blob.channel(k).row(j)[0];
+                    sp.row(k)[1] = bottom_blob.channel(k).row(j)[1];
+                }
+            }
+
+            if (normalized == 1)
+            {
+                float norm = sqrt(n_fft);
+                for (int i = 0; i < 2 * n_fft; i++)
+                {
+                    sp[i] *= norm;
+                }
+            }
+            if (normalized == 2)
+            {
+                float norm = window_data[n_fft];
+                for (int i = 0; i < 2 * n_fft; i++)
+                {
+                    sp[i] *= norm;
+                }
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < n_fft; i++)
+            {
+                // inverse dft
+                float re = 0.f;
+                float im = 0.f;
+                for (int k = 0; k < n_fft; k++)
+                {
+                    double angle = 2 * 3.14159265358979323846 * i * k / n_fft;
+
+                    re += sp.row(k)[0] * cosf(angle) - sp.row(k)[1] * sinf(angle);
+                    im += sp.row(k)[0] * sinf(angle) + sp.row(k)[1] * cosf(angle);
+                }
+
+                re /= n_fft;
+                im /= n_fft;
+
+                // apply window
+                re *= window_data[i];
+                im *= window_data[i];
+
+                int output_index = j * hoplen + i;
+                if (center == 1)
+                {
+                    output_index -= n_fft / 2;
+                }
+                if (output_index >= 0 && output_index < outsize)
+                {
+                    // square window
+                    window_sumsquare[output_index] += window_data[i] * window_data[i];
+
+                    if (returns == 0)
+                    {
+                        top_blob.row(output_index)[0] += re;
+                        top_blob.row(output_index)[1] += im;
+                    }
+                    if (returns == 1)
+                    {
+                        top_blob[output_index] += re;
+                    }
+                    if (returns == 2)
+                    {
+                        top_blob[output_index] += im;
+                    }
                 }
             }
         }
