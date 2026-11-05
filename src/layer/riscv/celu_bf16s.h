@@ -35,8 +35,6 @@ static void celu_bf16s(Mat& bottom_top_blob, float alpha, const Option& opt)
             vbool8_t _mask = __riscv_vmfgt_vf_f32m4_b8(_p, 0.f, vl);
 
             vfloat32m4_t _q = __riscv_vfdiv_vf_f32m4(_p, alpha, vl);
-            // Clamp unused positive inputs and saturated negative tails before the exponential.
-            _q = __riscv_vfmax_vf_f32m4(__riscv_vfmin_vf_f32m4(_q, 0.f, vl), -88.f, vl);
             _q = exp_ps(_q, vl);
             _q = __riscv_vfsub_vf_f32m4(_q, 1.f, vl);
             _q = __riscv_vfmul_vf_f32m4(_q, alpha, vl);
