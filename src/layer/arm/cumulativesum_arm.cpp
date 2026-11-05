@@ -15,26 +15,48 @@ static void cumulative_sum(float* ptr, int w)
     float sum = 0.f;
 #if __ARM_NEON
     const float32x4_t _zero = vdupq_n_f32(0.f);
-    float32x4_t _sum_neon = vdupq_n_f32(sum);
+    float32x4_t _sum = vdupq_n_f32(0.f);
+    for (; i + 7 < w; i += 8)
+    {
+        float32x4_t _p0 = vld1q_f32(ptr);
+        float32x4_t _p1 = vld1q_f32(ptr + 4);
+
+        _p0 = vaddq_f32(_p0, vextq_f32(_zero, _p0, 3));
+        _p1 = vaddq_f32(_p1, vextq_f32(_zero, _p1, 3));
+        _p0 = vaddq_f32(_p0, vextq_f32(_zero, _p0, 2));
+        _p1 = vaddq_f32(_p1, vextq_f32(_zero, _p1, 2));
+
+        _p1 = vaddq_f32(_p1, vdupq_lane_f32(vget_high_f32(_p0), 1));
+
+        // broadcast the block total before adding the carry, so only one add is loop-carried
+        float32x4_t _total = vdupq_lane_f32(vget_high_f32(_p1), 1);
+
+        _p0 = vaddq_f32(_p0, _sum);
+        _p1 = vaddq_f32(_p1, _sum);
+        vst1q_f32(ptr, _p0);
+        vst1q_f32(ptr + 4, _p1);
+
+        _sum = vaddq_f32(_sum, _total);
+
+        ptr += 8;
+    }
     for (; i + 3 < w; i += 4)
     {
         float32x4_t _p = vld1q_f32(ptr);
 
-        float32x4_t _t = vextq_f32(_zero, _p, 3);
-        _p = vaddq_f32(_p, _t);
-        _t = vextq_f32(_zero, _p, 2);
-        _p = vaddq_f32(_p, _t);
+        _p = vaddq_f32(_p, vextq_f32(_zero, _p, 3));
+        _p = vaddq_f32(_p, vextq_f32(_zero, _p, 2));
 
-        _p = vaddq_f32(_p, _sum_neon);
+        float32x4_t _total = vdupq_lane_f32(vget_high_f32(_p), 1);
+
+        _p = vaddq_f32(_p, _sum);
         vst1q_f32(ptr, _p);
 
-        _sum_neon = vdupq_lane_f32(vget_high_f32(_p), 1);
+        _sum = vaddq_f32(_sum, _total);
 
         ptr += 4;
     }
-
-    if (i > 0)
-        sum = ptr[-1];
+    sum = vgetq_lane_f32(_sum, 0);
 #endif // __ARM_NEON
     for (; i < w; i++)
     {
@@ -47,6 +69,18 @@ static void cumulative_sum_add(const float* ptr, float* outptr, int size)
 {
     int i = 0;
 #if __ARM_NEON
+    for (; i + 7 < size; i += 8)
+    {
+        float32x4_t _p0 = vld1q_f32(ptr);
+        float32x4_t _p1 = vld1q_f32(ptr + 4);
+        float32x4_t _outp0 = vld1q_f32(outptr);
+        float32x4_t _outp1 = vld1q_f32(outptr + 4);
+        vst1q_f32(outptr, vaddq_f32(_outp0, _p0));
+        vst1q_f32(outptr + 4, vaddq_f32(_outp1, _p1));
+
+        ptr += 8;
+        outptr += 8;
+    }
     for (; i + 3 < size; i += 4)
     {
         float32x4_t _p = vld1q_f32(ptr);
@@ -85,12 +119,23 @@ int CumulativeSum_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     if (dims == 2 && positive_axis == 0)
     {
-        for (int i = 1; i < h; i++)
-        {
-            const float* prev_row = bottom_top_blob.row(i - 1);
-            float* this_row = bottom_top_blob.row(i);
+        const int size = w;
+        const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
 
-            cumulative_sum_add(prev_row, this_row, w);
+        const int nn_size = (size + sizen - 1) / sizen;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
+
+            float* ptr = (float*)bottom_top_blob + i;
+
+            for (int j = 1; j < h; j++)
+            {
+                cumulative_sum_add(ptr, ptr + w, size1);
+                ptr += w;
+            }
         }
 
         return 0;
@@ -107,64 +152,62 @@ int CumulativeSum_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         return 0;
     }
 
-    if (dims == 3 && positive_axis == 0)
+    if ((dims == 3 || dims == 4) && positive_axis == 0)
     {
-        const int size = w * h;
+        const int size = w * h * d;
+        const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
+        const size_t cstep = bottom_top_blob.cstep;
 
-        for (int q = 1; q < c; q++)
-        {
-            const float* prev = bottom_top_blob.channel(q - 1);
-            float* cur = bottom_top_blob.channel(q);
-
-            cumulative_sum_add(prev, cur, size);
-        }
-
-        return 0;
-    }
-
-    if (dims == 3 && positive_axis == 1)
-    {
+        const int nn_size = (size + sizen - 1) / sizen;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; q++)
+        for (int ii = 0; ii < nn_size; ii++)
         {
-            Mat this_channel = bottom_top_blob.channel(q);
+            const int i = ii * sizen;
+            const int size1 = std::min(sizen, size - i);
 
-            for (int i = 1; i < h; i++)
+            float* ptr = (float*)bottom_top_blob + i;
+
+            for (int q = 1; q < c; q++)
             {
-                const float* prev_row = this_channel.row(i - 1);
-                float* this_row = this_channel.row(i);
-
-                cumulative_sum_add(prev_row, this_row, w);
+                cumulative_sum_add(ptr, ptr + cstep, size1);
+                ptr += cstep;
             }
         }
 
         return 0;
     }
 
-    if (dims == 3 && positive_axis == 2)
+    if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int idx = 0; idx < c * h; idx++)
+        for (int qz = 0; qz < c * d; qz++)
         {
-            const int q = idx / h;
-            const int i = idx - q * h;
+            const int q = qz / d;
+            const int z = qz - q * d;
 
-            cumulative_sum(bottom_top_blob.channel(q).row(i), w);
+            float* ptr = bottom_top_blob.channel(q).depth(z);
+
+            for (int i = 1; i < h; i++)
+            {
+                cumulative_sum_add(ptr, ptr + w, w);
+                ptr += w;
+            }
         }
 
         return 0;
     }
 
-    if (dims == 4 && positive_axis == 0)
+    if ((dims == 3 && positive_axis == 2) || (dims == 4 && positive_axis == 3))
     {
-        const int size = w * h * d;
-
-        for (int q = 1; q < c; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qi = 0; qi < c * d * h; qi++)
         {
-            const float* prev = bottom_top_blob.channel(q - 1);
-            float* cur = bottom_top_blob.channel(q);
+            const int q = qi / (d * h);
+            const int i = qi - q * (d * h);
 
-            cumulative_sum_add(prev, cur, size);
+            float* ptr = (float*)bottom_top_blob.channel(q) + i * w;
+
+            cumulative_sum(ptr, w);
         }
 
         return 0;
@@ -177,59 +220,12 @@ int CumulativeSum_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
-            Mat this_channel = bottom_top_blob.channel(q);
+            float* ptr = bottom_top_blob.channel(q);
 
             for (int z = 1; z < d; z++)
             {
-                const float* prev = this_channel.depth(z - 1);
-                float* cur = this_channel.depth(z);
-
-                cumulative_sum_add(prev, cur, size);
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 4 && positive_axis == 2)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; q++)
-        {
-            Mat this_channel = bottom_top_blob.channel(q);
-
-            for (int z = 0; z < d; z++)
-            {
-                Mat this_depth = this_channel.depth(z);
-
-                for (int i = 1; i < h; i++)
-                {
-                    const float* prev_row = this_depth.row(i - 1);
-                    float* this_row = this_depth.row(i);
-
-                    cumulative_sum_add(prev_row, this_row, w);
-                }
-            }
-        }
-
-        return 0;
-    }
-
-    if (dims == 4 && positive_axis == 3)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; q++)
-        {
-            Mat this_channel = bottom_top_blob.channel(q);
-
-            for (int z = 0; z < d; z++)
-            {
-                Mat this_depth = this_channel.depth(z);
-
-                for (int i = 0; i < h; i++)
-                {
-                    cumulative_sum(this_depth.row(i), w);
-                }
+                cumulative_sum_add(ptr, ptr + size, size);
+                ptr += size;
             }
         }
 

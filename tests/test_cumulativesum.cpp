@@ -14,6 +14,13 @@ static int test_cumulativesum(const ncnn::Mat& a, int axis)
     if (ret != 0)
     {
         fprintf(stderr, "test_cumulativesum failed a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
+        return ret;
+    }
+
+    ret = test_layer("CumulativeSum", pd, weights, a, 0.001, TEST_LAYER_ENABLE_THREADING);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_cumulativesum failed with threading a.dims=%d a=(%d %d %d %d) axis=%d\n", a.dims, a.w, a.h, a.d, a.c, axis);
     }
 
     return ret;
@@ -29,16 +36,26 @@ static int test_cumulativesum_4d()
            || test_cumulativesum(RandomMat(5, 4, 3, 6), -4)
            || test_cumulativesum(RandomMat(5, 4, 3, 6), -3)
            || test_cumulativesum(RandomMat(5, 4, 3, 6), -2)
-           || test_cumulativesum(RandomMat(5, 4, 3, 6), -1);
+           || test_cumulativesum(RandomMat(5, 4, 3, 6), -1)
+           || test_cumulativesum(RandomMat(13, 7, 3, 1), 1)
+           || test_cumulativesum(RandomMat(13, 7, 3, 1), 2)
+           || test_cumulativesum(RandomMat(13, 7, 3, 1), 3)
+           || test_cumulativesum(RandomMat(3, 2, 5, 7), 0)
+           || test_cumulativesum(RandomMat(3, 2, 5, 7), 3);
 }
 
 static int test_cumulativesum_1d()
 {
     return 0
+           || test_cumulativesum(RandomMat(1), 0)
+           || test_cumulativesum(RandomMat(3), 0)
+           || test_cumulativesum(RandomMat(4), 0)
            || test_cumulativesum(RandomMat(6), 0)
+           || test_cumulativesum(RandomMat(8), 0)
            || test_cumulativesum(RandomMat(10), 0)
            || test_cumulativesum(RandomMat(10), -1)
            || test_cumulativesum(RandomMat(10), -2)
+           || test_cumulativesum(RandomMat(13), 0)
            || test_cumulativesum(RandomMat(101), 0);
 }
 
@@ -46,6 +63,10 @@ static int test_cumulativesum_2d()
 {
     return 0
            || test_cumulativesum(RandomMat(6, 8), 0)
+           || test_cumulativesum(RandomMat(13, 9), 0)
+           || test_cumulativesum(RandomMat(1, 7), 0)
+           || test_cumulativesum(RandomMat(3, 5), 1)
+           || test_cumulativesum(RandomMat(12, 5), 1)
            || test_cumulativesum(RandomMat(20, 103), 1)
            || test_cumulativesum(RandomMat(106, 50), -1)
            || test_cumulativesum(RandomMat(106, 50), -2);
@@ -55,11 +76,16 @@ static int test_cumulativesum_3d()
 {
     return 0
            || test_cumulativesum(RandomMat(10, 6, 8), 0)
+           || test_cumulativesum(RandomMat(7, 3, 5), 0)
+           || test_cumulativesum(RandomMat(7, 3, 5), 1)
+           || test_cumulativesum(RandomMat(7, 3, 5), 2)
+           || test_cumulativesum(RandomMat(15, 9, 1), 1)
+           || test_cumulativesum(RandomMat(15, 9, 1), 2)
            || test_cumulativesum(RandomMat(303, 20, 103), 1)
            || test_cumulativesum(RandomMat(106, 50, 99), 2)
            || test_cumulativesum(RandomMat(303, 200, 103), -1)
            || test_cumulativesum(RandomMat(303, 200, 103), -2)
-           || test_cumulativesum(RandomMat(303, 200, 103), -2);
+           || test_cumulativesum(RandomMat(303, 200, 103), -3);
 }
 
 int main()
