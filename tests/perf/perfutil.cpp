@@ -102,9 +102,13 @@ static void convert_input_layout(const ncnn::Mat& src, ncnn::Mat& dst, const ncn
     else
 #endif // NCNN_VFPV4
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && op->support_fp16_storage)
+    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())))
     {
-        ncnn::cast_float32_to_float16(src, casted, opt);
+        // fp16 and bf16 blobs are indistinguishable, never mix bf16 into a fp16 net
+        if (op->support_fp16_storage)
+            ncnn::cast_float32_to_float16(src, casted, opt);
+        else
+            casted = src;
     }
     else
 #endif // NCNN_ZFH

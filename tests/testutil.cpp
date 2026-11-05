@@ -376,9 +376,13 @@ static int convert_to_optimal_layout(const ncnn::Mat& a, ncnn::Mat& a4, ncnn::Ma
     else
 #endif // NCNN_VFPV4
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && op->support_fp16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
     {
-        ncnn::cast_float32_to_float16(a, a4, opt);
+        // fp16 and bf16 blobs are indistinguishable, never mix bf16 into a fp16 net
+        if (op->support_fp16_storage)
+            ncnn::cast_float32_to_float16(a, a4, opt);
+        else
+            a4 = a;
     }
     else
 #endif // NCNN_ZFH
@@ -645,8 +649,9 @@ static int convert_to_vanilla_layout(const ncnn::Mat& c4, ncnn::Mat& c, const nc
     else
 #endif // NCNN_VFPV4
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && op->support_fp16_storage && c4_unpacked.elembits() == 16)
+    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && c4_unpacked.elembits() == 16)
     {
+        // 16bit blobs are fp16 when fp16 storage is in use
         ncnn::cast_float16_to_float32(c4_unpacked, c, opt);
     }
     else
