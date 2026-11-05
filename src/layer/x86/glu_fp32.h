@@ -56,12 +56,11 @@ static void glu_vector(const float* ptr, const float* gateptr, float* outptr, in
     }
 }
 
+#if __AVX__
 // ptr and gateptr point to the eight lanes of the selected half in each pack16 element
 static void glu_pack16to8(const float* ptr, const float* gateptr, float* outptr, int size)
 {
     int i = 0;
-#if __SSE2__
-#if __AVX__
 #if __AVX512F__
     for (; i + 1 < size; i += 2)
     {
@@ -82,37 +81,14 @@ static void glu_pack16to8(const float* ptr, const float* gateptr, float* outptr,
         gateptr += 16;
         outptr += 8;
     }
-#endif // __AVX__
-    for (; i < size; i++)
-    {
-        __m128 _p0 = _mm_loadu_ps(ptr);
-        __m128 _p1 = _mm_loadu_ps(ptr + 4);
-        __m128 _g0 = _mm_loadu_ps(gateptr);
-        __m128 _g1 = _mm_loadu_ps(gateptr + 4);
-        _mm_storeu_ps(outptr, _mm_mul_ps(_p0, sigmoid_sse(_g0)));
-        _mm_storeu_ps(outptr + 4, _mm_mul_ps(_p1, sigmoid_sse(_g1)));
-        ptr += 16;
-        gateptr += 16;
-        outptr += 8;
-    }
-#endif // __SSE2__
-    for (; i < size; i++)
-    {
-        for (int k = 0; k < 8; k++)
-        {
-            outptr[k] = ptr[k] * (1.f / (1.f + expf(-gateptr[k])));
-        }
-        ptr += 16;
-        gateptr += 16;
-        outptr += 8;
-    }
 }
+#endif // __AVX__
 
+#if __SSE2__
 // ptr and gateptr point to the four lanes of the selected half in each pack8 element
 static void glu_pack8to4(const float* ptr, const float* gateptr, float* outptr, int size)
 {
     int i = 0;
-#if __SSE2__
 #if __AVX__
 #if __AVX512F__
     for (; i + 3 < size; i += 4)
@@ -144,18 +120,8 @@ static void glu_pack8to4(const float* ptr, const float* gateptr, float* outptr, 
         gateptr += 8;
         outptr += 4;
     }
-#endif // __SSE2__
-    for (; i < size; i++)
-    {
-        for (int k = 0; k < 4; k++)
-        {
-            outptr[k] = ptr[k] * (1.f / (1.f + expf(-gateptr[k])));
-        }
-        ptr += 8;
-        gateptr += 8;
-        outptr += 4;
-    }
 }
+#endif // __SSE2__
 
 // the four lanes of ptr are the values of four pack1 output channels
 // their gates are lanes 2 3 of gateptr0 and lanes 0 1 of gateptr1
@@ -385,6 +351,7 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
                 glu_pack4to1(ptr, gateptr0, gateptr1, outptr, out_cstep, outch, std::min(size - offset, block_size));
             }
         }
+#if __SSE2__
         else
         {
             const int block_size = 1024 / out_elempack;
@@ -401,13 +368,17 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
                 const float* ptr = (const float*)bottom_blob + index / elempack * cstep + index % elempack + offset * elempack;
                 const float* gateptr = (const float*)bottom_blob + gate_index / elempack * cstep + gate_index % elempack + offset * elempack;
                 float* outptr = (float*)top_blob + q * out_cstep + offset * out_elempack;
+                const int count = std::min(size - offset, block_size);
 
+#if __AVX__
                 if (elempack == 16)
-                    glu_pack16to8(ptr, gateptr, outptr, std::min(size - offset, block_size));
-                else
-                    glu_pack8to4(ptr, gateptr, outptr, std::min(size - offset, block_size));
+                    glu_pack16to8(ptr, gateptr, outptr, count);
+#endif // __AVX__
+                if (elempack == 8)
+                    glu_pack8to4(ptr, gateptr, outptr, count);
             }
         }
+#endif // __SSE2__
 
         return;
     }
