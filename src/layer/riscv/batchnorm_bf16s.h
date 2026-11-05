@@ -56,15 +56,14 @@ static void batchnorm_bf16s(Mat& bottom_top_blob, const Mat& a_data, const Mat& 
         }
         else if (elempack == 1)
         {
-            const float a = ptr_a[0];
             const float b = ptr_b[0];
+            vfloat32m4_t _a = __riscv_vfmv_v_f_f32m4(ptr_a[0], __riscv_vsetvlmax_e32m4());
             int n = size;
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m2(n);
                 vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-                _p = __riscv_vfmul_vf_f32m4(_p, b, vl);
-                _p = __riscv_vfadd_vf_f32m4(_p, a, vl);
+                _p = __riscv_vfmadd_vf_f32m4(_p, b, _a, vl);
                 __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
                 ptr += vl;
                 n -= vl;
@@ -72,34 +71,37 @@ static void batchnorm_bf16s(Mat& bottom_top_blob, const Mat& a_data, const Mat& 
         }
         else
         {
-            // Reuse each coefficient vector across the spatial dimension.
-            int offset = 0;
-            while (offset < elempack)
+            const size_t vl = __riscv_vsetvl_e16m1(elempack);
+            vfloat32m2_t _a = __riscv_vle32_v_f32m2(ptr_a, vl);
+            vfloat32m2_t _b = __riscv_vle32_v_f32m2(ptr_b, vl);
+            for (int i = 0; i < size; i++)
             {
-                size_t vl = __riscv_vsetvl_e16m2(elempack - offset);
-                vfloat32m4_t _a = __riscv_vle32_v_f32m4(ptr_a + offset, vl);
-                vfloat32m4_t _b = __riscv_vle32_v_f32m4(ptr_b + offset, vl);
-                unsigned short* p = ptr + offset;
-                for (int i = 0; i < size; i++)
-                {
-                    vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(p, vl), vl);
-                    _p = __riscv_vfmadd_vv_f32m4(_p, _b, _a, vl);
-                    __riscv_vse16_v_u16m2(p, float2bfloat_rvv(_p, vl), vl);
-                    p += elempack;
-                }
-                offset += vl;
+                vfloat32m2_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m1(ptr, vl), vl);
+                _p = __riscv_vfmadd_vv_f32m2(_p, _b, _a, vl);
+                __riscv_vse16_v_u16m1(ptr, float2bfloat_rvv(_p, vl), vl);
+                ptr += vl;
             }
         }
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
-#else
-        for (int i = 0; i < size * elempack; i++)
+#else  // __riscv_vector
+        if (dims == 1)
         {
-            const int index = dims == 1 ? i : i % elempack;
-            const float v = bfloat16_to_float32(ptr[i]);
-            ptr[i] = float32_to_bfloat16(ptr_b[index] * v + ptr_a[index]);
+            for (int i = 0; i < size; i++)
+            {
+                ptr[i] = float32_to_bfloat16(ptr_b[i] * bfloat16_to_float32(ptr[i]) + ptr_a[i]);
+            }
         }
-#endif
+        else
+        {
+            const float a = ptr_a[0];
+            const float b = ptr_b[0];
+            for (int i = 0; i < size; i++)
+            {
+                ptr[i] = float32_to_bfloat16(b * bfloat16_to_float32(ptr[i]) + a);
+            }
+        }
+#endif // __riscv_vector
     }
 }
