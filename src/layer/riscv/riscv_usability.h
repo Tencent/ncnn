@@ -128,6 +128,17 @@ static inline vuint16m2_t float2bfloat_rvv(vfloat32m4_t v, size_t vl)
 #endif
 }
 
+static inline vuint16m4_t float2bfloat_rvv(vfloat32m8_t v, size_t vl)
+{
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vreinterpret_v_bf16m4_u16m4(__riscv_vfncvtbf16_f_f_w_bf16m4_rm(v, __RISCV_FRM_RNE, vl));
+#elif __riscv_xtheadvector
+    return __riscv_vreinterpret_v_f16m4_u16m4(__riscv_vfncvt_f_f_w_f16m4(v, vl));
+#else
+    return __riscv_vnclipu_wx_u16m4(__riscv_vreinterpret_v_f32m8_u32m8(v), 16, __RISCV_VXRM_RNE, vl);
+#endif
+}
+
 #if NCNN_BF16
 static inline vfloat32m2_t bfloat2float_rvv(vuint16m1_t v, size_t vl)
 {
@@ -148,6 +159,17 @@ static inline vfloat32m4_t bfloat2float_rvv(vuint16m2_t v, size_t vl)
     return __riscv_vfwcvt_f_f_v_f32m4(__riscv_vreinterpret_v_u16m2_f16m2(v), vl);
 #else
     return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vsll_vx_u32m4(__riscv_vwcvtu_x_x_v_u32m4(v, vl), 16, vl));
+#endif
+}
+
+static inline vfloat32m8_t bfloat2float_rvv(vuint16m4_t v, size_t vl)
+{
+#if NCNN_ZVFBFMIN && __riscv_zvfbfmin
+    return __riscv_vfwcvtbf16_f_f_v_f32m8(__riscv_vreinterpret_v_u16m4_bf16m4(v), vl);
+#elif __riscv_xtheadvector
+    return __riscv_vfwcvt_f_f_v_f32m8(__riscv_vreinterpret_v_u16m4_f16m4(v), vl);
+#else
+    return __riscv_vreinterpret_v_u32m8_f32m8(__riscv_vsll_vx_u32m8(__riscv_vwcvtu_x_x_v_u32m8(v, vl), 16, vl));
 #endif
 }
 
