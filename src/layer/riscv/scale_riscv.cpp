@@ -8,6 +8,8 @@
 #include "riscv_usability.h"
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 #if NCNN_BF16
@@ -19,6 +21,13 @@ Scale_riscv::Scale_riscv()
 #if __riscv_vector
     support_packing = true;
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 #if NCNN_BF16
     support_bf16_storage = true;
 #endif
@@ -29,8 +38,17 @@ int Scale_riscv::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Optio
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 
+#if NCNN_ZFH || NCNN_BF16
+    int elembits = bottom_top_blob.elembits();
+#endif
+
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blobs, opt);
+#endif
+
 #if NCNN_BF16
-    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+    if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blobs, opt);
 #endif
 
