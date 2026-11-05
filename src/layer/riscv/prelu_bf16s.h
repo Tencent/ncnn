@@ -28,6 +28,7 @@ static void prelu_bf16s(Mat& bottom_top_blob, int num_slope, const Mat& slope_da
         if (num_slope > 1 && dims != 1)
             ptr_slope += q * elempack;
 
+        // ncnn assumes normal values, so x < 0 is equivalent to bf16 bits > 0x8000
 #if __riscv_vector
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         unsigned long old_fxcr = csrr_fxcr();
@@ -39,10 +40,12 @@ static void prelu_bf16s(Mat& bottom_top_blob, int num_slope, const Mat& slope_da
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m2(n);
-                vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
+                vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr, vl);
+                vbool8_t _lower = __riscv_vmsgtu_vx_u16m2_b8(_p, 0x8000, vl);
+                vfloat32m4_t _v = bfloat2float_rvv(_p, vl);
                 vfloat32m4_t _slope = __riscv_vle32_v_f32m4(ptr_slope, vl);
-                _p = __riscv_vfmul_vv_f32m4_mu(__riscv_vmflt_vf_f32m4_b8(_p, 0.f, vl), _p, _p, _slope, vl);
-                __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
+                _v = __riscv_vfmul_vv_f32m4_mu(_lower, _v, _v, _slope, vl);
+                __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_v, vl), vl);
                 ptr += vl;
                 ptr_slope += vl;
                 n -= vl;
@@ -50,21 +53,16 @@ static void prelu_bf16s(Mat& bottom_top_blob, int num_slope, const Mat& slope_da
         }
         else if (num_slope > 1 && elempack > 1)
         {
+            const size_t vl = __riscv_vsetvl_e16m1(elempack);
+            vfloat32m2_t _slope = __riscv_vle32_v_f32m2(ptr_slope, vl);
             for (int i = 0; i < size; i++)
             {
-                const float* slope_ptr = ptr_slope;
-                int n = elempack;
-                while (n > 0)
-                {
-                    size_t vl = __riscv_vsetvl_e16m2(n);
-                    vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-                    vfloat32m4_t _slope = __riscv_vle32_v_f32m4(slope_ptr, vl);
-                    _p = __riscv_vfmul_vv_f32m4_mu(__riscv_vmflt_vf_f32m4_b8(_p, 0.f, vl), _p, _p, _slope, vl);
-                    __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
-                    ptr += vl;
-                    slope_ptr += vl;
-                    n -= vl;
-                }
+                vuint16m1_t _p = __riscv_vle16_v_u16m1(ptr, vl);
+                vbool16_t _lower = __riscv_vmsgtu_vx_u16m1_b16(_p, 0x8000, vl);
+                vfloat32m2_t _v = bfloat2float_rvv(_p, vl);
+                _v = __riscv_vfmul_vv_f32m2_mu(_lower, _v, _v, _slope, vl);
+                __riscv_vse16_v_u16m1(ptr, float2bfloat_rvv(_v, vl), vl);
+                ptr += vl;
             }
         }
         else
@@ -74,9 +72,11 @@ static void prelu_bf16s(Mat& bottom_top_blob, int num_slope, const Mat& slope_da
             while (n > 0)
             {
                 size_t vl = __riscv_vsetvl_e16m2(n);
-                vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-                _p = __riscv_vfmul_vf_f32m4_mu(__riscv_vmflt_vf_f32m4_b8(_p, 0.f, vl), _p, _p, slope, vl);
-                __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
+                vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr, vl);
+                vbool8_t _lower = __riscv_vmsgtu_vx_u16m2_b8(_p, 0x8000, vl);
+                vfloat32m4_t _v = bfloat2float_rvv(_p, vl);
+                _v = __riscv_vfmul_vf_f32m4_mu(_lower, _v, _v, slope, vl);
+                __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_v, vl), vl);
                 ptr += vl;
                 n -= vl;
             }
@@ -84,16 +84,24 @@ static void prelu_bf16s(Mat& bottom_top_blob, int num_slope, const Mat& slope_da
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
-#else
-        for (int i = 0; i < size * elempack; i++)
+#else  // __riscv_vector
+        if (num_slope > 1 && dims == 1)
         {
-            const float v = bfloat16_to_float32(ptr[i]);
-            if (v < 0.f)
+            for (int i = 0; i < size; i++)
             {
-                const int slope_index = num_slope == 1 ? 0 : dims == 1 ? i : i % elempack;
-                ptr[i] = float32_to_bfloat16(v * ptr_slope[slope_index]);
+                if (ptr[i] > 0x8000)
+                    ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * ptr_slope[i]);
             }
         }
-#endif
+        else
+        {
+            const float slope = ptr_slope[0];
+            for (int i = 0; i < size; i++)
+            {
+                if (ptr[i] > 0x8000)
+                    ptr[i] = float32_to_bfloat16(bfloat16_to_float32(ptr[i]) * slope);
+            }
+        }
+#endif // __riscv_vector
     }
 }
