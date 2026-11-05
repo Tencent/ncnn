@@ -72,6 +72,7 @@ static void glu_vector(const float* ptr, const float* gateptr, float* outptr, in
     }
 }
 
+#if __ARM_NEON
 // the four lanes of ptr are the values of four pack1 output channels
 // their gates are lanes 2 3 of gateptr0 and lanes 0 1 of gateptr1
 // only the first two output channels are stored when outch == 2
@@ -83,7 +84,6 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
     float* outptr3 = outptr + out_cstep * 3;
 
     int i = 0;
-#if __ARM_NEON
     for (; i + 3 < size; i += 4)
     {
         float32x4x4_t _p = vld4q_f32(ptr);
@@ -105,7 +105,6 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
         outptr2 += 4;
         outptr3 += 4;
     }
-#endif // __ARM_NEON
     for (; i < size; i++)
     {
         outptr0[0] = ptr[0] * (1.f / (1.f + expf(-gateptr0[2])));
@@ -125,6 +124,7 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
         outptr3++;
     }
 }
+#endif // __ARM_NEON
 
 int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -181,6 +181,7 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     if (top_blob.empty())
         return -100;
 
+#if __ARM_NEON
     if (dims >= 2 && positive_axis == 0 && out_elempack != elempack)
     {
         // elempack == 4 and out_size % 4 == 2, the gates of four output channels start at lane 2 of an input pack
@@ -212,6 +213,7 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
         return 0;
     }
+#endif // __ARM_NEON
 
     // every output channel is a series of contiguous spans
     // dims == 1 is contiguous whatever the packing is

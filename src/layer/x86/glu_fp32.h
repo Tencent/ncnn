@@ -121,7 +121,6 @@ static void glu_pack8to4(const float* ptr, const float* gateptr, float* outptr, 
         outptr += 4;
     }
 }
-#endif // __SSE2__
 
 // the four lanes of ptr are the values of four pack1 output channels
 // their gates are lanes 2 3 of gateptr0 and lanes 0 1 of gateptr1
@@ -134,7 +133,6 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
     float* outptr3 = outptr + out_cstep * 3;
 
     int i = 0;
-#if __SSE2__
 #if __AVX__
 #if __AVX512F__
     for (; i + 15 < size; i += 16)
@@ -266,7 +264,6 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
         outptr2 += 4;
         outptr3 += 4;
     }
-#endif // __SSE2__
     for (; i < size; i++)
     {
         outptr0[0] = ptr[0] * (1.f / (1.f + expf(-gateptr0[2])));
@@ -286,6 +283,7 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
         outptr3++;
     }
 }
+#endif // __SSE2__
 
 static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Option& opt)
 {
@@ -319,6 +317,7 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
     const int outc = top_blob.c;
     const int out_elempack = top_blob.elempack;
 
+#if __SSE2__
     if (dims >= 2 && axis == 0 && out_elempack != elempack)
     {
         // the outermost axis is split inside packs, and out_elempack is half of elempack, or 1 when elempack is 4
@@ -351,7 +350,6 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
                 glu_pack4to1(ptr, gateptr0, gateptr1, outptr, out_cstep, outch, std::min(size - offset, block_size));
             }
         }
-#if __SSE2__
         else
         {
             const int block_size = 1024 / out_elempack;
@@ -378,10 +376,10 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
                     glu_pack8to4(ptr, gateptr, outptr, count);
             }
         }
-#endif // __SSE2__
 
         return;
     }
+#endif // __SSE2__
 
     // every output channel is a series of contiguous spans
     // dims == 1 is contiguous whatever the packing is
