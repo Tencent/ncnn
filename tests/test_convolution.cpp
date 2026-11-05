@@ -188,7 +188,6 @@ static int test_convolution_mish_large()
 {
     // fused mish on large outputs, where exp(x) overflows in the gpu shader (#7191)
     // a 1x1 identity convolution passes the inputs through to the activation
-    // compare the gpu result with the naive reference
     const int c = 8;
     ncnn::Mat a = RandomMat(6, 5, c, -100.f, 100.f);
 
@@ -204,7 +203,7 @@ static int test_convolution_mish_large()
     for (int i = 0; i < c; i++)
         weights[0][i * c + i] = 1.f;
 
-    return test_layer("Convolution", pd, weights, a, 0.001, TEST_LAYER_DISABLE_CPU_TESTING);
+    return test_layer("Convolution", pd, weights, a);
 }
 
 static int test_convolution_hardswish_boundaries()

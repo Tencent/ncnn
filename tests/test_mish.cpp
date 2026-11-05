@@ -53,14 +53,13 @@ static int test_mish_3()
 }
 
 // large inputs, where exp(x) overflows in the gpu shader (#7191)
-// compare the gpu result with the naive reference, which clamps at a threshold
 static int test_mish_4()
 {
     return 0
-           || test_mish(RandomMat(7, 8, 9, 12, -100.f, 100.f), TEST_LAYER_DISABLE_CPU_TESTING)
-           || test_mish(RandomMat(7, 9, 12, -100.f, 100.f), TEST_LAYER_DISABLE_CPU_TESTING)
-           || test_mish(RandomMat(17, 12, -100.f, 100.f), TEST_LAYER_DISABLE_CPU_TESTING)
-           || test_mish(RandomMat(128, -100.f, 100.f), TEST_LAYER_DISABLE_CPU_TESTING);
+           || test_mish(RandomMat(7, 8, 9, 12, -100.f, 100.f))
+           || test_mish(RandomMat(7, 9, 12, -100.f, 100.f))
+           || test_mish(RandomMat(17, 12, -100.f, 100.f))
+           || test_mish(RandomMat(128, -100.f, 100.f));
 }
 
 int main()
