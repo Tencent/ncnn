@@ -706,6 +706,279 @@ static int test_storage_packing(int storage_type)
 }
 #endif // NCNN_BF16
 
+// scales its input, with configurable fp16 / bf16 storage support
+class StorageScaleLayer : public ncnn::Layer
+{
+public:
+    StorageScaleLayer()
+    {
+        one_blob_only = true;
+        scale = 1.f;
+        pipeline_fp16_storage = -1;
+        pipeline_bf16_storage = -1;
+    }
+
+    virtual int load_param(const ncnn::ParamDict& pd)
+    {
+        support_fp16_storage = pd.get(0, 0) != 0;
+        support_bf16_storage = pd.get(1, 0) != 0;
+        scale = pd.get(2, 1.f);
+        return 0;
+    }
+
+    virtual int create_pipeline(const ncnn::Option& opt)
+    {
+        pipeline_fp16_storage = opt.use_fp16_storage;
+        pipeline_bf16_storage = opt.use_bf16_storage;
+        return 0;
+    }
+
+    virtual int forward(const ncnn::Mat& bottom_blob, ncnn::Mat& top_blob, const ncnn::Option& opt) const
+    {
+        // options never change after loading model
+        if ((int)opt.use_fp16_storage != pipeline_fp16_storage || (int)opt.use_bf16_storage != pipeline_bf16_storage)
+            return -1;
+
+        // fp16 storage takes the priority, like the builtin layers
+        const int elembits = bottom_blob.elembits();
+        const bool fp16 = elembits == 16 && support_fp16_storage && opt.use_fp16_storage;
+        const bool bf16 = elembits == 16 && !fp16 && support_bf16_storage && opt.use_bf16_storage;
+        if (elembits != 32 && !fp16 && !bf16)
+            return -1;
+
+        top_blob.create_like(bottom_blob, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const int size = (int)bottom_blob.total();
+        for (int i = 0; i < size; i++)
+        {
+            if (elembits == 32)
+                ((float*)top_blob.data)[i] = ((const float*)bottom_blob.data)[i] * scale;
+            if (fp16)
+                ((unsigned short*)top_blob.data)[i] = ncnn::float32_to_float16(ncnn::float16_to_float32(((const unsigned short*)bottom_blob.data)[i]) * scale);
+            if (bf16)
+                ((unsigned short*)top_blob.data)[i] = ncnn::float32_to_bfloat16(ncnn::bfloat16_to_float32(((const unsigned short*)bottom_blob.data)[i]) * scale);
+        }
+
+        return 0;
+    }
+
+public:
+    float scale;
+    int pipeline_fp16_storage;
+    int pipeline_bf16_storage;
+};
+
+static ncnn::Layer* create_storage_scale_layer(void*)
+{
+    return new StorageScaleLayer;
+}
+
+static int test_storage_featmask()
+{
+    // fp16 and bf16 blobs are indistinguishable, every 16bit blob in a network holds the network storage type
+    // featmask may only opt a layer out of it, whatever the layer supports
+    ncnn::Mat in(5, 3, 8);
+    for (int i = 0; i < (int)in.total(); i++)
+        in[i] = (i % 17 - 8) * 0.25f;
+
+    for (int k = 0; k < 4; k++)
+    {
+        const int use_fp16_storage = k & 1;
+        const int use_bf16_storage = (k >> 1) & 1;
+#if !NCNN_BF16
+        if (use_bf16_storage)
+            continue;
+#endif
+
+        for (int packing = 0; packing < 2; packing++)
+        {
+            for (int a = 0; a < 16; a++)
+            {
+                for (int b = 0; b < 16; b++)
+                {
+                    // support fp16 support bf16 featmask
+                    const int a_fp16 = a & 1;
+                    const int a_bf16 = (a >> 1) & 1;
+                    const int a_mask = ((a >> 2) & 3) * 2;
+                    const int b_fp16 = b & 1;
+                    const int b_bf16 = (b >> 1) & 1;
+                    const int b_mask = ((b >> 2) & 3) * 2;
+
+                    char param[512];
+                    sprintf(param, "7767517\n3 3\nInput in 0 1 in\nStorageScale a 1 1 in mid 0=%d 1=%d 2=2.0 31=%d\nStorageScale b 1 1 mid out 0=%d 1=%d 2=0.5 31=%d\n", a_fp16, a_bf16, a_mask, b_fp16, b_bf16, b_mask);
+
+                    ncnn::Net net;
+                    net.opt.num_threads = 1;
+                    net.opt.use_packing_layout = packing;
+                    net.opt.use_fp16_storage = use_fp16_storage;
+                    net.opt.use_bf16_storage = use_bf16_storage;
+                    net.register_custom_layer("StorageScale", create_storage_scale_layer);
+                    BoundedNetReader dr(0, 0);
+                    if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+                    {
+                        fprintf(stderr, "test_net storage featmask load failed\n%s", param);
+                        return -1;
+                    }
+
+                    ncnn::Extractor ex = net.create_extractor();
+                    ncnn::Mat out;
+                    int ret = ex.input("in", in);
+                    if (ret == 0)
+                        ret = ex.extract("out", out);
+                    if (ret != 0 || out.elembits() != 32 || CompareMat(in, out, 0.f) != 0)
+                    {
+                        fprintf(stderr, "test_net storage featmask failed use_fp16_storage=%d use_bf16_storage=%d packing=%d ret=%d\n%s", use_fp16_storage, use_bf16_storage, packing, ret, param);
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_storage_featmask_builtin(const char* name, const char* param, const std::vector<float>& weights, const ncnn::Mat& in, float epsilon, int vulkan_variant)
+{
+    ncnn::Mat ref;
+    {
+        ncnn::Net net;
+        net.opt.num_threads = 1;
+        net.opt.use_packing_layout = false;
+        net.opt.use_fp16_storage = false;
+        net.opt.use_bf16_storage = false;
+        const unsigned char* mem = (const unsigned char*)weights.data();
+        ncnn::DataReaderFromMemory dr(mem);
+        if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+        {
+            fprintf(stderr, "test_net storage featmask %s reference load failed\n", name);
+            return -1;
+        }
+        ncnn::Extractor ex = net.create_extractor();
+        if (ex.input("in", in) != 0 || ex.extract("out", ref) != 0)
+        {
+            fprintf(stderr, "test_net storage featmask %s reference failed\n", name);
+            return -1;
+        }
+        ref = ref.clone();
+    }
+
+    for (int k = 1; k < 4; k++)
+    {
+        const int use_fp16_storage = k & 1;
+        const int use_bf16_storage = (k >> 1) & 1;
+#if !NCNN_BF16
+        if (use_bf16_storage)
+            continue;
+#endif
+
+        for (int v = 0; v < (vulkan_variant ? 4 : 2); v++)
+        {
+            const int packing = v & 1;
+            // cpu layers of a vulkan network, or cpu only when vulkan is unavailable
+            const int vulkan = (v >> 1) & 1;
+
+            ncnn::Net net;
+            net.opt.num_threads = 1;
+            net.opt.use_packing_layout = packing;
+            net.opt.use_vulkan_compute = vulkan;
+            net.opt.use_fp16_storage = use_fp16_storage;
+            net.opt.use_fp16_arithmetic = false;
+            net.opt.use_bf16_storage = use_bf16_storage;
+            const unsigned char* mem = (const unsigned char*)weights.data();
+            ncnn::DataReaderFromMemory dr(mem);
+            if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+            {
+                fprintf(stderr, "test_net storage featmask %s load failed\n", name);
+                return -1;
+            }
+
+            ncnn::Extractor ex = net.create_extractor();
+            ncnn::Mat out;
+            int ret = ex.input("in", in);
+            if (ret == 0)
+                ret = ex.extract("out", out);
+            if (ret != 0 || out.elembits() != 32 || CompareMat(ref, out, epsilon) != 0)
+            {
+                fprintf(stderr, "test_net storage featmask %s failed use_fp16_storage=%d use_bf16_storage=%d packing=%d vulkan=%d ret=%d\n", name, use_fp16_storage, use_bf16_storage, packing, vulkan, ret);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static bool layer_available(int typeindex)
+{
+    // the layer may be disabled with WITH_LAYER_xxx
+    ncnn::Layer* layer = ncnn::create_layer_cpu(typeindex);
+    if (!layer)
+        return false;
+
+    delete layer;
+    return true;
+}
+
+static int test_storage_featmask_builtin()
+{
+    const bool has_relu = layer_available(ncnn::LayerType::ReLU);
+    const bool has_unaryop = layer_available(ncnn::LayerType::UnaryOp);
+    const bool has_sigmoid = layer_available(ncnn::LayerType::Sigmoid);
+    const bool has_convolution = layer_available(ncnn::LayerType::Convolution);
+    const bool has_padding = layer_available(ncnn::LayerType::Padding);
+
+    ncnn::Mat in(9, 7, 16);
+    for (int i = 0; i < (int)in.total(); i++)
+        in[i] = ((i * 7) % 17) * 0.125f - 1.f;
+
+    std::vector<float> none(1, 0.f);
+
+    // convolution weights with the raw fp32 flag
+    std::vector<float> conv_weights;
+    conv_weights.push_back(0.f);
+    for (int i = 0; i < 16 * 16; i++)
+        conv_weights.push_back(((i * 7) % 13) * 0.01f - 0.06f);
+    conv_weights.push_back(0.f);
+    for (int i = 0; i < 16 * 16 * 9; i++)
+        conv_weights.push_back(((i * 5) % 11) * 0.01f - 0.05f);
+
+    int ret = 0;
+
+    // fp16 masked producer, unmasked consumer
+    if (has_relu && has_unaryop)
+        ret = ret || test_storage_featmask_builtin("relu_31=2_unaryop", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 31=2\nUnaryOp sq 1 1 mid out 0=4\n", none, in, 0.01f, 0);
+
+    // masked consumers
+    if (has_relu && has_unaryop)
+        ret = ret || test_storage_featmask_builtin("relu_unaryop_31=2", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid\nUnaryOp sq 1 1 mid out 0=4 31=2\n", none, in, 0.01f, 0);
+    if (has_relu && has_sigmoid)
+        ret = ret || test_storage_featmask_builtin("relu_sigmoid_31=4", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid\nSigmoid sg 1 1 mid out 31=4\n", none, in, 0.01f, 0);
+    if (has_relu && has_sigmoid)
+        ret = ret || test_storage_featmask_builtin("relu_31=6_sigmoid", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 0=0.1 31=6\nSigmoid sg 1 1 mid out\n", none, in, 0.01f, 0);
+
+    // the layer-feat-mask.md example, fp16 disabled for conv1 only
+    if (has_convolution && has_relu)
+        ret = ret || test_storage_featmask_builtin("conv_conv_31=3", "7767517\n3 3\nInput in 0 1 in\nConvolution conv0 1 1 in mid 0=16 1=1 6=256 9=1\nConvolution conv1 1 1 mid out 0=16 1=3 6=2304 9=1 31=3\n", conv_weights, in, 0.05f, 0);
+
+    // cpu convolution in a vulkan network, vulkan and fp16 disabled
+    // the vulkan variants only cover featmask on cpu layers
+    if (has_convolution && has_relu)
+        ret = ret || test_storage_featmask_builtin("conv_31=18_relu", "7767517\n3 3\nInput in 0 1 in\nConvolution conv0 1 1 in mid 0=16 1=1 6=256 9=1 31=18\nReLU relu 1 1 mid out\n", conv_weights, in, 0.05f, 1);
+
+    // padding value follows the network storage type
+    if (has_padding)
+        ret = ret || test_storage_featmask_builtin("padding", "7767517\n2 2\nInput in 0 1 in\nPadding pad 1 1 in out 0=1 1=1 2=2 3=2 4=0 5=-1.5\n", none, in, 0.01f, 1);
+    if (has_padding)
+        ret = ret || test_storage_featmask_builtin("padding_31=16", "7767517\n2 2\nInput in 0 1 in\nPadding pad 1 1 in out 0=1 1=1 2=2 3=2 4=0 5=-1.5 31=16\n", none, in, 0.01f, 1);
+    if (has_padding && has_relu)
+        ret = ret || test_storage_featmask_builtin("padding_31=2_relu", "7767517\n3 3\nInput in 0 1 in\nPadding pad 1 1 in mid 0=1 1=1 2=2 3=2 4=0 5=-1.5 31=2\nReLU relu 1 1 mid out 0=0.1\n", none, in, 0.01f, 0);
+
+    return ret;
+}
+
 static int test_recreate_layer()
 {
     for (int binary = 0; binary < 2; binary++)
@@ -1500,6 +1773,8 @@ int main()
            || test_storage_packing(4)
            || test_storage_packing(2)
 #endif
+           || test_storage_featmask()
+           || test_storage_featmask_builtin()
            || test_recreate_layer()
            || test_recreate_layer_null_creator()
            || test_external_input()

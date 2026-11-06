@@ -33,9 +33,7 @@ static void elu_bf16s(Mat& bottom_top_blob, float alpha, const Option& opt)
             size_t vl = __riscv_vsetvl_e16m2(n);
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
             vbool8_t _lower = __riscv_vmflt_vf_f32m4_b8(_p, 0.f, vl);
-            // Clamp unused positive inputs and saturated negative tails before the polynomial.
-            vfloat32m4_t _x = __riscv_vfmax_vf_f32m4(__riscv_vfmin_vf_f32m4(_p, 0.f, vl), -88.f, vl);
-            vfloat32m4_t _v = __riscv_vfmul_vf_f32m4(expm1_ps(_x, vl), alpha, vl);
+            vfloat32m4_t _v = __riscv_vfmul_vf_f32m4(expm1_ps(_p, vl), alpha, vl);
             _p = __riscv_vmerge_vvm_f32m4(_p, _v, _lower, vl);
             __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
             ptr += vl;
