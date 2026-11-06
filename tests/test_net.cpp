@@ -960,7 +960,7 @@ static int test_storage_featmask_builtin()
         ret = ret || test_storage_featmask_builtin("relu_31=6_sigmoid", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 0=0.1 31=6\nSigmoid sg 1 1 mid out\n", none, in, 0.01f, 0);
 
     // the layer-feat-mask.md example, fp16 disabled for conv1 only
-    if (has_convolution)
+    if (has_convolution && has_relu)
         ret = ret || test_storage_featmask_builtin("conv_conv_31=3", "7767517\n3 3\nInput in 0 1 in\nConvolution conv0 1 1 in mid 0=16 1=1 6=256 9=1\nConvolution conv1 1 1 mid out 0=16 1=3 6=2304 9=1 31=3\n", conv_weights, in, 0.05f, 0);
 
     // cpu convolution in a vulkan network, vulkan and fp16 disabled
