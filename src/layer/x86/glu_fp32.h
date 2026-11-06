@@ -56,12 +56,13 @@ static void glu_vector(const float* ptr, const float* gateptr, float* outptr, in
     }
 }
 
+#if __SSE2__
 #if __AVX__
+#if __AVX512F__
 // ptr and gateptr point to the eight lanes of the selected half in each pack16 element
 static void glu_pack16to8(const float* ptr, const float* gateptr, float* outptr, int size)
 {
     int i = 0;
-#if __AVX512F__
     for (; i + 1 < size; i += 2)
     {
         __m512 _p = combine8x2_ps(_mm256_loadu_ps(ptr), _mm256_loadu_ps(ptr + 16));
@@ -71,7 +72,6 @@ static void glu_pack16to8(const float* ptr, const float* gateptr, float* outptr,
         gateptr += 32;
         outptr += 16;
     }
-#endif // __AVX512F__
     for (; i < size; i++)
     {
         __m256 _p = _mm256_loadu_ps(ptr);
@@ -82,14 +82,12 @@ static void glu_pack16to8(const float* ptr, const float* gateptr, float* outptr,
         outptr += 8;
     }
 }
-#endif // __AVX__
+#endif // __AVX512F__
 
-#if __SSE2__
 // ptr and gateptr point to the four lanes of the selected half in each pack8 element
 static void glu_pack8to4(const float* ptr, const float* gateptr, float* outptr, int size)
 {
     int i = 0;
-#if __AVX__
 #if __AVX512F__
     for (; i + 3 < size; i += 4)
     {
@@ -110,7 +108,6 @@ static void glu_pack8to4(const float* ptr, const float* gateptr, float* outptr, 
         gateptr += 16;
         outptr += 8;
     }
-#endif // __AVX__
     for (; i < size; i++)
     {
         __m128 _p = _mm_loadu_ps(ptr);
@@ -121,6 +118,7 @@ static void glu_pack8to4(const float* ptr, const float* gateptr, float* outptr, 
         outptr += 4;
     }
 }
+#endif // __AVX__
 
 // the four lanes of ptr are the values of four pack1 output channels
 // their gates are lanes 2 3 of gateptr0 and lanes 0 1 of gateptr1
@@ -350,6 +348,7 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
                 glu_pack4to1(ptr, gateptr0, gateptr1, outptr, out_cstep, outch, std::min(size - offset, block_size));
             }
         }
+#if __AVX__
         else
         {
             const int block_size = 1024 / out_elempack;
@@ -368,14 +367,15 @@ static void glu_fp32(const Mat& bottom_blob, Mat& top_blob, int axis, const Opti
                 float* outptr = (float*)top_blob + q * out_cstep + offset * out_elempack;
                 const int count = std::min(size - offset, block_size);
 
-#if __AVX__
+#if __AVX512F__
                 if (elempack == 16)
                     glu_pack16to8(ptr, gateptr, outptr, count);
-#endif // __AVX__
+#endif // __AVX512F__
                 if (elempack == 8)
                     glu_pack8to4(ptr, gateptr, outptr, count);
             }
         }
+#endif // __AVX__
 
         return;
     }
