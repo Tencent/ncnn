@@ -46,6 +46,7 @@ int Convolution1D_vulkan::load_param(const ParamDict& pd)
 int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
+    Option opt_cm = opt;
 
     const int maxk = kernel_w;
     int num_input = weight_data_size / maxk / num_output;
@@ -85,7 +86,9 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         {
             int size = 1024;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            VkComponentTypeKHR coopmat_acctype;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
+            opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
             if (coopmat_M == 0)
             {
@@ -265,7 +268,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution1d_gemm = new Pipeline(vkdev);
             pipeline_convolution1d_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution1d_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution1d_gemm->create(LayerShaderType::convolution1d_gemm_cm, opt, specializations);
+            pipeline_convolution1d_gemm->create(LayerShaderType::convolution1d_gemm_cm, opt_cm, specializations);
         }
         else
         {
@@ -341,7 +344,9 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
         {
             int size = 1024;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            VkComponentTypeKHR coopmat_acctype;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
+            opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
             if (coopmat_M == 0)
             {
@@ -492,7 +497,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution1d_1x1s1d1 = new Pipeline(vkdev);
             pipeline_convolution1d_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution1d_1x1s1d1->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution1d_1x1s1d1->create(LayerShaderType::convolution1d_1x1s1d1_cm, opt, specializations);
+            pipeline_convolution1d_1x1s1d1->create(LayerShaderType::convolution1d_1x1s1d1_cm, opt_cm, specializations);
         }
         else
         {

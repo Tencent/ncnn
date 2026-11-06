@@ -58,6 +58,8 @@ int SDPA_vulkan::load_param(const ParamDict& pd)
 
 int SDPA_vulkan::create_pipeline(const Option& opt)
 {
+    Option opt_cm = opt;
+
     use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
     bool use_bf16_cooperative_matrix = false;
@@ -73,18 +75,21 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
     if (use_cooperative_matrix)
     {
+        VkComponentTypeKHR coopmat_acctype;
         int M = 1024;
         int N = 1024;
         int K = 1024;
 
         if (use_bf16_cooperative_matrix)
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
         }
         else
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
         }
+
+        opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
         if (coopmat_M == 0)
         {
@@ -297,7 +302,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             pipeline_sdpa_qk_cross = new Pipeline(vkdev);
             pipeline_sdpa_qk_cross->set_subgroup_size(coopmat_subgroup_size);
             pipeline_sdpa_qk_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross_cm, opt, specializations);
+            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross_cm, opt_cm, specializations);
         }
 
         // qkv cross
@@ -330,7 +335,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             pipeline_sdpa_qkv_cross = new Pipeline(vkdev);
             pipeline_sdpa_qkv_cross->set_subgroup_size(coopmat_subgroup_size);
             pipeline_sdpa_qkv_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross_cm, opt, specializations);
+            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross_cm, opt_cm, specializations);
         }
     }
     else
