@@ -112,9 +112,11 @@ NetPrivate::NetPrivate(Option& _opt)
 #endif // NCNN_VULKAN
 }
 
-static Option get_masked_option(const Option& opt, int featmask)
+static Option get_masked_option(const Option& opt, const Layer* layer)
 {
     // mask option usage as layer specific featmask
+    const int featmask = layer->featmask;
+
     Option opt1 = opt;
     opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
     opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
@@ -133,7 +135,7 @@ static Option get_masked_option(const Option& opt, int featmask)
         opt1.num_threads = 1;
 
 #if NCNN_BF16
-    if (!opt.use_vulkan_compute)
+    if (!layer->support_vulkan || !opt1.use_vulkan_compute)
     {
         // fp16 and bf16 blobs are indistinguishable, all cpu layers in a network share one 16bit storage type
         // fp16 takes the priority when the cpu stores fp16 blobs, featmask never switches a layer to the other one
@@ -200,7 +202,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
     }
 #endif
-    int ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+    int ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer));
 #if NCNN_BENCHMARK
     double end = get_current_time();
     if (layer->one_blob_only)
@@ -345,7 +347,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 #endif
         if (layer->featmask)
         {
-            ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer->featmask));
+            ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer));
         }
         else
         {
@@ -366,7 +368,7 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
-        ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+        ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer));
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
@@ -1807,7 +1809,7 @@ int Net::load_param(const DataReader& dr)
             return -1;
         }
 
-        Option opt1 = get_masked_option(opt, layer->featmask);
+        Option opt1 = get_masked_option(opt, layer);
 
         if (layer_support_vulkan && (!layer->support_vulkan || !opt1.use_vulkan_compute))
         {
@@ -2204,7 +2206,7 @@ int Net::load_param_bin(const DataReader& dr)
             return -1;
         }
 
-        Option opt1 = get_masked_option(opt, layer->featmask);
+        Option opt1 = get_masked_option(opt, layer);
 
         if (layer_support_vulkan && (!layer->support_vulkan || !opt1.use_vulkan_compute))
         {
@@ -2426,7 +2428,7 @@ int Net::load_model(const DataReader& dr)
             break;
         }
 
-        Option opt1 = get_masked_option(opt, layer->featmask);
+        Option opt1 = get_masked_option(opt, layer);
 
         int cret = layer->create_pipeline(opt1);
         if (cret != 0)
@@ -2443,7 +2445,7 @@ int Net::load_model(const DataReader& dr)
 #if NCNN_VULKAN
         if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
         {
-            int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer->featmask));
+            int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer));
             if (uret != 0)
             {
 #if NCNN_STRING
@@ -2842,7 +2844,7 @@ void Net::clear()
         if (!layer)
             continue;
 
-        Option opt1 = get_masked_option(opt, layer->featmask);
+        Option opt1 = get_masked_option(opt, layer);
         int dret = layer->destroy_pipeline(opt1);
         if (dret != 0)
         {

@@ -840,7 +840,7 @@ static int test_storage_featmask()
     return 0;
 }
 
-static int test_storage_featmask_builtin(const char* name, const char* param, const std::vector<float>& weights, const ncnn::Mat& in, float epsilon)
+static int test_storage_featmask_builtin(const char* name, const char* param, const std::vector<float>& weights, const ncnn::Mat& in, float epsilon, int vulkan_variant)
 {
     ncnn::Mat ref;
     {
@@ -874,11 +874,16 @@ static int test_storage_featmask_builtin(const char* name, const char* param, co
             continue;
 #endif
 
-        for (int packing = 0; packing < 2; packing++)
+        for (int v = 0; v < (vulkan_variant ? 4 : 2); v++)
         {
+            const int packing = v & 1;
+            // cpu layers of a vulkan network, or cpu only when vulkan is unavailable
+            const int vulkan = (v >> 1) & 1;
+
             ncnn::Net net;
             net.opt.num_threads = 1;
             net.opt.use_packing_layout = packing;
+            net.opt.use_vulkan_compute = vulkan;
             net.opt.use_fp16_storage = use_fp16_storage;
             net.opt.use_fp16_arithmetic = false;
             net.opt.use_bf16_storage = use_bf16_storage;
@@ -897,7 +902,7 @@ static int test_storage_featmask_builtin(const char* name, const char* param, co
                 ret = ex.extract("out", out);
             if (ret != 0 || out.elembits() != 32 || CompareMat(ref, out, epsilon) != 0)
             {
-                fprintf(stderr, "test_net storage featmask %s failed use_fp16_storage=%d use_bf16_storage=%d packing=%d ret=%d\n", name, use_fp16_storage, use_bf16_storage, packing, ret);
+                fprintf(stderr, "test_net storage featmask %s failed use_fp16_storage=%d use_bf16_storage=%d packing=%d vulkan=%d ret=%d\n", name, use_fp16_storage, use_bf16_storage, packing, vulkan, ret);
                 return -1;
             }
         }
@@ -906,8 +911,25 @@ static int test_storage_featmask_builtin(const char* name, const char* param, co
     return 0;
 }
 
+static bool layer_available(int typeindex)
+{
+    // the layer may be disabled with WITH_LAYER_xxx
+    ncnn::Layer* layer = ncnn::create_layer_cpu(typeindex);
+    if (!layer)
+        return false;
+
+    delete layer;
+    return true;
+}
+
 static int test_storage_featmask_builtin()
 {
+    const bool has_relu = layer_available(ncnn::LayerType::ReLU);
+    const bool has_unaryop = layer_available(ncnn::LayerType::UnaryOp);
+    const bool has_sigmoid = layer_available(ncnn::LayerType::Sigmoid);
+    const bool has_convolution = layer_available(ncnn::LayerType::Convolution);
+    const bool has_padding = layer_available(ncnn::LayerType::Padding);
+
     ncnn::Mat in(9, 7, 16);
     for (int i = 0; i < (int)in.total(); i++)
         in[i] = ((i * 7) % 17) * 0.125f - 1.f;
@@ -923,18 +945,38 @@ static int test_storage_featmask_builtin()
     for (int i = 0; i < 16 * 16 * 9; i++)
         conv_weights.push_back(((i * 5) % 11) * 0.01f - 0.05f);
 
-    return 0
-           // fp16 masked producer, unmasked consumer
-           || test_storage_featmask_builtin("relu_31=2_unaryop", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 31=2\nUnaryOp sq 1 1 mid out 0=4\n", none, in, 0.01f)
-           // masked consumers
-           || test_storage_featmask_builtin("relu_unaryop_31=2", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid\nUnaryOp sq 1 1 mid out 0=4 31=2\n", none, in, 0.01f)
-           || test_storage_featmask_builtin("relu_sigmoid_31=4", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid\nSigmoid sg 1 1 mid out 31=4\n", none, in, 0.01f)
-           || test_storage_featmask_builtin("relu_31=6_sigmoid", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 0=0.1 31=6\nSigmoid sg 1 1 mid out\n", none, in, 0.01f)
-           // the layer-feat-mask.md example, fp16 disabled for conv1 only
-           || test_storage_featmask_builtin("conv_conv_31=3", "7767517\n3 3\nInput in 0 1 in\nConvolution conv0 1 1 in mid 0=16 1=1 6=256 9=1\nConvolution conv1 1 1 mid out 0=16 1=3 6=2304 9=1 31=3\n", conv_weights, in, 0.05f)
-           // padding value follows the network storage type
-           || test_storage_featmask_builtin("padding", "7767517\n2 2\nInput in 0 1 in\nPadding pad 1 1 in out 0=1 1=1 2=2 3=2 4=0 5=-1.5\n", none, in, 0.01f)
-           || test_storage_featmask_builtin("padding_31=2_relu", "7767517\n3 3\nInput in 0 1 in\nPadding pad 1 1 in mid 0=1 1=1 2=2 3=2 4=0 5=-1.5 31=2\nReLU relu 1 1 mid out 0=0.1\n", none, in, 0.01f);
+    int ret = 0;
+
+    // fp16 masked producer, unmasked consumer
+    if (has_relu && has_unaryop)
+        ret = ret || test_storage_featmask_builtin("relu_31=2_unaryop", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 31=2\nUnaryOp sq 1 1 mid out 0=4\n", none, in, 0.01f, 0);
+
+    // masked consumers
+    if (has_relu && has_unaryop)
+        ret = ret || test_storage_featmask_builtin("relu_unaryop_31=2", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid\nUnaryOp sq 1 1 mid out 0=4 31=2\n", none, in, 0.01f, 0);
+    if (has_relu && has_sigmoid)
+        ret = ret || test_storage_featmask_builtin("relu_sigmoid_31=4", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid\nSigmoid sg 1 1 mid out 31=4\n", none, in, 0.01f, 0);
+    if (has_relu && has_sigmoid)
+        ret = ret || test_storage_featmask_builtin("relu_31=6_sigmoid", "7767517\n3 3\nInput in 0 1 in\nReLU relu 1 1 in mid 0=0.1 31=6\nSigmoid sg 1 1 mid out\n", none, in, 0.01f, 0);
+
+    // the layer-feat-mask.md example, fp16 disabled for conv1 only
+    if (has_convolution)
+        ret = ret || test_storage_featmask_builtin("conv_conv_31=3", "7767517\n3 3\nInput in 0 1 in\nConvolution conv0 1 1 in mid 0=16 1=1 6=256 9=1\nConvolution conv1 1 1 mid out 0=16 1=3 6=2304 9=1 31=3\n", conv_weights, in, 0.05f, 0);
+
+    // cpu convolution in a vulkan network, vulkan and fp16 disabled
+    // the vulkan variants only cover featmask on cpu layers
+    if (has_convolution && has_relu)
+        ret = ret || test_storage_featmask_builtin("conv_31=18_relu", "7767517\n3 3\nInput in 0 1 in\nConvolution conv0 1 1 in mid 0=16 1=1 6=256 9=1 31=18\nReLU relu 1 1 mid out\n", conv_weights, in, 0.05f, 1);
+
+    // padding value follows the network storage type
+    if (has_padding)
+        ret = ret || test_storage_featmask_builtin("padding", "7767517\n2 2\nInput in 0 1 in\nPadding pad 1 1 in out 0=1 1=1 2=2 3=2 4=0 5=-1.5\n", none, in, 0.01f, 1);
+    if (has_padding)
+        ret = ret || test_storage_featmask_builtin("padding_31=16", "7767517\n2 2\nInput in 0 1 in\nPadding pad 1 1 in out 0=1 1=1 2=2 3=2 4=0 5=-1.5 31=16\n", none, in, 0.01f, 1);
+    if (has_padding && has_relu)
+        ret = ret || test_storage_featmask_builtin("padding_31=2_relu", "7767517\n3 3\nInput in 0 1 in\nPadding pad 1 1 in mid 0=1 1=1 2=2 3=2 4=0 5=-1.5 31=2\nReLU relu 1 1 mid out 0=0.1\n", none, in, 0.01f, 0);
+
+    return ret;
 }
 
 static int test_recreate_layer()
