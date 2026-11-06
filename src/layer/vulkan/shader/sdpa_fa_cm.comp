@@ -18,8 +18,8 @@
 #extension GL_NV_cooperative_matrix : require
 #endif
 
-#if ncnn_vendorID == 0x13b5
-// mali needs stride * 2 for 16-bit matrices in 32-bit buffers; fp32 accesses are unchanged
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+// adreno and mali use stride * 2 for 16-bit matrices in 32-bit buffers; fp32 accesses are unchanged
 const uint coopmat_16bit_stride_scale = 2;
 #else
 const uint coopmat_16bit_stride_scale = 1;

@@ -91,8 +91,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
         opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
-        if (coopmat_M == 0)
+        if (coopmat_M == 0 || coopmat_N % 8 || coopmat_K % 8)
         {
+            // sdpa_cross_cm packs N and K in groups of eight
             use_cooperative_matrix = false;
         }
         else
@@ -103,8 +104,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
             if (vkdev->info.vendor_id() == 0x5143)
             {
-                // adreno driver fails with multiple M tiles per subgroup
+                // adreno driver fails with multiple M or N tiles per subgroup
                 UNROLL_SG_M = 1;
+                UNROLL_SG_N = 1;
             }
 
             UNROLL_WG_M = std::min((M + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
@@ -174,9 +176,9 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
             }
 
-            if (FA_coopmat_M == 0 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
+            if (FA_coopmat_M == 0 || FA_coopmat_N % 8 || FA_coopmat_K % 8 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
             {
-                // not implemented yet
+                // sdpa_fa_cm requires eight-element N/K tiles with N == K
                 use_flash_attention = false;
             }
             else

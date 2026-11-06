@@ -765,11 +765,19 @@ void main()
                         vec4 v = vec4(0.f);
                         if (gk < inch && gm4 < psc(size))
                         {
+#if ncnn_vendorID == 0x5143 && NCNN_fp16_packed
+                            const uvec4 v_offset = gk * psc(cstep) + gm4 + uvec4(0, 1, 2, 3);
+                            v.r = buffer_ld1(bottom_blob_data_1, v_offset.r);
+                            if (gm4 + 1 < psc(size)) v.g = buffer_ld1(bottom_blob_data_1, v_offset.g);
+                            if (gm4 + 2 < psc(size)) v.b = buffer_ld1(bottom_blob_data_1, v_offset.b);
+                            if (gm4 + 3 < psc(size)) v.a = buffer_ld1(bottom_blob_data_1, v_offset.a);
+#else
                             const uint v_offset = gk * psc(cstep) + gm4;
                             v.r = buffer_ld1(bottom_blob_data_1, v_offset);
                             if (gm4 + 1 < psc(size)) v.g = buffer_ld1(bottom_blob_data_1, v_offset + 1);
                             if (gm4 + 2 < psc(size)) v.b = buffer_ld1(bottom_blob_data_1, v_offset + 2);
                             if (gm4 + 3 < psc(size)) v.a = buffer_ld1(bottom_blob_data_1, v_offset + 3);
+#endif
                         }
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));
@@ -962,11 +970,19 @@ void main()
                         vec4 v = vec4(0.f);
                         if (gk < inch && gm4 < psc(size))
                         {
+#if ncnn_vendorID == 0x5143 && NCNN_fp16_packed
+                            const uvec4 v_offset = gk * psc(cstep) + gm4 + uvec4(0, 1, 2, 3);
+                            v.r = buffer_ld1(bottom_blob_data_1, v_offset.r);
+                            if (gm4 + 1 < psc(size)) v.g = buffer_ld1(bottom_blob_data_1, v_offset.g);
+                            if (gm4 + 2 < psc(size)) v.b = buffer_ld1(bottom_blob_data_1, v_offset.b);
+                            if (gm4 + 3 < psc(size)) v.a = buffer_ld1(bottom_blob_data_1, v_offset.a);
+#else
                             const uint v_offset = gk * psc(cstep) + gm4;
                             v.r = buffer_ld1(bottom_blob_data_1, v_offset);
                             if (gm4 + 1 < psc(size)) v.g = buffer_ld1(bottom_blob_data_1, v_offset + 1);
                             if (gm4 + 2 < psc(size)) v.b = buffer_ld1(bottom_blob_data_1, v_offset + 2);
                             if (gm4 + 3 < psc(size)) v.a = buffer_ld1(bottom_blob_data_1, v_offset + 3);
+#endif
                         }
 
                         tmp_v[sgmi][siq] = uvec2(packHalf2x16(v.rg), packHalf2x16(v.ba));

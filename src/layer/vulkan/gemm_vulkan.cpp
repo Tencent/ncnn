@@ -87,6 +87,12 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+    if (vkdev->info.vendor_id() == 0x5143)
+    {
+        // adreno produces incorrect results even for complete cooperative matrix tiles
+        use_cooperative_matrix = false;
+    }
+
     const int subgroup_size = vkdev->info.subgroup_size();
     const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
     const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
@@ -130,9 +136,9 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
         const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
-        if (coopmat_M == 0 || (use_khr_cooperative_matrix && ((coopmat_M != 4 && coopmat_M % 8) || (coopmat_N != 4 && coopmat_N % 8) || (coopmat_K != 4 && coopmat_K % 8))))
+        if (coopmat_M == 0 || (use_khr_cooperative_matrix && ((coopmat_M != 4 && coopmat_M % 8) || coopmat_N % 8 || coopmat_K % 8)))
         {
-            // KHR row strides need min(16, row/column bytes) alignment; four fp16 values need only 8 bytes
+            // allow four-row tiles while retaining eight-element N/K tiles
             use_cooperative_matrix = false;
         }
         else
