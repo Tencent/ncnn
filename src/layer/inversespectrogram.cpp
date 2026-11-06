@@ -153,10 +153,17 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (fft_is_fast(n_fft) && onesided == 1)
     {
         // O(n log n) per frame: tangle the one-sided spectrum into the
-        // half-length spectrum, inverse transform, overlap-add. frames
-        // are distributed over threads with per-thread accumulators;
-        // the overlap-add is associative, so the serial merge at the
-        // end is exact.
+        // half-length spectrum, inverse transform, overlap-add.
+        //
+        // frames are processed in bounded chunks; each chunk runs the
+        // conventional omp-parallel-for over its frames, accumulating
+        // into per-thread buffers that only span the chunk's output
+        // range (a few MB, independent of the signal length), then the
+        // per-thread buffers merge serially into top_blob and
+        // window_sumsquare (the overlap-add is associative). every
+        // slot is zero-initialized before the team runs, so a team
+        // smaller than the requested thread count (no OpenMP build,
+        // OMP_THREAD_LIMIT, nested parallelism) stays exact.
         //
         // the paired bins 1..m-1 are Hermitian and reconstruct exactly
         // through the half-length transform. the endpoint bins k = 0
@@ -166,15 +173,21 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         // and the real transform runs on the endpoint bins with their
         // real parts only.
         const int m = n_fft / 2;
+        const int off = center == 1 ? n_fft / 2 : 0;
         int nbuffers = opt.num_threads < 1 ? 1 : opt.num_threads;
-        if (nbuffers > frames)
-            nbuffers = frames;
 
-        const size_t valw = returns == 0 ? (size_t)2 * outsize : (size_t)outsize;
-        const size_t tstride = (size_t)(n_fft + 2) + m + m + n_fft + valw + outsize;
+        // chunk size: per-thread accumulators stay around 1 MB
+        const int chunk_frames = 1048576 / hoplen > 1 ? 1048576 / hoplen : 1;
+        // chunk output span bound
+        int maxspan = chunk_frames * hoplen + n_fft;
+        if (maxspan > outsize)
+            maxspan = outsize;
+        const size_t valwmax = returns == 0 ? (size_t)2 * maxspan : (size_t)maxspan;
+        const size_t tstride = (size_t)(n_fft + 2) + m + m + n_fft + valwmax + maxspan;
         Mat scratch(tstride * nbuffers, (size_t)4u, opt.workspace_allocator);
         if (scratch.empty())
             return -100;
+        memset((float*)scratch, 0, tstride * nbuffers * sizeof(float));
 
         const float norm1 = sqrt((float)n_fft);
         const float norm2 = normalized == 2 ? window_data[n_fft] : 0.f;
@@ -183,25 +196,42 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         const int* revh = (const int*)fft_rev;
         const float* wh = fft_tw;
         const float* wf = fft_tw_real;
+        float* top = (float*)top_blob;
+        float* wss = (float*)window_sumsquare;
 
-        #pragma omp parallel num_threads(nbuffers)
+        for (int f0 = 0; f0 < frames; f0 += chunk_frames)
         {
-            const int tid = get_omp_thread_num();
-            float* xin = (float*)scratch + (size_t)tid * tstride;
-            float* zr = xin + (n_fft + 2);
-            float* zi = zr + m;
-            float* xr = zi + m;
-            float* val = xr + n_fft;
-            float* sq = val + valw;
-            memset(val, 0, valw * sizeof(float));
-            memset(sq, 0, outsize * sizeof(float));
+            const int f1 = f0 + chunk_frames < frames ? f0 + chunk_frames : frames;
+            const int nf = f1 - f0;
+            int nth = nbuffers < nf ? nbuffers : nf;
 
-            #pragma omp for schedule(static)
-            for (int j = 0; j < frames; j++)
+            // this chunk's output span
+            int s0 = f0 * hoplen - off;
+            if (s0 < 0)
+                s0 = 0;
+            int s1 = (f1 - 1) * hoplen - off + n_fft;
+            if (s1 > outsize)
+                s1 = outsize;
+            if (s1 <= s0)
+                continue;
+            const int span = s1 - s0;
+            const size_t valw = returns == 0 ? (size_t)2 * span : (size_t)span;
+
+            #pragma omp parallel for num_threads(nth) schedule(static)
+            for (int jj = 0; jj < nf; jj++)
             {
-                // collect the one-sided spectrum; fft_real_inverse tangles
-                // the Hermitian mirror internally, so bins m+1..n-1 are
-                // never materialized
+                const int tid = get_omp_thread_num();
+                float* xin = (float*)scratch + (size_t)tid * tstride;
+                float* zr = xin + (n_fft + 2);
+                float* zi = zr + m;
+                float* xr = zi + m;
+                float* val = xr + n_fft;
+                float* sq = val + valwmax;
+                const int j = f0 + jj;
+
+                // collect the one-sided spectrum; fft_real_inverse
+                // tangles the Hermitian mirror internally, so bins
+                // m+1..n-1 are never materialized
                 for (int k = 0; k <= m; k++)
                 {
                     xin[2 * k] = bottom_blob.channel(k).row(j)[0];
@@ -233,52 +263,63 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                 for (int i = 0; i < n_fft; i++)
                 {
+                    const int output_index = j * hoplen + i - off;
+                    if (output_index < s0 || output_index >= s1)
+                        continue;
+                    const int si = output_index - s0;
+
                     const float wv = win[i];
                     const float vre = xr[i] * wv;
                     const float vim = (imx0 + ((i & 1) ? -imxm : imxm)) * inv_nfft * wv;
-                    int output_index = j * hoplen + i;
-                    if (center == 1)
-                    {
-                        output_index -= n_fft / 2;
-                    }
-                    if (output_index >= 0 && output_index < outsize)
-                    {
-                        // square window
-                        sq[output_index] += wv * wv;
 
-                        if (returns == 0)
-                        {
-                            val[2 * output_index] += vre;
-                            val[2 * output_index + 1] += vim;
-                        }
-                        if (returns == 1)
-                        {
-                            val[output_index] += vre;
-                        }
-                        if (returns == 2)
-                        {
-                            val[output_index] += vim;
-                        }
+                    // square window
+                    sq[si] += wv * wv;
+
+                    if (returns == 0)
+                    {
+                        val[2 * si] += vre;
+                        val[2 * si + 1] += vim;
+                    }
+                    if (returns == 1)
+                    {
+                        val[si] += vre;
+                    }
+                    if (returns == 2)
+                    {
+                        val[si] += vim;
                     }
                 }
             }
-        }
 
-        // merge the per-thread accumulators
-        float* top = (float*)top_blob;
-        float* wss = (float*)window_sumsquare;
-        for (int t = 0; t < nbuffers; t++)
-        {
-            const float* val = (float*)scratch + (size_t)t * tstride + (n_fft + 2) + m + m + n_fft;
-            const float* sq = val + valw;
-            for (size_t i = 0; i < valw; i++)
+            // merge this chunk's per-thread accumulators (nth slots,
+            // all zero-initialized above, exact for any team size)
+            for (int t = 0; t < nth; t++)
             {
-                top[i] += val[i];
+                const float* val = (float*)scratch + (size_t)t * tstride + (n_fft + 2) + m + m + n_fft;
+                const float* sq = val + valwmax;
+                if (returns == 0)
+                {
+                    for (int i = 0; i < span; i++)
+                    {
+                        top[2 * (s0 + i)] += val[2 * i];
+                        top[2 * (s0 + i) + 1] += val[2 * i + 1];
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < span; i++)
+                    {
+                        top[s0 + i] += val[i];
+                    }
+                }
+                for (int i = 0; i < span; i++)
+                {
+                    wss[s0 + i] += sq[i];
+                }
             }
-            for (int i = 0; i < outsize; i++)
-            {
-                wss[i] += sq[i];
-            }
+
+            // re-zero the used slots for the next chunk
+            memset((float*)scratch, 0, tstride * nth * sizeof(float));
         }
     }
     else
