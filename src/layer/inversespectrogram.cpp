@@ -176,8 +176,12 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         const int off = center == 1 ? n_fft / 2 : 0;
         int nbuffers = opt.num_threads < 1 ? 1 : opt.num_threads;
 
-        // chunk size: per-thread accumulators stay around 1 MB
-        const int chunk_frames = 1048576 / hoplen > 1 ? 1048576 / hoplen : 1;
+        // chunk size: budget per-thread accumulators at ~1 MiB, counted
+        // in bytes across the float planes (returns == 0 keeps val re/im
+        // + the square-window plane, returns 1/2 keep two)
+        const int planes = returns == 0 ? 3 : 2;
+        int chunk_samples = (int)(1048576 / sizeof(float)) / planes - n_fft;
+        int chunk_frames = chunk_samples / hoplen > 1 ? chunk_samples / hoplen : 1;
         // chunk output span bound
         int maxspan = chunk_frames * hoplen + n_fft;
         if (maxspan > outsize)
