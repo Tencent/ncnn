@@ -45,21 +45,21 @@ layout(push_constant) uniform parameter
     float coeff;
 } p;
 
-shared afp sdata[256];
+shared float sdata[256];
 shared float sdata_logsumexp[256];
 
 const float FLT_MAX_VALUE = 3.402823466e+38;
 const float FLT_MIN_VALUE = 1.175494351e-38;
 
-afp init_acc()
+float init_acc()
 {
-    if (op == 6) return afp(1.f);
-    if (op == 4) return afp(-FLT_MAX_VALUE);
-    if (op == 5) return afp(FLT_MAX_VALUE);
-    return afp(0.f);
+    if (op == 6) return 1.f;
+    if (op == 4) return -FLT_MAX_VALUE;
+    if (op == 5) return FLT_MAX_VALUE;
+    return 0.f;
 }
 
-afp element_accum(afp acc, afp v)
+float element_accum(float acc, float v)
 {
     if (op == 0 || op == 3 || op == 9) return acc + v;
     if (op == 1 || op == 7) return acc + abs(v);
@@ -70,7 +70,7 @@ afp element_accum(afp acc, afp v)
     return acc + v;
 }
 
-afp combine_accum(afp a, afp b)
+float combine_accum(float a, float b)
 {
     if (op == 4) return max(a, b);
     if (op == 5) return min(a, b);
@@ -79,7 +79,7 @@ afp combine_accum(afp a, afp b)
 }
 
 #if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (!NCNN_fp16_arithmetic || ncnn_shaderSubgroupExtendedTypes)
-afp subgroup_reduce_acc(afp v)
+float subgroup_reduce_acc(float v)
 {
     if (op == 4) return subgroupMax(v);
     if (op == 5) return subgroupMin(v);
@@ -169,11 +169,11 @@ int reduce_in_index(int t, int in_coord[4], int in_w, int in_h, int in_d, int in
     return in_index(iw, ih, id, ic);
 }
 
-afp finalize_out(afp outv)
+float finalize_out(float outv)
 {
     if (op == 9) outv = log(outv);
-    if (op == 8) outv = sqrt(outv < afp(FLT_MIN_VALUE) ? afp(0.f) : outv);
-    if (p.coeff != 1.f) outv = outv * afp(p.coeff);
+    if (op == 8) outv = sqrt(outv < FLT_MIN_VALUE ? 0.f : outv);
+    if (p.coeff != 1.f) outv = outv * p.coeff;
     return outv;
 }
 
@@ -283,16 +283,16 @@ void main()
         return;
     }
 
-    afp acc = init_acc();
+    float acc = init_acc();
 
     for (int t = tid; t < reduce_size; t += 256)
     {
-        afp v = buffer_ld1(bottom_blob_data, reduce_in_index(t, in_coord, in_w, in_h, in_d, in_c));
+        float v = float(buffer_ld1(bottom_blob_data, reduce_in_index(t, in_coord, in_w, in_h, in_d, in_c)));
         acc = element_accum(acc, v);
     }
 
 #if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (!NCNN_fp16_arithmetic || ncnn_shaderSubgroupExtendedTypes)
-    afp sg = subgroup_reduce_acc(acc);
+    float sg = subgroup_reduce_acc(acc);
 
     if (subgroupElect())
     {
@@ -309,13 +309,13 @@ void main()
         const int lane = int(gl_SubgroupInvocationID);
         const int num_sg = int(gl_NumSubgroups);
 
-        afp v = lane < num_sg ? sdata[lane] : init_acc();
-        afp outv = subgroup_reduce_acc(v);
+        float v = lane < num_sg ? sdata[lane] : init_acc();
+        float outv = subgroup_reduce_acc(v);
 
         if (subgroupElect())
         {
             outv = finalize_out(outv);
-            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
         }
     }
 #elif ncnn_subgroupSize == 8
@@ -326,8 +326,8 @@ void main()
         const int lane = int(gl_SubgroupInvocationID);
         const int base = int(gl_SubgroupID) * 8;
 
-        afp v = sdata[base + lane];
-        afp r = subgroup_reduce_acc(v);
+        float v = sdata[base + lane];
+        float r = subgroup_reduce_acc(v);
 
         if (subgroupElect())
         {
@@ -342,13 +342,13 @@ void main()
     {
         const int lane = int(gl_SubgroupInvocationID);
 
-        afp v = lane < 4 ? sdata[lane * 8] : init_acc();
-        afp outv = subgroup_reduce_acc(v);
+        float v = lane < 4 ? sdata[lane * 8] : init_acc();
+        float outv = subgroup_reduce_acc(v);
 
         if (subgroupElect())
         {
             outv = finalize_out(outv);
-            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
         }
     }
 #elif ncnn_subgroupSize == 4
@@ -359,8 +359,8 @@ void main()
         const int lane = int(gl_SubgroupInvocationID);
         const int base = int(gl_SubgroupID) * 4;
 
-        afp v = sdata[base + lane];
-        afp r = subgroup_reduce_acc(v);
+        float v = sdata[base + lane];
+        float r = subgroup_reduce_acc(v);
 
         if (subgroupElect())
         {
@@ -376,8 +376,8 @@ void main()
         const int lane = int(gl_SubgroupInvocationID);
         const int base = int(gl_SubgroupID) * 16;
 
-        afp v = sdata[base + lane * 4];
-        afp r = subgroup_reduce_acc(v);
+        float v = sdata[base + lane * 4];
+        float r = subgroup_reduce_acc(v);
 
         if (subgroupElect())
         {
@@ -392,13 +392,13 @@ void main()
     {
         const int lane = int(gl_SubgroupInvocationID);
 
-        afp v = sdata[lane * 16];
-        afp outv = subgroup_reduce_acc(v);
+        float v = sdata[lane * 16];
+        float outv = subgroup_reduce_acc(v);
 
         if (subgroupElect())
         {
             outv = finalize_out(outv);
-            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
         }
     }
 #else
@@ -413,8 +413,8 @@ void main()
         {
             if (tid < stride)
             {
-                afp a = sdata[tid];
-                afp b = sdata[tid + stride];
+                float a = sdata[tid];
+                float b = sdata[tid + stride];
                 sdata[tid] = combine_accum(a, b);
             }
             barrier();
@@ -422,9 +422,9 @@ void main()
 
         if (tid == 0)
         {
-            afp outv = sdata[0];
+            float outv = sdata[0];
             outv = finalize_out(outv);
-            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+            buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
         }
     }
 #endif
@@ -437,8 +437,8 @@ void main()
     {
         if (tid < stride)
         {
-            afp a = sdata[tid];
-            afp b = sdata[tid + stride];
+            float a = sdata[tid];
+            float b = sdata[tid + stride];
             sdata[tid] = combine_accum(a, b);
         }
         barrier();
@@ -446,9 +446,9 @@ void main()
 
     if (tid == 0)
     {
-        afp outv = sdata[0];
+        float outv = sdata[0];
         outv = finalize_out(outv);
-        buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), outv);
+        buffer_st1(top_blob_data, out_offset(ow, oh, od, oc), afp(outv));
     }
 #endif
 }
