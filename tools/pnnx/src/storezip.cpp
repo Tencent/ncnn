@@ -320,7 +320,7 @@ int StoreZipReader::read_directory(uint64_t size, std::string& error)
         const uint16_t local_extra_size = zip_u16(local + 28);
         const uint64_t local_start = local_offset + sizeof(local);
         if ((uint64_t)local_name_size + local_extra_size > cd_offset - local_start
-            || local_name_size != name_size || zip_u16(local + 6) != meta.flag || zip_u16(local + 8) != meta.compression)
+                || local_name_size != name_size || zip_u16(local + 6) != meta.flag || zip_u16(local + 8) != meta.compression)
             return zip_error(error, "inconsistent local file header");
         std::string local_name(local_name_size, '\0');
         if (!zip_read(fp, local_start, &local_name[0], local_name_size, cd_offset) || local_name != name)

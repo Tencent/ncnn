@@ -14,7 +14,8 @@ namespace pnnx {
 class JsonParser
 {
 public:
-    JsonParser(const char* data, size_t size) : data(data), size(size), pos(0)
+    JsonParser(const char* data, size_t size)
+        : data(data), size(size), pos(0)
     {
     }
 

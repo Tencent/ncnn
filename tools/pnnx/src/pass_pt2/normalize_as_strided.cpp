@@ -28,7 +28,9 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     std::vector<int> axes;
     for (size_t i = 0; i < source.shape.size(); i++)
         axes.push_back((int)i);
-    std::stable_sort(axes.begin(), axes.end(), [&](int a, int b) { return source.strides[a] > source.strides[b]; });
+    std::stable_sort(axes.begin(), axes.end(), [&](int a, int b) {
+        return source.strides[a] > source.strides[b];
+    });
     int64_t count = 1;
     for (auto i = axes.rbegin(); i != axes.rend(); ++i)
     {
@@ -52,7 +54,7 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
         args[i - 1] = constant->params.at("value");
     }
     if (args[0].type != 5 || args[1].type != 5 || args[0].ai.size() != args[1].ai.size()
-        || (args[2].type != 0 && args[2].type != 2))
+            || (args[2].type != 0 && args[2].type != 2))
     {
         error = "invalid as_strided size, stride or offset";
         return false;
@@ -97,7 +99,7 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
         physical->shape.push_back(source.shape[axis]);
     permute->outputs.push_back(physical);
 
-    Operand* size = constant_before(graph, op, "_flat_size", Parameter(std::vector<int>{(int)count}));
+    Operand* size = constant_before(graph, op, "_flat_size", Parameter(std::vector<int> {(int)count}));
     Operator* reshape = graph.new_operator_before("aten::reshape", op->name + "_flatten", op);
     reshape->inputs = {physical, size};
     physical->consumers.push_back(reshape);

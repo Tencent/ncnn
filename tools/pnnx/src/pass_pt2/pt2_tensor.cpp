@@ -13,20 +13,34 @@ int pt2_tensor_type(int serde_type)
 {
     switch (serde_type)
     {
-    case 1: return 8;   // uint8
-    case 2: return 7;   // int8
-    case 3: return 6;   // int16
-    case 4: return 4;   // int32
-    case 5: return 5;   // int64
-    case 6: return 3;   // float16
-    case 7: return 1;   // float32
-    case 8: return 2;   // float64
-    case 9: return 12;  // complex32
-    case 10: return 10; // complex64
-    case 11: return 11; // complex128
-    case 12: return 9;  // bool
-    case 13: return 13; // bfloat16
-    default: return 0;
+    case 1:
+        return 8; // uint8
+    case 2:
+        return 7; // int8
+    case 3:
+        return 6; // int16
+    case 4:
+        return 4; // int32
+    case 5:
+        return 5; // int64
+    case 6:
+        return 3; // float16
+    case 7:
+        return 1; // float32
+    case 8:
+        return 2; // float64
+    case 9:
+        return 12; // complex32
+    case 10:
+        return 10; // complex64
+    case 11:
+        return 11; // complex128
+    case 12:
+        return 9; // bool
+    case 13:
+        return 13; // bfloat16
+    default:
+        return 0;
     }
 }
 
@@ -120,7 +134,7 @@ int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allo
     const JsonValue* device_type = device->get("type");
     const JsonValue* device_index = device->get("index");
     if (!device_type || device_type->type != JsonValue::String || device_type->s != "cpu"
-        || (device_index && device_index->type != JsonValue::Null && (device_index->type != JsonValue::Int || device_index->i < 0 || device_index->i > INT_MAX)))
+            || (device_index && device_index->type != JsonValue::Null && (device_index->type != JsonValue::Int || device_index->i < 0 || device_index->i > INT_MAX)))
     {
         error = "only CPU tensor metadata is supported";
         return -1;
@@ -208,7 +222,7 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
     const JsonValue* use_pickle = payload.get("use_pickle");
     const JsonValue* tensor_meta = payload.get("tensor_meta");
     if (!path_name || path_name->type != JsonValue::String || !valid_storage_name(path_name->s)
-        || !is_param || is_param->type != JsonValue::Bool || !use_pickle || use_pickle->type != JsonValue::Bool || !tensor_meta)
+            || !is_param || is_param->type != JsonValue::Bool || !use_pickle || use_pickle->type != JsonValue::Bool || !tensor_meta)
     {
         error = "invalid tensor payload metadata or storage path";
         return -1;

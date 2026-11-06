@@ -87,7 +87,7 @@ int check_ncnn(const Graph& g, std::string& error)
             if (param.second.type == 3 && !std::isfinite(param.second.f))
                 reason = "non-finite parameter";
             if (op->type == "pnnx.Expression" && param.first == "expr"
-                && (param.second.s.find("nan") != std::string::npos || param.second.s.find("inf") != std::string::npos))
+                    && (param.second.s.find("nan") != std::string::npos || param.second.s.find("inf") != std::string::npos))
                 reason = "non-finite expression";
         }
         if ((op->type == "F.interpolate" || op->type == "nn.Upsample") && op->has_param("mode") && op->params.at("mode").s == "nearest-exact")

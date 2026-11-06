@@ -24,7 +24,7 @@ void normalize_pt2_scalar(Graph& graph)
             continue;
 
         if (op->type == "aten::eq" || op->type == "aten::ne" || op->type == "aten::lt"
-            || op->type == "aten::le" || op->type == "aten::gt" || op->type == "aten::ge")
+                || op->type == "aten::le" || op->type == "aten::gt" || op->type == "aten::ge")
         {
             op->params["expr"] = op->type.substr(6) + "(@0,@1)";
             op->type = "pnnx.Expression";

@@ -94,7 +94,8 @@ static bool allows_numbers_as_tensors(const std::string& name)
         "aten::_conj", "aten::_to_copy", "aten::add", "aten::add_", "aten::copy", "aten::copy_",
         "aten::div", "aten::div_", "aten::divide", "aten::divide_", "aten::floor_divide", "aten::floor_divide_",
         "aten::mul", "aten::mul_", "aten::multiply", "aten::multiply_", "aten::sub", "aten::sub_",
-        "aten::subtract", "aten::subtract_", "aten::to", "aten::true_divide", "aten::true_divide_"};
+        "aten::subtract", "aten::subtract_", "aten::to", "aten::true_divide", "aten::true_divide_"
+    };
     for (size_t i = 0; i < sizeof(names) / sizeof(names[0]); i++)
     {
         if (name == names[i])
@@ -218,7 +219,7 @@ static bool matches_type(const JsonValue& arg, const c10::TypePtr& type, bool al
         const JsonValue* device_type = value.get("type");
         const JsonValue* index = value.get("index");
         if (value.type != JsonValue::Object || !device_type || device_type->type != JsonValue::String || !is_identifier(device_type->s)
-            || value.o.size() != (index ? 2 : 1))
+                || value.o.size() != (index ? 2 : 1))
             return false;
         if (index && index->type != JsonValue::Null && (index->type != JsonValue::Int || index->i < 0 || index->i > 127))
             return false;
@@ -286,14 +287,30 @@ static bool default_argument(const c10::IValue& value, const c10::TypePtr& type,
             const c10::Layout layout = value.toLayout();
             switch (layout)
             {
-            case c10::Layout::Sparse: v = 1; break;
-            case c10::Layout::SparseCsr: v = 2; break;
-            case c10::Layout::SparseCsc: v = 3; break;
-            case c10::Layout::SparseBsr: v = 4; break;
-            case c10::Layout::SparseBsc: v = 5; break;
-            case c10::Layout::Mkldnn: v = 6; break;
-            case c10::Layout::Strided: v = 7; break;
-            default: v = 0; break;
+            case c10::Layout::Sparse:
+                v = 1;
+                break;
+            case c10::Layout::SparseCsr:
+                v = 2;
+                break;
+            case c10::Layout::SparseCsc:
+                v = 3;
+                break;
+            case c10::Layout::SparseBsr:
+                v = 4;
+                break;
+            case c10::Layout::SparseBsc:
+                v = 5;
+                break;
+            case c10::Layout::Mkldnn:
+                v = 6;
+                break;
+            case c10::Layout::Strided:
+                v = 7;
+                break;
+            default:
+                v = 0;
+                break;
             }
         }
         if (kind == c10::TypeKind::MemoryFormatType)
@@ -302,11 +319,21 @@ static bool default_argument(const c10::IValue& value, const c10::TypePtr& type,
             const c10::MemoryFormat format = value.toMemoryFormat();
             switch (format)
             {
-            case c10::MemoryFormat::Contiguous: v = 1; break;
-            case c10::MemoryFormat::ChannelsLast: v = 2; break;
-            case c10::MemoryFormat::ChannelsLast3d: v = 3; break;
-            case c10::MemoryFormat::Preserve: v = 4; break;
-            default: v = 0; break;
+            case c10::MemoryFormat::Contiguous:
+                v = 1;
+                break;
+            case c10::MemoryFormat::ChannelsLast:
+                v = 2;
+                break;
+            case c10::MemoryFormat::ChannelsLast3d:
+                v = 3;
+                break;
+            case c10::MemoryFormat::Preserve:
+                v = 4;
+                break;
+            default:
+                v = 0;
+                break;
             }
         }
         arg = argument_value(tag, JsonValue(v));
@@ -493,7 +520,7 @@ int bind_pt2_operator(const JsonValue& node, Pt2Operator& op, std::string& error
     const std::string prefix = "torch.ops.aten.";
     const size_t dot = target->s.rfind('.');
     if (target->s.compare(0, prefix.size(), prefix) != 0 || dot < prefix.size()
-        || !is_identifier(target->s.substr(prefix.size(), dot - prefix.size())) || !is_identifier(target->s.substr(dot + 1)))
+            || !is_identifier(target->s.substr(prefix.size(), dot - prefix.size())) || !is_identifier(target->s.substr(dot + 1)))
     {
         error = "unsupported pt2 target " + target->s;
         return -1;

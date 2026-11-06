@@ -26,19 +26,24 @@ public:
         Object
     };
 
-    JsonValue() : type(Null), b(false), i(0), f(0)
+    JsonValue()
+        : type(Null), b(false), i(0), f(0)
     {
     }
-    explicit JsonValue(bool v) : type(Bool), b(v), i(0), f(0)
+    explicit JsonValue(bool v)
+        : type(Bool), b(v), i(0), f(0)
     {
     }
-    explicit JsonValue(int64_t v) : type(Int), b(false), i(v), f(0)
+    explicit JsonValue(int64_t v)
+        : type(Int), b(false), i(v), f(0)
     {
     }
-    explicit JsonValue(double v) : type(Float), b(false), i(0), f(v)
+    explicit JsonValue(double v)
+        : type(Float), b(false), i(0), f(v)
     {
     }
-    explicit JsonValue(const std::string& v) : type(String), b(false), i(0), f(0), s(v)
+    explicit JsonValue(const std::string& v)
+        : type(String), b(false), i(0), f(0), s(v)
     {
     }
 

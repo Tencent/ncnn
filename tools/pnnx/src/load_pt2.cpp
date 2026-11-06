@@ -258,7 +258,9 @@ static bool dense_layout(const Pt2TensorMeta& meta)
     std::vector<size_t> axes;
     for (size_t i = 0; i < meta.shape.size(); i++)
         axes.push_back(i);
-    std::sort(axes.begin(), axes.end(), [&](size_t a, size_t b) { return meta.strides[a] < meta.strides[b]; });
+    std::sort(axes.begin(), axes.end(), [&](size_t a, size_t b) {
+        return meta.strides[a] < meta.strides[b];
+    });
     int64_t count = 1;
     for (size_t axis : axes)
     {
@@ -273,7 +275,8 @@ static bool dense_layout(const Pt2TensorMeta& meta)
 class Pt2Loader
 {
 public:
-    Pt2Loader(Graph& graph) : g(graph), next_id(0), next_storage(0)
+    Pt2Loader(Graph& graph)
+        : g(graph), next_id(0), next_storage(0)
     {
     }
 
@@ -676,7 +679,7 @@ public:
                 if (max->type == JsonValue::Int && n > max->i)
                     return fail("input above range maximum " + symbol);
                 if ((min->type != JsonValue::Int && min->type != JsonValue::Null && !(min->type == JsonValue::String && min->s == "-Infinity"))
-                    || (max->type != JsonValue::Int && max->type != JsonValue::Null && !(max->type == JsonValue::String && max->s == "Infinity")))
+                        || (max->type != JsonValue::Int && max->type != JsonValue::Null && !(max->type == JsonValue::String && max->s == "Infinity")))
                     return fail("unsupported range bound");
                 if (base != symbol)
                 {
@@ -797,9 +800,9 @@ public:
                 arg.value = *value;
                 const std::string n = value_name(arg.value);
                 const bool literal = boolean ? arg.value.get("as_bool") != 0
-                                             : arg.value.get("as_int") || (shape_comparison && arg.value.get("as_float"));
+                                     : arg.value.get("as_int") || (shape_comparison && arg.value.get("as_float"));
                 const bool symbolic = boolean ? arg.value.get("as_sym_bool") != 0
-                                              : arg.value.get("as_sym_int") || (shape_comparison && arg.value.get("as_sym_float"));
+                                      : arg.value.get("as_sym_int") || (shape_comparison && arg.value.get("as_sym_float"));
                 if (!literal && (!symbolic || n.empty() || !symbols.count(n)))
                     return fail("symbolic operator argument kind mismatch");
                 bound.inputs.push_back(arg);
@@ -824,9 +827,9 @@ public:
         if (type == "aten::stride" || type == "aten::sym_stride" || type == "aten::storage_offset" || type == "aten::sym_storage_offset")
             return fail("storage-layout-dependent operation is unsupported after tensor materialization");
         if (type.find("rand") != std::string::npos || type.find("bernoulli") != std::string::npos
-            || type.find("normal_") != std::string::npos || type.find("multinomial") != std::string::npos
-            || type == "aten::normal" || type == "aten::poisson" || type == "aten::_fused_dropout" || type == "aten::native_dropout"
-            || type.find("backward") != std::string::npos)
+                || type.find("normal_") != std::string::npos || type.find("multinomial") != std::string::npos
+                || type == "aten::normal" || type == "aten::poisson" || type == "aten::_fused_dropout" || type == "aten::native_dropout"
+                || type.find("backward") != std::string::npos)
             return fail("random or training operation is unsupported");
         for (const Pt2Argument& a : bound.inputs)
         {
@@ -864,7 +867,8 @@ public:
             static const std::set<std::string> functionalizable = {
                 "aten::relu_", "aten::relu6_", "aten::hardtanh_", "aten::hardswish_",
                 "aten::add_", "aten::sub_", "aten::mul_", "aten::div_", "aten::exp_",
-                "aten::clamp_", "aten::masked_fill_", "aten::fill_", "aten::copy_", "aten::index_put_"};
+                "aten::clamp_", "aten::masked_fill_", "aten::fill_", "aten::copy_", "aten::index_put_"
+            };
             if (!functionalizable.count(type) || bound.writes.size() != 1 || bound.writes[0] != 0 || bound.outputs.size() != 1)
                 return fail("unsupported mutable operator");
             const std::string n = value_name(bound.inputs[bound.writes[0]].value);
@@ -876,7 +880,7 @@ public:
                     return fail("mutable operator writes external tensor storage");
             auto root = [&](const Operand* r) {
                 while (r->producer->type == "aten::slice" || r->producer->type == "aten::select" || r->producer->type == "aten::view"
-                       || functionalizable.count(r->producer->type))
+                        || functionalizable.count(r->producer->type))
                     r = r->producer->inputs[0];
                 return r;
             };
@@ -1014,7 +1018,7 @@ public:
                     return false;
                 provenance[name] = storage;
                 if (!inplace && i < bound.aliases.size() && !bound.aliases[i].empty()
-                    && type != "aten::slice" && type != "aten::select" && type != "aten::view")
+                        && type != "aten::slice" && type != "aten::select" && type != "aten::view")
                 {
                     unsupported_aliases.insert(values.at(name));
                     if (dense_layout(metadata.at(name)))

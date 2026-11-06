@@ -1576,8 +1576,8 @@ int Graph::check_python(std::string& error) const
     {
         const std::string& type = op->type;
         if (type == "pnnx.Input" || type == "pnnx.Output" || type == "pnnx.Attribute" || type == "pnnx.Expression" || type == "pnnx.SliceIndexes"
-            || type == "prim::ListConstruct" || type == "prim::ListUnpack" || type == "prim::TupleConstruct" || type == "prim::TupleUnpack"
-            || type.compare(0, 2, "F.") == 0 || type.compare(0, 3, "nn.") == 0 || type.compare(0, 6, "torch.") == 0 || type.compare(0, 7, "Tensor.") == 0)
+                || type == "prim::ListConstruct" || type == "prim::ListUnpack" || type == "prim::TupleConstruct" || type == "prim::TupleUnpack"
+                || type.compare(0, 2, "F.") == 0 || type.compare(0, 3, "nn.") == 0 || type.compare(0, 6, "torch.") == 0 || type.compare(0, 7, "Tensor.") == 0)
             continue;
 
         error = "unsupported operator " + type + " (" + op->name + ")";
