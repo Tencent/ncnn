@@ -922,7 +922,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (getenv("NCNN_TEST_NO_COOPMAT")) opt.use_cooperative_matrix = false;
     if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     // FIXME fp16a may produce large error
@@ -1508,7 +1507,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
-    if (getenv("NCNN_TEST_NO_COOPMAT")) opt.use_cooperative_matrix = false;
     if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
 
     // FIXME fp16a may produce large error
