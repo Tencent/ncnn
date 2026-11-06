@@ -1,7 +1,9 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import importlib
 import json
+import operator
 import os
 import subprocess
 
@@ -74,6 +76,103 @@ class BFloatConv(torch.nn.Module):
 
     def forward(self, x, w):
         return torch.nn.functional.conv1d(x, w, self.bias)
+
+
+class LayoutQuery(torch.nn.Module):
+    def __init__(self, source):
+        super().__init__()
+        self.source = source
+        if source == 'buffer':
+            self.register_buffer('b', torch.arange(12, dtype=torch.float32)[2:8])
+
+    def forward(self, x):
+        if self.source == 'buffer':
+            y = self.b
+        elif self.source == 'clone':
+            y = x.clone(memory_format=torch.contiguous_format)[2:8]
+        else:
+            y = x[2:8]
+        return torch.as_strided(y, (2, 3), (3, 1), 2) + x[0] + 2
+
+
+def test_layout_queries():
+    x = torch.arange(12, dtype=torch.float32)
+    # Export normally specializes layout queries away. Keep real query nodes in
+    # the serialized graph, as exporters that retain layout assertions do.
+    for source in ('clone', 'buffer', 'input'):
+        model = LayoutQuery(source).eval()
+        program = torch.export.export(model, (x,))
+        graph = program.graph_module.graph
+        view = next(n for n in graph.nodes if n.target == torch.ops.aten.as_strided.default)
+        add = next(n for n in graph.nodes if n.target == torch.ops.aten.add.Tensor and n.args[1] == 2)
+        with graph.inserting_before(view):
+            offset = graph.call_function(torch.ops.aten.sym_storage_offset.default, (view.args[0],))
+            offset.meta['val'] = 2
+            stride = graph.call_function(torch.ops.aten.sym_stride.int, (view.args[0], -1))
+            stride.meta['val'] = 1
+        view.args = (view.args[0], view.args[1], (3, stride), offset)
+        add.args = (add.args[0], offset)
+        graph.lint()
+        program.graph_module.recompile()
+        if not torch.equal(program.module()(x), model(x)):
+            return False
+        prefix = 'test_pt2_tensor_layout_' + source
+        torch.export.save(program, prefix + '.pt2')
+        result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
+        if source == 'input':
+            if result.returncode == 0 or 'layout query source is not statically known' not in result.stderr:
+                print(result.stderr)
+                return False
+            continue
+        # This exercises pnnx Python; the ncnn backend has no as_strided layer.
+        if result.returncode != 0 and 'pt2 ncnn: unsupported unconverted operator at torch.as_strided' not in result.stderr:
+            print(result.stderr)
+            return False
+        converted = importlib.import_module(prefix + '_pnnx').Model().eval()
+        # Equal shapes do not imply equal input strides or storage offsets.
+        for sample in (x, torch.arange(24, dtype=torch.float32)[3:15], torch.arange(24, dtype=torch.float32)[::2]):
+            if not torch.equal(converted(sample), model(sample)):
+                return False
+    return True
+
+
+def test_dead_layout_queries():
+    x = torch.arange(12, dtype=torch.float32)
+    program = torch.export.export(torch.nn.ReLU().eval(), (x,))
+    graph = program.graph_module.graph
+    source = next(n for n in graph.nodes if n.op == 'placeholder')
+    relu = next(n for n in graph.nodes if n.target == torch.ops.aten.relu.default)
+    with graph.inserting_before(relu):
+        offset = graph.call_function(torch.ops.aten.sym_storage_offset.default, (source,))
+        offset.meta['val'] = 0
+        check = graph.call_function(operator.eq, (offset, 0))
+        check.meta['val'] = True
+        assertion = graph.call_function(torch.ops.aten._assert_scalar.default, (check, 'offset'))
+        assertion.meta['val'] = None
+        stride = graph.call_function(torch.ops.aten.sym_stride.int, (source, 0))
+        stride.meta['val'] = 1
+    graph.lint()
+    program.graph_module.recompile()
+    torch.export.save(program, 'test_pt2_tensor_dead_layout.pt2')
+    result = subprocess.run(['../../src/pnnx', 'test_pt2_tensor_dead_layout.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
+    if result.returncode != 0:
+        print(result.stderr)
+        return False
+    import test_pt2_tensor_dead_layout_pnnx
+    converted = test_pt2_tensor_dead_layout_pnnx.Model().eval()
+    sample = torch.arange(-12, 12, dtype=torch.float32)[1::2]
+    if not torch.equal(converted(sample), sample.relu()):
+        return False
+    # Dropping a pure query must not discard a producer with hidden effects.
+    with graph.inserting_before(offset):
+        random = graph.call_function(torch.ops.aten.rand_like.default, (source,))
+        random.meta['val'] = source.meta['val']
+    offset.args = (random,)
+    graph.lint()
+    program.graph_module.recompile()
+    torch.export.save(program, 'test_pt2_tensor_dead_layout_random.pt2')
+    result = subprocess.run(['../../src/pnnx', 'test_pt2_tensor_dead_layout_random.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
+    return result.returncode != 0 and 'random or training operation is unsupported' in result.stderr
 
 
 def test_views():
@@ -427,6 +526,8 @@ def test():
         and test_scalar_broadcast()
         and test_bfloat_conv_bias()
         and test_linear()
+        and test_layout_queries()
+        and test_dead_layout_queries()
         and test_archive_errors()
     )
 

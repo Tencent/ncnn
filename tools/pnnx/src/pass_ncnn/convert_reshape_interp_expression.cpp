@@ -330,6 +330,7 @@ void convert_reshape_interp_expression(Graph& graph)
                          || t == "*"
                          || t == "/"
                          || t == "//"
+                         || t == "trunc_divide"
                          || t == "atan2"
                          || t == "max"
                          || t == "min"
@@ -344,6 +345,8 @@ void convert_reshape_interp_expression(Graph& graph)
                     exprstack.pop();
 
                     std::string r = t + "(" + a + "," + b + ")";
+                    if (t == "trunc_divide")
+                        r = "trunc(/(" + a + "," + b + "))";
                     exprstack.push(r);
                 }
                 else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")

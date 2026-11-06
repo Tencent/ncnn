@@ -737,7 +737,9 @@ public:
             const bool scalar = type == "_operator.add" || type == "_operator.sub" || type == "_operator.mul" || type == "_operator.floordiv"
                                 || type == "_operator.ge" || type == "_operator.gt" || type == "_operator.le" || type == "_operator.lt"
                                 || type == "_operator.eq" || type == "_operator.ne" || type == "_operator.or_"
-                                || type == "torch.ops.aten.item.default" || type == "torch.ops.aten.sym_size.int";
+                                || type == "torch.ops.aten.item.default" || type == "torch.ops.aten.sym_size.int"
+                                || type == "torch.ops.aten.stride.int" || type == "torch.ops.aten.sym_stride.int"
+                                || type == "torch.ops.aten.storage_offset.default" || type == "torch.ops.aten.sym_storage_offset.default";
             if (scalar && out->a.size() == 1 && (out->a[0].get("as_sym_int") || out->a[0].get("as_sym_float") || out->a[0].get("as_sym_bool")))
             {
                 const std::string name = value_name(out->a[0]);
@@ -824,8 +826,6 @@ public:
         }
         // Reject hidden state effects, including operations whose dispatcher schema is immutable.
         const std::string& type = bound.type;
-        if (type == "aten::stride" || type == "aten::sym_stride" || type == "aten::storage_offset" || type == "aten::sym_storage_offset")
-            return fail("storage-layout-dependent operation is unsupported after tensor materialization");
         if (type.find("rand") != std::string::npos || type.find("bernoulli") != std::string::npos
                 || type.find("normal_") != std::string::npos || type.find("multinomial") != std::string::npos
                 || type == "aten::normal" || type == "aten::poisson" || type == "aten::_fused_dropout" || type == "aten::native_dropout"
@@ -917,6 +917,8 @@ public:
             if (!define(result, values.at(source), true))
                 return false;
             provenance[result] = provenance[source];
+            if (known_layouts.count(source))
+                known_layouts.insert(result);
             return true;
         }
         std::vector<Operand*> inputs;
@@ -961,6 +963,28 @@ public:
         {
             normalized = "aten::clone";
             inputs.push_back(constant(Parameter(1)));
+        }
+        // User input metadata describes an export sample, not a runtime layout
+        // contract. Only fixed-format allocations and constant views of proven
+        // layouts can make their serialized layout available to scalar queries.
+        bool known_layout = false;
+        if (!inputs.empty())
+        {
+            const std::string source = value_name(bound.inputs[0].value);
+            if (type == "aten::slice" || type == "aten::select" || type == "aten::view" || type == "aten::reshape"
+                    || type == "aten::transpose" || type == "aten::permute" || type == "aten::t"
+                    || type == "aten::squeeze" || type == "aten::unsqueeze" || type == "aten::expand"
+                    || type == "aten::as_strided" || normalized == "aten::clone")
+                known_layout = known_layouts.count(source) != 0;
+            if (normalized == "aten::clone" && inputs.size() == 2 && inputs[1]->producer->type == "prim::Constant")
+            {
+                const Parameter& format = inputs[1]->producer->params.at("value");
+                if (format.type == 2 && (format.i == 0 || format.i == 2 || format.i == 3))
+                    known_layout = true;
+            }
+            for (size_t i = 1; i < inputs.size(); i++)
+                if (inputs[i]->producer->type != "prim::Constant")
+                    known_layout = false;
         }
         Operator* op = new_op(normalized);
         for (Operand* r : inputs)
@@ -1017,6 +1041,14 @@ public:
                 if (!define(name, new_value(op), output.get("as_tensor") != 0))
                     return false;
                 provenance[name] = storage;
+                if (known_layout && output.get("as_tensor"))
+                {
+                    const Pt2TensorMeta& meta = metadata.at(name);
+                    if (meta.storage_offset >= 0
+                            && std::find(meta.shape.begin(), meta.shape.end(), -1) == meta.shape.end()
+                            && std::find(meta.strides.begin(), meta.strides.end(), -1) == meta.strides.end())
+                        known_layouts.insert(name);
+                }
                 if (!inplace && i < bound.aliases.size() && !bound.aliases[i].empty()
                         && type != "aten::slice" && type != "aten::select" && type != "aten::view")
                 {
@@ -1026,12 +1058,15 @@ public:
                 }
             }
         }
-        if (type == "aten::as_strided")
+        if (type == "aten::as_strided" || type == "aten::stride" || type == "aten::sym_stride"
+                || type == "aten::storage_offset" || type == "aten::sym_storage_offset")
         {
             const std::string source = value_name(bound.inputs[0].value);
             if (!metadata.count(source))
-                return fail("as_strided source metadata missing");
-            strided_sources[op] = metadata.at(source);
+                return fail("layout source metadata missing");
+            if (type != "aten::as_strided" && !known_layouts.count(source))
+                return fail("layout query source is not statically known");
+            layout_sources[op] = metadata.at(source);
         }
         return true;
     }
@@ -1106,6 +1141,8 @@ public:
             if (!child.define(name, r, true))
                 return fail(child.error);
             child.provenance[name] = provenance[source];
+            if (known_layouts.count(source))
+                child.known_layouts.insert(name);
             child.external.insert(provenance[source].begin(), provenance[source].end());
             if (remaining[source] > 0)
                 remaining[source]--;
@@ -1127,12 +1164,14 @@ public:
             if (!define(name, r, true))
                 return false;
             provenance[name] = child.provenance[source];
+            if (child.known_layouts.count(source))
+                known_layouts.insert(name);
         }
         next_id = child.next_id;
         next_storage = child.next_storage;
         unsupported_aliases.insert(child.unsupported_aliases.begin(), child.unsupported_aliases.end());
         dense_aliases.insert(child.dense_aliases.begin(), child.dense_aliases.end());
-        strided_sources.insert(child.strided_sources.begin(), child.strided_sources.end());
+        layout_sources.insert(child.layout_sources.begin(), child.layout_sources.end());
         return true;
     }
 
@@ -1319,6 +1358,7 @@ public:
                 op->attrs["data"] = attr;
                 if (!define(name, new_value(op), true))
                     return false;
+                known_layouts.insert(name);
             }
             else
                 return fail("unsupported input signature " + kind);
@@ -1399,13 +1439,14 @@ public:
     std::map<std::string, Operand*> values;
     std::map<std::string, Pt2TensorMeta> metadata;
     std::set<std::string> symbols;
+    std::set<std::string> known_layouts;
     std::vector<std::string> runtime_inputs;
     std::map<std::string, std::set<int> > provenance;
     std::set<const Operand*> unsupported_aliases;
     std::set<const Operand*> dense_aliases;
     std::set<int> external;
     std::map<std::string, int> remaining;
-    std::map<Operator*, Pt2TensorMeta> strided_sources;
+    std::map<Operator*, Pt2TensorMeta> layout_sources;
 };
 
 int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types, const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2)
@@ -1429,7 +1470,7 @@ int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<in
         fprintf(stderr, "pt2 load: %s\n", loader.error.c_str());
         return -1;
     }
-    if (pass_pt2(graph, loader.strided_sources) != 0)
+    if (pass_pt2(graph, loader.layout_sources) != 0)
         return -1;
     g.ops.swap(graph.ops);
     g.operands.swap(graph.operands);

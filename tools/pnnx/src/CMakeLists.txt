@@ -242,7 +242,6 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_cumsum.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_diag.cpp
-    pass_level2/torch_div.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
     pass_level2/torch_empty_like.cpp

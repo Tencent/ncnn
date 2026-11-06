@@ -30,15 +30,20 @@ class IntegerReduce(torch.nn.Module):
 
 class ScalarThreshold(torch.nn.Module):
     def forward(self, x):
-        torch._check(x.item() > 1.00000001)
+        torch._check(x.item() > 1)
         return x + 1
 
 
 class SharedScalar(torch.nn.Module):
     def forward(self, x):
         value = x.item()
-        torch._check(value > 1.00000001)
+        torch._check(value > 1)
         return x + value
+
+
+class FloatScalar(torch.nn.Module):
+    def forward(self, x):
+        return x + x.item()
 
 
 class NumericTensorArguments(torch.nn.Module):
@@ -140,28 +145,44 @@ def test():
         if a.shape != b.shape or a.dtype != b.dtype or not torch.equal(a, b):
             return False
 
-    # Runtime checks and their unused scalar conditions are discarded on import.
-    program = torch.export.export(ScalarThreshold().eval(), (torch.tensor(2., dtype=torch.float32),))
+    # Runtime checks and their unused SymInt conditions are discarded on import.
+    program = torch.export.export(ScalarThreshold().eval(), (torch.tensor(2),))
     torch.export.save(program, 'test_pt2_arguments_scalar_threshold.pt2')
     os.system('../../src/pnnx test_pt2_arguments_scalar_threshold.pt2 fp16=0')
 
     import test_pt2_arguments_scalar_threshold_pnnx
     converted = test_pt2_arguments_scalar_threshold_pnnx.Model().eval()
-    for x in (torch.tensor(2.), torch.tensor(0.)):
+    for x in (torch.tensor(2), torch.tensor(0)):
         if not torch.equal(converted(x), x + 1):
             return False
 
     # Keep scalar values that are also used by inference.
     model = SharedScalar().eval()
-    x = torch.tensor(2.)
+    x = torch.tensor(2)
     program = torch.export.export(model, (x,))
     torch.export.save(program, 'test_pt2_arguments_shared_scalar.pt2')
     os.system('../../src/pnnx test_pt2_arguments_shared_scalar.pt2 fp16=0')
 
     import test_pt2_arguments_shared_scalar_pnnx
-    actual = test_pt2_arguments_shared_scalar_pnnx.Model().eval()(x)
-    if actual.shape != x.shape or actual.dtype != x.dtype or not torch.equal(actual, model(x)):
-        return False
+    converted = test_pt2_arguments_shared_scalar_pnnx.Model().eval()
+    for x in (torch.tensor(2), torch.tensor(0)):
+        actual = converted(x)
+        if actual.shape != x.shape or actual.dtype != x.dtype or not torch.equal(actual, x + x.item()):
+            return False
+
+    # Floating item computation does not require an export-time assertion.
+    model = FloatScalar().eval()
+    x = torch.tensor(2.5)
+    program = torch.export.export(model, (x,))
+    torch.export.save(program, 'test_pt2_arguments_float_scalar.pt2')
+    os.system('../../src/pnnx test_pt2_arguments_float_scalar.pt2 fp16=0')
+
+    import test_pt2_arguments_float_scalar_pnnx
+    converted = test_pt2_arguments_float_scalar_pnnx.Model().eval()
+    for x in (torch.tensor(2.5), torch.tensor(-0.5)):
+        actual = converted(x)
+        if actual.shape != x.shape or actual.dtype != x.dtype or not torch.equal(actual, model(x)):
+            return False
 
     model = NumericTensorArguments().eval()
     torch.manual_seed(0)

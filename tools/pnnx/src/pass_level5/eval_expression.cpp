@@ -517,6 +517,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "minimum"
                  || t == "mul"
                  || t == "floor_divide"
+                 || t == "trunc_divide"
                  || t == "remainder")
         {
             typed_expr a = exprstack.top();
@@ -529,7 +530,7 @@ static std::string eval_expression(const Operator* op)
                 const int64_t ai = a.i;
                 const int64_t bi = b.i;
 
-                if ((t == "floor_divide" || t == "remainder") && bi == 0)
+                if ((t == "floor_divide" || t == "trunc_divide" || t == "remainder") && bi == 0)
                 {
                     exprstack.push(typed_expr(t + "(" + a.to_expr() + "," + b.to_expr() + ")", 0));
                     continue;
@@ -561,6 +562,10 @@ static std::string eval_expression(const Operator* op)
                     r = ai / bi;
                     if (ai % bi != 0 && (ai < 0) != (bi < 0))
                         r--;
+                }
+                if (t == "trunc_divide")
+                {
+                    r = ai / bi;
                 }
                 if (t == "remainder")
                 {
@@ -601,7 +606,22 @@ static std::string eval_expression(const Operator* op)
                 }
                 if (t == "floor_divide")
                 {
-                    r = (int)af / (int)bf;
+                    // Match floor division's quotient/remainder rounding.
+                    const float mod = fmodf(af, bf);
+                    float div = (af - mod) / bf;
+                    if (mod != 0.f && (bf < 0.f) != (mod < 0.f))
+                        div -= 1.f;
+                    r = floorf(div);
+                    if (div - r > 0.5f)
+                        r += 1.f;
+                    if (div == 0.f)
+                        r = copysignf(0.f, af / bf);
+                    if (bf == 0.f)
+                        r = af / bf;
+                }
+                if (t == "trunc_divide")
+                {
+                    r = truncf(af / bf);
                 }
                 if (t == "remainder")
                 {

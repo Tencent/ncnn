@@ -8,6 +8,47 @@
 
 namespace pnnx {
 
+bool normalize_pt2_layout_query(Operator* op, const Pt2TensorMeta& source, std::string& error)
+{
+    const bool stride = op->type == "aten::stride" || op->type == "aten::sym_stride";
+    if (op->outputs.size() != 1 || op->inputs.size() != (stride ? 2u : 1u))
+    {
+        error = "unsupported layout query signature";
+        return false;
+    }
+    int64_t value = source.storage_offset;
+    if (stride)
+    {
+        const Operator* dim = op->inputs[1]->producer;
+        if (dim->type != "prim::Constant" || !dim->has_param("value") || dim->params.at("value").type != 2)
+        {
+            error = "stride query requires a static dimension";
+            return false;
+        }
+        int64_t axis = dim->params.at("value").i;
+        if (axis < 0)
+            axis += (int64_t)source.strides.size();
+        if (axis < 0 || axis >= (int64_t)source.strides.size())
+        {
+            error = "stride query dimension out of range";
+            return false;
+        }
+        value = source.strides[axis];
+    }
+    if (value < 0 || value > INT_MAX)
+    {
+        error = "layout query requires a static value in pnnx parameter range";
+        return false;
+    }
+    for (Operand* r : op->inputs)
+        r->remove_consumer(op);
+    op->inputs.clear();
+    op->inputnames.clear();
+    op->type = "prim::Constant";
+    op->params["value"] = (int)value;
+    return true;
+}
+
 static Operand* constant_before(Graph& graph, Operator* before, const char* suffix, const Parameter& value)
 {
     Operator* op = graph.new_operator_before("prim::Constant", before->name + suffix, before);
@@ -46,6 +87,23 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     for (size_t i = 1; i < 4; i++)
     {
         const Operator* constant = op->inputs[i]->producer;
+        // Stride queries in a SymInt list have just become integer constants.
+        // Read that list without deleting constants shared with other users.
+        if (i < 3 && constant->type == "prim::ListConstruct")
+        {
+            args[i - 1].type = 5;
+            for (const Operand* r : constant->inputs)
+            {
+                const Operator* item = r->producer;
+                if (item->type != "prim::Constant" || !item->has_param("value") || item->params.at("value").type != 2)
+                {
+                    error = "as_strided requires static size, stride and offset";
+                    return false;
+                }
+                args[i - 1].ai.push_back(item->params.at("value").i);
+            }
+            continue;
+        }
         if (constant->type != "prim::Constant" || !constant->has_param("value"))
         {
             error = "as_strided requires static size, stride and offset";
@@ -86,6 +144,14 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     // Public optimizations may change physical layouts while preserving values.
     // Reconstruct the original dense storage order from logical tensor axes,
     // then flatten it before applying the explicitly bounded strided view.
+    for (size_t i = 1; i < 3; i++)
+    {
+        if (op->inputs[i]->producer->type == "prim::Constant")
+            continue;
+        op->inputs[i]->remove_consumer(op);
+        op->inputs[i] = constant_before(graph, op, i == 1 ? "_size" : "_stride", args[i - 1]);
+        op->inputs[i]->consumers.push_back(op);
+    }
     Operand* input = op->inputs[0];
     Operand* dims = constant_before(graph, op, "_axes", Parameter(axes));
     Operator* permute = graph.new_operator_before("aten::permute", op->name + "_permute", op);

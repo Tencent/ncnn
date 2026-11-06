@@ -328,6 +328,7 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
                  || t == "*"
                  || t == "/"
                  || t == "//"
+                 || t == "trunc_divide"
                  || t == "atan2"
                  || t == "max"
                  || t == "min"
@@ -342,6 +343,8 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
             exprstack.pop();
 
             std::string r = t + "(" + a + "," + b + ")";
+            if (t == "trunc_divide")
+                r = "trunc(/(" + a + "," + b + "))";
             exprstack.push(r);
         }
         else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")

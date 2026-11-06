@@ -8,6 +8,8 @@
 
 namespace pnnx {
 
+bool normalize_pt2_layout_query(Operator* op, const Pt2TensorMeta& source, std::string& error);
+
 bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& source, std::string& error);
 
 } // namespace pnnx

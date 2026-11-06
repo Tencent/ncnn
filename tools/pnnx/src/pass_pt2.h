@@ -9,7 +9,7 @@
 
 namespace pnnx {
 
-int pass_pt2(Graph& graph, const std::map<Operator*, Pt2TensorMeta>& strided_sources);
+int pass_pt2(Graph& graph, const std::map<Operator*, Pt2TensorMeta>& layout_sources);
 
 } // namespace pnnx
 

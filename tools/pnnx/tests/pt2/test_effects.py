@@ -75,7 +75,7 @@ def bad_assert(p, entries):
 
 def test():
     torch.set_num_threads(1)
-    for name, model in [('local', Local()), ('lifted', Lifted()), ('nested_assert', AssertNested())]:
+    for name, model in [('local', Local()), ('lifted', Lifted())]:
         model.eval()
         torch.manual_seed(0)
         x = torch.randn(2, 3)
@@ -87,6 +87,20 @@ def test():
 
         actual = importlib.import_module(prefix + '_pnnx').Model().eval()(x)
         if actual.shape != expected.shape or not torch.allclose(actual, expected, 2e-5, 2e-5):
+            return False
+
+    # Nested checks use SymInt conditions, including when the condition is false at inference.
+    model = AssertNested().eval()
+    x = torch.tensor([[2, 3, 4], [5, 6, 7]])
+    program = torch.export.export(model, (x,))
+    torch.export.save(program, 'test_pt2_effects_nested_assert.pt2')
+    os.system('../../src/pnnx test_pt2_effects_nested_assert.pt2 fp16=0')
+
+    import test_pt2_effects_nested_assert_pnnx
+    converted = test_pt2_effects_nested_assert_pnnx.Model().eval()
+    for value in (x, -x):
+        actual = converted(value)
+        if actual.shape != value.shape or actual.dtype != value.dtype or not torch.equal(actual, value + 1):
             return False
 
     model = AssertMetadata().eval()

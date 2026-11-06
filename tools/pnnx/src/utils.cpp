@@ -10,8 +10,8 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
-#include <math.h>
 #include <string>
 
 namespace pnnx {
