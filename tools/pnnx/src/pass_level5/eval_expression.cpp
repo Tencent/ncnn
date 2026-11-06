@@ -5,7 +5,9 @@
 
 #include <fenv.h>
 #include <float.h>
+#include <limits.h>
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <iostream>
@@ -62,10 +64,15 @@ static bool token_is_literal(const std::string& t)
 
 static bool token_is_interger_literal(const std::string& t)
 {
-    std::istringstream iss(t);
-    int f;
-    iss >> std::noskipws >> f;
-    return iss.eof() && !iss.fail();
+    size_t i = !t.empty() && (t[0] == '-' || t[0] == '+') ? 1 : 0;
+    if (i == t.size())
+        return false;
+    for (; i < t.size(); i++)
+    {
+        if (t[i] < '0' || t[i] > '9')
+            return false;
+    }
+    return true;
 }
 
 static std::string eval_expression(const Operator* op)
@@ -295,6 +302,7 @@ static std::string eval_expression(const Operator* op)
             }
         }
         else if (t == "neg"
+                 || t == "abs"
                  || t == "sign"
                  || t == "square")
         {
@@ -303,12 +311,16 @@ static std::string eval_expression(const Operator* op)
 
             if (a.is_interger_literal())
             {
-                const int ai = a.i;
+                const int64_t ai = a.i;
 
-                int r = 0;
+                int64_t r = 0;
                 if (t == "neg")
                 {
                     r = -ai;
+                }
+                if (t == "abs")
+                {
+                    r = ai < 0 ? -ai : ai;
                 }
                 if (t == "sign")
                 {
@@ -319,7 +331,10 @@ static std::string eval_expression(const Operator* op)
                     r = ai * ai;
                 }
 
-                exprstack.push(r);
+                if (r >= INT_MIN && r <= INT_MAX)
+                    exprstack.push((int)r);
+                else
+                    exprstack.push(typed_expr(t + "(" + a.to_expr() + ")", 0));
             }
             else if (a.is_literal())
             {
@@ -329,6 +344,10 @@ static std::string eval_expression(const Operator* op)
                 if (t == "neg")
                 {
                     r = -af;
+                }
+                if (t == "abs")
+                {
+                    r = abs(af);
                 }
                 if (t == "sign")
                 {
@@ -346,8 +365,7 @@ static std::string eval_expression(const Operator* op)
                 exprstack.push(typed_expr(r, a.type));
             }
         }
-        else if (t == "abs"
-                 || t == "acos"
+        else if (t == "acos"
                  || t == "acosh"
                  || t == "asin"
                  || t == "asinh"
@@ -376,10 +394,6 @@ static std::string eval_expression(const Operator* op)
                 float af = a.type == 0 ? a.i : a.f;
 
                 float r = 0.f;
-                if (t == "abs")
-                {
-                    r = abs(af);
-                }
                 if (t == "acos")
                 {
                     r = acos(af);
@@ -512,10 +526,16 @@ static std::string eval_expression(const Operator* op)
 
             if (a.is_interger_literal() && b.is_interger_literal())
             {
-                const int ai = a.i;
-                const int bi = b.i;
+                const int64_t ai = a.i;
+                const int64_t bi = b.i;
 
-                int r = 0;
+                if ((t == "floor_divide" || t == "remainder") && bi == 0)
+                {
+                    exprstack.push(typed_expr(t + "(" + a.to_expr() + "," + b.to_expr() + ")", 0));
+                    continue;
+                }
+
+                int64_t r = 0;
                 if (t == "add")
                 {
                     r = ai + bi;
@@ -539,12 +559,19 @@ static std::string eval_expression(const Operator* op)
                 if (t == "floor_divide")
                 {
                     r = ai / bi;
+                    if (ai % bi != 0 && (ai < 0) != (bi < 0))
+                        r--;
                 }
                 if (t == "remainder")
                 {
                     r = ai % bi;
+                    if (r != 0 && (ai < 0) != (bi < 0))
+                        r += bi;
                 }
-                exprstack.push(r);
+                if (r >= INT_MIN && r <= INT_MAX)
+                    exprstack.push((int)r);
+                else
+                    exprstack.push(typed_expr(t + "(" + a.to_expr() + "," + b.to_expr() + ")", 0));
             }
             else if (a.is_literal() && b.is_literal())
             {
@@ -664,6 +691,16 @@ static std::string eval_expression(const Operator* op)
                 }
             }
         }
+        else if (t == "eq" || t == "ne" || t == "lt" || t == "le" || t == "gt" || t == "ge" || t == "scalar_max" || t == "scalar_min")
+        {
+            // Preserve runtime scalar comparisons and min/max without folding
+            // them through the float32 arithmetic used by numeric expressions.
+            typed_expr a = exprstack.top();
+            exprstack.pop();
+            typed_expr b = exprstack.top();
+            exprstack.pop();
+            exprstack.push(t + "(" + a.to_expr() + "," + b.to_expr() + ")");
+        }
         else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
             typed_expr a = exprstack.top();
@@ -676,7 +713,13 @@ static std::string eval_expression(const Operator* op)
                 const int ai = a.i;
                 const int bi = b.i;
 
-                int r = 0;
+                if ((t == "lshift" || t == "rshift") && (bi < 0 || bi >= (int)(sizeof(int) * CHAR_BIT)))
+                {
+                    exprstack.push(typed_expr(t + "(" + a.to_expr() + "," + b.to_expr() + ")", 0));
+                    continue;
+                }
+
+                int64_t r = 0;
                 if (t == "and")
                 {
                     r = ai & bi;
@@ -691,13 +734,19 @@ static std::string eval_expression(const Operator* op)
                 }
                 if (t == "lshift")
                 {
-                    r = ai << bi;
+                    r = (int64_t)ai * ((int64_t)1 << bi);
                 }
                 if (t == "rshift")
                 {
-                    r = ai >> bi;
+                    const int64_t divisor = (int64_t)1 << bi;
+                    r = ai / divisor;
+                    if (ai % divisor < 0)
+                        r--;
                 }
-                exprstack.push(r);
+                if (r >= INT_MIN && r <= INT_MAX)
+                    exprstack.push((int)r);
+                else
+                    exprstack.push(typed_expr(t + "(" + a.to_expr() + "," + b.to_expr() + ")", 0));
             }
             else
             {
@@ -744,7 +793,14 @@ static std::string eval_expression(const Operator* op)
             }
             else if (token_is_interger_literal(t))
             {
-                exprstack.push(std::stoi(t));
+                // Keep integers outside the parameter range exact. Falling
+                // through to float parsing would silently round these tokens.
+                std::istringstream iss(t);
+                int n;
+                if (iss >> n)
+                    exprstack.push(n);
+                else
+                    exprstack.push(typed_expr(t, 0));
             }
             else if (token_is_literal(t))
             {

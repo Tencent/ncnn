@@ -428,3 +428,7 @@ add_subdirectory(ncnn)
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()
+
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
+    add_subdirectory(pt2)
+endif()

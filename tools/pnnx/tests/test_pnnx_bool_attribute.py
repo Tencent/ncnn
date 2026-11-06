@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self, shape):
@@ -51,7 +52,25 @@ def test_bool_attribute(shape, fp16):
     # check raw bool bytes and zero padding to 4bytes
     with open("test_pnnx_bool_attribute.ncnn.bin", "rb") as f:
         data = f.read()
-    return data == mask + bytes((-len(mask)) % 4)
+    if data != mask + bytes((-len(mask)) % 4):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    name = "test_pnnx_bool_attribute_%s_%d_export" % ("scalar" if shape == () else shape[0], fp16)
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, name + ".pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx " + name + ".pt2 fp16=0")
+
+    # pnnx inference
+    pnnx_export = __import__(name + "_pnnx")
+    c0, c1 = pnnx_export.Model().eval()(x)
+    a0, a1 = net(x)
+    return c1.dtype == torch.bool and a1.shape == c1.shape and torch.equal(a0, c0) and torch.equal(a1, c1)
 
 def test():
     for fp16 in (0, 1):

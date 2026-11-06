@@ -1,10 +1,15 @@
 // Copyright 2021 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#ifndef _FILE_OFFSET_BITS
+#define _FILE_OFFSET_BITS 64
+#endif
+
 #include "storezip.h"
 
 #include <stdio.h>
 #include <stdint.h>
+#include <limits>
 #include <map>
 #include <string>
 #include <vector>
@@ -89,18 +94,25 @@ static uint32_t CRC32_TABLE[256];
 
 static void CRC32_TABLE_INIT()
 {
-    for (int i = 0; i < 256; i++)
+    struct Initializer
     {
-        uint32_t c = i;
-        for (int j = 0; j < 8; j++)
+        Initializer()
         {
-            if (c & 1)
-                c = (c >> 1) ^ 0xedb88320;
-            else
-                c >>= 1;
+            for (int i = 0; i < 256; i++)
+            {
+                uint32_t c = i;
+                for (int j = 0; j < 8; j++)
+                {
+                    if (c & 1)
+                        c = (c >> 1) ^ 0xedb88320;
+                    else
+                        c >>= 1;
+                }
+                CRC32_TABLE[i] = c;
+            }
         }
-        CRC32_TABLE[i] = c;
-    }
+    };
+    static const Initializer initializer;
 }
 
 static uint32_t CRC32(uint32_t x, unsigned char ch)
@@ -128,6 +140,203 @@ StoreZipReader::~StoreZipReader()
     close();
 }
 
+static uint16_t zip_u16(const unsigned char* p)
+{
+    return (uint16_t)p[0] | ((uint16_t)p[1] << 8);
+}
+
+static uint32_t zip_u32(const unsigned char* p)
+{
+    return (uint32_t)zip_u16(p) | ((uint32_t)zip_u16(p + 2) << 16);
+}
+
+static uint64_t zip_u64(const unsigned char* p)
+{
+    return (uint64_t)zip_u32(p) | ((uint64_t)zip_u32(p + 4) << 32);
+}
+
+static bool zip_seek(FILE* fp, uint64_t offset)
+{
+    if (offset > (uint64_t)std::numeric_limits<int64_t>::max())
+        return false;
+#ifdef _WIN32
+    return _fseeki64(fp, (int64_t)offset, SEEK_SET) == 0;
+#else
+    if (offset > (uint64_t)std::numeric_limits<off_t>::max())
+        return false;
+    return fseeko(fp, (off_t)offset, SEEK_SET) == 0;
+#endif
+}
+
+static bool zip_read(FILE* fp, uint64_t offset, void* data, size_t size, uint64_t end)
+{
+    return offset <= end && size <= end - offset && zip_seek(fp, offset)
+           && (size == 0 || fread(data, 1, size, fp) == size);
+}
+
+static int zip_error(std::string& error, const char* message)
+{
+    error = message;
+    return -1;
+}
+
+static bool zip64_extra(const std::vector<unsigned char>& extra, uint64_t& size, uint64_t& compressed_size, uint64_t& offset, uint32_t& disk)
+{
+    bool found = false;
+    size_t pos = 0;
+    while (pos < extra.size())
+    {
+        if (extra.size() - pos < 4)
+            return false;
+        const uint16_t id = zip_u16(&extra[pos]);
+        const uint16_t length = zip_u16(&extra[pos + 2]);
+        pos += 4;
+        if (length > extra.size() - pos)
+            return false;
+        if (id == 1)
+        {
+            if (found)
+                return false;
+            found = true;
+            size_t p = pos;
+            const size_t end = pos + length;
+            uint64_t* fields[] = {&size, &compressed_size, &offset};
+            for (size_t i = 0; i < 3; i++)
+            {
+                if (*fields[i] != 0xffffffff)
+                    continue;
+                if (end - p < 8)
+                    return false;
+                *fields[i] = zip_u64(&extra[p]);
+                p += 8;
+            }
+            if (disk == 0xffff)
+            {
+                if (end - p < 4)
+                    return false;
+                disk = zip_u32(&extra[p]);
+            }
+        }
+        pos += length;
+    }
+    return found || (size != 0xffffffff && compressed_size != 0xffffffff && offset != 0xffffffff && disk != 0xffff);
+}
+
+int StoreZipReader::read_directory(uint64_t size, std::string& error)
+{
+    if (size < 22)
+        return zip_error(error, "missing end of central directory");
+    const size_t tail_size = size < 65557 ? (size_t)size : 65557;
+    std::vector<unsigned char> tail(tail_size);
+    if (!zip_read(fp, size - tail_size, tail.data(), tail.size(), size))
+        return zip_error(error, "cannot read end of central directory");
+    int64_t pos = (int64_t)tail_size - 22;
+    for (; pos >= 0; pos--)
+    {
+        if (zip_u32(&tail[(size_t)pos]) == 0x06054b50 && (size_t)pos + 22 + zip_u16(&tail[(size_t)pos + 20]) == tail_size)
+            break;
+    }
+    if (pos < 0)
+        return zip_error(error, "missing or truncated end of central directory");
+    const unsigned char* eocd = &tail[(size_t)pos];
+    const uint64_t eocd_offset = size - tail_size + (size_t)pos;
+    uint64_t count = zip_u16(eocd + 10);
+    uint64_t cd_size = zip_u32(eocd + 12);
+    uint64_t cd_offset = zip_u32(eocd + 16);
+    // Entry counts can be exactly 65535 without ZIP64.
+    const bool needs_zip64 = zip_u16(eocd + 4) == 0xffff || zip_u16(eocd + 6) == 0xffff
+                             || cd_size == 0xffffffff || cd_offset == 0xffffffff;
+    uint64_t directory_limit = eocd_offset;
+    unsigned char locator[20];
+    const bool has_zip64 = eocd_offset >= 20 && zip_read(fp, eocd_offset - 20, locator, sizeof(locator), size) && zip_u32(locator) == 0x07064b50;
+    if (needs_zip64 && !has_zip64)
+        return zip_error(error, "missing ZIP64 locator");
+    if (has_zip64)
+    {
+        if (zip_u32(locator + 4) != 0 || zip_u32(locator + 16) != 1)
+            return zip_error(error, "multi-volume ZIP64 is unsupported");
+        const uint64_t offset = zip_u64(locator + 8);
+        unsigned char record[56];
+        if (!zip_read(fp, offset, record, sizeof(record), eocd_offset - 20) || zip_u32(record) != 0x06064b50)
+            return zip_error(error, "invalid ZIP64 end of central directory");
+        const uint64_t record_size = zip_u64(record + 4);
+        if (record_size < 44 || record_size != eocd_offset - 20 - offset - 12)
+            return zip_error(error, "invalid ZIP64 record size");
+        if (zip_u32(record + 16) != 0 || zip_u32(record + 20) != 0 || zip_u64(record + 24) != zip_u64(record + 32))
+            return zip_error(error, "multi-volume ZIP64 is unsupported");
+        count = zip_u64(record + 32);
+        cd_size = zip_u64(record + 40);
+        cd_offset = zip_u64(record + 48);
+        directory_limit = offset;
+    }
+    else if (zip_u16(eocd + 4) != 0 || zip_u16(eocd + 6) != 0 || zip_u16(eocd + 8) != count)
+        return zip_error(error, "multi-volume zip is unsupported");
+
+    if (cd_offset > directory_limit || cd_size > directory_limit - cd_offset || count > cd_size / 46)
+        return zip_error(error, "central directory outside file");
+    const uint64_t cd_end = cd_offset + cd_size;
+    uint64_t cursor = cd_offset;
+    for (uint64_t i = 0; i < count; i++)
+    {
+        unsigned char header[46];
+        if (!zip_read(fp, cursor, header, sizeof(header), cd_end) || zip_u32(header) != 0x02014b50)
+            return zip_error(error, "invalid central directory entry");
+        cursor += sizeof(header);
+        const uint16_t name_size = zip_u16(header + 28);
+        const uint16_t extra_size = zip_u16(header + 30);
+        const uint16_t comment_size = zip_u16(header + 32);
+        const uint64_t variable_size = (uint64_t)name_size + extra_size + comment_size;
+        if (variable_size > cd_end - cursor || name_size == 0)
+            return zip_error(error, "invalid central directory entry lengths");
+        std::string name(name_size, '\0');
+        std::vector<unsigned char> extra(extra_size);
+        if (!zip_read(fp, cursor, &name[0], name_size, cd_end) || !zip_read(fp, cursor + name_size, extra.data(), extra.size(), cd_end))
+            return zip_error(error, "truncated central directory entry");
+        cursor += variable_size;
+        if (name.find('\0') != std::string::npos || filemetas.find(name) != filemetas.end())
+            return zip_error(error, "invalid or duplicate entry name");
+
+        uint64_t compressed_size = zip_u32(header + 20);
+        uint64_t entry_size = zip_u32(header + 24);
+        uint64_t local_offset = zip_u32(header + 42);
+        uint32_t disk = zip_u16(header + 34);
+        if (!zip64_extra(extra, entry_size, compressed_size, local_offset, disk))
+            return zip_error(error, "invalid ZIP64 entry extra field");
+        if (disk != 0)
+            return zip_error(error, "multi-volume entry is unsupported");
+
+        StoreZipMeta meta;
+        meta.size = entry_size;
+        meta.flag = zip_u16(header + 8);
+        meta.compression = zip_u16(header + 10);
+        meta.crc32 = zip_u32(header + 16);
+        if (meta.compression == 0 && compressed_size != entry_size)
+            return zip_error(error, "inconsistent stored entry sizes");
+
+        unsigned char local[30];
+        if (!zip_read(fp, local_offset, local, sizeof(local), cd_offset) || zip_u32(local) != 0x04034b50)
+            return zip_error(error, "invalid local file header");
+        const uint16_t local_name_size = zip_u16(local + 26);
+        const uint16_t local_extra_size = zip_u16(local + 28);
+        const uint64_t local_start = local_offset + sizeof(local);
+        if ((uint64_t)local_name_size + local_extra_size > cd_offset - local_start
+            || local_name_size != name_size || zip_u16(local + 6) != meta.flag || zip_u16(local + 8) != meta.compression)
+            return zip_error(error, "inconsistent local file header");
+        std::string local_name(local_name_size, '\0');
+        if (!zip_read(fp, local_start, &local_name[0], local_name_size, cd_offset) || local_name != name)
+            return zip_error(error, "inconsistent local entry name");
+        // Sizes and CRC come from the central directory, including entries
+        // whose local header leaves these fields for a data descriptor.
+        meta.offset = local_start + local_name_size + local_extra_size;
+        if (compressed_size > cd_offset - meta.offset)
+            return zip_error(error, "entry data outside file");
+        filemetas[name] = meta;
+    }
+    if (cursor != cd_end)
+        return zip_error(error, "central directory size or entry count mismatch");
+    return 0;
+}
+
 int StoreZipReader::open(const std::string& path)
 {
     close();
@@ -139,125 +348,19 @@ int StoreZipReader::open(const std::string& path)
         return -1;
     }
 
-    while (!feof(fp))
+    std::string error;
+#ifdef _WIN32
+    const int seek_ret = _fseeki64(fp, 0, SEEK_END);
+    const int64_t size = seek_ret == 0 ? _ftelli64(fp) : -1;
+#else
+    const int seek_ret = fseeko(fp, 0, SEEK_END);
+    const int64_t size = seek_ret == 0 ? ftello(fp) : -1;
+#endif
+    if (size < 0 || read_directory((uint64_t)size, error) != 0)
     {
-        // peek signature
-        uint32_t signature;
-        int nread = fread((char*)&signature, sizeof(signature), 1, fp);
-        if (nread != 1)
-            break;
-
-        // fprintf(stderr, "signature = %x\n", signature);
-
-        if (signature == 0x04034b50)
-        {
-            local_file_header lfh;
-            fread((char*)&lfh, sizeof(lfh), 1, fp);
-
-            if (lfh.flag & 0x08)
-            {
-                fprintf(stderr, "zip file contains data descriptor, this is not supported yet\n");
-                return -1;
-            }
-
-            if (lfh.compression != 0 || lfh.compressed_size != lfh.uncompressed_size)
-            {
-                fprintf(stderr, "not stored zip file %d %d\n", lfh.compressed_size, lfh.uncompressed_size);
-                return -1;
-            }
-
-            // file name
-            std::string name;
-            name.resize(lfh.file_name_length);
-            fread((char*)name.data(), name.size(), 1, fp);
-
-            uint64_t compressed_size = lfh.compressed_size;
-            uint64_t uncompressed_size = lfh.uncompressed_size;
-            if (compressed_size == 0xffffffff && uncompressed_size == 0xffffffff)
-            {
-                uint16_t extra_offset = 0;
-                while (extra_offset < lfh.extra_field_length)
-                {
-                    uint16_t extra_id;
-                    uint16_t extra_size;
-                    fread((char*)&extra_id, sizeof(extra_id), 1, fp);
-                    fread((char*)&extra_size, sizeof(extra_size), 1, fp);
-                    if (extra_id != 0x0001)
-                    {
-                        // skip this extra field block
-                        fseek(fp, extra_size - 4, SEEK_CUR);
-                        extra_offset += extra_size;
-                        continue;
-                    }
-
-                    // zip64 extra field
-                    zip64_extended_extra_field zip64_eef;
-                    fread((char*)&zip64_eef, sizeof(zip64_eef), 1, fp);
-
-                    compressed_size = zip64_eef.compressed_size;
-                    uncompressed_size = zip64_eef.uncompressed_size;
-
-                    // skip remaining extra field blocks
-                    fseek(fp, lfh.extra_field_length - extra_offset - 4 - sizeof(zip64_eef), SEEK_CUR);
-                    break;
-                }
-            }
-            else
-            {
-                // skip extra field
-                fseek(fp, lfh.extra_field_length, SEEK_CUR);
-            }
-
-            StoreZipMeta fm;
-            fm.offset = ftell(fp);
-            fm.size = compressed_size;
-
-            filemetas[name] = fm;
-
-            // fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
-
-            fseek(fp, compressed_size, SEEK_CUR);
-        }
-        else if (signature == 0x02014b50)
-        {
-            central_directory_file_header cdfh;
-            fread((char*)&cdfh, sizeof(cdfh), 1, fp);
-
-            // skip file name
-            fseek(fp, cdfh.file_name_length, SEEK_CUR);
-
-            // skip extra field
-            fseek(fp, cdfh.extra_field_length, SEEK_CUR);
-
-            // skip file comment
-            fseek(fp, cdfh.file_comment_length, SEEK_CUR);
-        }
-        else if (signature == 0x06054b50)
-        {
-            end_of_central_directory_record eocdr;
-            fread((char*)&eocdr, sizeof(eocdr), 1, fp);
-
-            // skip comment
-            fseek(fp, eocdr.comment_length, SEEK_CUR);
-        }
-        else if (signature == 0x06064b50)
-        {
-            zip64_end_of_central_directory_record eocdr64;
-            fread((char*)&eocdr64, sizeof(eocdr64), 1, fp);
-
-            // skip comment
-            fseek(fp, eocdr64.size_of_eocd64_m12 - 44, SEEK_CUR);
-        }
-        else if (signature == 0x07064b50)
-        {
-            zip64_end_of_central_directory_locator eocdl64;
-            fread((char*)&eocdl64, sizeof(eocdl64), 1, fp);
-        }
-        else
-        {
-            fprintf(stderr, "unsupported signature %x\n", signature);
-            return -1;
-        }
+        fprintf(stderr, "invalid zip %s: %s\n", path.c_str(), size < 0 ? "cannot determine file size" : error.c_str());
+        close();
+        return -1;
     }
 
     return 0;
@@ -274,6 +377,11 @@ std::vector<std::string> StoreZipReader::get_names() const
     return names;
 }
 
+bool StoreZipReader::has_file(const std::string& name) const
+{
+    return filemetas.find(name) != filemetas.end();
+}
+
 uint64_t StoreZipReader::get_file_size(const std::string& name) const
 {
     if (filemetas.find(name) == filemetas.end())
@@ -287,23 +395,44 @@ uint64_t StoreZipReader::get_file_size(const std::string& name) const
 
 int StoreZipReader::read_file(const std::string& name, char* data)
 {
-    if (filemetas.find(name) == filemetas.end())
+    const std::map<std::string, StoreZipMeta>::const_iterator it = filemetas.find(name);
+    if (!fp || it == filemetas.end())
     {
         fprintf(stderr, "no such file %s\n", name.c_str());
         return -1;
     }
 
-    uint64_t offset = filemetas[name].offset;
-    uint64_t size = filemetas[name].size;
+    const StoreZipMeta meta = it->second;
+    if (meta.compression != 0 || (meta.flag & ~(uint16_t)0x808) != 0)
+    {
+        fprintf(stderr, "unsupported zip entry %s: compression %u flags 0x%x\n", name.c_str(), meta.compression, meta.flag);
+        return -1;
+    }
+    if (meta.size > std::numeric_limits<size_t>::max() || (meta.size != 0 && !data) || !zip_seek(fp, meta.offset))
+    {
+        fprintf(stderr, "cannot read zip entry %s\n", name.c_str());
+        return -1;
+    }
 
-    fseek(fp, offset, SEEK_SET);
-    fread(data, size, 1, fp);
+    if (meta.size != 0 && fread(data, 1, (size_t)meta.size, fp) != meta.size)
+    {
+        fprintf(stderr, "short read in zip entry %s\n", name.c_str());
+        return -1;
+    }
+
+    CRC32_TABLE_INIT();
+    if (CRC32_buffer((const unsigned char*)data, meta.size) != meta.crc32)
+    {
+        fprintf(stderr, "CRC mismatch in zip entry %s\n", name.c_str());
+        return -1;
+    }
 
     return 0;
 }
 
 int StoreZipReader::close()
 {
+    filemetas.clear();
     if (!fp)
         return 0;
 

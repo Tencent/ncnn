@@ -140,6 +140,45 @@ Parameters:
 
 `moduleop` (Optional): list of modules to keep as one big operator, separated by ",". for example, `models.common.Focus,models.yolo.Detect`
 
+# PyTorch ExportedProgram (.pt2)
+
+The converter also reads a single `torch.export.save()` raw-storage archive with schema 8.17 through 8.20, used by PyTorch 2.11 through 2.15. The frontend is enabled when built against LibTorch 2.11 or newer; older LibTorch builds retain TorchScript conversion. It reads the graph and raw tensor storage directly in C++, queries the linked ATen dispatcher for schemas, and uses the existing pnnx optimization passes. No Python process or PyTorch deserializer is used during conversion, and no extra dependency is required.
+
+```python
+program = torch.export.export(model.eval(), example_inputs)
+torch.export.save(program, "model.pt2")
+```
+
+```sh
+pnnx model.pt2 fp16=0
+```
+
+Static input shapes and dtypes come from the archive. The Python package also accepts `pnnx.convert("model.pt2", fp16=False)` without repeating static input shapes. Conversion errors propagate as `subprocess.CalledProcessError`.
+
+For dynamic inputs, supply concrete samples with the existing `inputshape` or `input` options. `inputshape2` can check a second sample against the same contract. Symbolic dimensions remain dynamic in the generated model; samples do not specialize the graph.
+
+```sh
+pnnx model.pt2 inputshape=[2,3,224,224] inputshape2=[4,3,224,224] fp16=0
+```
+
+This frontend is validated at `optlevel=2` on CPU dense-strided inference graphs. It supports parameters, persistent and non-persistent buffers, lifted tensors, storage views, flat Tensor leaves from standard tuple/list/dict interfaces, specialized scalar inputs, multiple returns, and basic symbolic shape arithmetic. Supplied input samples are checked against shared dimensions and range constraints. Exported guards and pure runtime assertions are discarded during import; callers must supply inputs that satisfy the original model constraints. Dynamic control flow is rejected.
+
+The supported container contract is archive version 0, schema 8.17 through 8.20, and ATen opset 10. These minor revisions keep the supported fields unchanged; unimplemented dtype and Argument variants are rejected. ZIP/ZIP64 stored entries and data descriptors are supported. Legacy layouts, compressed required payloads, pickle weights, custom objects/operators/PyTrees, sparse or quantized tensors, non-Tensor outputs, external state writes, training and random operations are rejected. `sample_inputs` pickle files are never read. Selected local in-place operations and slice updates use the existing functionalization pass only after storage and live-alias checks; detach does not bypass storage-write checks.
+
+FP32 is the main inference path. Targeted Python output tests also cover FP16, BF16, integer/bool tensors, and complex arithmetic and FFT. FP64 numerical accuracy is outside the validation scope; constant processing may use FP32 intermediate arithmetic. Scalar comparisons used by inference must have representable thresholds. `as_strided` supports static, non-overlapping dense sources when every accessed element can be proved to lie inside the source tensor; source layout and offsets are normalized before public optimization. `view(dtype)` reinterpretation and other unimplemented storage-dependent operations are rejected before ordinary reshape rewrites. The frontend preserves inference values, not Python tensor identity, output storage aliases or gradients.
+
+The ncnn subset is narrower. Its validated models use FP32, nonempty tensors with explicit ranks. Unsupported dtypes, scalar/empty tensor interfaces, nearest-exact interpolation, tracked InstanceNorm, and residual operators produce a nonzero exit with a `pt2 ncnn: unsupported` diagnostic after the pnnx Python/IR artifacts have been saved. The Python artifact can be used independently in that case. A build with optional ONNX output also rejects dtypes its writer cannot represent.
+
+`src/load_pt2.cpp` provides the loading interface, and `src/pass_pt2.cpp` drives preprocessing. Tensor reading, schema binding and the individual preprocessing steps live under `src/pass_pt2/`. Layout and scalar normalization, inherited `new_full` dtype, RMSNorm's default epsilon and optional slice bounds are resolved before public level2 rewrites. Explicit reduction/softmax dtypes use existing casts instead of a separate dtype helper in the public operator rules.
+
+Run the focused tests with:
+
+```sh
+ctest --test-dir /tmp/pnnx-pt2-build --output-on-failure -j 4 -R '^test_pt2_'
+```
+
+The focused tests export models, run the converter and compare the generated Python results with their PyTorch references. Shape, dtype and layout checks belong to the corresponding cases. Linear, MLP, CNN and attention models also use the generated ncnn Python scripts. Malformed archives/JSON and storage bounds are tested through the converter CLI. These scripts use the existing CTest runner and leave artifacts in the build directory. Existing root-directory operator and model tests additionally compare pt2-generated Python directly with their original references, preserving the TorchScript checks. These added branches require PyTorch 2.11 or newer. The full inference suite is validated with the installed PyTorch 2.15; no historical runtime validation matrix is maintained. The dynamic slice test covers the exportable batch `[4,8]` domain; PyTorch 2.15 rejects exporting the wider `[2,8]` domain for this model before conversion.
+
 # The pnnx.param format
 
 ### example

@@ -21,6 +21,8 @@ public:
 #define REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(CLASS, PRIORITY) \
     static NcnnGraphRewriterPassRegister g_global_pnnx_ncnngraphrewriterpass_##CLASS##_register(new CLASS, PRIORITY);
 
+int check_ncnn(const Graph& g, std::string& error);
+
 void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators);
 
 } // namespace pnnx

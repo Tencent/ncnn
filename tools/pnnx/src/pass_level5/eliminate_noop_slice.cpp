@@ -25,7 +25,10 @@ void eliminate_noop_slice(Graph& graph)
             if (op->inputs.size() != 1)
                 continue;
 
-            if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
+            // Equal unknown dimensions do not prove equal extents. For example,
+            // slicing [1:] changes a data-dependent dimension from u to u - 1.
+            if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape
+                && std::find(op->inputs[0]->shape.begin(), op->inputs[0]->shape.end(), -1) == op->inputs[0]->shape.end())
             {
                 matched = true;
             }

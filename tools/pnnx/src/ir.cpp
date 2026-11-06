@@ -6,8 +6,10 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -184,7 +186,7 @@ size_t Attribute::elemsize() const
 int Attribute::elemcount() const
 {
     if (shape.empty())
-        return 0;
+        return type == 0 ? 0 : 1;
 
     int size = shape[0];
     for (size_t i = 1; i < shape.size(); i++)
@@ -221,6 +223,16 @@ std::vector<float> Attribute::get_float32_data() const
             v[i] = float16_to_float32(p[i]);
         }
     }
+    else if (type == 13)
+    {
+        for (size_t i = 0; i < v.size(); i++)
+        {
+            uint16_t bits;
+            memcpy(&bits, data.data() + i * 2, 2);
+            const uint32_t fbits = (uint32_t)bits << 16;
+            memcpy(&v[i], &fbits, 4);
+        }
+    }
     else
     {
         fprintf(stderr, "cannot convert type %d to float32 data\n", type);
@@ -253,6 +265,18 @@ void Attribute::set_float32_data(const std::vector<float>& newdata)
         for (size_t i = 0; i < newdata.size(); i++)
         {
             p[i] = float32_to_float16(newdata[i]);
+        }
+    }
+    else if (type == 13)
+    {
+        for (size_t i = 0; i < newdata.size(); i++)
+        {
+            uint32_t bits;
+            memcpy(&bits, &newdata[i], 4);
+            // Round to nearest, ties to even, and keep NaN distinct from infinity.
+            uint16_t b = (bits & 0x7fffffff) > 0x7f800000 ? (uint16_t)((bits >> 16) | 0x40)
+                         : (uint16_t)((bits + 0x7fff + ((bits >> 16) & 1)) >> 16);
+            memcpy(data.data() + i * 2, &b, 2);
         }
     }
     else
@@ -327,8 +351,32 @@ Parameter Parameter::parse_from_string(const std::string& value)
     Parameter p;
     p.type = 0;
 
-    if (value == "None" || value == "()" || value == "[]")
+    if (value.empty() || value == "None")
     {
+        return p;
+    }
+
+    if (value == "()" || value == "[]" || value == "[]f" || value == "[]s" || value == "[]c")
+    {
+        p.type = 5;
+        if (value == "[]f")
+            p.type = 6;
+        else if (value == "[]s")
+            p.type = 7;
+        else if (value == "[]c")
+            p.type = 11;
+        return p;
+    }
+
+    if (value == "nan" || value == "inf" || value == "-inf")
+    {
+        p.type = 3;
+        if (value == "nan")
+            p.f = std::numeric_limits<float>::quiet_NaN();
+        else if (value == "inf")
+            p.f = std::numeric_limits<float>::infinity();
+        else
+            p.f = -std::numeric_limits<float>::infinity();
         return p;
     }
 
@@ -434,6 +482,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 6)
     {
+        if (param.af.empty()) return "[]f";
         std::string s("(");
         for (size_t i = 0; i < param.af.size(); i++)
         {
@@ -446,6 +495,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 7)
     {
+        if (param.as.empty()) return "[]s";
         std::string s("(");
         for (size_t i = 0; i < param.as.size(); i++)
         {
@@ -464,6 +514,7 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 11)
     {
+        if (param.ac.empty()) return "[]c";
         std::string s("(");
         for (size_t i = 0; i < param.ac.size(); i++)
         {
@@ -545,6 +596,11 @@ Graph& Graph::operator=(const Graph& /*rhs*/)
 
 static void load_parameter(Operator* op, const std::string& key, const std::string& value)
 {
+    if (op->type == "pnnx.Expression" && key == "expr")
+    {
+        op->params[key] = value;
+        return;
+    }
     op->params[key] = Parameter::parse_from_string(value);
 }
 
@@ -555,7 +611,7 @@ static void load_input_key(Operator* op, const std::string& key, const std::stri
     for (size_t i = 0; i < op->inputs.size(); i++)
     {
         const Operand* oprand = op->inputs[i];
-        if (oprand->name == value)
+        if (oprand->name == value && op->inputnames[i].empty())
         {
             op->inputnames[i] = key;
             break;
@@ -953,6 +1009,9 @@ static bool token_is_complex(const std::string& t)
 
 static bool token_is_literal(const std::string& t)
 {
+    if (t == "float('inf')" || t == "float('-inf')" || t == "float('nan')")
+        return true;
+
     if (token_is_complex(t))
         return true;
 
@@ -960,6 +1019,13 @@ static bool token_is_literal(const std::string& t)
     float f;
     iss >> std::noskipws >> f;
     return iss.eof() && !iss.fail();
+}
+
+static std::string float_to_python(float f)
+{
+    if (std::isnan(f)) return "float('nan')";
+    if (std::isinf(f)) return f < 0 ? "float('-inf')" : "float('inf')";
+    return float_to_string(f);
 }
 
 static std::string expand_expression(const Operator* op)
@@ -1099,6 +1165,8 @@ static std::string expand_expression(const Operator* op)
         }
         else if (t == "atan2"
                  || t == "fmod"
+                 || t == "scalar_max"
+                 || t == "scalar_min"
                  || t == "max"
                  || t == "maximum"
                  || t == "min"
@@ -1109,6 +1177,8 @@ static std::string expand_expression(const Operator* op)
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
             if (t == "fmod") binaryop = "torch.fmod";
+            if (t == "scalar_max") binaryop = "max";
+            if (t == "scalar_min") binaryop = "min";
             if (t == "max") binaryop = "torch.max";
             if (t == "maximum") binaryop = "torch.maximum";
             if (t == "min") binaryop = "torch.min";
@@ -1142,7 +1212,13 @@ static std::string expand_expression(const Operator* op)
                  || t == "or"
                  || t == "xor"
                  || t == "lshift"
-                 || t == "rshift")
+                 || t == "rshift"
+                 || t == "eq"
+                 || t == "ne"
+                 || t == "lt"
+                 || t == "le"
+                 || t == "gt"
+                 || t == "ge")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1156,6 +1232,12 @@ static std::string expand_expression(const Operator* op)
             if (t == "xor") binaryop = "^";
             if (t == "lshift") binaryop = "<<";
             if (t == "rshift") binaryop = ">>";
+            if (t == "eq") binaryop = "==";
+            if (t == "ne") binaryop = "!=";
+            if (t == "lt") binaryop = "<";
+            if (t == "le") binaryop = "<=";
+            if (t == "gt") binaryop = ">";
+            if (t == "ge") binaryop = ">=";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1200,11 +1282,26 @@ static std::string expand_expression(const Operator* op)
         else
         {
             // literal
-            if (t[t.size() - 1] == 'j')
+            if (t == "inf" || t == "-inf" || t == "nan")
+            {
+                exprstack.push("float('" + t + "')");
+            }
+            else if (t[t.size() - 1] == 'j')
             {
                 // complex
-                std::string r = std::string("(") + t + ")";
-                exprstack.push(r);
+                if (t.find("inf") != std::string::npos || t.find("nan") != std::string::npos)
+                {
+                    char* imag;
+                    strtod(t.c_str(), &imag);
+                    const std::string real = t.substr(0, imag - t.c_str());
+                    if (*imag == '+') imag++;
+                    exprstack.push("complex(float('" + real + "'), float('" + std::string(imag, t.c_str() + t.size() - 1 - imag) + "'))");
+                }
+                else
+                {
+                    std::string r = std::string("(") + t + ")";
+                    exprstack.push(r);
+                }
             }
             else
             {
@@ -1439,26 +1536,54 @@ static std::string make_slice_expression(const Operator* op)
 
 static std::string make_index_expression(const Operator* op)
 {
-    fprintf(stderr, "make_index_expression %s\n", op->name.c_str());
-
-    std::string index_expr = op->params.at("expr").s;
+    std::string index_expr = op->inputs.size() == 2 ? expand_expression(op->inputs[1]->producer) : op->params.at("expr").s;
 
     // strip out-most [ ] pair
     index_expr = index_expr.substr(1, index_expr.size() - 2);
 
-    // None,None,   ->   ...,
-    bool leading_none = false;
-    while (index_expr.substr(0, 5) == "None,")
+    std::string r;
+    size_t start = 0;
+    int depth = 0;
+    for (size_t i = 0; i <= index_expr.size(); i++)
     {
-        leading_none = true;
-        index_expr = index_expr.substr(5);
-    }
-    if (leading_none)
-    {
-        index_expr = "...," + index_expr;
+        if (i != index_expr.size())
+        {
+            const char c = index_expr[i];
+            if (c == '[' || c == '(') depth++;
+            if (c == ']' || c == ')') depth--;
+            if (c != ',' || depth != 0) continue;
+        }
+
+        std::string index = index_expr.substr(start, i - start);
+        const size_t first = index.find_first_not_of(" \t");
+        if (first != std::string::npos)
+        {
+            index = index.substr(first, index.find_last_not_of(" \t") - first + 1);
+            // ATen None consumes one dimension; it is not a Python new axis.
+            if (index == "None") index = ":";
+            if (!r.empty()) r += ", ";
+            r += index;
+        }
+        start = i + 1;
     }
 
-    return index_expr;
+    return r.empty() ? "..." : r;
+}
+
+int Graph::check_python(std::string& error) const
+{
+    for (const Operator* op : ops)
+    {
+        const std::string& type = op->type;
+        if (type == "pnnx.Input" || type == "pnnx.Output" || type == "pnnx.Attribute" || type == "pnnx.Expression" || type == "pnnx.SliceIndexes"
+            || type == "prim::ListConstruct" || type == "prim::ListUnpack" || type == "prim::TupleConstruct" || type == "prim::TupleUnpack"
+            || type.compare(0, 2, "F.") == 0 || type.compare(0, 3, "nn.") == 0 || type.compare(0, 6, "torch.") == 0 || type.compare(0, 7, "Tensor.") == 0)
+            continue;
+
+        error = "unsupported operator " + type + " (" + op->name + ")";
+        return -1;
+    }
+    return 0;
 }
 
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
@@ -1544,7 +1669,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 if (param.type == 3)
                 {
-                    std::string fs = float_to_string(param.f);
+                    std::string fs = float_to_python(param.f);
                     fprintf(pyfp, "%s", fs.c_str());
                 }
                 if (param.type == 4)
@@ -1585,7 +1710,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, "(");
                     for (size_t i = 0; i < param.af.size(); i++)
                     {
-                        std::string afs = float_to_string(param.af[i]);
+                        std::string afs = float_to_python(param.af[i]);
                         fprintf(pyfp, "%s", afs.c_str());
                         if (i + 1 != param.af.size() || param.af.size() == 1)
                             fprintf(pyfp, ",");
@@ -1657,7 +1782,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
 
                 fprintf(pyfp, "        self.%s.set_weight_bias(self_%s_weight, self_%s_bias)\n", sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str());
-                std::string scale_str = float_to_string(op->params.at("scale").f);
+                std::string scale_str = float_to_python(op->params.at("scale").f);
                 fprintf(pyfp, "        self.%s.scale = %s\n", sanitize_identifier(op->name).c_str(), scale_str.c_str());
                 fprintf(pyfp, "        self.%s.zero_point = %d\n", sanitize_identifier(op->name).c_str(), op->params.at("zero_point").i);
 
@@ -1705,14 +1830,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             bool is_running_mean_var = false;
             {
                 const Operand* r = op->outputs[0];
-                if (r->consumers.size() == 1)
+                for (const Operator* op2 : r->consumers)
                 {
-                    const Operator* op2 = r->consumers[0];
-                    if (op2->type == "F.batch_norm" || op2->type == "F.instance_norm")
+                    if ((op2->type == "F.batch_norm" || op2->type == "F.instance_norm") && op2->inputs.size() >= 3)
                     {
                         if (r == op2->inputs[1] || r == op2->inputs[2])
                         {
                             is_running_mean_var = true;
+                            break;
                         }
                     }
                 }
@@ -1727,14 +1852,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
 
             if (is_empty)
             {
-                fprintf(pyfp, "        self.%s_%s = torch.from_numpy(np.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
+                fprintf(pyfp, "        self.%s_%s = torch.empty((", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
 
                 for (size_t i = 0; i < attr.shape.size(); i++)
                 {
                     fprintf(pyfp, "%d,", attr.shape[i]);
                 }
 
-                fprintf(pyfp, "), dtype='%s'))\n", type_to_numpy_string(attr.type));
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(attr.type));
             }
             else
             {
@@ -1777,9 +1902,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "        fd, tmppath = tempfile.mkstemp()\n");
         fprintf(pyfp, "        with os.fdopen(fd, 'wb') as tmpf, archive.open(key) as keyfile:\n");
         fprintf(pyfp, "            tmpf.write(keyfile.read())\n");
-        fprintf(pyfp, "        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()\n");
+        fprintf(pyfp, "        m = np.memmap(tmppath, dtype='uint16' if dtype == 'bfloat16' else dtype, mode='r', shape=shape).copy()\n");
         fprintf(pyfp, "        os.remove(tmppath)\n");
-        fprintf(pyfp, "        return torch.from_numpy(m)\n");
+        fprintf(pyfp, "        return torch.from_numpy(m).view(torch.bfloat16) if dtype == 'bfloat16' else torch.from_numpy(m)\n");
     }
 
     fprintf(pyfp, "\n");
@@ -1844,16 +1969,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else if (op->type == "Tensor.index")
             {
                 // index expr
-                if (op->inputs.size() == 2)
-                {
-                    std::string expanded_expr = expand_expression(op->inputs[1]->producer);
-                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), expanded_expr.c_str());
-                }
-                else
-                {
-                    std::string index_expr = make_index_expression(op);
-                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
-                }
+                std::string index_expr = make_index_expression(op);
+                fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
             }
             else if (op->type == "Tensor.expand")
             {
@@ -1881,11 +1998,12 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "v_%s = v_%s.%s(", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
                 if (op->inputs.size() == 2)
                 {
-                    fprintf(pyfp, "*v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
+                    fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
                 }
                 else
                 {
                     const std::vector<int>& shape = op->params.at("shape").ai;
+                    if (shape.empty()) fprintf(pyfp, "()");
                     for (size_t i = 0; i < shape.size(); i++)
                     {
                         if (shape[i] == 0)
@@ -1990,7 +2108,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 fprintf(pyfp, "v_%s = ", sanitize_identifier(op->outputs[0]->name).c_str());
 
-                if (op->params.at("dim").type == 2)
+                if (!op->has_param("dim") || op->params.at("dim").type == 0)
+                {
+                    fprintf(pyfp, "torch.prod(input=v_%s)", sanitize_identifier(op->inputs[0]->name).c_str());
+                }
+                else if (op->params.at("dim").type == 2)
                 {
                     const int dim = op->params.at("dim").i;
                     const bool keepdim = op->params.at("keepdim").b;
@@ -2046,7 +2168,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 for (size_t i = 0; i < op->outputs.size(); i++)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
-                    if (i + 1 != op->outputs.size())
+                    if (i + 1 != op->outputs.size() || op->outputs.size() == 1)
                         fprintf(pyfp, ", ");
                 }
                 fprintf(pyfp, " = v_%s\n", sanitize_identifier(op->inputs[0]->name).c_str());
@@ -2264,7 +2386,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 }
                 else
                 {
-                    fprintf(pyfp, " = %s(", op->type.c_str());
+                    // The native group norm permits singleton groups rejected by F.group_norm.
+                    fprintf(pyfp, " = %s(", op->type == "F.group_norm" ? "torch.group_norm" : op->type.c_str());
 
                     if (op->inputnames.size() == op->inputs.size())
                     {
@@ -2366,19 +2489,17 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     if (param.type == 3)
                     {
                         if (scalar_as_tensor)
-                        {
-                            if (param.f == (int)param.f)
-                                fprintf(pyfp, "torch.tensor(%.1f)", param.f);
-                            else
-                                fprintf(pyfp, "torch.tensor(%g)", param.f);
-                        }
+                            fprintf(pyfp, "torch.tensor(");
+
+                        if (!std::isfinite(param.f))
+                            fprintf(pyfp, "%s", float_to_python(param.f).c_str());
+                        else if (param.f == (int)param.f)
+                            fprintf(pyfp, "%.1f", param.f);
                         else
-                        {
-                            if (param.f == (int)param.f)
-                                fprintf(pyfp, "%.1f", param.f);
-                            else
-                                fprintf(pyfp, "%g", param.f);
-                        }
+                            fprintf(pyfp, "%g", param.f);
+
+                        if (scalar_as_tensor)
+                            fprintf(pyfp, ")");
                     }
                     if (param.type == 4)
                     {
@@ -2436,7 +2557,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.af.size(); i++)
                         {
-                            std::string afs = float_to_string(param.af[i]);
+                            std::string afs = float_to_python(param.af[i]);
                             fprintf(pyfp, "%s", afs.c_str());
                             if (i + 1 != param.af.size() || param.af.size() == 1)
                                 fprintf(pyfp, ",");
@@ -2463,14 +2584,20 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     }
                     if (param.type == 10)
                     {
-                        fprintf(pyfp, "(%f%+fj)", param.c.real(), param.c.imag());
+                        if (!std::isfinite(param.c.real()) || !std::isfinite(param.c.imag()))
+                            fprintf(pyfp, "complex(%s, %s)", float_to_python(param.c.real()).c_str(), float_to_python(param.c.imag()).c_str());
+                        else
+                            fprintf(pyfp, "(%f%+fj)", param.c.real(), param.c.imag());
                     }
                     if (param.type == 11)
                     {
                         fprintf(pyfp, "(");
                         for (size_t i = 0; i < param.ac.size(); i++)
                         {
-                            fprintf(pyfp, "(%f%+fj)", param.ac[i].real(), param.ac[i].imag());
+                            if (!std::isfinite(param.ac[i].real()) || !std::isfinite(param.ac[i].imag()))
+                                fprintf(pyfp, "complex(%s, %s)", float_to_python(param.ac[i].real()).c_str(), float_to_python(param.ac[i].imag()).c_str());
+                            else
+                                fprintf(pyfp, "(%f%+fj)", param.ac[i].real(), param.ac[i].imag());
                             if (i + 1 != param.ac.size() || param.ac.size() == 1)
                                 fprintf(pyfp, ",");
                         }
@@ -2518,7 +2645,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     {
         fprintf(pyfp, "def export_torchscript():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2533,7 +2659,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2545,6 +2671,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (r->shape.empty()) fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2584,7 +2711,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     {
         fprintf(pyfp, "def export_onnx():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2599,7 +2725,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2611,6 +2737,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (r->shape.empty()) fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2706,7 +2833,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     {
         fprintf(pyfp, "def export_pnnx():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2721,7 +2847,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d", r->shape[i]);
@@ -2733,6 +2859,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (r->shape.empty()) fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2780,7 +2907,6 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "@torch.no_grad()\n");
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    net = Model()\n");
-        fprintf(pyfp, "    net.float()\n");
         fprintf(pyfp, "    net.eval()\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
@@ -2812,7 +2938,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(%d, (", input_name.c_str(), r->type == 9 ? 2 : 10);
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];
@@ -2827,6 +2953,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                if (input_shape.empty()) fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];

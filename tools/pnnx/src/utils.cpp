@@ -168,6 +168,9 @@ float float16_to_float32(unsigned short value)
 
 std::string float_to_string(float f)
 {
+    if (std::isnan(f)) return "nan";
+    if (std::isinf(f)) return f < 0 ? "-inf" : "inf";
+
     if (f == 0.f)
         return "0.0";
 
@@ -220,6 +223,9 @@ std::string float_to_string(float f)
 
 std::string double_to_string(double d)
 {
+    if (std::isnan(d)) return "nan";
+    if (std::isinf(d)) return d < 0 ? "-inf" : "inf";
+
     if (d == 0.0)
         return "0.0";
 

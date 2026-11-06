@@ -71,6 +71,19 @@ static int32_t safe_int64_to_int32(int64_t value)
     return static_cast<int32_t>(value);
 }
 
+int check_ncnn_output(const Graph& g, std::string& error)
+{
+    for (const Operator* op : g.ops)
+    {
+        if (op->type.find("::") != std::string::npos || op->type.find('.') != std::string::npos)
+        {
+            error = "unsupported unconverted operator at " + op->type + " (" + op->name + ")";
+            return -1;
+        }
+    }
+    return 0;
+}
+
 int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");

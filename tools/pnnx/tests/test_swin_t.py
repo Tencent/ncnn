@@ -39,6 +39,23 @@ def test():
     else:
         b = test_swin_t_pnnx.test_inference()
 
+    if not (torch.allclose(a, b, 1e-4, 1e-4)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_swin_t_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_swin_t_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_swin_t_export_pnnx
+    b = test_swin_t_export_pnnx.test_inference()
+
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":

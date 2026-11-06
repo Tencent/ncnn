@@ -326,6 +326,8 @@ public:
     int load(const std::string& parampath, const std::string& binpath);
     int save(const std::string& parampath, const std::string& binpath);
 
+    int check_python(std::string& error) const;
+
     int python(const std::string& pypath, const std::string& binpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat);
 
     int parse(const std::string& param);
