@@ -1202,14 +1202,15 @@ static std::string expand_expression(const Operator* op)
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
-        else if (t == "floor_divide" || t == "trunc_divide")
+        else if (t == "div_floor" || t == "div_trunc")
         {
+            // Keep explicit div rounding separate from the floor_divide operator.
             std::string a = exprstack.top();
             exprstack.pop();
             std::string b = exprstack.top();
             exprstack.pop();
 
-            const char* mode = t == "floor_divide" ? "floor" : "trunc";
+            const char* mode = t == "div_floor" ? "floor" : "trunc";
             std::string r = "torch.div(" + a + ", " + b + ", rounding_mode='" + mode + "')";
             exprstack.push(r);
         }
@@ -1217,6 +1218,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "sub"
                  || t == "mul"
                  || t == "div"
+                 || t == "floor_divide"
                  || t == "remainder"
                  || t == "and"
                  || t == "or"
@@ -1235,6 +1237,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "sub") binaryop = "-";
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
+            if (t == "floor_divide") binaryop = "//";
             if (t == "remainder") binaryop = "%";
             if (t == "and") binaryop = "&";
             if (t == "or") binaryop = "|";

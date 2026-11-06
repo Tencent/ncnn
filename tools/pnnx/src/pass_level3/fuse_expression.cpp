@@ -775,11 +775,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         if (rounding_mode == "floor")
         {
-            expr += "floor_divide";
+            expr += "div_floor";
         }
         else if (rounding_mode == "trunc")
         {
-            expr += "trunc_divide";
+            expr += "div_trunc";
         }
         else
         {

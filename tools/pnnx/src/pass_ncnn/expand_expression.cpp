@@ -189,7 +189,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                  || t == "atan2"
                  || t == "div"
                  || t == "floor_divide"
-                 || t == "trunc_divide"
+                 || t == "div_floor"
+                 || t == "div_trunc"
                  || t == "fmod"
                  || t == "logaddexp"
                  || t == "max"
@@ -217,11 +218,11 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "add") op_binary->params["0"] = 0;
             if (t == "sub") op_binary->params["0"] = 1;
             if (t == "mul") op_binary->params["0"] = 2;
-            if (t == "div" || t == "trunc_divide") op_binary->params["0"] = 3;
+            if (t == "div" || t == "div_trunc") op_binary->params["0"] = 3;
             if (t == "logaddexp") op_binary->params["0"] = 14;
             if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
             if (t == "min" || t == "minimum") op_binary->params["0"] = 5;
-            if (t == "floor_divide") op_binary->params["0"] = 15;
+            if (t == "floor_divide" || t == "div_floor") op_binary->params["0"] = 15;
             if (t == "fmod") op_binary->params["0"] = 12;
             if (t == "remainder") op_binary->params["0"] = 17;
             if (t == "pow") op_binary->params["0"] = 6;
@@ -230,12 +231,12 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (token_is_literal(a))
             {
                 if (t == "sub") op_binary->params["0"] = 7;
-                if (t == "div" || t == "trunc_divide") op_binary->params["0"] = 8;
+                if (t == "div" || t == "div_trunc") op_binary->params["0"] = 8;
                 if (t == "pow") op_binary->params["0"] = 9;
                 if (t == "atan2") op_binary->params["0"] = 11;
                 if (t == "fmod") op_binary->params["0"] = 13;
                 if (t == "logaddexp") op_binary->params["0"] = 14;
-                if (t == "floor_divide") op_binary->params["0"] = 16;
+                if (t == "floor_divide" || t == "div_floor") op_binary->params["0"] = 16;
                 if (t == "remainder") op_binary->params["0"] = 18;
 
                 Operand* op_binary_inb = token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))] : graph.get_operand(op->name + "_" + b);
@@ -323,7 +324,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary->outputs.push_back(op_binary_out);
             }
 
-            if (t == "trunc_divide")
+            if (t == "div_trunc")
             {
                 Operand* div = op_binary->outputs[0];
                 const std::string name = div->name;

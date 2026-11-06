@@ -16,13 +16,16 @@ class Model(torch.nn.Module):
                 torch.div(x, 1, rounding_mode='floor'),
                 torch.div(x, 1, rounding_mode='trunc'),
                 torch.div(x, 1),
-                torch.div(3, y, rounding_mode='trunc'))
+                torch.div(3, y, rounding_mode='trunc'),
+                torch.floor_divide(x, y))
 
 
 class Shape(torch.nn.Module):
     def forward(self, x):
         half = torch.div(x.size(2), 2, rounding_mode='trunc')
-        return x[:, :, :half], x.reshape(x.size(0), -1)
+        half_floor = torch.div(x.size(2), 2, rounding_mode='floor')
+        return (x[:, :, :half], x.reshape(x.size(0), -1),
+                x[:, :, :half_floor], x.reshape(x.size(0), x.size(1) * 2, half_floor))
 
 
 def test():

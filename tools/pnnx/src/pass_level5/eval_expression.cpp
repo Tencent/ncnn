@@ -517,7 +517,8 @@ static std::string eval_expression(const Operator* op)
                  || t == "minimum"
                  || t == "mul"
                  || t == "floor_divide"
-                 || t == "trunc_divide"
+                 || t == "div_floor"
+                 || t == "div_trunc"
                  || t == "remainder")
         {
             typed_expr a = exprstack.top();
@@ -530,7 +531,7 @@ static std::string eval_expression(const Operator* op)
                 const int64_t ai = a.i;
                 const int64_t bi = b.i;
 
-                if ((t == "floor_divide" || t == "trunc_divide" || t == "remainder") && bi == 0)
+                if ((t == "floor_divide" || t == "div_floor" || t == "div_trunc" || t == "remainder") && bi == 0)
                 {
                     exprstack.push(typed_expr(t + "(" + a.to_expr() + "," + b.to_expr() + ")", 0));
                     continue;
@@ -557,13 +558,13 @@ static std::string eval_expression(const Operator* op)
                 {
                     r = ai * bi;
                 }
-                if (t == "floor_divide")
+                if (t == "floor_divide" || t == "div_floor")
                 {
                     r = ai / bi;
                     if (ai % bi != 0 && (ai < 0) != (bi < 0))
                         r--;
                 }
-                if (t == "trunc_divide")
+                if (t == "div_trunc")
                 {
                     r = ai / bi;
                 }
@@ -604,7 +605,7 @@ static std::string eval_expression(const Operator* op)
                 {
                     r = af * bf;
                 }
-                if (t == "floor_divide")
+                if (t == "floor_divide" || t == "div_floor")
                 {
                     // Match floor division's quotient/remainder rounding.
                     const float mod = fmodf(af, bf);
@@ -619,7 +620,7 @@ static std::string eval_expression(const Operator* op)
                     if (bf == 0.f)
                         r = af / bf;
                 }
-                if (t == "trunc_divide")
+                if (t == "div_trunc")
                 {
                     r = truncf(af / bf);
                 }

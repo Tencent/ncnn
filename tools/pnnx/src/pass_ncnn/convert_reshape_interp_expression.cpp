@@ -141,7 +141,7 @@ void convert_reshape_interp_expression(Graph& graph)
                 if (t == "sub") t = "-";
                 if (t == "mul") t = "*";
                 if (t == "div") t = "/";
-                if (t == "floor_divide") t = "//";
+                if (t == "floor_divide" || t == "div_floor") t = "//";
                 if (t == "maximum") t = "max";
                 if (t == "minimum") t = "min";
                 if (t == "int") t = "trunc";
@@ -330,7 +330,7 @@ void convert_reshape_interp_expression(Graph& graph)
                          || t == "*"
                          || t == "/"
                          || t == "//"
-                         || t == "trunc_divide"
+                         || t == "div_trunc"
                          || t == "atan2"
                          || t == "max"
                          || t == "min"
@@ -345,7 +345,7 @@ void convert_reshape_interp_expression(Graph& graph)
                     exprstack.pop();
 
                     std::string r = t + "(" + a + "," + b + ")";
-                    if (t == "trunc_divide")
+                    if (t == "div_trunc")
                         r = "trunc(/(" + a + "," + b + "))";
                     exprstack.push(r);
                 }
