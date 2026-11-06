@@ -991,8 +991,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                 if (top_blob.empty())
                     return -100;
 
-                int64_t v8 = (int64_t)value;
-                int64_t pad_value = v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56);
+                uint64_t v8 = (unsigned char)(signed char)value;
+                int64_t pad_value = (int64_t)(v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56));
                 padding_constant_pack8_int8_sse(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
 
                 return 0;
@@ -1013,8 +1013,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                 if (top_blob.empty())
                     return -100;
 
-                int64_t v8 = (int64_t)value;
-                int64_t pad_value = v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56);
+                uint64_t v8 = (unsigned char)(signed char)value;
+                int64_t pad_value = (int64_t)(v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56));
                 padding_constant_pack8_int8_sse(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
 
                 return 0;
@@ -1044,8 +1044,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                     // TODO perchannel
                     //                     int64_t pad_value = per_channel_pad_data_size ? vld1_s8(per_channel_pad_data + q * 8) : vdup_n_s8((signed char)value);
-                    int64_t v8 = (int64_t)value;
-                    int64_t pad_value = v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56);
+                    uint64_t v8 = (unsigned char)(signed char)value;
+                    int64_t pad_value = (int64_t)(v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56));
 
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
@@ -1085,8 +1085,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                 {
                     // TODO perchannel
                     //                     int64_t pad_value = per_channel_pad_data_size ? vld1_s8(per_channel_pad_data + q * 8) : vdup_n_s8((signed char)value);
-                    int64_t v8 = (int64_t)value;
-                    int64_t pad_value = v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56);
+                    uint64_t v8 = (unsigned char)(signed char)value;
+                    int64_t pad_value = (int64_t)(v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56));
 
                     for (int z = 0; z < outd; z++)
                     {
