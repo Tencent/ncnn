@@ -182,10 +182,19 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         const int planes = returns == 0 ? 3 : 2;
         int chunk_samples = (int)(1048576 / sizeof(float)) / planes - n_fft;
         int chunk_frames = chunk_samples / hoplen > 1 ? chunk_samples / hoplen : 1;
-        // chunk output span bound
-        int maxspan = chunk_frames * hoplen + n_fft;
-        if (maxspan > outsize)
-            maxspan = outsize;
+        if (chunk_frames > frames)
+            chunk_frames = frames;
+        // cap the team at the largest chunk frame count before the
+        // allocation: chunks can never use more slots than that
+        if (nbuffers > chunk_frames)
+            nbuffers = chunk_frames;
+        // chunk output span bound: a chunk's frames span at most
+        // (chunk_frames - 1) * hoplen + n_fft samples (a single-frame
+        // chunk spans exactly n_fft, however large hoplen is); computed
+        // in size_t and clamped to the output
+        size_t maxspan = (size_t)(chunk_frames - 1) * (size_t)hoplen + (size_t)n_fft;
+        if (maxspan > (size_t)outsize)
+            maxspan = (size_t)outsize;
         const size_t valwmax = returns == 0 ? (size_t)2 * maxspan : (size_t)maxspan;
         const size_t tstride = (size_t)(n_fft + 2) + m + m + n_fft + valwmax + maxspan;
         Mat scratch(tstride * nbuffers, (size_t)4u, opt.workspace_allocator);
