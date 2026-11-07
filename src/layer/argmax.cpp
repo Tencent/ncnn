@@ -38,69 +38,62 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     const float* ptr = bottom_blob;
 
     // fast path for the common reduce-all-over-a-1d-blob topk == 1 case:
-    // no top-k materialization. a single pass in the integer domain: the
-    // IEEE-754 bit pattern maps to an order-preserving unsigned key
-    // (negative floats flipped, non-negative floats sign-bit set), NaN
-    // entries are skipped by a raw-bit test, and equal keys resolve to the
-    // larger index -- the same tie order as the partial sort below for all
-    // non-NaN inputs. integer comparison keeps the reduction immune to
-    // -ffast-math NaN folding, which otherwise misorders mixed-NaN inputs
-    // (a no-NaN-assumption float max drops or keeps NaNs depending on the
-    // emitted instruction, and an NaN == NaN equality scan folds to true)
+    // no top-k materialization. two vectorizable passes: an fmax reduction
+    // over the logical elements, then the last index equal to the max --
+    // which for signed zeros resolves to the last zero, the same tie the
+    // partial sort produces. a NaN presence check (two integer OR
+    // accumulations, immune to -ffast-math NaN folding) gates the path:
+    // with NaNs present the float reduction is unreliable, so fall through
+    // to the original partial sort, which stays bitwise faithful
     if (topk == 1 && bottom_blob.dims == 1)
     {
         const int count = bottom_blob.w;
 
-        unsigned int best_key = 0;
-        int index = -1;
+        float max_val = abs ? fabsf(ptr[0]) : ptr[0];
+        for (int i = 1; i < count; i++)
+        {
+            const float v = abs ? fabsf(ptr[i]) : ptr[i];
+            max_val = fmaxf(max_val, v);
+        }
+
+        int index = count - 1;
+        for (int i = count - 1; i >= 0; i--)
+        {
+            const float v = abs ? fabsf(ptr[i]) : ptr[i];
+            if (v == max_val)
+            {
+                index = i;
+                break;
+            }
+        }
+
+        // NaN presence: a NaN has the all-ones exponent and a nonzero
+        // mantissa; the OR accumulations are exact and vectorize
+        unsigned int nan_probe = 0;
         for (int i = 0; i < count; i++)
         {
             unsigned int u;
             memcpy(&u, &ptr[i], 4);
+            nan_probe |= (u & 0x7f800000u) == 0x7f800000u ? (u & 0x007fffffu) : 0u;
+        }
 
-            // NaN: exponent all ones, mantissa nonzero -- no magnitude order
-            if ((u & 0x7f800000u) == 0x7f800000u && (u & 0x007fffffu) != 0)
-                continue;
-
-            if (abs)
-                u &= 0x7fffffffu; // |x|: clear the sign bit
-
-            if (u & 0x80000000u)
-                u = ~u;
-            else
-                u |= 0x80000000u;
-
-            if (index < 0 || u >= best_key)
+        if (nan_probe == 0)
+        {
+            float* outptr = top_blob;
+            if (out_max_val)
             {
-                best_key = u;
-                index = i;
+                // the selected element's own value bits: signed zeros and
+                // NaN-free magnitudes included
+                outptr[0] = abs ? fabsf(ptr[index]) : ptr[index];
+                outptr[topk] = index;
             }
-        }
+            else
+            {
+                outptr[0] = index;
+            }
 
-        if (index < 0)
-        {
-            // every element was NaN: the partial sort orders NaN entries
-            // with the larger index first, so the established result is
-            // the last index
-            index = count - 1;
+            return 0;
         }
-
-        float* outptr = top_blob;
-        if (out_max_val)
-        {
-            // report the selected element's own value bits (magnitude with
-            // abs) so the value always agrees with the reported index --
-            // signed zero included, where the integer order ranks +0 over
-            // -0 while the float comparator treated them as tied
-            outptr[0] = abs ? fabsf(ptr[index]) : ptr[index];
-            outptr[topk] = index;
-        }
-        else
-        {
-            outptr[0] = index;
-        }
-
-        return 0;
     }
 
     // partial sort topk with index
