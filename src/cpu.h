@@ -16,6 +16,10 @@
 
 #include "platform.h"
 
+// Windows processor groups each contain up to 64 logical processors.
+// Support up to NCNN_MAX_PROCESSOR_GROUPS groups (512 CPUs max at 8 groups).
+#define NCNN_MAX_PROCESSOR_GROUPS 8
+
 namespace ncnn {
 
 class NCNN_EXPORT CpuSet
@@ -30,7 +34,7 @@ public:
 
 public:
 #if defined _WIN32
-    ULONG_PTR mask;
+    KAFFINITY mask[NCNN_MAX_PROCESSOR_GROUPS];
 #endif
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
