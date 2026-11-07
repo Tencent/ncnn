@@ -377,6 +377,7 @@ static int run_decoder_once_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, cons
         return ret;
 
     ncnn::VkCompute cmd(g_vkdev);
+    cmd.set_use_weight_upload_online(decoder.opt.use_weights_in_host_memory || decoder.opt.use_weights_in_disk);
     cache.resize(cache_indexes.output_indexes.size());
     for (size_t i = 0; i < cache_indexes.output_indexes.size(); i++)
     {
