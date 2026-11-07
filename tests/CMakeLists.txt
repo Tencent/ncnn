@@ -191,3 +191,19 @@ ncnn_add_layer_test(UnaryOp)
 ncnn_add_layer_test(Unfold)
 ncnn_add_layer_test(YoloDetectionOutput)
 ncnn_add_layer_test(Yolov3DetectionOutput)
+
+# simpleomp runtime test: the test TU is compiled with the compiler openmp flag
+# so that it emits runtime ABI calls, but it links against ncnn (which provides
+# the simpleomp runtime symbols) instead of libomp/libgomp/vcomp.
+# the simpleomp symbols are not exported from a shared library.
+if(NCNN_SIMPLEOMP AND NCNN_OPENMP AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU") AND NOT NCNN_SHARED_LIB)
+    ncnn_add_test(simpleomp)
+    if(MSVC)
+        # clang-cl ignores -fopenmp
+        target_compile_options(test_simpleomp PRIVATE -openmp)
+    elseif(APPLE)
+        target_compile_options(test_simpleomp PRIVATE -Xpreprocessor -fopenmp)
+    else()
+        target_compile_options(test_simpleomp PRIVATE -fopenmp)
+    endif()
+endif()
