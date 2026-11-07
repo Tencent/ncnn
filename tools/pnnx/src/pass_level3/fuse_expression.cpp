@@ -264,11 +264,24 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         const Attribute& data = op->attrs["data"];
         if (data.shape.size() == 1 && data.shape[0] == 1 && data.type != -1)
         {
-            if (data.type == 0)
+            // Keep Tensor dtype promotion and broadcasting after scalarization.
+            for (const Operator* consumer : operand->consumers)
             {
-                expr += "None";
+                bool tensor_input = false;
+                for (const Operand* input : consumer->inputs)
+                {
+                    if (input == operand || input->type == 0)
+                        continue;
+                    if (input->type != data.type)
+                        goto DEFAULT;
+                    if (!input->shape.empty() && input->producer->type != "pnnx.Attribute")
+                        tensor_input = true;
+                }
+                if (!tensor_input)
+                    goto DEFAULT;
             }
-            else if (data.type == 1)
+
+            if (data.type == 1)
             {
                 expr += float_to_string(((const float*)data.data.data())[0]);
             }
@@ -285,8 +298,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             else if (data.type == 5)
             {
                 int64_t v = ((const int64_t*)data.data.data())[0];
-                if (v == std::numeric_limits<int64_t>::max()) v = INT_MAX;
-                if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
+                if (v < INT_MIN || v > INT_MAX)
+                    goto DEFAULT;
 
                 char tmp[32];
                 snprintf(tmp, 32, "%d", (int)v);
@@ -317,7 +330,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             else
             {
                 // unsupported type
-                fprintf(stderr, "fuse expression got unsupported scalar type %d\n", data.type);
+                goto DEFAULT;
             }
         }
         else
@@ -711,7 +724,6 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else
             {
-                expr += ",";
                 expr += "mul(";
                 expr += expr1;
                 expr += ",";
@@ -743,7 +755,6 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
             else
             {
-                expr += ",";
                 expr += "mul(";
                 expr += expr1;
                 expr += ",";
@@ -762,9 +773,13 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         if (op->inputs.size() == 3)
             fuse_expression(graph, op->inputs[2], rounding_mode, inputs, foldable_constants, zip);
 
-        if (rounding_mode == "trunc")
+        if (rounding_mode == "floor")
         {
-            expr += "floor_divide";
+            expr += "div_floor";
+        }
+        else if (rounding_mode == "trunc")
+        {
+            expr += "div_trunc";
         }
         else
         {

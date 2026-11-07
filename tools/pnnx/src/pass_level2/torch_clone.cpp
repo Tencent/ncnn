@@ -24,20 +24,41 @@ pnnx.Output             output      1 0 out
         return "torch.clone";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const Parameter& memory_format = captured_params.at("memory_format");
+        return memory_format.type == 0 || (memory_format.type == 2 && memory_format.i >= 0 && memory_format.i <= 3)
+               || (memory_format.type == 4 && memory_format.s.empty());
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        if (captured_params.at("memory_format").i == 0)
-            op->params["memory_format"] = "torch.contiguous_format";
-        if (captured_params.at("memory_format").i == 1)
+        const Parameter& memory_format = captured_params.at("memory_format");
+        if (memory_format.type == 0)
+        {
             op->params["memory_format"] = "torch.preserve_format";
-        if (captured_params.at("memory_format").i == 2)
-            op->params["memory_format"] = "torch.channels_last";
+        }
+        else if (memory_format.type == 4)
+        {
+            op->params["memory_format"] = "torch.contiguous_format";
+        }
+        else
+        {
+            if (memory_format.i == 0)
+                op->params["memory_format"] = "torch.contiguous_format";
+            if (memory_format.i == 1)
+                op->params["memory_format"] = "torch.preserve_format";
+            if (memory_format.i == 2)
+                op->params["memory_format"] = "torch.channels_last";
+            if (memory_format.i == 3)
+                op->params["memory_format"] = "torch.channels_last_3d";
+        }
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone, 20)
 
-class torch_clone_1 : public GraphRewriterPass
+class torch_clone_1 : public torch_clone
 {
 public:
     const char* match_pattern_graph() const
@@ -48,28 +69,6 @@ pnnx.Input              input       0 1 input
 aten::clone             op_1        1 1 input out memory_format=%memory_format
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "torch.clone";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        if (captured_params.at("memory_format").type == 4 && captured_params.at("memory_format").s.empty())
-        {
-            op->params["memory_format"] = "torch.contiguous_format";
-        }
-        else
-        {
-            if (captured_params.at("memory_format").i == 0)
-                op->params["memory_format"] = "torch.contiguous_format";
-            if (captured_params.at("memory_format").i == 1)
-                op->params["memory_format"] = "torch.preserve_format";
-            if (captured_params.at("memory_format").i == 2)
-                op->params["memory_format"] = "torch.channels_last";
-        }
     }
 };
 

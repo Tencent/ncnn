@@ -13,8 +13,8 @@ public:
         return R"PNNXIR(7767517
 8 7
 pnnx.Input              input       0 1 input
+pnnx.Input              input_1     0 1 stride
 prim::Constant          op_0        0 1 kernel_size value=%kernel_size
-prim::Constant          op_1        0 1 stride value=%stride
 prim::Constant          op_2        0 1 padding value=%padding
 prim::Constant          op_3        0 1 ceil_mode value=%ceil_mode
 prim::Constant          op_4        0 1 count_include_pad value=%count_include_pad
@@ -26,6 +26,28 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.avg_pool1d";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* stride = matched_operators.at("op_5")->inputs[2]->producer;
+        return (stride->type == "prim::Constant" && stride->has_param("value") && stride->params.at("value").type == 5)
+               || (stride->type == "prim::ListConstruct" && stride->inputs.empty());
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        const Operator* stride = op->inputs[1]->producer;
+        if (stride->type == "prim::ListConstruct" || stride->params.at("value").ai.empty())
+            op->params["stride"] = captured_params.at("kernel_size");
+        else
+            op->params["stride"] = stride->params.at("value");
+
+        op->inputs[1]->remove_consumer(op);
+        op->inputs.erase(op->inputs.begin() + 1);
+        op->inputnames.resize(1);
     }
 };
 

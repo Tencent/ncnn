@@ -24,6 +24,9 @@
 #if BUILD_TORCH2PNNX
 #include "load_torchscript.h"
 #endif
+#if BUILD_PT22PNNX
+#include "load_pt2.h"
+#endif
 #if BUILD_ONNX2PNNX
 #include "load_onnx.h"
 #endif
@@ -307,6 +310,14 @@ int main(int argc, char** argv)
 
     std::string ptpath = std::string(argv[1]);
 
+#if !BUILD_PT22PNNX
+    if (ptpath.size() >= 4 && ptpath.compare(ptpath.size() - 4, 4, ".pt2") == 0)
+    {
+        fprintf(stderr, "pt2 load: this build requires PyTorch >= 2.11 for .pt2 support\n");
+        return -1;
+    }
+#endif
+
     std::string ptbase = get_basename(ptpath);
 
     std::string pnnxparampath = ptbase + ".pnnx.param";
@@ -447,10 +458,32 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
+#if BUILD_PT22PNNX
+    const int pt2 = model_file_maybe_torchscript(ptpath) ? pnnx::probe_pt2(ptpath) : 0;
+    if (pt2 < 0)
+    {
+        fprintf(stderr, "pt2 archive: invalid or unsupported archive\n");
+        return -1;
+    }
+#endif
 
     // clang-format off
     // *INDENT-OFF*
 
+#if BUILD_PT22PNNX
+    if (pt2 == 1)
+    {
+        if (device != "cpu")
+        {
+            fprintf(stderr, "pt2 load: only CPU device is supported\n");
+            return -1;
+        }
+        int ret = pnnx::load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
+        if (ret != 0)
+            return ret;
+    }
+    else
+#endif
 #if BUILD_TNN2PNNX
     if (model_file_maybe_tnnproto(ptpath))
     {
@@ -491,7 +524,8 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level2\n");
 
-    pnnx::pass_level2(pnnx_graph);
+    if (pnnx::pass_level2(pnnx_graph) != 0)
+        return -1;
 
     // pnnx_graph.save("debug.param", "debug.bin");
 
@@ -518,16 +552,35 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
+#if BUILD_PT22PNNX
+    std::string output_error;
+    if (pt2 && pnnx_graph.check_python(output_error) != 0)
+    {
+        fprintf(stderr, "pt2 pnnx: %s\n", output_error.c_str());
+        return -1;
+    }
+#endif
+
     pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
     const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
-    pnnx_graph.save(pnnxparampath, pnnxbinpath);
+    if (pnnx_graph.save(pnnxparampath, pnnxbinpath) != 0)
+        return -1;
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
+    if (pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat) != 0)
+        return -1;
 
 #if BUILD_PNNX2ONNX
-    pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
+#if BUILD_PT22PNNX
+    if (pt2 && pnnx::check_onnx(pnnx_graph, output_error) != 0)
+    {
+        fprintf(stderr, "pt2 onnx: %s; pnnx artifacts were saved\n", output_error.c_str());
+        return -1;
+    }
+#endif
+    if (pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16) != 0)
+        return -1;
 #else
     fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
 #endif
@@ -536,9 +589,24 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
+#if BUILD_PT22PNNX
+        if (pt2 && pnnx::check_ncnn(pnnx_graph, output_error) != 0)
+        {
+            fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
+            return -1;
+        }
+#endif
         pnnx::pass_ncnn(pnnx_graph, module_operators);
+#if BUILD_PT22PNNX
+        if (pt2 && pnnx::check_ncnn_output(pnnx_graph, output_error) != 0)
+        {
+            fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
+            return -1;
+        }
+#endif
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+            return -1;
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());

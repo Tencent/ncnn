@@ -4,313 +4,342 @@
 #include "functionize.h"
 
 #include <algorithm>
+#include <functional>
+#include <stdio.h>
+#include <map>
 #include <vector>
 
 namespace pnnx {
 
 static bool is_alias_op(const Operator* op)
 {
-    if (op->type == "aten::slice" || op->type == "aten::select")
-        return true;
-
-    if (op->type == "aten::view")
-        return true;
-
-    return false;
+    return op->type == "aten::slice" || op->type == "aten::select"
+           || op->type == "aten::view"
+           || op->type == "aten::transpose" || op->type == "aten::t" || op->type == "aten::permute"
+           || op->type == "aten::squeeze" || op->type == "aten::unsqueeze"
+           || op->type == "aten::detach" || op->type == "aten::alias";
 }
 
-void functionize(Graph& graph)
+static bool is_inplace_op(const Operator* op)
 {
-    // graph.save("0.param", "0.bin");
+    const std::string& type = op->type;
+    return type.size() > 2 && type[type.size() - 2] != '_' && type[type.size() - 1] == '_';
+}
 
-    // 1. create shadow view/slice/select/... for each consumer
-    // 2. replace inplace op, append copy
-    // 3. tag operand alias for view/slice/select/... output
-    // 4. scan inplace op, collect affacted alias
-    //     5. look for any op after the inplace op with alias input
-    //     6. collect ops on the chain back to alias
-    //     7. move chain after copy op
-    //     8. update all alias uses after copy op, retag alias
-    // 9. clear all alias tag
+static Operand* tensor_like(Graph& graph, Operator* op, const Operand* meta)
+{
+    Operand* out = graph.new_operand(op->name + "_out");
+    out->producer = op;
+    out->type = meta->type;
+    out->shape = meta->shape;
+    out->params = meta->params;
+    op->outputs.push_back(out);
+    for (Operand* input : op->inputs)
+        input->consumers.push_back(op);
+    return out;
+}
 
-    // 1. create shadow view/slice/select/... for each consumer
-    {
-        for (int i = (int)graph.ops.size() - 1; i >= 0; i--)
+struct Alias
+{
+    Operand* parent;
+    Operator* op;
+    // The non-tensor arguments are values at view creation time. They must not
+    // be recomputed from a later tensor version when the alias is replayed.
+    std::vector<Operand*> args;
+};
+
+int functionize(Graph& graph)
+{
+    // Keep storage identity separate from SSA values. Each write creates a new
+    // root value; every later observation replays its own view chain from that
+    // version. In particular, every input (including tuple/list outputs) needs
+    // replay, not just inputs[0]. Earlier reads and snapshots remain unchanged.
+    const std::vector<Operator*> ops = graph.ops;
+    std::map<Operand*, Alias> aliases;
+    std::map<Operand*, Alias> containers;
+    std::map<Operand*, Operand*> versions;
+    std::map<Operand*, Operand*> replayed;
+    int index = 0;
+
+    std::function<Operand*(Operand*, Operator*)> resolve = [&](Operand* value, Operator* before) -> Operand* {
+        if (replayed.count(value))
+            return replayed.at(value);
+        if (containers.count(value))
         {
-            Operator* op = graph.ops[i];
-
-            if (!is_alias_op(op))
-                continue;
-
-            Operand* out0 = op->outputs[0];
-
-            if (out0->consumers.size() == 1)
-                continue;
-
-            bool all_consumers_are_same = true;
-            for (size_t j = 1; j < out0->consumers.size(); j++)
-            {
-                if (out0->consumers[j] != out0->consumers[0])
-                {
-                    all_consumers_are_same = false;
-                    break;
-                }
-            }
-            if (all_consumers_are_same)
-                continue;
-
-            for (int j = (int)out0->consumers.size() - 1; j > 0; j--)
-            {
-                Operator* op1 = out0->consumers[j];
-
-                Operator* op_shadow = graph.new_operator_after(op->type, op->name + "_pnnxshadow_" + std::to_string(j), op);
-
-                Operand* shadow_out = graph.new_operand(op_shadow->name + "_out");
-
-                op_shadow->inputs = op->inputs;
-                op_shadow->params = op->params;
-                op_shadow->outputs.push_back(shadow_out);
-
-                for (Operand* x : op->inputs)
-                {
-                    x->consumers.push_back(op_shadow);
-                }
-
-                shadow_out->producer = op_shadow;
-                shadow_out->type = out0->type;
-                shadow_out->shape = out0->shape;
-                shadow_out->params = out0->params;
-
-                shadow_out->consumers.push_back(op1);
-
-                for (size_t k = 0; k < op1->inputs.size(); k++)
-                {
-                    if (op1->inputs[k] == out0)
-                        op1->inputs[k] = shadow_out;
-                }
-            }
-
-            out0->consumers.resize(1);
+            const Alias& container = containers.at(value);
+            std::vector<Operand*> args;
+            for (Operand* input : container.args)
+                args.push_back(resolve(input, before));
+            Operator* op = graph.new_operator_before(container.op->type, container.op->name + "_replay_" + std::to_string(index++), before);
+            op->inputs = args;
+            return replayed[value] = tensor_like(graph, op, value);
         }
-    }
+        if (!aliases.count(value))
+            return versions.count(value) ? versions.at(value) : value;
+        const Alias& alias = aliases.at(value);
+        Operand* parent = resolve(alias.parent, before);
+        if (!alias.op)
+            return replayed[value] = parent;
+        Operator* op = graph.new_operator_before(alias.op->type, alias.op->name + "_replay_" + std::to_string(index++), before);
+        op->params = alias.op->params;
+        op->attrs = alias.op->attrs;
+        op->inputnames = alias.op->inputnames;
+        op->inputs.push_back(parent);
+        op->inputs.insert(op->inputs.end(), alias.args.begin(), alias.args.end());
+        return replayed[value] = tensor_like(graph, op, value);
+    };
 
-    // graph.save("1.param", "1.bin");
-
-    // 2. replace inplace op, append copy
-    // 3. tag operand alias for view/slice/select/... output
+    for (Operator* op : ops)
     {
-        for (size_t i = 0; i < graph.ops.size(); i++)
+        const std::vector<Operand*> inputs = op->inputs;
+        for (size_t i = 0; i < inputs.size(); i++)
         {
-            Operator* op = graph.ops[i];
-
-            bool is_inplace_op = op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_';
-
-            if (op->type != "aten::copy_" && !is_alias_op(op) && !is_inplace_op)
+            Operand* value = resolve(inputs[i], op);
+            if (value == inputs[i])
                 continue;
+            inputs[i]->remove_consumer(op);
+            op->inputs[i] = value;
+            value->consumers.push_back(op);
+        }
 
-            Operand* in = op->inputs[0];
+        // Containers hold tensor aliases, not snapshots of their values. A
+        // list/tuple constructed before a write must observe the updated values
+        // when consumed later (including nested output containers).
+        if (op->type == "prim::ListConstruct" || op->type == "prim::TupleConstruct")
+        {
+            Alias container;
+            container.parent = 0;
+            container.op = op;
+            container.args = inputs;
+            containers[op->outputs[0]] = container;
+            replayed[op->outputs[0]] = op->outputs[0];
+            continue;
+        }
 
-            int alias_index;
-            if (in->params.find("__alias__") != in->params.end())
+        if ((op->type == "prim::ListUnpack" || op->type == "prim::TupleUnpack")
+                && inputs.size() == 1 && containers.count(inputs[0]))
+        {
+            const std::vector<Operand*>& items = containers.at(inputs[0]).args;
+            if (items.size() == op->outputs.size())
             {
-                alias_index = in->params.at("__alias__").i;
-            }
-            else
-            {
-                alias_index = std::find(graph.operands.begin(), graph.operands.end(), in) - graph.operands.begin();
-            }
-
-            if (op->type == "aten::copy_")
-            {
-                op->outputs[0]->params["__alias__"] = alias_index;
-                // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
-
-                // set copy output shape as the alias one
-                op->outputs[0]->type = graph.operands[alias_index]->type;
-                op->outputs[0]->shape = graph.operands[alias_index]->shape;
-
-                continue;
-            }
-
-            if (is_alias_op(op))
-            {
-                op->outputs[0]->params["__alias__"] = alias_index;
-                // fprintf(stderr, "operand %s is alias of %s\n", op->outputs[0]->name.c_str(), graph.operands[alias_index]->name.c_str());
-                continue;
-            }
-
-            if (is_inplace_op)
-            {
-                // replace with non-inplace version, create copy op
-                op->type = op->type.substr(0, op->type.size() - 1);
-
-                // append aten::copy_
-                if (graph.operands[alias_index]->consumers.size() > 1)
+                for (size_t i = 0; i < items.size(); i++)
                 {
-                    Operand* in0 = op->inputs[0];
-                    Operand* out0 = op->outputs[0];
-
-                    Operator* op_copy = graph.new_operator_after("aten::copy_", op->name + "_copy", op);
-                    Operand* copy_out = graph.new_operand(op->name + "_copy_out");
-
-                    op_copy->inputs.push_back(in0);
-                    op_copy->inputs.push_back(out0);
-                    in0->consumers.push_back(op_copy);
-                    out0->consumers.push_back(op_copy);
-
-                    op_copy->outputs.push_back(copy_out);
-                    copy_out->producer = op_copy;
+                    Alias alias;
+                    alias.parent = items[i];
+                    alias.op = 0;
+                    aliases[op->outputs[i]] = alias;
+                    replayed[op->outputs[i]] = op->outputs[i];
                 }
+                continue;
             }
         }
-    }
 
-    // graph.save("3.param", "3.bin");
-
-    // 4. scan inplace copy op, collect affacted alias
-    {
-        for (size_t i = 0; i < graph.ops.size(); i++)
+        if (is_alias_op(op))
         {
-            Operator* op = graph.ops[i];
+            Alias alias;
+            alias.parent = inputs[0];
+            alias.op = op;
+            alias.args.assign(op->inputs.begin() + 1, op->inputs.end());
+            aliases[op->outputs[0]] = alias;
+            replayed[op->outputs[0]] = op->outputs[0];
+            continue;
+        }
 
-            if (op->type != "aten::copy_")
-                continue;
+        if (!is_inplace_op(op) || op->inputs.empty() || op->outputs.size() != 1)
+            continue;
 
-            op->type = "aten::copy";
-
-            Operand* out0 = op->outputs[0];
-
-            // inplace op output always alias with the input
-            const int alias_index = out0->params.at("__alias__").i;
-            Operand* alias_in0 = graph.operands[alias_index];
-
-            // fprintf(stderr, "\n---> %s  for %s\n", op->name.c_str(), alias_in0->name.c_str());
-
-            size_t i_advanced = 0;
-
-            // 5. look for any op after the inplace op with alias input
-            for (size_t j = i + 1; j < graph.ops.size(); j++)
+        Operand* target = inputs[0];
+        Operand* value = op->outputs[0];
+        Operator* after = op;
+        if (op->type == "aten::copy_")
+        {
+            // copy_ returns a value with the destination's dtype and shape,
+            // regardless of source broadcasting or promotion. Establish this
+            // before reversing any views, including for TorchScript inputs.
+            Operand* destination = op->inputs[0];
+            Operand* source = op->inputs[1];
+            if (source->type == 0 || source->type != destination->type)
             {
-                Operator* op1 = graph.ops[j];
-
-                bool affacted = false;
-                for (Operand* x : op1->inputs)
-                {
-                    if (x == alias_in0)
-                    {
-                        affacted = true;
-                        break;
-                    }
-
-                    if (x->params.find("__alias__") == x->params.end())
-                        continue;
-
-                    int alias_index_1 = x->params.at("__alias__").i;
-                    if (alias_index_1 == alias_index)
-                    {
-                        affacted = true;
-                        break;
-                    }
-                }
-
-                if (!affacted)
+                Operator* cast = graph.new_operator_before("aten::type_as", op->name + "_cast", op);
+                cast->inputs = {source, destination};
+                Operand* converted = tensor_like(graph, cast, source);
+                converted->type = destination->type;
+                source = converted;
+            }
+            if (source->shape != destination->shape
+                    || std::find(destination->shape.begin(), destination->shape.end(), -1) != destination->shape.end())
+            {
+                Operator* expand = graph.new_operator_before("aten::expand_as", op->name + "_broadcast", op);
+                expand->inputs = {source, destination};
+                source = tensor_like(graph, expand, destination);
+            }
+            for (Operand* input : op->inputs)
+                input->remove_consumer(op);
+            op->type = "aten::clone";
+            op->inputs = {source};
+            source->consumers.push_back(op);
+            op->inputnames.clear();
+            op->params.clear();
+            op->params["memory_format"] = Parameter();
+        }
+        else
+        {
+            op->type.resize(op->type.size() - 1);
+            // Functional arithmetic may promote mixed Tensor operands, whereas
+            // an in-place operation stores the result in the destination dtype.
+            bool mixed_dtype = false;
+            const Operand* destination = op->inputs[0];
+            for (size_t i = 1; i < op->inputs.size(); i++)
+            {
+                const Operand* input = op->inputs[i];
+                if (input->type == 0 || input->type == destination->type)
                     continue;
-
-                // 6. collect ops on the chain back to alias
-                std::set<size_t> chainsx_op_indexes;
-                {
-                    size_t op1_index = std::find(graph.ops.begin(), graph.ops.end(), op1) - graph.ops.begin();
-
-                    if (op1_index < i - i_advanced)
-                    {
-                        chainsx_op_indexes.insert(op1_index);
-                        // fprintf(stderr, "affacted op %s for %s\n", op1->name.c_str(), graph.operands[alias_index]->name.c_str());
-                    }
-
-                    while (1)
-                    {
-                        Operand* x = op1->inputs[0];
-                        if (x->params.find("__alias__") == x->params.end())
-                            break;
-
-                        int alias_index_1 = x->params.at("__alias__").i;
-                        if (alias_index_1 != alias_index)
-                            break;
-
-                        op1 = x->producer;
-                        size_t op1_index = std::find(graph.ops.begin(), graph.ops.end(), op1) - graph.ops.begin();
-
-                        if (op1_index < i - i_advanced)
-                        {
-                            chainsx_op_indexes.insert(op1_index);
-                            // fprintf(stderr, "affacted op %s for %s   chained\n", op1->name.c_str(), graph.operands[alias_index]->name.c_str());
-                        }
-                    }
-                }
-
-                // 7. move chain after copy op
-                {
-                    int k = 0;
-                    for (size_t doi : chainsx_op_indexes)
-                    {
-                        doi -= k;
-                        // fprintf(stderr, "---> move %s after %s\n", graph.ops[doi]->name.c_str(), graph.ops[i - i_advanced]->name.c_str());
-
-                        for (size_t l = doi; l < i - i_advanced; l++)
-                        {
-                            std::swap(graph.ops[l], graph.ops[l + 1]);
-                        }
-
-                        k += 1;
-                    }
-
-                    i_advanced += chainsx_op_indexes.size();
-                }
-
-                // 8. update all alias uses after copy op, retag alias
-                out0->params.erase("__alias__");
-                const int new_alias_index = std::find(graph.operands.begin(), graph.operands.end(), out0) - graph.operands.begin();
-                for (size_t k = i - i_advanced + 1; k < graph.ops.size(); k++)
-                {
-                    Operator* op2 = graph.ops[k];
-
-                    // bool use_in0 = false;
-                    for (size_t l = 0; l < op2->inputs.size(); l++)
-                    {
-                        if (op2->inputs[l] == alias_in0)
-                        {
-                            // fprintf(stderr, "---> replace %s input %s to %s\n", op2->name.c_str(), op2->inputs[l]->name.c_str(), out0->name.c_str());
-
-                            op2->inputs[l] = out0;
-                            alias_in0->remove_consumer(op2);
-                            out0->consumers.push_back(op2);
-                        }
-                    }
-
-                    for (Operand* x : op2->outputs)
-                    {
-                        if (x->params.find("__alias__") != x->params.end() && x->params.at("__alias__").i == alias_index)
-                        {
-                            x->params["__alias__"] = new_alias_index;
-                        }
-                    }
-                }
-
-                // rewind to the updated copy operator
-                j -= chainsx_op_indexes.size();
+                const bool floating = destination->type == 1 || destination->type == 2 || destination->type == 3 || destination->type == 13;
+                const bool complex = destination->type >= 10 && destination->type <= 12;
+                const bool real = input->type <= 9 || input->type == 13;
+                // Number constants in traced graphs can be zero-dimensional
+                // tensors. They use scalar promotion, not Tensor promotion.
+                if (((floating && real) || complex) && input->shape.empty() && !destination->shape.empty())
+                    continue;
+                if ((floating || complex) && input->type >= 4 && input->type <= 9)
+                    continue;
+                if (destination->type == 2 && real)
+                    continue;
+                if (destination->type == 1 && (input->type == 3 || input->type == 13))
+                    continue;
+                // Real operands only promote a complex tensor when their
+                // component precision is higher. Avoid an unnecessary cast
+                // and an extra dependency on the old destination otherwise.
+                if (destination->type == 11)
+                    continue;
+                if (destination->type == 10 && input->type != 2 && input->type != 11)
+                    continue;
+                if (destination->type == 12 && input->type == 3)
+                    continue;
+                if (destination->type >= 4 && destination->type <= 8 && input->type >= 4 && input->type <= 9
+                        && input->shape.empty() && !destination->shape.empty())
+                    continue;
+                mixed_dtype = true;
+            }
+            if (mixed_dtype)
+            {
+                Operator* cast = graph.new_operator_after("aten::type_as", op->name + "_cast", op);
+                cast->inputs = {value, op->inputs[0]};
+                Operand* converted = tensor_like(graph, cast, value);
+                // The original metadata describes the in-place result, not
+                // the promoted functional intermediate.
+                value->type = 0;
+                value = converted;
+                after = cast;
             }
         }
-    }
 
-    // graph.save("4.param", "4.bin");
+        auto append = [&](const std::string& type, const std::vector<Operand*>& args, const Operand* meta) {
+            Operator* inverse = graph.new_operator_after(type, op->name + "_writeback_" + std::to_string(index++), after);
+            inverse->inputs = args;
+            after = inverse;
+            return tensor_like(graph, inverse, meta);
+        };
 
-    // 9. clear all alias tag
-    {
-        for (Operand* x : graph.operands)
+        Operand* root = target;
+        while (aliases.count(root))
         {
-            x->params.erase("__alias__");
+            const Alias& alias = aliases.at(root);
+            if (!alias.op)
+            {
+                root = alias.parent;
+                continue;
+            }
+            const std::string& type = alias.op->type;
+            if (type == "aten::slice" || type == "aten::select")
+            {
+                // Adjacent slice/select views are reversed together by
+                // fuse_slice_copy, including nested slices of the same axis.
+                Operand* view = resolve(root, op);
+                do
+                {
+                    root = aliases.at(root).parent;
+                } while (aliases.count(root) && aliases.at(root).op
+                         && (aliases.at(root).op->type == "aten::slice" || aliases.at(root).op->type == "aten::select"));
+                value = append("aten::copy", {view, value}, root);
+                continue;
+            }
+            Operand* parent = resolve(alias.parent, op);
+            if (type == "aten::view" || type == "aten::squeeze" || type == "aten::unsqueeze")
+            {
+                value = append("aten::reshape_as", {value, parent}, alias.parent);
+            }
+            else if (type == "aten::transpose" || type == "aten::t")
+            {
+                std::vector<Operand*> args = {value};
+                args.insert(args.end(), alias.args.begin(), alias.args.end());
+                value = append(type, args, alias.parent);
+                after->params = alias.op->params;
+                after->inputnames = alias.op->inputnames;
+            }
+            else if (type == "aten::permute")
+            {
+                // Inverse permutations need a literal, valid dimension order.
+                // Scripted models may compute it dynamically; do not guess or
+                // let malformed dimensions escape as an uncaught exception.
+                std::vector<int> dims;
+                bool known = alias.args.size() == 1;
+                if (known)
+                {
+                    const Operator* order = alias.args[0]->producer;
+                    if (order->type == "prim::Constant" && order->has_param("value") && order->params.at("value").type == 5)
+                        dims = order->params.at("value").ai;
+                    else if (order->type == "prim::ListConstruct")
+                    {
+                        for (Operand* dim : order->inputs)
+                        {
+                            const Operator* producer = dim->producer;
+                            if (producer->type != "prim::Constant" || !producer->has_param("value") || producer->params.at("value").type != 2)
+                            {
+                                known = false;
+                                break;
+                            }
+                            dims.push_back(producer->params.at("value").i);
+                        }
+                    }
+                    else
+                        known = false;
+                }
+                const int rank = (int)dims.size();
+                std::vector<int> inverse(rank, -1);
+                for (int i = 0; known && i < rank; i++)
+                {
+                    const int dim = dims[i] < 0 ? dims[i] + rank : dims[i];
+                    if (dim < 0 || dim >= rank || inverse[dim] != -1)
+                        known = false;
+                    else
+                        inverse[dim] = i;
+                }
+                if (!known || (!parent->shape.empty() && parent->shape.size() != dims.size()))
+                {
+                    fprintf(stderr, "functionize: %s requires a constant valid permutation for mutation writeback\n", alias.op->name.c_str());
+                    return -1;
+                }
+                Operator* constant = graph.new_operator_after("prim::Constant", op->name + "_inverse_dims_" + std::to_string(index++), after);
+                constant->params["value"] = inverse;
+                Operand* dims_value = graph.new_operand(constant->name);
+                dims_value->producer = constant;
+                constant->outputs.push_back(dims_value);
+                after = constant;
+                value = append(type, {value, dims_value}, alias.parent);
+            }
+            // detach/alias have the identity inverse.
+            root = alias.parent;
         }
+
+        versions[root] = value;
+        replayed.clear();
+        Alias result_alias;
+        result_alias.parent = target;
+        result_alias.op = 0;
+        aliases[op->outputs[0]] = result_alias;
     }
+    return 0;
 }
 
 } // namespace pnnx

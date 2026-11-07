@@ -3,6 +3,9 @@
 
 #include "pass_ncnn.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_batch_layout.h"
 #include "pass_ncnn/convert_custom_op.h"
@@ -72,6 +75,63 @@ NcnnGraphRewriterPassRegister::NcnnGraphRewriterPassRegister(const GraphRewriter
 NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
 {
     delete pass;
+}
+
+int check_ncnn(const Graph& g, std::string& error)
+{
+    for (const Operator* op : g.ops)
+    {
+        std::string reason;
+        for (const auto& param : op->params)
+        {
+            if (param.second.type == 3 && !std::isfinite(param.second.f))
+                reason = "non-finite parameter";
+            if (op->type == "pnnx.Expression" && param.first == "expr"
+                    && (param.second.s.find("nan") != std::string::npos || param.second.s.find("inf") != std::string::npos))
+                reason = "non-finite expression";
+        }
+        if ((op->type == "F.interpolate" || op->type == "nn.Upsample") && op->has_param("mode") && op->params.at("mode").s == "nearest-exact")
+            reason = "nearest-exact interpolation";
+        if (op->type.compare(0, 15, "nn.InstanceNorm") == 0 && op->has_param("track_running_stats") && op->params.at("track_running_stats").b)
+            reason = "tracked InstanceNorm";
+        if (op->has_param("dtype") && op->params.at("dtype").type != 0)
+            reason = "explicit computation dtype";
+        for (const auto& attr : op->attrs)
+        {
+            if (attr.second.type != 1)
+                reason = "non-FP32 tensor attribute";
+            if (attr.second.shape.empty() || std::find(attr.second.shape.begin(), attr.second.shape.end(), 0) != attr.second.shape.end())
+                reason = "scalar or empty tensor attribute";
+        }
+        if (op->type == "pnnx.Input")
+        {
+            for (const Operand* r : op->outputs)
+            {
+                if (r->type != 1)
+                    reason = "non-FP32 runtime input";
+                if (r->shape.empty() || std::find(r->shape.begin(), r->shape.end(), 0) != r->shape.end())
+                    reason = "scalar or empty runtime input";
+            }
+        }
+        if (op->type == "pnnx.Output")
+        {
+            for (const Operand* r : op->inputs)
+            {
+                if (r->type != 1)
+                    reason = "non-FP32 user output";
+                if (r->shape.empty() || std::find(r->shape.begin(), r->shape.end(), 0) != r->shape.end())
+                    reason = "scalar or empty user output";
+            }
+        }
+        if (op->type.find("pool") != std::string::npos && op->has_param("stride") && op->params.at("stride").type == 5 && op->params.at("stride").ai.empty())
+            reason = "empty pooling stride";
+        if (!reason.empty())
+        {
+            error = "unsupported " + reason + " at " + op->type + " (" + op->name + ")";
+            return -1;
+        }
+    }
+    return 0;
 }
 
 void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)

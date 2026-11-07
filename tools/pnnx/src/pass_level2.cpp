@@ -1011,6 +1011,9 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
             graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x));
 
+            // A replacement may match again before the final name assignment.
+            new_ops.erase(std::remove(new_ops.begin(), new_ops.end(), x), new_ops.end());
+
             delete _x.second;
         }
 
@@ -1134,9 +1137,10 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
     }
 }
 
-void pass_level2(Graph& g)
+int pass_level2(Graph& g)
 {
-    functionize(g);
+    if (functionize(g) != 0)
+        return -1;
 
     eliminate_contiguous(g);
 
@@ -1152,6 +1156,7 @@ void pass_level2(Graph& g)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+    return 0;
 }
 
 } // namespace pnnx
