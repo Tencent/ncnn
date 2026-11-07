@@ -153,9 +153,24 @@ class MixedMutation(torch.nn.Module):
         before = view.clone()
         if self.operation == 'add':
             result = view.add_(source)
+        elif self.operation == 'div':
+            result = view.div_(source)
         else:
             result = view.copy_(source)
         return before, base, view, result
+
+    def reference(self, x, source):
+        if self.operation != 'copy':
+            return self(x, source)
+        base = x + 1
+        view = base.transpose(0, 1) if self.transpose else base
+        before = view.clone()
+        # Some older CPU copy_ kernels mishandle mixed-dtype broadcasting.
+        # Keep copy_ in the exported model, but verify its documented value
+        # semantics independently instead of copying that kernel's bad result.
+        copied = source.to(view.dtype).expand_as(view).clone()
+        updated = copied.transpose(0, 1) if self.transpose else copied
+        return before, updated, copied, copied
 
 
 def mixed_cases():
@@ -178,6 +193,29 @@ def mixed_cases():
     yield 'add_scalar', MixedMutation('add', False), (torch.tensor(0, dtype=torch.float16), torch.tensor(0.0004884))
     yield 'copy_empty', MixedMutation('copy', True), (torch.empty(0, 3, dtype=torch.int32), torch.empty(3, 0))
     yield 'add_empty', MixedMutation('add', True), (torch.empty(0, 3, dtype=torch.float16), torch.empty(3, 0))
+
+
+def complex_cases():
+    for operation in ('add', 'div'):
+        for where in ('root', 'transpose', 'scalar'):
+            scalar = where == 'scalar'
+            transpose = where == 'transpose'
+            target = torch.zeros((), dtype=torch.complex64) if scalar else (
+                torch.arange(6).reshape(2, 3).to(torch.complex64) * (1 + 0.5j))
+            kinds = ('f32_scalar', 'f64_scalar', 'c128_scalar') if scalar else (
+                'f32_scalar', 'f32_vector', 'f64_scalar', 'f64_vector', 'c128_vector')
+            for kind in kinds:
+                dtype = {'f32': torch.float32, 'f64': torch.float64, 'c128': torch.complex128}[kind.split('_')[0]]
+                shape = () if kind.endswith('scalar') else (2 if transpose else 3,)
+                # f64/c128 values distinguish post-compute narrowing from
+                # incorrectly rounding the source before arithmetic.
+                value = 2.0 ** -24 + 2.0 ** -50
+                if operation == 'div':
+                    value += 1
+                source = torch.full(shape, value, dtype=dtype)
+                name = 'complex_' + operation + '_' + where + '_' + kind
+                no_cast = torch.result_type(target, source) == target.dtype
+                yield name, MixedMutation(operation, transpose), (target, source), no_cast
 
 
 class Unsupported(torch.nn.Module):
@@ -240,7 +278,7 @@ def check_ncnn(name, model, value):
 
 
 def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
-             rejection=None, inputs=None):
+             rejection=None, inputs=None, forbid_type_as=False):
     model.eval()
     # Exact integer-valued data exercises negative values and avoids tolerances
     # masking an alias update that was lost or performed at the wrong time.
@@ -262,9 +300,21 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
         else:
             torch.jit.trace(model, tuple(value.clone() for value in samples), check_trace=False).save(path)
         suffix = 'i32' if dtype == torch.int32 else ''
-        types = {torch.float16: 'f16', torch.float32: '', torch.int32: 'i32'}
+        types = {torch.float16: 'f16', torch.float32: '', torch.float64: 'f64',
+                 torch.int32: 'i32', torch.complex64: 'c64', torch.complex128: 'c128'}
         args = ['inputshape=' + ','.join('[' + ','.join(str(d) for d in value.shape) + ']' +
                                       types[value.dtype] for value in samples)]
+        if any(value.dim() == 0 for value in samples):
+            # Older TorchScript archives omit traced_inputs.pkl, and the CLI
+            # shape-list syntax cannot represent scalar entries. Supply exact
+            # shapes and dtypes through the existing NumPy input interface.
+            import numpy as np
+            paths = []
+            for index, value in enumerate(samples):
+                sample_path = name + '_input_' + str(index) + '.npy'
+                np.save(sample_path, value.numpy())
+                paths.append(sample_path)
+            args = ['input=' + ','.join(paths)]
         if dynamic:
             args.append('inputshape2=[3,4]' + suffix)
     # Retained diagnostic directories may be reused; stale output must never
@@ -292,7 +342,8 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
         value = torch.arange(-4, batch * 4 - 4).reshape(batch, 4).to(dtype)
         values = [item.clone() for item in samples] if inputs is not None else [value]
         originals = [item.clone() for item in values]
-        expected = model(*[item.clone() for item in values])
+        reference = model.reference if isinstance(model, MixedMutation) else model
+        expected = reference(*[item.clone() for item in values])
         actual = converted(*values)
         if frontend == 'pt2' and mode in ('containers', 'containers_unpack'):
             # Raw export serializes the output pytree as flat graph outputs.
@@ -305,6 +356,8 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
             repeated = flatten_outputs(repeated)
         check_outputs(expected, repeated)
         assert all(torch.equal(a, b) for a, b in zip(values, originals)), 'modified a caller input on repeat'
+    if forbid_type_as:
+        assert 'Tensor.type_as' not in Path(name + '.pnnx.param').read_text(), 'unnecessary dtype cast'
     # Raw pt2 ones_like is currently rejected by the ncnn backend.
     if (os.environ.get('PNNX_TEST_NCNN') == '1' and dtype == torch.float32 and
             not dynamic and mode in ('siblings', 'nonfirst', 'chained', 'select', 'view_base') and
@@ -347,6 +400,14 @@ def test():
                     label = frontend + '/' + mode
                     try:
                         run_case(binary, model, mode, frontend, inputs=inputs)
+                        print('PASS', label)
+                    except Exception as error:
+                        failures.append(label)
+                        print('FAIL', label, error)
+                for mode, model, inputs, no_cast in complex_cases():
+                    label = frontend + '/' + mode
+                    try:
+                        run_case(binary, model, mode, frontend, inputs=inputs, forbid_type_as=no_cast)
                         print('PASS', label)
                     except Exception as error:
                         failures.append(label)
