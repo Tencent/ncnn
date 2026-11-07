@@ -9,7 +9,7 @@ if(NOT PNNX_PYTORCH_PT2_TEST_STATUS EQUAL 0)
     return()
 endif()
 
-foreach(name api archive arguments dynamic effects models ops rules signature tensor)
+foreach(name api archive arguments copy_fill dtype dynamic effects models ops rules signature tensor)
     add_test(NAME test_pt2_${name}
         COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/../run_test.cmake)
 endforeach()

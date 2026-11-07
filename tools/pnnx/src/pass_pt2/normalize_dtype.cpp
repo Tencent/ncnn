@@ -53,6 +53,37 @@ static Operand* cast_before(Graph& graph, const Operator* before, Operand* sourc
     return r;
 }
 
+static void normalize_inplace_dtype(Graph& graph, Operator* op, int& id)
+{
+    Operand* destination = op->inputs[0];
+    const std::string name = "pt2_dtype_" + std::to_string(id++);
+    Operator* functional = graph.new_operator_before(op->type.substr(0, op->type.size() - 1), name, op);
+    functional->inputs = op->inputs;
+    functional->inputnames = op->inputnames;
+    functional->params = op->params;
+    for (Operand* input : functional->inputs)
+    {
+        input->remove_consumer(op);
+        input->consumers.push_back(functional);
+    }
+    Operand* computed = graph.new_operand(name);
+    computed->producer = functional;
+    computed->shape = op->outputs[0]->shape;
+    // The functional result may be promoted. Do not reuse the in-place result's
+    // destination dtype as its metadata or cast the operands before computing.
+    functional->outputs.push_back(computed);
+    Operand* converted = cast_before(graph, op, computed, destination->type, id);
+
+    // Keep writeback explicit so the shared functionize pass also updates live
+    // aliases, including writes through slice/select chains.
+    op->type = "aten::copy_";
+    op->params.clear();
+    op->inputnames.clear();
+    op->inputs = {destination, converted};
+    destination->consumers.push_back(op);
+    converted->consumers.push_back(op);
+}
+
 int normalize_pt2_dtype(Graph& graph)
 {
     int id = 0;
@@ -85,11 +116,36 @@ int normalize_pt2_dtype(Graph& graph)
                 eps = type == 2 ? (float)DBL_EPSILON : FLT_EPSILON;
             }
         }
+        if (op->type == "aten::add_" || op->type == "aten::sub_" || op->type == "aten::mul_" || op->type == "aten::div_"
+            || op->type == "aten::clamp_")
+        {
+            if (op->inputs.empty() || op->outputs.size() != 1 || scalar_type(op->inputs[0]->type) < 0)
+            {
+                fprintf(stderr, "pt2 dtype: unknown destination dtype for %s\n", op->type.c_str());
+                return -1;
+            }
+            // Same-dtype tensors and wrapped Number scalars keep the destination
+            // dtype. Only mixed tensor dtypes can require a narrowing writeback.
+            bool mixed_dtype = false;
+            for (size_t i = 1; i < op->inputs.size(); i++)
+            {
+                const int type = op->inputs[i]->type;
+                if (type != 0 && type != op->inputs[0]->type)
+                    mixed_dtype = true;
+            }
+            if (mixed_dtype)
+                normalize_inplace_dtype(graph, op, id);
+            continue;
+        }
         const bool softmax = op->type == "aten::softmax" || op->type == "aten::log_softmax";
         const bool reduce = op->type == "aten::sum" || op->type == "aten::mean" || op->type == "aten::prod";
-        if (!softmax && !reduce)
+        const bool scan = op->type == "aten::cumsum" || op->type == "aten::cumprod";
+        const bool norm = op->type == "aten::linalg_vector_norm";
+        if (!softmax && !reduce && !scan && !norm)
             continue;
-        if ((softmax && op->inputs.size() != 3) || (reduce && op->inputs.size() != 2 && op->inputs.size() != 4))
+        if (((softmax || scan) && op->inputs.size() != 3)
+            || (reduce && op->inputs.size() != 2 && op->inputs.size() != 4)
+            || (norm && op->inputs.size() != 5))
         {
             fprintf(stderr, "pt2 dtype: unsupported %s signature\n", op->type.c_str());
             return -1;
@@ -113,7 +169,7 @@ int normalize_pt2_dtype(Graph& graph)
             converted->consumers.push_back(op);
         }
         dtype = Parameter();
-        if ((op->type == "aten::sum" || op->type == "aten::prod") && type >= 4 && type <= 9 && type != 5)
+        if ((op->type == "aten::sum" || op->type == "aten::prod" || scan) && type >= 4 && type <= 9 && type != 5)
         {
             // Without dtype, integer reductions promote to int64. Narrowing the final
             // integer sum/product preserves the requested modular integer arithmetic.

@@ -44,6 +44,39 @@ class AliasWrite(torch.nn.Module):
         return alias + 1
 
 
+class ViewWrite(torch.nn.Module):
+    def __init__(self, sliced=False, return_base=True, observe_alias=False):
+        super().__init__()
+        self.sliced = sliced
+        self.return_base = return_base
+        self.observe_alias = observe_alias
+
+    def forward(self, x):
+        y = x.clone()
+        v = (y[:1] if self.sliced else y).view(-1)
+        alias = v[1:] if self.observe_alias else v
+        v.add_(1)
+        return y if self.return_base else alias
+
+
+class LocalViewAliases(torch.nn.Module):
+    def __init__(self, repeat, view=True):
+        super().__init__()
+        self.repeat = repeat
+        self.view = view
+
+    def forward(self, x):
+        y = x.clone()
+        v = y[:1].view(-1) if self.view else y
+        alias = v[:]
+        if self.repeat:
+            v.add_(1)
+            v.mul_(2)
+            return alias
+        v[1:].add_(1)
+        return torch.stack((v, alias))
+
+
 class DetachWrite(torch.nn.Module):
     def forward(self, x):
         return x.detach().relu_()
@@ -75,7 +108,12 @@ def bad_assert(p, entries):
 
 def test():
     torch.set_num_threads(1)
-    for name, model in [('local', Local()), ('lifted', Lifted())]:
+    for name, model in [('local', Local()), ('lifted', Lifted()),
+                         ('view_local', ViewWrite(return_base=False)),
+                         ('slice_view_local', ViewWrite(sliced=True, return_base=False)),
+                         ('view_alias', ViewWrite(return_base=False, observe_alias=True)),
+                         ('slice_view_alias', ViewWrite(sliced=True, return_base=False, observe_alias=True)),
+                         ('view_repeat_alias', LocalViewAliases(True))]:
         model.eval()
         torch.manual_seed(0)
         x = torch.randn(2, 3)
@@ -120,6 +158,10 @@ def test():
         ('input_write', InputWrite(), 'mutable'),
         ('buffer_write', BufferWrite(), 'mutable'),
         ('alias_write', AliasWrite(), 'observable alias'),
+        ('view_write', ViewWrite(), 'observable alias'),
+        ('slice_view_write', ViewWrite(sliced=True), 'observable alias'),
+        ('view_alias_list', LocalViewAliases(False), 'multi-input alias'),
+        ('root_alias_list', LocalViewAliases(False, view=False), 'multi-input alias'),
         ('detach_write', DetachWrite(), 'external tensor'),
     ]:
         # Mutation samples exercise rejection, so avoid running their stateful references.

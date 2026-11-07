@@ -7,6 +7,7 @@ set(pnnx_pass_pt2_SRCS
     pass_pt2/normalize_arguments.cpp
     pass_pt2/normalize_as_strided.cpp
     pass_pt2/normalize_scalar.cpp
+    pass_pt2/normalize_mutation.cpp
     pass_pt2/normalize_dtype.cpp
 )
 

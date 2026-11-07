@@ -95,6 +95,45 @@ class LayoutQuery(torch.nn.Module):
         return torch.as_strided(y, (2, 3), (3, 1), 2) + x[0] + 2
 
 
+class RuntimeLayout(torch.nn.Module):
+    def __init__(self, fixed):
+        super().__init__()
+        self.fixed = fixed
+
+    def forward(self, x):
+        if self.fixed:
+            x = x.clone(memory_format=torch.contiguous_format)
+        return torch.as_strided(x, (2, 3), (3, 1), 0)
+
+
+def test_runtime_layout():
+    sample = torch.arange(6, dtype=torch.float32).reshape(2, 3)
+    alternate = torch.arange(6, dtype=torch.float32).reshape(3, 2).t()
+    for fixed in (False, True):
+        model = RuntimeLayout(fixed).eval()
+        program = torch.export.export(model, (sample,))
+        prefix = 'test_pt2_tensor_runtime_layout_' + str(fixed)
+        torch.export.save(program, prefix + '.pt2')
+        result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
+        if not fixed:
+            if result.returncode == 0 or 'layout query source is not statically known' not in result.stderr:
+                print(result.stderr)
+                return False
+            if os.path.exists(prefix + '_pnnx.py'):
+                return False
+            continue
+        if result.returncode != 0 and 'pt2 ncnn: unsupported unconverted operator at torch.as_strided' not in result.stderr:
+            print(result.stderr)
+            return False
+        converted = importlib.import_module(prefix + '_pnnx').Model().eval()
+        for value in (sample, alternate):
+            actual = converted(value)
+            expected = model(value)
+            if actual.shape != expected.shape or actual.dtype != expected.dtype or not torch.equal(actual, expected):
+                return False
+    return True
+
+
 def test_layout_queries():
     x = torch.arange(12, dtype=torch.float32)
     # Export normally specializes layout queries away. Keep real query nodes in
@@ -526,6 +565,7 @@ def test():
         and test_scalar_broadcast()
         and test_bfloat_conv_bias()
         and test_linear()
+        and test_runtime_layout()
         and test_layout_queries()
         and test_dead_layout_queries()
         and test_archive_errors()

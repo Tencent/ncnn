@@ -879,7 +879,7 @@ public:
                 if (external.count(id))
                     return fail("mutable operator writes external tensor storage");
             auto root = [&](const Operand* r) {
-                while (r->producer->type == "aten::slice" || r->producer->type == "aten::select" || r->producer->type == "aten::view"
+                while (r->producer->type == "aten::slice" || r->producer->type == "aten::select"
                         || functionalizable.count(r->producer->type))
                     r = r->producer->inputs[0];
                 return r;
@@ -893,18 +893,22 @@ public:
                         aliases = true;
                 if (!aliases || (remaining[value.first] == 0 && value.first != n))
                     continue;
-                // The shared functionize pass handles slice/select/view chains.
-                // Other views must stay rejected when a mutation observes them.
+                // Shared writeback can only reconstruct slice/select chains.
+                // A view with a different layout needs an independent local root.
                 const Operand* r = root(values.at(value.first));
                 if (unsupported_aliases.count(r) || unsupported_aliases.count(mutation_root))
                 {
                     // A dense view can become the local functionalization root
-                    // when every live alias is a slice/view of that same value.
+                    // when every live alias is a slice/select of that same value.
                     // No writeback to an earlier layout is then observable.
                     if (r != mutation_root || !dense_aliases.count(mutation_root))
                         return fail("mutation has an unsupported observable alias");
                 }
             }
+            // Once the earlier base is unobservable, make the proven local root
+            // explicit to functionize, which otherwise also follows aten::view.
+            if (mutation_root->producer->type == "aten::view")
+                mutation_root->producer->type = "aten::reshape";
         }
         if (detach)
         {
@@ -1050,7 +1054,7 @@ public:
                         known_layouts.insert(name);
                 }
                 if (!inplace && i < bound.aliases.size() && !bound.aliases[i].empty()
-                        && type != "aten::slice" && type != "aten::select" && type != "aten::view")
+                        && type != "aten::slice" && type != "aten::select")
                 {
                     unsupported_aliases.insert(values.at(name));
                     if (dense_layout(metadata.at(name)))
@@ -1064,7 +1068,7 @@ public:
             const std::string source = value_name(bound.inputs[0].value);
             if (!metadata.count(source))
                 return fail("layout source metadata missing");
-            if (type != "aten::as_strided" && !known_layouts.count(source))
+            if (!known_layouts.count(source))
                 return fail("layout query source is not statically known");
             layout_sources[op] = metadata.at(source);
         }

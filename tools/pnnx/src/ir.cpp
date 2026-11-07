@@ -2010,7 +2010,9 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 fprintf(pyfp, "v_%s = v_%s.%s(", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
                 if (op->inputs.size() == 2)
                 {
-                    fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[1]->name).c_str());
+                    // A tuple accepts both shape tensors and Python lists, including
+                    // the empty shape for a scalar (argument unpacking does not).
+                    fprintf(pyfp, "tuple(v_%s)", sanitize_identifier(op->inputs[1]->name).c_str());
                 }
                 else
                 {
