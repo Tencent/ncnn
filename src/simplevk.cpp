@@ -289,13 +289,22 @@ static int load_vulkan_linux(const char* driver_path)
     const char* libpath = driver_path ? driver_path : "libvulkan.so";
 #endif
 
-    void* libvulkan = dlopen(libpath, RTLD_LOCAL | RTLD_NOW);
+    // keep the vulkan driver library loaded for the process lifetime
+    // dlclose would cascade into unloading the vendor icd, and some drivers
+    // (e.g. nvidia on linux) leave stale internal state and crash when the
+    // library is reloaded and used again later
+    int dlopen_flags = RTLD_LOCAL | RTLD_NOW;
+#ifdef RTLD_NODELETE
+    dlopen_flags |= RTLD_NODELETE;
+#endif // RTLD_NODELETE
+
+    void* libvulkan = dlopen(libpath, dlopen_flags);
     if (!libvulkan)
     {
 #if __APPLE__
-        libvulkan = dlopen("libvulkan.1.dylib", RTLD_LOCAL | RTLD_NOW);
+        libvulkan = dlopen("libvulkan.1.dylib", dlopen_flags);
 #else
-        libvulkan = dlopen("libvulkan.so.1", RTLD_LOCAL | RTLD_NOW);
+        libvulkan = dlopen("libvulkan.so.1", dlopen_flags);
 #endif
     }
     if (!libvulkan)
