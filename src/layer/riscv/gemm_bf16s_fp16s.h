@@ -1,6 +1,117 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+// Pack FP32 C into the shared BF16/FP16 tile layout (packn = vlenb / 2).
+static void pack_C_tile_fp32(const Mat& C, Mat& CT, int i, int max_ii, int j, int max_jj)
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+    const size_t vl = __riscv_vsetvl_e32m2(packn);
+#endif
+
+    const size_t C_hstep = C.dims == 3 ? C.cstep : (size_t)C.w;
+
+    const int elempack = C.elempack;
+    float* pp = CT;
+
+    int ii = 0;
+#if __riscv_vector
+    for (; ii + (packn - 1) < max_ii; ii += packn)
+    {
+        if (elempack == packn)
+        {
+            const float* p0 = (const float*)C + (i + ii) * C_hstep + j * packn;
+
+            for (int jj = 0; jj < max_jj; jj++)
+            {
+                __riscv_vse32_v_f32m2(pp, __riscv_vle32_v_f32m2(p0, vl), vl);
+                pp += packn;
+                p0 += packn;
+            }
+        }
+        if (elempack == 1)
+        {
+            const float* p0 = (const float*)C + (i + ii) * C_hstep + j;
+
+            for (int jj = 0; jj < max_jj; jj++)
+            {
+                __riscv_vse32_v_f32m2(pp, __riscv_vlse32_v_f32m2(p0, C_hstep * sizeof(float), vl), vl);
+                pp += packn;
+                p0++;
+            }
+        }
+        if (elempack != 1 && elempack != packn)
+        {
+            for (int jj = 0; jj < max_jj; jj++)
+            {
+                for (int iii = 0; iii < packn; iii++)
+                {
+                    const int row = i + ii + iii;
+                    const float* p0 = (const float*)C + (row / elempack * elempack) * C_hstep + (j + jj) * elempack + row % elempack;
+                    pp[iii] = p0[0];
+                }
+                pp += packn;
+            }
+        }
+    }
+#endif // __riscv_vector
+    for (; ii + 1 < max_ii; ii += 2)
+    {
+        const int row0 = i + ii;
+        const int row1 = i + ii + 1;
+        const float* p0 = (const float*)C + (row0 / elempack * elempack) * C_hstep + j * elempack + row0 % elempack;
+        const float* p1 = (const float*)C + (row1 / elempack * elempack) * C_hstep + j * elempack + row1 % elempack;
+
+        int jj = 0;
+#if __riscv_vector
+        if (elempack == 1)
+        {
+            for (; jj + (packn - 1) < max_jj; jj += packn)
+            {
+                vfloat32m2_t v0 = __riscv_vle32_v_f32m2(p0, vl);
+                vfloat32m2_t v1 = __riscv_vle32_v_f32m2(p1, vl);
+                __riscv_vsseg2e32_v_f32m2x2(pp, __riscv_vcreate_v_f32m2x2(v0, v1), vl);
+                pp += packn * 2;
+                p0 += packn;
+                p1 += packn;
+            }
+        }
+#endif // __riscv_vector
+        for (; jj < max_jj; jj++)
+        {
+            pp[0] = p0[0];
+            pp[1] = p1[0];
+            pp += 2;
+            p0 += elempack;
+            p1 += elempack;
+        }
+    }
+    for (; ii < max_ii; ii += 1)
+    {
+        const int row = i + ii;
+        const float* p0 = (const float*)C + (row / elempack * elempack) * C_hstep + j * elempack + row % elempack;
+
+        int jj = 0;
+#if __riscv_vector
+        if (elempack == 1)
+        {
+            for (; jj + (packn - 1) < max_jj; jj += packn)
+            {
+                __riscv_vse32_v_f32m2(pp, __riscv_vle32_v_f32m2(p0, vl), vl);
+                pp += packn;
+                p0 += packn;
+            }
+        }
+#endif // __riscv_vector
+        for (; jj < max_jj; jj++)
+        {
+            pp[0] = p0[0];
+            pp += 1;
+            p0 += elempack;
+        }
+    }
+}
+
 static void pack_A_tile_bf16_fp16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
 {
 #if __riscv_vector
