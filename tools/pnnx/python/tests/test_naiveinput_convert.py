@@ -34,3 +34,26 @@ def test_export():
     b0 = net2(x)
 
     assert torch.equal(a0, b0)
+
+@pytest.mark.parametrize("fp16", [True, False])
+def test_convert_input_shapes_respects_fp16(tmp_path, monkeypatch, fp16):
+    monkeypatch.chdir(tmp_path)
+    net = nn.Linear(4, 3).eval()
+    with torch.no_grad():
+        net.weight.copy_(torch.tensor([[1.001, 2.002, 3.003, 4.004]] * 3))
+        net.bias.fill_(0.125)
+    x = torch.ones(1, 4)
+    torch.jit.trace(net, x).save("model.pt")
+
+    pnnx.convert("model.pt", inputs=x, fp16=fp16, ncnnbin="reference.bin")
+    pnnx.convert(
+        "model.pt",
+        input_shapes=[[1, 4]],
+        input_types=["f32"],
+        fp16=fp16,
+        ncnnbin="observed.bin",
+    )
+
+    assert (tmp_path / "reference.bin").read_bytes() == (
+        tmp_path / "observed.bin"
+    ).read_bytes()
