@@ -133,6 +133,13 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("power").type != 0)
             return false;
 
+        const std::string& pad_mode = captured_params.at("pad_mode").s;
+        if (captured_params.at("center").type == 1 && captured_params.at("center").b && pad_mode != "constant" && pad_mode != "replicate" && pad_mode != "reflect")
+        {
+            fprintf(stderr, "unsupported spectrogram pad_mode %s\n", pad_mode.c_str());
+            return false;
+        }
+
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         const int window_type = detect_window_type(window_data);
         return window_type != -1;
@@ -215,6 +222,13 @@ pnnx.Output             output      1 0 out
     {
         if (captured_params.at("power").type == 0)
             return false;
+
+        const std::string& pad_mode = captured_params.at("pad_mode").s;
+        if (captured_params.at("center").type == 1 && captured_params.at("center").b && pad_mode != "constant" && pad_mode != "replicate" && pad_mode != "reflect")
+        {
+            fprintf(stderr, "unsupported spectrogram pad_mode %s\n", pad_mode.c_str());
+            return false;
+        }
 
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         const int window_type = detect_window_type(window_data);
