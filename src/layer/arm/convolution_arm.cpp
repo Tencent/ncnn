@@ -29,6 +29,14 @@ namespace ncnn {
 #include "convolution_3x3_winograd.h"
 #include "convolution_im2col_gemm.h"
 
+#if defined __APPLE__ && __aarch64__
+#include "convolution_1x1_amx.h"
+#endif
+
+#if NCNN_ARM_SME
+#include "convolution_arm_sme.h"
+#endif
+
 #if NCNN_BF16
 #include "convolution_packed_bf16s.h"
 #include "convolution_3x3_winograd_bf16s.h"
@@ -59,6 +67,122 @@ namespace ncnn {
 #endif // NCNN_BF16
 #endif // NCNN_GNU_INLINE_ASM
 #endif // __ARM_NEON
+
+#if NCNN_ARM_SME
+static int conv1x1s1_arm_sme(const Mat& bottom_blob, Mat& top_blob, const Mat& _weight_amx, const Mat& _bias, const Option& opt)
+{
+    const int N = (int)top_blob.w * top_blob.h;
+
+    const int elempack = bottom_blob.elempack;
+    const int out_elempack = top_blob.elempack;
+
+    const int M = (int)top_blob.c * out_elempack;
+    const int K = (int)bottom_blob.c * elempack;
+
+    const float* A = _weight_amx; // K x M, transposed weight
+    const int lda = M;
+    const float* bias = _bias;
+
+    // the sme kernel wants the input as a K x N matrix with N contiguous
+    Mat Bpack;
+    const float* B = 0;
+    int ldb = 0;
+
+    if (elempack == 1)
+    {
+        B = bottom_blob;
+        ldb = (int)(bottom_blob.cstep * elempack);
+    }
+    else
+    {
+        Bpack.create(K * N, (size_t)4u, opt.workspace_allocator);
+        if (Bpack.empty())
+            return -100;
+
+        float* bp = Bpack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < bottom_blob.c; q++)
+        {
+            const float* p = bottom_blob.channel(q);
+
+            for (int i = 0; i < elempack; i++)
+            {
+                float* dst = bp + (size_t)(q * elempack + i) * N;
+                const float* src = p + i;
+
+                for (int n = 0; n < N; n++)
+                {
+                    dst[n] = src[n * elempack];
+                }
+            }
+        }
+
+        B = Bpack;
+        ldb = N;
+    }
+
+    const int nthreads = opt.num_threads;
+
+    // the 4 channel packed epilogue uses st4, which needs sme2 in streaming mode
+    // write pack1 and repack otherwise
+    if (out_elempack == 4 && cpu_support_arm_sme2())
+    {
+        const size_t out_cstep = top_blob.cstep * out_elempack;
+
+        // channel ranges must start on a multiple of 4 for the packed epilogue
+        const int mstep = ((M + nthreads - 1) / nthreads + 3) / 4 * 4;
+
+        #pragma omp parallel for num_threads(nthreads)
+        for (int t = 0; t < nthreads; t++)
+        {
+            int m_begin = t * mstep;
+            if (m_begin >= M)
+                continue;
+
+            int m_end = m_begin + mstep;
+            if (m_end > M)
+                m_end = M;
+
+            ncnn_conv1x1s1_sme_pack4_f32(A, lda, B, ldb, (float*)top_blob, out_cstep, m_begin, m_end, N, K, bias);
+        }
+    }
+    else if (out_elempack == 1)
+    {
+        const size_t out_cstep = top_blob.cstep;
+
+        #pragma omp parallel for num_threads(nthreads)
+        for (int t = 0; t < nthreads; t++)
+        {
+            const int m_begin = M * t / nthreads;
+            const int m_end = M * (t + 1) / nthreads;
+
+            ncnn_conv1x1s1_sme_f32(A, lda, B, ldb, (float*)top_blob, out_cstep, m_begin, m_end, N, K, bias);
+        }
+    }
+    else
+    {
+        Mat top_pack1(top_blob.w, top_blob.h, M, (size_t)4u, opt.workspace_allocator);
+        if (top_pack1.empty())
+            return -100;
+
+        const size_t out_cstep = top_pack1.cstep;
+
+        #pragma omp parallel for num_threads(nthreads)
+        for (int t = 0; t < nthreads; t++)
+        {
+            const int m_begin = M * t / nthreads;
+            const int m_end = M * (t + 1) / nthreads;
+
+            ncnn_conv1x1s1_sme_f32(A, lda, B, ldb, (float*)top_pack1, out_cstep, m_begin, m_end, N, K, bias);
+        }
+
+        convert_packing(top_pack1, top_blob, out_elempack, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_ARM_SME
 
 Convolution_arm::Convolution_arm()
 {
@@ -142,6 +266,42 @@ int Convolution_arm::create_pipeline(const Option& opt)
         return create_pipeline_bf16s(opt);
     }
 #endif
+
+    // only the fp32 path uses the transposed fp32 weight, skip it for fp16/bf16 storage
+    // the transposed weight is shared by the apple amx and the arm sme 1x1 kernels
+    bool use_transposed_weight = false;
+#if defined __APPLE__ && __aarch64__
+    use_transposed_weight = opt.use_apple_amx && cpu_support_apple_amx();
+#endif
+#if NCNN_ARM_SME
+    use_transposed_weight = use_transposed_weight || (opt.use_arm_sme && cpu_support_arm_sme_f32f32());
+#endif
+
+    const int num_input_amx = weight_data_size / num_output;
+
+    // the forward dispatch needs num_input and num_output >= 16, a smaller
+    // convolution would carry a transposed copy it can never use
+    if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && use_transposed_weight && num_input_amx >= 16 && num_output >= 16)
+    {
+        // num_input rows of num_output floats, A[k][m] = weight[m][k]
+        weight_data_amx.create(num_output, num_input_amx);
+
+        if (!weight_data_amx.empty())
+        {
+            const float* weight_data_ptr = weight_data;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int k = 0; k < num_input_amx; k++)
+            {
+                float* dst = weight_data_amx.row(k);
+
+                for (int m = 0; m < num_output; m++)
+                {
+                    dst[m] = weight_data_ptr[m * num_input_amx + k];
+                }
+            }
+        }
+    }
 
     if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
@@ -548,6 +708,38 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
     }
 #endif // NCNN_GNU_INLINE_ASM
+
+#if NCNN_ARM_SME
+    // sme is measured faster than the amx fma32 tile on the same core, and the amx
+    // path is kept as the fallback for apple silicon without sme (m1..m3)
+    if (opt.use_arm_sme && cpu_support_arm_sme_f32f32() && !weight_data_amx.empty() && num_input >= 16 && num_output >= 16 && outw * outh >= 16)
+    {
+        int ret = conv1x1s1_arm_sme(bottom_blob_bordered, top_blob, weight_data_amx, bias_data, opt);
+        if (ret != 0)
+            return ret;
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+        return 0;
+    }
+#endif // NCNN_ARM_SME
+
+#if defined __APPLE__ && __aarch64__
+    if (opt.use_apple_amx && cpu_support_apple_amx() && !weight_data_amx.empty() && num_input >= 16 && num_output >= 16 && outw * outh >= 16)
+    {
+        int ret = conv1x1s1_apple_amx(bottom_blob_bordered, top_blob, weight_data_amx, bias_data, opt);
+        if (ret != 0)
+            return ret;
+
+        if (activation)
+        {
+            activation->forward_inplace(top_blob, opt);
+        }
+        return 0;
+    }
+#endif // defined __APPLE__ && __aarch64__
 
     if ((opt.use_sgemm_convolution && prefer_sgemm) || (kernel_w == 1 && kernel_h == 1))
     {
@@ -1261,6 +1453,50 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
+#if defined __APPLE__ && __aarch64__
+    // apple amx int8 weight, 16 output channels per block and 64 bytes per k row
+    // the matint int8 y operand reads byte 4m as output channel m of the block
+    // amx wins over the native i8mm path only when k is long enough to amortize the repack and the requant epilogue
+    // shorter reductions measured below the native path, 128 for 1x1 and 144 for 3x3 with 16 channels
+    // the kxk path packs the input plane once and shifts it by the kernel offset, so k rows are channel major and kernel offset minor
+    // forward_int8_arm() enters amx only when the output is requantized, so an int8 layer
+    // with floating point output would carry a repacked copy it can never read
+    const int amx_K = num_input * maxk;
+    if (int8_scale_term > 100 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && opt.use_apple_amx && cpu_support_apple_amx() && amx_K >= 256 && num_output >= 16)
+    {
+        const int Mblk = (num_output + 15) / 16;
+
+        weight_data_amx_int8.create((size_t)Mblk * amx_K * 64, (size_t)1u);
+
+        if (!weight_data_amx_int8.empty())
+        {
+            const signed char* weight_data_ptr = (const signed char*)weight_data;
+            signed char* dst0 = (signed char*)weight_data_amx_int8;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int mb = 0; mb < Mblk; mb++)
+            {
+                signed char* dst = dst0 + (size_t)mb * amx_K * 64;
+
+                for (int k = 0; k < amx_K; k++)
+                {
+                    signed char* d = dst + (size_t)k * 64;
+
+                    for (int j = 0; j < 16; j++)
+                    {
+                        const int m = mb * 16 + j;
+
+                        d[j * 4] = m < num_output ? weight_data_ptr[(size_t)m * amx_K + k] : (signed char)0;
+                        d[j * 4 + 1] = 0;
+                        d[j * 4 + 2] = 0;
+                        d[j * 4 + 3] = 0;
+                    }
+                }
+            }
+        }
+    }
+#endif // defined __APPLE__ && __aarch64__
+
     bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input >= 8 && num_output >= 8) && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1;
 #if NCNN_ARM82DOT
     if (ncnn::cpu_support_arm_asimddp())
@@ -1403,6 +1639,30 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 #endif // __ARM_NEON
+
+#if defined __APPLE__ && __aarch64__
+    // apple amx int8 path requantizes in the tile epilogue and keeps the packed output layout
+    if (!weight_data_amx_int8.empty() && use_int8_requantize && outw * outh >= 64)
+    {
+        top_blob.create(outw, outh, num_output / out_elempack, (size_t)(1u * out_elempack), out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        int ret;
+        if (kernel_w == 1 && kernel_h == 1)
+        {
+            ret = conv1x1s1_apple_amx_int8(bottom_blob_bordered, top_blob, weight_data_amx_int8, scale_in_data, bias_data, top_blob_int8_scales, activation_type, activation_params, opt);
+        }
+        else
+        {
+            ret = convks1_apple_amx_int8(bottom_blob_bordered, top_blob, weight_data_amx_int8, scale_in_data, bias_data, top_blob_int8_scales, kernel_w, kernel_h, activation_type, activation_params, opt);
+        }
+        if (ret != 0)
+            return ret;
+
+        return 0;
+    }
+#endif // defined __APPLE__ && __aarch64__
 
     Mat top_blob_int32;
     top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);

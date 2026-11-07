@@ -230,8 +230,8 @@ static int g_cpu_support_arm_neon;
 static int g_cpu_support_arm_vfpv4;
 #endif // __aarch64__ || __arm__
 #elif defined __ANDROID__ || defined __linux__
-static unsigned int g_hwcaps;
-static unsigned int g_hwcaps2;
+static uint64_t g_hwcaps;
+static uint64_t g_hwcaps2;
 #elif __APPLE__
 static unsigned int g_hw_cpufamily;
 static cpu_type_t g_hw_cputype;
@@ -242,6 +242,13 @@ static int g_hw_optional_arm_FEAT_DotProd;
 static int g_hw_optional_arm_FEAT_FHM;
 static int g_hw_optional_arm_FEAT_BF16;
 static int g_hw_optional_arm_FEAT_I8MM;
+static int g_hw_optional_arm_FEAT_SME;
+static int g_hw_optional_arm_FEAT_SME2;
+static int g_hw_optional_arm_SME_F32F32;
+static int g_hw_optional_arm_SME_F16F32;
+static int g_hw_optional_arm_SME_B16F32;
+static int g_hw_optional_arm_SME_I8I32;
+static int g_hw_optional_arm_FEAT_AMX;
 #endif // __aarch64__
 #endif
 
@@ -355,6 +362,15 @@ static bool is_being_debugged()
 #define HWCAP2_SVEBF16  (1 << 12)
 #define HWCAP2_I8MM     (1 << 13)
 #define HWCAP2_BF16     (1 << 14)
+#define HWCAP2_SME      (1ULL << 23)
+#define HWCAP2_SME_I16I64 (1ULL << 24)
+#define HWCAP2_SME_F64F64 (1ULL << 25)
+#define HWCAP2_SME_I8I32 (1ULL << 26)
+#define HWCAP2_SME_F16F32 (1ULL << 27)
+#define HWCAP2_SME_B16F32 (1ULL << 28)
+#define HWCAP2_SME_F32F32 (1ULL << 29)
+#define HWCAP2_SME_FA64 (1ULL << 30)
+#define HWCAP2_SME2     (1ULL << 37)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_EDSP  (1 << 7)
@@ -391,13 +407,13 @@ static bool is_being_debugged()
 // its implementation does not parse /proc/self/auxv. Instead it depends
 // on values  that are passed by the kernel at process-init time to the
 // C runtime initialization layer.
-static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
+static uint64_t get_elf_hwcap_from_getauxval(unsigned int type)
 {
 #if defined __OHOS__
     return getauxval(type);
 #else
 #if __ANDROID_API__ >= 18
-    unsigned int hwcap = getauxval(type);
+    unsigned long hwcap = getauxval(type);
     if (hwcap)
         return hwcap;
 #endif
@@ -412,7 +428,7 @@ static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
         return 0;
     }
 
-    unsigned int result = 0;
+    uint64_t result = 0;
     getauxval_func_t* func = (getauxval_func_t*)dlsym(libc_handle, "getauxval");
     if (!func)
     {
@@ -421,7 +437,7 @@ static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
     else
     {
         // Note: getauxval() returns 0 on failure. Doesn't touch errno.
-        result = (unsigned int)(*func)(type);
+        result = (*func)(type);
     }
     dlclose(libc_handle);
 
@@ -431,7 +447,7 @@ static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
 #endif // defined __ANDROID__ || defined __OHOS__
 
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
-static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
+static uint64_t get_elf_hwcap_from_proc_self_auxv(unsigned int type)
 {
     FILE* fp = fopen("/proc/self/auxv", "rb");
     if (!fp)
@@ -455,7 +471,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
 
 #endif
 
-    unsigned int result = 0;
+    uint64_t result = 0;
     while (!feof(fp))
     {
         int nread = fread((char*)&entry, sizeof(entry), 1, fp);
@@ -477,9 +493,9 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
     return result;
 }
 
-static unsigned int get_elf_hwcap(unsigned int type)
+static uint64_t get_elf_hwcap(unsigned int type)
 {
-    unsigned int hwcap = 0;
+    uint64_t hwcap = 0;
 
 #if defined __ANDROID__ || defined __OHOS__
     hwcap = get_elf_hwcap_from_getauxval(type);
@@ -2238,6 +2254,12 @@ static void initialize_global_cpu_info()
     g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
     g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
     g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
+    g_hw_optional_arm_FEAT_SME = get_hw_capability("hw.optional.arm.FEAT_SME");
+    g_hw_optional_arm_FEAT_SME2 = get_hw_capability("hw.optional.arm.FEAT_SME2");
+    g_hw_optional_arm_SME_F32F32 = get_hw_capability("hw.optional.arm.SME_F32F32");
+    g_hw_optional_arm_SME_F16F32 = get_hw_capability("hw.optional.arm.SME_F16F32");
+    g_hw_optional_arm_SME_B16F32 = get_hw_capability("hw.optional.arm.SME_B16F32");
+    g_hw_optional_arm_SME_I8I32 = get_hw_capability("hw.optional.arm.SME_I8I32");
 
     switch (g_hw_cpufamily)
     {
@@ -2267,6 +2289,26 @@ static void initialize_global_cpu_info()
     case CPUFAMILY_ARM_MONSOON_MISTRAL:
     case CPUFAMILY_ARM_VORTEX_TEMPEST:
         g_hw_optional_arm_FEAT_FP16 = 1;
+    default:
+        break;
+    }
+
+    // there is no sysctl for apple amx, infer from the cpu family
+    switch (g_hw_cpufamily)
+    {
+    case CPUFAMILY_ARM_FIRESTORM_ICESTORM: // M1 / A14
+    case CPUFAMILY_ARM_AVALANCHE_BLIZZARD: // M2 / A15
+    case CPUFAMILY_ARM_IBIZA:              // M3
+    case CPUFAMILY_ARM_LOBOS:              // M3 Pro
+    case CPUFAMILY_ARM_PALMA:              // M3 Max
+    case CPUFAMILY_ARM_DONAN:              // M4
+    case CPUFAMILY_ARM_BRAVA:              // M4 Pro / M4 Max
+    case CPUFAMILY_ARM_HIDRA:              // M5
+    case CPUFAMILY_ARM_SOTRA:              // M5 Pro / M5 Max
+    case CPUFAMILY_ARM_KOMODO:             // M6
+    case CPUFAMILY_ARM_TAHITI:             // A18 Pro
+        g_hw_optional_arm_FEAT_AMX = 1;
+        break;
     default:
         break;
     }
@@ -2713,6 +2755,126 @@ int cpu_support_arm_svef32mm()
 #else
     return 0;
 #endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sme()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+#if defined _WIN32
+    return 0;
+#elif defined __ANDROID__ || defined __linux__
+    return g_hwcaps2 & HWCAP2_SME;
+#elif __APPLE__
+    return g_hw_optional_arm_FEAT_SME;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sme2()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+#if defined _WIN32
+    return 0;
+#elif defined __ANDROID__ || defined __linux__
+    // HWCAP2_SME2 is bit 37, so the masked value must be compared rather than
+    // narrowed to the int return type
+    return (g_hwcaps2 & HWCAP2_SME2) != 0;
+#elif __APPLE__
+    return g_hw_optional_arm_FEAT_SME2;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sme_f32f32()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+#if defined _WIN32
+    return 0;
+#elif defined __ANDROID__ || defined __linux__
+    return g_hwcaps2 & HWCAP2_SME_F32F32;
+#elif __APPLE__
+    return g_hw_optional_arm_SME_F32F32;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sme_f16f32()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+#if defined _WIN32
+    return 0;
+#elif defined __ANDROID__ || defined __linux__
+    return g_hwcaps2 & HWCAP2_SME_F16F32;
+#elif __APPLE__
+    return g_hw_optional_arm_SME_F16F32;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sme_b16f32()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+#if defined _WIN32
+    return 0;
+#elif defined __ANDROID__ || defined __linux__
+    return g_hwcaps2 & HWCAP2_SME_B16F32;
+#elif __APPLE__
+    return g_hw_optional_arm_SME_B16F32;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sme_i8i32()
+{
+    try_initialize_global_cpu_info();
+#if __aarch64__
+#if defined _WIN32
+    return 0;
+#elif defined __ANDROID__ || defined __linux__
+    return g_hwcaps2 & HWCAP2_SME_I8I32;
+#elif __APPLE__
+    return g_hw_optional_arm_SME_I8I32;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_apple_amx()
+{
+    try_initialize_global_cpu_info();
+#if defined __APPLE__ && __aarch64__
+    return g_hw_optional_arm_FEAT_AMX;
 #else
     return 0;
 #endif
