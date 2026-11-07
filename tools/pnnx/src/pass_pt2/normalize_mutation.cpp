@@ -112,7 +112,7 @@ int normalize_pt2_mutation(Graph& graph)
             // A derived view or another write through this result must retain
             // storage identity, even if its first use precedes the next write.
             if (consumer->type == "aten::slice" || consumer->type == "aten::select" || consumer->type == "aten::view"
-                || (is_mutable(consumer) && consumer->inputs[0] == result))
+                    || (is_mutable(consumer) && consumer->inputs[0] == result))
                 alias_result = true;
             for (size_t i = order.at(op) + 1; !alias_result && i < order.at(consumer); i++)
             {
@@ -191,7 +191,10 @@ int normalize_pt2_mutation(Graph& graph)
         }
         // Prefer a literal size when known so shared/ncnn expand lowering can
         // eliminate the shape-only dependency on the destination tensor.
-        const bool static_shape = std::find_if(target->shape.begin(), target->shape.end(), [](int d) { return d < 0; }) == target->shape.end();
+        const bool static_shape = std::find_if(target->shape.begin(), target->shape.end(), [](int d) {
+            return d < 0;
+        })
+        == target->shape.end();
         if (static_shape && source->shape != target->shape)
         {
             Operand* size = constant_before(graph, op, "_size", Parameter(target->shape));

@@ -117,7 +117,7 @@ int normalize_pt2_dtype(Graph& graph)
             }
         }
         if (op->type == "aten::add_" || op->type == "aten::sub_" || op->type == "aten::mul_" || op->type == "aten::div_"
-            || op->type == "aten::clamp_")
+                || op->type == "aten::clamp_")
         {
             if (op->inputs.empty() || op->outputs.size() != 1 || scalar_type(op->inputs[0]->type) < 0)
             {
@@ -144,8 +144,8 @@ int normalize_pt2_dtype(Graph& graph)
         if (!softmax && !reduce && !scan && !norm)
             continue;
         if (((softmax || scan) && op->inputs.size() != 3)
-            || (reduce && op->inputs.size() != 2 && op->inputs.size() != 4)
-            || (norm && op->inputs.size() != 5))
+                || (reduce && op->inputs.size() != 2 && op->inputs.size() != 4)
+                || (norm && op->inputs.size() != 5))
         {
             fprintf(stderr, "pt2 dtype: unsupported %s signature\n", op->type.c_str());
             return -1;
