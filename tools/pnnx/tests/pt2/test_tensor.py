@@ -106,6 +106,112 @@ class RuntimeLayout(torch.nn.Module):
         return torch.as_strided(x, (2, 3), (3, 1), 0)
 
 
+class AllocationLayout(torch.nn.Module):
+    def __init__(self, source):
+        super().__init__()
+        self.source = source
+        self.register_buffer('weight', torch.arange(36, dtype=torch.float32).reshape(6, 6) / 36)
+        self.register_buffer('bias', torch.arange(6, dtype=torch.float32) / 6)
+
+    def forward(self, x):
+        if self.source == 'linear':
+            y = torch.nn.functional.linear(x.transpose(0, 1), self.weight, self.bias)
+            # Mutation preserves its destination layout, not the RHS layout.
+            y.div_(x.transpose(0, 1) + 1)
+            y = y.view(6, 4, 6).transpose(0, 1).reshape(4, 6, 6)
+        elif self.source == 'mm':
+            y = torch.mm(x.reshape(24, 6), self.weight)
+        elif self.source == 'bmm':
+            y = torch.bmm(x.reshape(6, 4, 6), self.weight.expand(6, 6, 6))
+        elif self.source == 'addmm':
+            y = torch.addmm(self.bias, x.reshape(24, 6), self.weight)
+        elif self.source == 'masked_fill':
+            y = x.masked_fill(x < 0.5, 0.25)
+        elif self.source == 'empty_channels_last':
+            y = torch.empty((2, 3, 4, 6), memory_format=torch.channels_last)
+            y.fill_(2)
+        elif self.source in ('empty', 'zeros', 'ones', 'full'):
+            factory = getattr(torch, self.source)
+            args = ((2, 3, 4, 6), 2) if self.source == 'full' else ((2, 3, 4, 6),)
+            y = factory(*args, dtype=x.dtype, device=x.device)
+            if self.source == 'empty':
+                y.fill_(2)
+        elif self.source in ('new_empty', 'new_zeros', 'new_ones', 'new_full'):
+            factory = getattr(x, self.source)
+            args = ((2, 3, 4, 6), 2) if self.source == 'new_full' else ((2, 3, 4, 6),)
+            y = factory(*args)
+            if self.source == 'new_empty':
+                y.fill_(2)
+        elif self.source == 'pad_known':
+            y = torch.nn.functional.pad(x.clone(memory_format=torch.channels_last), (1, 1, 1, 1))
+        elif self.source == 'pad_unknown':
+            y = torch.nn.functional.pad(x, (1, 1, 1, 1))
+        elif self.source == 'relu':
+            y = x.relu()
+        elif self.source == 'add':
+            y = x + 1
+        elif self.source == 'inplace_unknown':
+            y = x.clone()
+            y.masked_fill_(x < 0.5, 0.25)
+        else:
+            y = x.clone()
+        # Observe physical storage order, including after noncontiguous views.
+        return torch.as_strided(y, (4, 6), (6, 1), 0) + x[0, 0, 0, 0]
+
+
+def test_allocation_layout():
+    torch.manual_seed(0)
+    sample = torch.rand(2, 3, 4, 6)
+    values = (
+        sample,
+        torch.rand(3, 2, 4, 6).transpose(0, 1),
+        torch.rand(2, 3, 4, 13)[..., 1::2],
+        sample.clone(memory_format=torch.channels_last),
+    )
+    known = ('linear', 'mm', 'bmm', 'addmm', 'masked_fill', 'empty', 'zeros', 'ones', 'full',
+             'new_empty', 'new_zeros', 'new_ones', 'new_full', 'pad_known')
+    unknown = ('clone', 'relu', 'add', 'inplace_unknown', 'pad_unknown', 'empty_channels_last')
+    for source in known + unknown:
+        model = AllocationLayout(source).eval()
+        program = torch.export.export(model, (sample,))
+        prefix = 'test_pt2_tensor_allocation_layout_' + source
+        torch.export.save(program, prefix + '.pt2')
+        result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
+        if source in unknown:
+            if result.returncode == 0 or 'layout query source is not statically known' not in result.stderr:
+                print(source, result.stderr)
+                return False
+            if os.path.exists(prefix + '_pnnx.py'):
+                return False
+            continue
+        # Test the frontend's physical layout reconstruction in pnnx Python.
+        # ncnn may reject the strided view or its boolean mask producer.
+        if result.returncode != 0 and ('pt2 ncnn: unsupported' not in result.stderr or 'pnnx artifacts were saved' not in result.stderr):
+            print(source, result.stderr)
+            return False
+        converted = importlib.import_module(prefix + '_pnnx').Model().eval()
+        for value in values:
+            expected = model(value)
+            actual = converted(value)
+            if actual.shape != expected.shape or actual.dtype != expected.dtype or not torch.allclose(actual, expected, 1e-5, 1e-5):
+                print(source, 'allocation layout differs for strides', value.stride())
+                return False
+    # An allocation proof must also agree with the serialized output layout.
+    for field, value in (('storage_offset', {'as_int': 1}), ('strides', [{'as_int': 1}] * 4)):
+        def change(program, entries):
+            graph = program['graph_module']['graph']
+            linear = next(n for n in graph['nodes'] if n['target'] == 'torch.ops.aten.linear.default')
+            name = linear['outputs'][0]['as_tensor']['name']
+            graph['tensor_values'][name][field] = value
+        prefix = 'test_pt2_tensor_allocation_layout_invalid_' + field
+        rewrite_archive('test_pt2_tensor_allocation_layout_linear.pt2', prefix + '.pt2', change)
+        result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
+        if result.returncode == 0 or 'layout query source is not statically known' not in result.stderr:
+            print(field, result.stderr)
+            return False
+    return True
+
+
 def test_runtime_layout():
     sample = torch.arange(6, dtype=torch.float32).reshape(2, 3)
     alternate = torch.arange(6, dtype=torch.float32).reshape(3, 2).t()
@@ -565,6 +671,7 @@ def test():
         and test_scalar_broadcast()
         and test_bfloat_conv_bias()
         and test_linear()
+        and test_allocation_layout()
         and test_runtime_layout()
         and test_layout_queries()
         and test_dead_layout_queries()

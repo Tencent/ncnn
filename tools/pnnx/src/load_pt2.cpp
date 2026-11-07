@@ -272,6 +272,21 @@ static bool dense_layout(const Pt2TensorMeta& meta)
     return true;
 }
 
+static bool contiguous_layout(const Pt2TensorMeta& meta)
+{
+    if (meta.storage_offset != 0 || meta.shape.size() != meta.strides.size())
+        return false;
+    int64_t stride = 1;
+    for (size_t i = meta.shape.size(); i > 0; i--)
+    {
+        const int n = meta.shape[i - 1];
+        if (n < 0 || meta.strides[i - 1] != stride || (n > 0 && stride > INT64_MAX / n))
+            return false;
+        stride *= std::max(n, 1);
+    }
+    return true;
+}
+
 class Pt2Loader
 {
 public:
@@ -968,16 +983,26 @@ public:
             inputs.push_back(constant(Parameter(1)));
         }
         // User input metadata describes an export sample, not a runtime layout
-        // contract. Only fixed-format allocations and constant views of proven
-        // layouts can make their serialized layout available to scalar queries.
-        bool known_layout = false;
+        // contract. Fresh storage alone is insufficient: elementwise operators
+        // and preserve-format clones can inherit an unknown input's strides.
+        // These allocations instead produce contiguous storage independently
+        // of their Tensor arguments. Check their serialized layout below too.
+        const bool contiguous_allocation = type == "aten::linear" || type == "aten::mm"
+                                           || type == "aten::bmm" || type == "aten::addmm"
+                                           || type == "aten::masked_fill"
+                                           || type == "aten::empty" || type == "aten::zeros"
+                                           || type == "aten::ones" || type == "aten::full"
+                                           || type == "aten::new_empty" || type == "aten::new_zeros"
+                                           || type == "aten::new_ones" || type == "aten::new_full";
+        bool known_layout = contiguous_allocation;
         if (!inputs.empty())
         {
             const std::string source = value_name(bound.inputs[0].value);
             if (type == "aten::slice" || type == "aten::select" || type == "aten::view" || type == "aten::reshape"
                     || type == "aten::transpose" || type == "aten::permute" || type == "aten::t"
                     || type == "aten::squeeze" || type == "aten::unsqueeze" || type == "aten::expand"
-                    || type == "aten::as_strided" || normalized == "aten::clone")
+                    || type == "aten::as_strided" || normalized == "aten::clone"
+                    || type == "aten::pad" || type == "aten::constant_pad_nd")
                 known_layout = known_layouts.count(source) != 0;
             if (normalized == "aten::clone" && inputs.size() == 2 && inputs[1]->producer->type == "prim::Constant")
             {
@@ -985,9 +1010,17 @@ public:
                 if (format.type == 2 && (format.i == 0 || format.i == 2 || format.i == 3))
                     known_layout = true;
             }
-            for (size_t i = 1; i < inputs.size(); i++)
+            for (size_t i = contiguous_allocation ? 0 : 1; i < inputs.size(); i++)
+            {
+                if (contiguous_allocation && inputs[i]->type != 0)
+                    continue;
                 if (inputs[i]->producer->type != "prim::Constant")
                     known_layout = false;
+            }
+            // The supported mutations above cannot resize or change the
+            // destination layout, even when their other inputs are unknown.
+            if (inplace)
+                known_layout = known_layouts.count(source) != 0;
         }
         Operator* op = new_op(normalized);
         for (Operand* r : inputs)
@@ -1049,7 +1082,8 @@ public:
                     const Pt2TensorMeta& meta = metadata.at(name);
                     if (meta.storage_offset >= 0
                             && std::find(meta.shape.begin(), meta.shape.end(), -1) == meta.shape.end()
-                            && std::find(meta.strides.begin(), meta.strides.end(), -1) == meta.strides.end())
+                            && std::find(meta.strides.begin(), meta.strides.end(), -1) == meta.strides.end()
+                            && (!contiguous_allocation || contiguous_layout(meta)))
                         known_layouts.insert(name);
                 }
                 if (!inplace && i < bound.aliases.size() && !bound.aliases[i].empty()
