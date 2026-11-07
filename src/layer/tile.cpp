@@ -3,6 +3,8 @@
 
 #include "tile.h"
 
+#include <climits>
+
 namespace ncnn {
 
 Tile::Tile()
@@ -132,10 +134,17 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         }
     }
 
-    int outw = w * repeat_w;
-    int outh = h * repeat_h;
-    int outd = d * repeat_d;
-    int outc = channels * repeat_c;
+    // use 64-bit to detect overflow
+    long long outw64 = (long long)w * repeat_w;
+    long long outh64 = (long long)h * repeat_h;
+    long long outd64 = (long long)d * repeat_d;
+    long long outc64 = (long long)channels * repeat_c;
+    if (outw64 > INT_MAX || outh64 > INT_MAX || outd64 > INT_MAX || outc64 > INT_MAX)
+        return -100;
+    int outw = (int)outw64;
+    int outh = (int)outh64;
+    int outd = (int)outd64;
+    int outc = (int)outc64;
     if (outdims == 1)
     {
         top_blob.create(outw, elemsize, opt.blob_allocator);
