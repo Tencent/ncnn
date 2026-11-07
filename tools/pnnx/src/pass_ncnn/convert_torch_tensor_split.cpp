@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_torch_tensor_split.h"
+#include "reshape_shape.h"
+#include "split_shape.h"
 
 namespace pnnx {
 
@@ -11,7 +13,8 @@ void convert_torch_tensor_split(Graph& graph)
 {
     int op_index = 0;
 
-    for (Operator* op : graph.ops)
+    const std::vector<Operator*> ops = graph.ops;
+    for (Operator* op : ops)
     {
         if (op->type != "torch.tensor_split")
             continue;
@@ -57,17 +60,28 @@ void convert_torch_tensor_split(Graph& graph)
                 continue;
             }
 
-            if (!op->inputs[0]->shape.empty() && axis >= 0 && axis < (int)op->inputs[0]->shape.size())
+            const int size = axis >= 0 && axis < (int)op->inputs[0]->shape.size() ? op->inputs[0]->shape[axis] : -1;
+            const std::string extent = get_logical_dim_expr(op->inputs[0], 0, axis);
+            if (size < 0 && !extent.empty())
             {
-                int size = op->inputs[0]->shape[axis];
-                if (size % sections != 0)
-                {
-                    fprintf(stderr, "tensor_split with non-perfect divided size %d / %d is not supported\n", size, sections);
-                }
+                // Tensor split gives the first size % sections outputs one extra element.
+                const std::string quotient = "//(" + extent + "," + std::to_string(sections) + ")";
+                const std::string remainder = "-(" + extent + ",*(" + quotient + "," + std::to_string(sections) + "))";
+                std::vector<std::string> boundaries;
+                for (int i = 0; i <= sections; i++)
+                    boundaries.push_back("+(*(" + std::to_string(i) + "," + quotient + "),min(" + std::to_string(i) + "," + remainder + "))");
+                const int physical_axis = ncnn_batch_axis != 233 && axis > ncnn_batch_axis ? axis - 1 : axis;
+                split_with_dynamic_crops(graph, op, physical_axis, boundaries);
+                continue;
             }
 
             op->params["0"].type = 5;
             op->params["0"].ai.resize(sections, -233);
+            if (size > 0 && size % sections != 0)
+            {
+                for (int i = 0; i + 1 < sections; i++)
+                    op->params["0"].ai[i] = size / sections + (i < size % sections ? 1 : 0);
+            }
 
             op->params.erase("sections");
         }
