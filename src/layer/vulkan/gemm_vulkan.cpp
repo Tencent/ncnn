@@ -34,6 +34,18 @@ Gemm_vulkan::Gemm_vulkan()
     pipeline_gemm_quantize_B_int8 = 0;
 #endif
 
+#if NCNN_INT8
+    pipeline_gemm_block_quant = 0;
+    pipeline_gemm_block_quant_slm = 0;
+    pipeline_gemm_block_quant_m1 = 0;
+    pipeline_gemm_block_quant_cm = 0;
+    pipeline_gemm_block_quant_quantize_A = 0;
+
+    block_quant_row_words = 0;
+    block_quant_scale_pitch = 0;
+#endif
+
+
     use_subgroup_ops = false;
 
     use_cooperative_matrix = false;
@@ -50,11 +62,12 @@ Gemm_vulkan::Gemm_vulkan()
 
 int Gemm_vulkan::create_pipeline(const Option& opt)
 {
+#if NCNN_INT8
     if (weight_block_quantize)
     {
-        NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
-        return -1;
+        return create_pipeline_block_quant(opt);
     }
+#endif
 
 #if NCNN_INT8
     if (quantize_term)
@@ -716,6 +729,30 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     pipeline_gemm_pack4 = 0;
 
 #if NCNN_INT8
+    delete pipeline_gemm_block_quant;
+    pipeline_gemm_block_quant = 0;
+
+    delete pipeline_gemm_block_quant_slm;
+    pipeline_gemm_block_quant_slm = 0;
+
+    delete pipeline_gemm_block_quant_m1;
+    pipeline_gemm_block_quant_m1 = 0;
+
+    delete pipeline_gemm_block_quant_cm;
+    pipeline_gemm_block_quant_cm = 0;
+
+    delete pipeline_gemm_block_quant_quantize_A;
+    pipeline_gemm_block_quant_quantize_A = 0;
+
+    B_data_quantize_scales_packed.release();
+    B_data_input_scales_padded.release();
+
+    block_quant_row_words = 0;
+    block_quant_scale_pitch = 0;
+#endif // NCNN_INT8
+
+
+#if NCNN_INT8
     delete pipeline_gemm_quantize_A_int8;
     pipeline_gemm_quantize_A_int8 = 0;
 
@@ -747,11 +784,12 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
+#if NCNN_INT8
     if (weight_block_quantize)
     {
-        NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
-        return -1;
+        return upload_model_block_quant(cmd, opt);
     }
+#endif
 
 #if NCNN_INT8
     if (quantize_term)
@@ -786,11 +824,12 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
+#if NCNN_INT8
     if (weight_block_quantize)
     {
-        NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
-        return -1;
+        return forward_block_quant(bottom_blobs, top_blobs, cmd, opt);
     }
+#endif
 
 #if NCNN_INT8
     if (quantize_term)
@@ -1021,6 +1060,535 @@ int Gemm_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     top_blob = top_blobs[0];
     return ret;
 }
+
+// weight block quantization
+//
+// only the 8bit layout is supported, which is the one the cpu int8 kernel also uses
+// the weights are signed bytes, padded with zero to a whole number of 16 weight groups so
+// that four words can be loaded at once, the activations are quantized to int8 per K block
+// and both sides carry one descale per block
+// the weight descales are stored block major with N padded to 4
+
+#if NCNN_INT8
+int Gemm_vulkan::create_pipeline_block_quant(const Option& opt)
+{
+    const int block_size = weight_block_quantize_block_size;
+
+    const int K = constantK;
+    const int N = constantN;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    // int8 cooperative matrix variant, the same tile and unroll scheme as the float one
+    use_cooperative_matrix = false;
+    coopmat_M = 0;
+    coopmat_N = 0;
+    coopmat_K = 0;
+    coopmat_subgroup_size = 0;
+    UNROLL_SG_M = 1;
+    UNROLL_SG_N = 1;
+    UNROLL_SG_K = 1;
+    UNROLL_WG_M = 1;
+    UNROLL_WG_N = 1;
+    // the int8 cooperative matrix path is disabled until the block tile reuse is
+    // fixed, it miscomputes when the output spans more than one row block
+    if (opt.use_cooperative_matrix && vkdev->info.support_int8_cooperative_matrix())
+    {
+        vkdev->info.get_optimal_cooperative_matrix_mnk(constantM ? constantM : 1024, N, K, VK_COMPONENT_TYPE_SINT8_KHR, VK_COMPONENT_TYPE_SINT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+
+        if (coopmat_M == 0 || coopmat_N == 0 || coopmat_K == 0)
+        {
+            use_cooperative_matrix = false;
+        }
+        else
+        {
+            const int M_hint = constantM ? constantM : 1024;
+
+            UNROLL_SG_M = std::min((M_hint + coopmat_M - 1) / coopmat_M, 2);
+            UNROLL_SG_N = std::min((N + coopmat_N - 1) / coopmat_N, 2);
+            // two k slices per chunk is the cap the int8 cooperative matrix kernel
+            // uses, it halves the staged shared memory for the same throughput
+            UNROLL_SG_K = std::min(block_size / coopmat_K, 2);
+            UNROLL_WG_M = std::min((M_hint + coopmat_M * UNROLL_SG_M - 1) / (coopmat_M * UNROLL_SG_M), 2);
+            UNROLL_WG_N = std::min((N + coopmat_N * UNROLL_SG_N - 1) / (coopmat_N * UNROLL_SG_N), 2);
+
+            use_cooperative_matrix = true;
+
+            // keep the workgroup inside the device shared memory and invocation limits,
+            // shrinking k first so the output tile reuse is preserved
+            const int shared_Kd4 = coopmat_K / 4;
+            for (;;)
+            {
+                const int shared_bm = coopmat_M * UNROLL_SG_M * UNROLL_WG_M;
+                const int shared_bn = coopmat_N * UNROLL_SG_N * UNROLL_WG_N;
+                const size_t shared_a = 4 * (size_t)shared_bm * shared_Kd4 * UNROLL_SG_K;
+                const size_t shared_o = 4 * (size_t)UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N * coopmat_M * coopmat_N;
+                // the accumulator is dequantized in the staged activation buffer
+                const size_t shared_bytes = (shared_a > shared_o ? shared_a : shared_o)
+                                            + 4 * (size_t)shared_bn * shared_Kd4 * UNROLL_SG_K
+                                            + 4 * (shared_bm + shared_bn);
+                const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
+
+                if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
+                        && invocations <= vkdev->info.max_workgroup_size_x()
+                        && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
+                    break;
+
+                if (UNROLL_SG_K > 1)
+                    UNROLL_SG_K = 1;
+                else if (UNROLL_WG_N > 1)
+                    UNROLL_WG_N = 1;
+                else if (UNROLL_WG_M > 1)
+                    UNROLL_WG_M = 1;
+                else if (UNROLL_SG_N > 1)
+                    UNROLL_SG_N = 1;
+                else if (UNROLL_SG_M > 1)
+                    UNROLL_SG_M = 1;
+                else
+                {
+                    use_cooperative_matrix = false;
+                    break;
+                }
+            }
+
+            // one k slice must not span more than one block, the descale is applied per slice
+            // and the dequantization fuses four neighbouring columns
+            if (coopmat_K > block_size || coopmat_K > 32 || coopmat_subgroup_size < 4 || coopmat_subgroup_size > 128
+                    || coopmat_M % 4 || coopmat_N % 4 || (coopmat_M * coopmat_N) % coopmat_subgroup_size
+                    || (coopmat_M * coopmat_N / coopmat_subgroup_size) % 4 || (coopmat_K / 4) % 4)
+            {
+                use_cooperative_matrix = false;
+            }
+        }
+    }
+
+    // rows are padded to whole 32 weight groups, that covers the 16 weight dot product
+    // groups and the cooperative matrix k slices
+    const int K4 = (K + 31) / 32 * 8;
+    const int BN = coopmat_N * UNROLL_SG_N * UNROLL_WG_N;
+    const int N_padded = use_cooperative_matrix ? (N + BN - 1) / BN * BN : N;
+
+    block_quant_row_words = K4;
+    block_quant_scale_pitch = (N + 3) / 4 * 4;
+
+    if (constantC)
+    {
+        C_data_packed = C_data;
+    }
+
+    if (K % 32 == 0 && N_padded == N)
+    {
+        // rows are already a multiple of four words and nothing needs padding,
+        // the weight bytes can be used as they are
+        B_data_packed = B_data;
+    }
+    else
+    {
+        B_data_packed.create(block_quant_row_words * 4, N_padded, (size_t)1u);
+        if (B_data_packed.empty())
+            return -100;
+
+        memset(B_data_packed.data, 0, B_data_packed.total() * B_data_packed.elemsize);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int n = 0; n < N; n++)
+        {
+            memcpy(B_data_packed.row(n), B_data.row(n), (size_t)K);
+        }
+    }
+
+    // transpose the block scales to block major and pad N so the shader can vector load
+    // the shader dequantizes by multiplying, so store the reciprocal
+    {
+        B_data_quantize_scales_packed.create(block_quant_scale_pitch, block_count);
+        if (B_data_quantize_scales_packed.empty())
+            return -100;
+
+        memset(B_data_quantize_scales_packed.data, 0, B_data_quantize_scales_packed.total() * B_data_quantize_scales_packed.elemsize);
+
+        for (int n = 0; n < N; n++)
+        {
+            const float* ptr = B_data_quantize_scales.row(n);
+
+            for (int g = 0; g < block_count; g++)
+            {
+                B_data_quantize_scales_packed.row(g)[n] = ptr[g] == 0.f ? 0.f : 1.f / ptr[g];
+            }
+        }
+    }
+
+    if (weight_block_quantize_has_input_scale)
+    {
+        const int K4p = (K + 3) / 4 * 4;
+
+        B_data_input_scales_padded.create(K4p);
+        if (B_data_input_scales_padded.empty())
+            return -100;
+
+        memset(B_data_input_scales_padded.data, 0, B_data_input_scales_padded.total() * B_data_input_scales_padded.elemsize);
+
+        memcpy(B_data_input_scales_padded.data, B_data_input_scales.data, (size_t)K * B_data_input_scales.elemsize);
+    }
+
+    // the kernel accumulates in fp32 and only the storage may be fp16
+    Option opt_block = opt;
+    opt_block.use_fp16_arithmetic = false;
+    opt_block.use_shader_local_memory = false;
+
+    {
+        std::vector<vk_specialization_type> specializations(11);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = constantC;
+        specializations[3].i = constant_broadcast_type_C;
+        specializations[4].i = output_transpose;
+        specializations[5].i = block_size;
+        specializations[6].u32 = block_quant_row_words;
+        specializations[7].u32 = block_quant_scale_pitch;
+        specializations[8].i = block_count;
+        specializations[9].i = 4;
+        // the staged group count trades barriers against shared memory occupancy
+        specializations[10].i = vkdev->info.prefer_shader_local_memory() ? 4 : 1;
+
+        pipeline_gemm_block_quant = new Pipeline(vkdev);
+        pipeline_gemm_block_quant->set_local_size_xyz(8, 8, 1);
+        pipeline_gemm_block_quant->create(LayerShaderType::gemm_block_quant, opt_block, specializations);
+
+        // the workgroup tile is 32x32, staging both sides in shared memory removes the
+        // eightfold re-read from global memory
+        // the block quant kernel benefits from the coalesced weight staging even on
+        // devices that prefer no shared memory, it only needs two kilobytes
+        if (opt.use_shader_local_memory)
+        {
+            Option opt_block_slm = opt_block;
+            opt_block_slm.use_shader_local_memory = true;
+
+            pipeline_gemm_block_quant_slm = new Pipeline(vkdev);
+            pipeline_gemm_block_quant_slm->set_local_size_xyz(8, 8, 1);
+            pipeline_gemm_block_quant_slm->create(LayerShaderType::gemm_block_quant, opt_block_slm, specializations);
+        }
+
+        // decoding style gemm has fewer than four rows, a single row tile avoids wasting
+        // three quarters of the dot products
+        specializations[9].i = 1;
+
+        pipeline_gemm_block_quant_m1 = new Pipeline(vkdev);
+        pipeline_gemm_block_quant_m1->set_local_size_xyz(8, 8, 1);
+        pipeline_gemm_block_quant_m1->create(LayerShaderType::gemm_block_quant, opt_block, specializations);
+    }
+
+    {
+        std::vector<vk_specialization_type> specializations(5);
+        specializations[0].i = transA;
+        specializations[1].i = block_size;
+        specializations[2].i = weight_block_quantize_has_input_scale ? 1 : 0;
+        specializations[3].i = block_count;
+        specializations[4].i = K4;
+
+        pipeline_gemm_block_quant_quantize_A = new Pipeline(vkdev);
+        pipeline_gemm_block_quant_quantize_A->set_local_size_xyz(64, 1, 1);
+        pipeline_gemm_block_quant_quantize_A->create(LayerShaderType::gemm_block_quant_quantize_A, opt_block, specializations);
+    }
+
+    if (use_cooperative_matrix)
+    {
+        std::vector<vk_specialization_type> specializations(21);
+        specializations[0].f = alpha;
+        specializations[1].f = beta;
+        specializations[2].i = constantC;
+        specializations[3].i = constant_broadcast_type_C;
+        specializations[4].i = output_transpose;
+        specializations[5].i = constantM;
+        specializations[6].i = constantN;
+        specializations[7].i = constantK;
+
+        specializations[8].i = block_size;
+        specializations[9].i = block_count;
+        specializations[10].u32 = block_quant_row_words;
+        specializations[11].u32 = block_quant_scale_pitch;
+
+        specializations[12 + 0].u32 = coopmat_M;
+        specializations[12 + 1].u32 = coopmat_N;
+        specializations[12 + 2].u32 = coopmat_K;
+        specializations[12 + 3].u32 = coopmat_subgroup_size;
+        specializations[12 + 4].u32 = UNROLL_SG_M;
+        specializations[12 + 5].u32 = UNROLL_SG_N;
+        specializations[12 + 6].u32 = UNROLL_SG_K;
+        specializations[12 + 7].u32 = UNROLL_WG_M;
+        specializations[12 + 8].u32 = UNROLL_WG_N;
+
+        pipeline_gemm_block_quant_cm = new Pipeline(vkdev);
+        pipeline_gemm_block_quant_cm->set_subgroup_size(coopmat_subgroup_size);
+        pipeline_gemm_block_quant_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+        // fall back to the dot product kernels if the driver rejects the pipeline
+        if (pipeline_gemm_block_quant_cm->create(LayerShaderType::gemm_block_quant_cm, opt_block, specializations) != 0)
+        {
+            delete pipeline_gemm_block_quant_cm;
+            pipeline_gemm_block_quant_cm = 0;
+            use_cooperative_matrix = false;
+        }
+    }
+
+    return 0;
+}
+
+int Gemm_vulkan::upload_model_block_quant(VkTransfer& cmd, const Option& opt)
+{
+    Option opt_fp32 = opt;
+    opt_fp32.use_fp16_packed = false;
+    opt_fp32.use_fp16_storage = false;
+    opt_fp32.use_bf16_packed = false;
+    opt_fp32.use_bf16_storage = false;
+
+    cmd.record_upload(B_data_packed, B_data_gpu, opt);
+
+    B_data_packed.release();
+    B_data.release();
+
+    cmd.record_upload(B_data_quantize_scales_packed, B_data_quantize_scales_gpu, opt_fp32);
+
+    B_data_quantize_scales_packed.release();
+    B_data_quantize_scales.release();
+
+    if (weight_block_quantize_has_input_scale)
+    {
+        cmd.record_upload(B_data_input_scales_padded, B_data_input_scales_gpu, opt_fp32);
+
+        B_data_input_scales_padded.release();
+        B_data_input_scales.release();
+    }
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        cmd.record_upload(C_data_packed, C_data_gpu, opt);
+
+        C_data_packed.release();
+    }
+
+    return 0;
+}
+
+int Gemm_vulkan::forward_block_quant(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    const VkMat& A0 = bottom_blobs[0];
+
+    VkMat A = A0;
+    if (A.elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+        VkMat A_unpacked;
+        vkdev->convert_packing(A, A_unpacked, 1, cmd, opt_pack1);
+        A = A_unpacked;
+    }
+
+    const int M = transA ? A.w : A.dims == 3 ? A.c : A.h;
+    const int K = constantK;
+    const int N = constantN;
+    const int K4 = (K + 31) / 32 * 8;
+    const int block_size = weight_block_quantize_block_size;
+    const int block_count = (K + block_size - 1) / block_size;
+
+    // the single row tile variant is used below four rows, it has no packed output
+    const int m_tile = M < 4 ? 1 : 4;
+
+    // the shared memory variant stages a whole 32x32 workgroup tile, it pays off once the
+    // rows fill that tile, so the quantized activations are padded to the tile height
+    const bool use_slm = opt.use_shader_local_memory && m_tile == 4 && M >= 32 && pipeline_gemm_block_quant_slm;
+
+    // the cooperative matrix kernel covers BMxBN per workgroup, it only pays off once the
+    // rows fill such a tile
+    const int BM = coopmat_M * UNROLL_SG_M * UNROLL_WG_M;
+    const int BN = coopmat_N * UNROLL_SG_N * UNROLL_WG_N;
+    const bool use_cm = use_cooperative_matrix && pipeline_gemm_block_quant_cm && M >= BM;
+
+    int m_pad_unit = 4;
+    if (use_cm)
+        m_pad_unit = BM;
+    else if (use_slm)
+        m_pad_unit = 32;
+
+    const int M_aligned = (M + m_pad_unit - 1) / m_pad_unit * m_pad_unit;
+
+    VkMat C;
+    int broadcast_type_C = -1;
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        C = C_data_gpu;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else
+    {
+        VkMat C0 = bottom_blobs.size() == 2 ? bottom_blobs[1] : VkMat();
+
+        if (!C0.empty())
+        {
+            C = C0;
+            if (C.elempack != 1)
+            {
+                Option opt_pack1 = opt;
+                opt_pack1.blob_vkallocator = opt.workspace_vkallocator;
+
+                VkMat C_unpacked;
+                vkdev->convert_packing(C, C_unpacked, 1, cmd, opt_pack1);
+                C = C_unpacked;
+            }
+
+            if (C.dims == 1 && C.w == 1)
+            {
+                broadcast_type_C = 0;
+            }
+            if (C.dims == 1 && C.w == M)
+            {
+                broadcast_type_C = 1;
+            }
+            if (C.dims == 1 && C.w == N)
+            {
+                broadcast_type_C = 4;
+            }
+            if (C.dims == 2 && C.w == 1 && C.h == M)
+            {
+                broadcast_type_C = 2;
+            }
+            if (C.dims == 2 && C.w == N && C.h == M)
+            {
+                broadcast_type_C = 3;
+            }
+            if (C.dims == 2 && C.w == N && C.h == 1)
+            {
+                broadcast_type_C = 4;
+            }
+        }
+    }
+
+    size_t elemsize = A.elemsize / A.elempack;
+
+    // the N1M output packs along N, keep it scalar to stay layout agnostic
+    int out_elempack = 1;
+    if (!output_N1M && m_tile == 4 && !use_cm)
+    {
+        int outh = output_transpose ? N : M;
+        out_elempack = outh % 4 == 0 ? 4 : 1;
+        // this path encodes pack1 and pack4 output only
+        if (output_elempack == 1 || output_elempack == 4)
+            out_elempack = output_elempack;
+    }
+
+    size_t out_elemsize = elemsize * out_elempack;
+
+    VkMat& top_blob = top_blobs[0];
+    if (output_transpose)
+    {
+        if (output_N1M)
+            top_blob.create(M, 1, N, out_elemsize, out_elempack, opt.blob_vkallocator);
+        else
+            top_blob.create(M, N / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    else
+    {
+        if (output_N1M)
+            top_blob.create(N, 1, M, out_elemsize, out_elempack, opt.blob_vkallocator);
+        else
+            top_blob.create(N, M / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+    }
+    if (top_blob.empty())
+        return -100;
+
+    // quantize the activations per K block
+    VkMat A_int8;
+    A_int8.create(K4, M_aligned, (size_t)4u, opt.workspace_vkallocator);
+    if (A_int8.empty())
+        return -100;
+
+    VkMat A_descales;
+    A_descales.create(M_aligned, block_count, (size_t)4u, opt.workspace_vkallocator);
+    if (A_descales.empty())
+        return -100;
+
+    {
+        std::vector<VkMat> bindings(4);
+        bindings[0] = A;
+        bindings[1] = A_int8;
+        bindings[2] = A_descales;
+        bindings[3] = weight_block_quantize_has_input_scale ? B_data_input_scales_gpu : A_descales;
+
+        std::vector<vk_constant_type> constants(4);
+        constants[0].i = M;
+        constants[1].i = K;
+        constants[2].i = A.dims == 3 ? A.cstep : A.w;
+        constants[3].i = M_aligned;
+
+        VkMat dispatcher;
+        dispatcher.w = block_count;
+        dispatcher.h = M_aligned;
+        dispatcher.c = 1;
+
+        cmd.record_pipeline(pipeline_gemm_block_quant_quantize_A, bindings, constants, dispatcher);
+    }
+
+    std::vector<VkMat> bindings(7);
+    bindings[0] = top_blob;
+    bindings[1] = A_int8;
+    bindings[2] = B_data_gpu;
+    bindings[3] = B_data_quantize_scales_gpu;
+    bindings[4] = A_descales;
+    bindings[5] = C;
+    bindings[6] = top_blob;
+
+    std::vector<vk_constant_type> constants(8);
+    constants[0].i = M;
+    constants[1].i = N;
+    constants[2].i = K;
+    constants[3].i = broadcast_type_C;
+    constants[4].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+    constants[5].i = out_elempack;
+    constants[6].i = K4;
+    constants[7].i = M_aligned;
+
+    VkMat dispatcher;
+    dispatcher.c = 1;
+
+    if (use_cm)
+    {
+        std::vector<VkMat> bindings_cm(6);
+        bindings_cm[0] = top_blob;
+        bindings_cm[1] = A_int8;
+        bindings_cm[2] = B_data_gpu;
+        bindings_cm[3] = A_descales;
+        bindings_cm[4] = B_data_quantize_scales_gpu;
+        bindings_cm[5] = C;
+
+        std::vector<vk_constant_type> constants_cm(7);
+        constants_cm[0].i = M;
+        constants_cm[1].i = N;
+        constants_cm[2].i = K;
+        constants_cm[3].i = broadcast_type_C;
+        constants_cm[4].i = (int)(top_blob.dims == 3 ? top_blob.cstep : top_blob.w);
+        constants_cm[5].i = K4;
+        constants_cm[6].i = M_aligned;
+
+        const int blocks_x = (N + BN - 1) / BN;
+        const int blocks_y = (M + BM - 1) / BM;
+
+        dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+        dispatcher.h = 1;
+
+        cmd.record_pipeline(pipeline_gemm_block_quant_cm, bindings_cm, constants_cm, dispatcher);
+
+        return 0;
+    }
+
+    dispatcher.w = (N + 3) / 4;
+    dispatcher.h = (M + m_tile - 1) / m_tile;
+
+    const Pipeline* pipeline = m_tile == 1 ? pipeline_gemm_block_quant_m1 : use_slm ? pipeline_gemm_block_quant_slm : pipeline_gemm_block_quant;
+
+    cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+
+    return 0;
+}
+
+#endif // NCNN_INT8
 
 #if NCNN_INT8
 int Gemm_vulkan::create_pipeline_int8(const Option& opt)

@@ -1,0 +1,408 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+// gemm with 8bit block quantized weights and int8 quantized activations
+//
+// the weights of each of the N rows hold K signed bytes, padded with zero up to a multiple
+// of weight_row_words uint words, so that four words can be loaded at once
+//
+// activations are quantized per K block into A_int8, word k4 of row m holds the values
+// 4*k4 .. 4*k4+3, and A_descales holds one fp32 descale per (block, m)
+//
+// the weight descales are stored block major as (block_count, align4(N)) fp32
+//
+// both sides are normalized to [-127, 127] per block, so a block dot product is an int32
+// accumulation of dp4a results and the dequantization is a single multiply per block
+//
+// one invocation computes a 4x4 tile with 16 weights consumed per load
+//
+// with local memory the 32x32 output tile of a workgroup stages its activation and weight
+// rows into shared memory once, which removes the eightfold re-read of both sides from
+// global memory and makes the staging loads of neighbouring invocations contiguous
+
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int constantC = 0;
+layout(constant_id = 3) const int constant_broadcast_type_C = 0;
+layout(constant_id = 4) const int output_transpose = 0;
+layout(constant_id = 5) const int block_size = 32;
+layout(constant_id = 6) const uint weight_row_words = 0;
+layout(constant_id = 7) const uint weight_scale_pitch = 0;
+layout(constant_id = 8) const int block_count = 0;
+layout(constant_id = 9) const int M_TILE = 4;
+layout(constant_id = 10) const int KSTEP = 1;
+
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_int8_blob { ivec4 A_int8_data[]; };
+layout(binding = 2) readonly buffer weight_blob { ivec4 weight_data[]; };
+layout(binding = 3) readonly buffer weight_scales_blob { vec4 weight_scales_data[]; };
+layout(binding = 4) readonly buffer A_descales_blob { vec4 A_descales_data[]; };
+layout(binding = 5) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 6) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int broadcast_type_C;
+    int outhstep;
+    int out_elempack;
+    int A_k4;
+    int A_descale_pitch;
+} p;
+
+int block_quant_dot4(int a, int b)
+{
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+    return dotPacked4x8EXT(a, b);
+#else
+    const ivec4 av = unpackInt4x8(a);
+    const ivec4 bv = unpackInt4x8(b);
+    return av.r * bv.r + av.g * bv.g + av.b * bv.b + av.a * bv.a;
+#endif
+}
+
+#if NCNN_shader_local_memory
+// 32 activation rows and 32 weight rows of the output tile, four words each
+// tmp_a[row] holds the activations 16t .. 16t+15 of that row
+shared ivec4 block_quant_tmp_a[KSTEP][32];
+shared ivec4 block_quant_tmp_b[KSTEP][32];
+#endif
+
+void main()
+{
+    const int gx = int(gl_GlobalInvocationID.x);
+    const int gy = int(gl_GlobalInvocationID.y);
+    const int gz = int(gl_GlobalInvocationID.z);
+
+    const int n0 = gx * 4;
+    const int m0 = M_TILE == 4 ? gy * 4 : gy;
+
+#if !NCNN_shader_local_memory
+    if (gx * 4 >= p.N || m0 >= p.M || gz >= 1)
+        return;
+#endif
+
+    const int mblock = M_TILE == 4 ? gy : gy >> 2;
+
+    const int block_k16 = block_size / 16;
+    const int K16 = p.A_k4 / 4;
+
+    const int a_off0 = (m0 + 0) * K16;
+    const int a_off1 = (m0 + 1) * K16;
+    const int a_off2 = (m0 + 2) * K16;
+    const int a_off3 = (m0 + 3) * K16;
+    const uint w_off0 = uint(n0) * weight_row_words / 4;
+    const uint w_off1 = w_off0 + weight_row_words / 4;
+    const uint w_off2 = w_off1 + weight_row_words / 4;
+    const uint w_off3 = w_off2 + weight_row_words / 4;
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+    const int tid = ly * 8 + lx;
+    const int a_tile_row = (gy - ly) * M_TILE;
+    const int w_tile_row = (gx - lx) * 4;
+    const int a_local0 = ly * M_TILE;
+    const int w_local0 = lx * 4;
+#endif
+
+    vec4 sum0 = vec4(0.f);
+    vec4 sum1 = vec4(0.f);
+    vec4 sum2 = vec4(0.f);
+    vec4 sum3 = vec4(0.f);
+
+    for (int g = 0; g < block_count; g++)
+    {
+        const int t_begin = g * block_k16;
+        const int t_end = min(t_begin + block_k16, K16);
+
+        ivec4 s0 = ivec4(0);
+        ivec4 s1 = ivec4(0);
+        ivec4 s2 = ivec4(0);
+        ivec4 s3 = ivec4(0);
+
+        for (int t = t_begin; t < t_end; t += KSTEP)
+        {
+            ivec4 a0;
+            ivec4 a1;
+            ivec4 a2;
+            ivec4 a3;
+            ivec4 w0;
+            ivec4 w1;
+            ivec4 w2;
+            ivec4 w3;
+
+#if NCNN_shader_local_memory
+            for (int s = 0; s < KSTEP; s++)
+            {
+                if (t + s >= t_end)
+                    break;
+
+                if (tid < 32)
+                {
+                    const int a_stage_row = a_tile_row + tid;
+                    block_quant_tmp_a[s][tid] = a_stage_row < p.A_descale_pitch ? A_int8_data[a_stage_row * K16 + t + s] : ivec4(0);
+                }
+                else
+                {
+                    const int wrow = w_tile_row + tid - 32;
+                    block_quant_tmp_b[s][tid - 32] = wrow < p.N ? weight_data[uint(wrow) * weight_row_words / 4 + t + s] : ivec4(0);
+                }
+            }
+
+            barrier();
+
+            for (int s = 0; s < KSTEP; s++)
+            {
+                if (t + s >= t_end)
+                    break;
+
+                a0 = block_quant_tmp_a[s][a_local0 + 0];
+                w0 = block_quant_tmp_b[s][w_local0 + 0];
+                w1 = block_quant_tmp_b[s][w_local0 + 1];
+                w2 = block_quant_tmp_b[s][w_local0 + 2];
+                w3 = block_quant_tmp_b[s][w_local0 + 3];
+
+                if (M_TILE == 4)
+                {
+                    a1 = block_quant_tmp_a[s][a_local0 + 1];
+                    a2 = block_quant_tmp_a[s][a_local0 + 2];
+                    a3 = block_quant_tmp_a[s][a_local0 + 3];
+                }
+#else
+            for (int s = 0; s < KSTEP; s++)
+            {
+                if (t + s >= t_end)
+                    break;
+
+                a0 = A_int8_data[a_off0 + t + s];
+
+                w0 = weight_data[w_off0 + t + s];
+                w1 = weight_data[w_off1 + t + s];
+                w2 = weight_data[w_off2 + t + s];
+                w3 = weight_data[w_off3 + t + s];
+
+                if (M_TILE == 4)
+                {
+                    a1 = A_int8_data[a_off1 + t + s];
+                    a2 = A_int8_data[a_off2 + t + s];
+                    a3 = A_int8_data[a_off3 + t + s];
+                }
+#endif
+
+            s0 += ivec4(block_quant_dot4(a0.x, w0.x), block_quant_dot4(a0.x, w1.x), block_quant_dot4(a0.x, w2.x), block_quant_dot4(a0.x, w3.x));
+            s0 += ivec4(block_quant_dot4(a0.y, w0.y), block_quant_dot4(a0.y, w1.y), block_quant_dot4(a0.y, w2.y), block_quant_dot4(a0.y, w3.y));
+            s0 += ivec4(block_quant_dot4(a0.z, w0.z), block_quant_dot4(a0.z, w1.z), block_quant_dot4(a0.z, w2.z), block_quant_dot4(a0.z, w3.z));
+            s0 += ivec4(block_quant_dot4(a0.w, w0.w), block_quant_dot4(a0.w, w1.w), block_quant_dot4(a0.w, w2.w), block_quant_dot4(a0.w, w3.w));
+
+            if (M_TILE == 4)
+            {
+                s1 += ivec4(block_quant_dot4(a1.x, w0.x), block_quant_dot4(a1.x, w1.x), block_quant_dot4(a1.x, w2.x), block_quant_dot4(a1.x, w3.x));
+                s1 += ivec4(block_quant_dot4(a1.y, w0.y), block_quant_dot4(a1.y, w1.y), block_quant_dot4(a1.y, w2.y), block_quant_dot4(a1.y, w3.y));
+                s1 += ivec4(block_quant_dot4(a1.z, w0.z), block_quant_dot4(a1.z, w1.z), block_quant_dot4(a1.z, w2.z), block_quant_dot4(a1.z, w3.z));
+                s1 += ivec4(block_quant_dot4(a1.w, w0.w), block_quant_dot4(a1.w, w1.w), block_quant_dot4(a1.w, w2.w), block_quant_dot4(a1.w, w3.w));
+
+                s2 += ivec4(block_quant_dot4(a2.x, w0.x), block_quant_dot4(a2.x, w1.x), block_quant_dot4(a2.x, w2.x), block_quant_dot4(a2.x, w3.x));
+                s2 += ivec4(block_quant_dot4(a2.y, w0.y), block_quant_dot4(a2.y, w1.y), block_quant_dot4(a2.y, w2.y), block_quant_dot4(a2.y, w3.y));
+                s2 += ivec4(block_quant_dot4(a2.z, w0.z), block_quant_dot4(a2.z, w1.z), block_quant_dot4(a2.z, w2.z), block_quant_dot4(a2.z, w3.z));
+                s2 += ivec4(block_quant_dot4(a2.w, w0.w), block_quant_dot4(a2.w, w1.w), block_quant_dot4(a2.w, w2.w), block_quant_dot4(a2.w, w3.w));
+
+                s3 += ivec4(block_quant_dot4(a3.x, w0.x), block_quant_dot4(a3.x, w1.x), block_quant_dot4(a3.x, w2.x), block_quant_dot4(a3.x, w3.x));
+                s3 += ivec4(block_quant_dot4(a3.y, w0.y), block_quant_dot4(a3.y, w1.y), block_quant_dot4(a3.y, w2.y), block_quant_dot4(a3.y, w3.y));
+                s3 += ivec4(block_quant_dot4(a3.z, w0.z), block_quant_dot4(a3.z, w1.z), block_quant_dot4(a3.z, w2.z), block_quant_dot4(a3.z, w3.z));
+                s3 += ivec4(block_quant_dot4(a3.w, w0.w), block_quant_dot4(a3.w, w1.w), block_quant_dot4(a3.w, w2.w), block_quant_dot4(a3.w, w3.w));
+            }
+
+            }
+#if NCNN_shader_local_memory
+            barrier();
+#endif
+        }
+
+        const vec4 ad4 = A_descales_data[((g * p.A_descale_pitch) >> 2) + mblock];
+        const float ad = M_TILE == 4 ? ad4.r : ad4[gy & 3];
+        const vec4 ws = weight_scales_data[(g * weight_scale_pitch >> 2) + gx];
+
+        sum0 += vec4(s0) * (ad * ws);
+        if (M_TILE == 4)
+        {
+            sum1 += vec4(s1) * (ad4.g * ws);
+            sum2 += vec4(s2) * (ad4.b * ws);
+            sum3 += vec4(s3) * (ad4.a * ws);
+        }
+    }
+
+#if NCNN_shader_local_memory
+    // every invocation of the workgroup participated in the staging above
+    if (gx * 4 >= p.N || m0 >= p.M)
+        return;
+#endif
+
+    const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
+
+    const ivec4 gx4 = gx * 4 + ivec4(0, 1, 2, 3);
+    const ivec4 gy4 = m0 + ivec4(0, 1, 2, 3);
+
+    if (p.out_elempack == 4)
+    {
+        // the pack4 output stores four rows of one column
+        if (broadcast_type_C == 0)
+        {
+            const float c = float(buffer_ld1(C_blob_data, 0)) * beta;
+            sum0 += c;
+            sum1 += c;
+            sum2 += c;
+            sum3 += c;
+        }
+        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+        {
+            if (gy4.r < p.M) sum0 += float(buffer_ld1(C_blob_data, gy4.r)) * beta;
+            if (gy4.g < p.M) sum1 += float(buffer_ld1(C_blob_data, gy4.g)) * beta;
+            if (gy4.b < p.M) sum2 += float(buffer_ld1(C_blob_data, gy4.b)) * beta;
+            if (gy4.a < p.M) sum3 += float(buffer_ld1(C_blob_data, gy4.a)) * beta;
+        }
+        if (broadcast_type_C == 3)
+        {
+            if (gy4.r < p.M)
+            {
+                const int ci = gy4.r * p.N + gx * 4;
+                sum0.r += float(buffer_ld1(C_blob_data, ci + 0)) * beta;
+                if (gx4.g < p.N) sum0.g += float(buffer_ld1(C_blob_data, ci + 1)) * beta;
+                if (gx4.b < p.N) sum0.b += float(buffer_ld1(C_blob_data, ci + 2)) * beta;
+                if (gx4.a < p.N) sum0.a += float(buffer_ld1(C_blob_data, ci + 3)) * beta;
+            }
+            if (gy4.g < p.M)
+            {
+                const int ci = gy4.g * p.N + gx * 4;
+                sum1.r += float(buffer_ld1(C_blob_data, ci + 0)) * beta;
+                if (gx4.g < p.N) sum1.g += float(buffer_ld1(C_blob_data, ci + 1)) * beta;
+                if (gx4.b < p.N) sum1.b += float(buffer_ld1(C_blob_data, ci + 2)) * beta;
+                if (gx4.a < p.N) sum1.a += float(buffer_ld1(C_blob_data, ci + 3)) * beta;
+            }
+            if (gy4.b < p.M)
+            {
+                const int ci = gy4.b * p.N + gx * 4;
+                sum2.r += float(buffer_ld1(C_blob_data, ci + 0)) * beta;
+                if (gx4.g < p.N) sum2.g += float(buffer_ld1(C_blob_data, ci + 1)) * beta;
+                if (gx4.b < p.N) sum2.b += float(buffer_ld1(C_blob_data, ci + 2)) * beta;
+                if (gx4.a < p.N) sum2.a += float(buffer_ld1(C_blob_data, ci + 3)) * beta;
+            }
+            if (gy4.a < p.M)
+            {
+                const int ci = gy4.a * p.N + gx * 4;
+                sum3.r += float(buffer_ld1(C_blob_data, ci + 0)) * beta;
+                if (gx4.g < p.N) sum3.g += float(buffer_ld1(C_blob_data, ci + 1)) * beta;
+                if (gx4.b < p.N) sum3.b += float(buffer_ld1(C_blob_data, ci + 2)) * beta;
+                if (gx4.a < p.N) sum3.a += float(buffer_ld1(C_blob_data, ci + 3)) * beta;
+            }
+        }
+        if (broadcast_type_C == 4)
+        {
+            vec4 c = vec4(0.f);
+            c.r = float(buffer_ld1(C_blob_data, gx4.r));
+            if (gx4.g < p.N) c.g = float(buffer_ld1(C_blob_data, gx4.g));
+            if (gx4.b < p.N) c.b = float(buffer_ld1(C_blob_data, gx4.b));
+            if (gx4.a < p.N) c.a = float(buffer_ld1(C_blob_data, gx4.a));
+
+            sum0 += c * beta;
+            sum1 += c * beta;
+            sum2 += c * beta;
+            sum3 += c * beta;
+        }
+
+        if (alpha != 1.f)
+        {
+            sum0 *= alpha;
+            sum1 *= alpha;
+            sum2 *= alpha;
+            sum3 *= alpha;
+        }
+
+        if (output_transpose == 1)
+        {
+            const int gi = gx * p.outhstep + gy * 4;
+
+            buffer_st4(top_blob_data_4, gi, afpvec4(sum0));
+            if (gy4.g < p.M) buffer_st4(top_blob_data_4, gi + 1, afpvec4(sum1));
+            if (gy4.b < p.M) buffer_st4(top_blob_data_4, gi + 2, afpvec4(sum2));
+            if (gy4.a < p.M) buffer_st4(top_blob_data_4, gi + 3, afpvec4(sum3));
+        }
+        else
+        {
+            const int gi = gy * p.outhstep + gx * 4;
+
+            buffer_st4(top_blob_data_4, gi, afpvec4(sum0.r, sum1.r, sum2.r, sum3.r));
+            if (gx4.g < p.N) buffer_st4(top_blob_data_4, gi + 1, afpvec4(sum0.g, sum1.g, sum2.g, sum3.g));
+            if (gx4.b < p.N) buffer_st4(top_blob_data_4, gi + 2, afpvec4(sum0.b, sum1.b, sum2.b, sum3.b));
+            if (gx4.a < p.N) buffer_st4(top_blob_data_4, gi + 3, afpvec4(sum0.a, sum1.a, sum2.a, sum3.a));
+        }
+
+        return;
+    }
+
+    // pack1 output, one row at a time so the tile height may be 1 or 4
+    for (int mi = 0; mi < M_TILE; mi++)
+    {
+        const int gm = m0 + mi;
+        if (gm >= p.M)
+            break;
+
+        vec4 sum = mi == 0 ? sum0 : mi == 1 ? sum1 : mi == 2 ? sum2 : sum3;
+
+        if (broadcast_type_C == 0)
+        {
+            sum += float(buffer_ld1(C_blob_data, 0)) * beta;
+        }
+        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+        {
+            sum += float(buffer_ld1(C_blob_data, gm)) * beta;
+        }
+        if (broadcast_type_C == 3)
+        {
+            const int ci = gm * p.N + gx * 4;
+            sum.r += float(buffer_ld1(C_blob_data, ci + 0)) * beta;
+            if (gx4.g < p.N) sum.g += float(buffer_ld1(C_blob_data, ci + 1)) * beta;
+            if (gx4.b < p.N) sum.b += float(buffer_ld1(C_blob_data, ci + 2)) * beta;
+            if (gx4.a < p.N) sum.a += float(buffer_ld1(C_blob_data, ci + 3)) * beta;
+        }
+        if (broadcast_type_C == 4)
+        {
+            sum.r += float(buffer_ld1(C_blob_data, gx4.r)) * beta;
+            if (gx4.g < p.N) sum.g += float(buffer_ld1(C_blob_data, gx4.g)) * beta;
+            if (gx4.b < p.N) sum.b += float(buffer_ld1(C_blob_data, gx4.b)) * beta;
+            if (gx4.a < p.N) sum.a += float(buffer_ld1(C_blob_data, gx4.a)) * beta;
+        }
+
+        if (alpha != 1.f)
+        {
+            sum *= alpha;
+        }
+
+        if (output_transpose == 1)
+        {
+            const ivec4 gi4 = gx4 * p.outhstep + gm;
+
+            buffer_st1(top_blob_data, gi4.r, sum.r);
+            if (gx4.g < p.N) buffer_st1(top_blob_data, gi4.g, sum.g);
+            if (gx4.b < p.N) buffer_st1(top_blob_data, gi4.b, sum.b);
+            if (gx4.a < p.N) buffer_st1(top_blob_data, gi4.a, sum.a);
+        }
+        else
+        {
+            const int gi = gm * p.outhstep + gx * 4;
+
+            buffer_st1(top_blob_data, gi, sum.r);
+            if (gx4.g < p.N) buffer_st1(top_blob_data, gi + 1, sum.g);
+            if (gx4.b < p.N) buffer_st1(top_blob_data, gi + 2, sum.b);
+            if (gx4.a < p.N) buffer_st1(top_blob_data, gi + 3, sum.a);
+        }
+    }
+}
