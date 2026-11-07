@@ -425,6 +425,14 @@ pnnx_add_test(transformers_xlnet_attention)
 
 add_subdirectory(ncnn)
 
+if(PNNX_CAFFE2PNNX)
+    add_subdirectory(caffe)
+endif()
+
+if(PNNX_TNN2PNNX)
+    add_subdirectory(tnn)
+endif()
+
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()

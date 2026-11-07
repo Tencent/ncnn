@@ -16,6 +16,10 @@
 #include "storezip.h"
 #include "utils.h"
 
+#if BUILD_CAFFE2PNNX
+#include "caffe_python.h"
+#endif
+
 namespace pnnx {
 
 static bool type_is_integer(int type)
@@ -803,7 +807,8 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
     StoreZipWriter szw;
     if (szw.open(binpath) != 0)
     {
-        fprintf(stderr, "open failed\n");
+        fprintf(stderr, "open %s failed; output files may be incomplete\n", binpath.c_str());
+        fclose(paramfp);
         return -1;
     }
 
@@ -853,7 +858,13 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, type_to_string(attr.type));
 
             std::string filename = op->name + "." + it.first;
-            szw.write_file(filename, attr.data.data(), attr.data.size());
+            if (szw.write_file(filename, attr.data.data(), attr.data.size()) != 0)
+            {
+                fprintf(stderr, "write %s failed; output files may be incomplete\n", binpath.c_str());
+                fclose(paramfp);
+                szw.close();
+                return -1;
+            }
         }
 
         if (op->inputnames.size() == op->inputs.size())
@@ -925,9 +936,15 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
         fprintf(paramfp, "\n");
     }
 
-    fclose(paramfp);
+    int ret = ferror(paramfp) ? -1 : 0;
+    if (fclose(paramfp) != 0)
+        ret = -1;
+    if (szw.close() != 0)
+        ret = -1;
+    if (ret != 0)
+        fprintf(stderr, "write or close %s / %s failed; output files may be incomplete\n", parampath.c_str(), binpath.c_str());
 
-    return 0;
+    return ret;
 }
 
 static std::string sanitize_identifier(const std::string& s)
@@ -1493,6 +1510,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
     fprintf(pyfp, "    pass\n");
 
     fprintf(pyfp, "\n");
+
+#if BUILD_CAFFE2PNNX
+    export_caffe_python(*this, pyfp);
+#endif
 
     fprintf(pyfp, "class Model(nn.Module):\n");
     fprintf(pyfp, "    def __init__(self):\n");
@@ -2869,9 +2890,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         fprintf(pyfp, "    print(test_inference())\n");
     }
 
-    fclose(pyfp);
+    int ret = ferror(pyfp) ? -1 : 0;
+    if (fclose(pyfp) != 0)
+        ret = -1;
+    if (ret != 0)
+        fprintf(stderr, "write or close %s failed; output file may be incomplete\n", pypath.c_str());
 
-    return 0;
+    return ret;
 }
 
 int Graph::parse(const std::string& param)

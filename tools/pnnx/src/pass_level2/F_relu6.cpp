@@ -49,4 +49,24 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_relu6_onnx, 101)
 
+class F_relu6_caffe : public F_relu6
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.ReLU6             op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_relu6_caffe, 100)
+
 } // namespace pnnx

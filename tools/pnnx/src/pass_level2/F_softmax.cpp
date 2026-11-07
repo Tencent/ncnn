@@ -155,4 +155,39 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_tnn, 100)
 
+class F_softmax_caffe : public F_softmax
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Softmax           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        auto it = captured_params.find("op_0.axis");
+        int axis = it == captured_params.end() ? 1 : it->second.i;
+        if (axis < 0)
+            axis += rank;
+        return axis > 0 && axis < rank;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        auto it = captured_params.find("op_0.axis");
+        int axis = it == captured_params.end() ? 1 : it->second.i;
+        if (axis < 0)
+            axis += op->inputs[0]->shape.size();
+        op->params["dim"] = axis;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_softmax_caffe, 100)
+
 } // namespace pnnx

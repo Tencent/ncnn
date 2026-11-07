@@ -321,6 +321,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torchaudio_F_inverse_spectrogram.cpp
     pass_level2/torchaudio_F_spectrogram.cpp
 
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
     pass_level2/nn_RNN.cpp
@@ -731,6 +732,79 @@ else()
     message(STATUS "Building without onnx2pnnx")
 endif()
 
+if(PNNX_CAFFE2PNNX)
+    if(Protobuf_FOUND OR protobuf_MODULE_COMPATIBLE)
+        protobuf_generate_cpp(CAFFE_PROTO_SRCS CAFFE_PROTO_HDRS caffe.proto)
+        add_library(caffeproto STATIC ${CAFFE_PROTO_SRCS} ${CAFFE_PROTO_HDRS})
+        target_include_directories(caffeproto PUBLIC ${PROTOBUF_INCLUDE_DIRS} ${CMAKE_CURRENT_BINARY_DIR})
+        target_link_libraries(caffeproto PUBLIC ${PROTOBUF_LIBRARIES})
+    else()
+        add_library(caffeproto STATIC caffe.proto)
+        target_include_directories(caffeproto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+        protobuf_generate(TARGET caffeproto)
+        target_link_libraries(caffeproto PUBLIC protobuf::libprotobuf)
+    endif()
+
+    set(caffe2pnnx_SRCS
+        load_caffe.cpp
+        pass_caffe.cpp
+        pass_caffe/lower_argmax.cpp
+        pass_caffe/lower_bnll.cpp
+        pass_caffe/lower_concat.cpp
+        pass_caffe/lower_crop.cpp
+        pass_caffe/lower_eltwise.cpp
+        pass_caffe/lower_exp_log.cpp
+        pass_caffe/lower_lrn.cpp
+        pass_caffe/lower_lstm.cpp
+        pass_caffe/lower_normalization.cpp
+        pass_caffe/lower_power.cpp
+        pass_caffe/lower_proposal.cpp
+        pass_caffe/lower_reduction.cpp
+        pass_caffe/lower_roi.cpp
+        pass_caffe/lower_scale.cpp
+        pass_caffe/lower_threshold.cpp
+        pass_caffe/prepare_batch_norm.cpp
+        pass_caffe/prepare_convolution.cpp
+        pass_caffe/prepare_detection.cpp
+        pass_caffe/prepare_dropout.cpp
+        pass_caffe/prepare_embed.cpp
+        pass_caffe/prepare_flatten.cpp
+        pass_caffe/prepare_inner_product.cpp
+        pass_caffe/prepare_interp.cpp
+        pass_caffe/prepare_permute.cpp
+        pass_caffe/prepare_pooling.cpp
+        pass_caffe/prepare_prelu.cpp
+        pass_caffe/prepare_reorg.cpp
+        pass_caffe/prepare_reshape.cpp
+        pass_caffe/prepare_shuffle_channel.cpp
+        pass_caffe/prepare_slice.cpp
+        pass_caffe/prepare_softmax.cpp
+        pass_caffe/prepare_tile.cpp
+        pass_caffe/prepare_yolo.cpp
+        caffe_python.cpp
+    )
+
+    list(APPEND pnnx_pass_ncnn_SRCS
+        pass_ncnn/caffe_PriorBox.cpp
+        pass_ncnn/caffe_ArgMax.cpp
+        pass_ncnn/caffe_Power.cpp
+        pass_ncnn/caffe_DetectionOutput.cpp
+        pass_ncnn/caffe_ROIPooling.cpp
+        pass_ncnn/caffe_PSROIPooling.cpp
+        pass_ncnn/caffe_ROIAlign.cpp
+        pass_ncnn/caffe_Proposal.cpp
+    )
+
+    add_library(caffe2pnnx OBJECT ${caffe2pnnx_SRCS})
+    target_link_libraries(caffe2pnnx PRIVATE caffeproto)
+    target_compile_definitions(caffe2pnnx PRIVATE BUILD_CAFFE2PNNX)
+    target_compile_options(caffe2pnnx PUBLIC "${TORCH_CXX_FLAGS}")
+
+    message(STATUS "Building with caffe2pnnx")
+else()
+    message(STATUS "Building without caffe2pnnx")
+endif()
+
 if(PNNX_TNN2PNNX)
     set(pnnx_pass_tnn_SRCS
         pass_tnn/fuse_shape_size.cpp
@@ -776,6 +850,7 @@ set(pnnx_SRCS
     ${pnnx_pass_level5_SRCS}
 
     pass_ncnn.cpp
+    pass_ncnn/convert_caffe_yolo.cpp
     save_ncnn.cpp
     ${pnnx_pass_ncnn_SRCS}
 )
@@ -808,6 +883,12 @@ endif()
 if(PNNX_TNN2PNNX)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TNN2PNNX)
     target_link_libraries(pnnx PRIVATE tnn2pnnx)
+endif()
+
+if(PNNX_CAFFE2PNNX)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_CAFFE2PNNX)
+    set_property(SOURCE ir.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_CAFFE2PNNX)
+    target_link_libraries(pnnx PRIVATE caffe2pnnx caffeproto)
 endif()
 
 if(PNNX_COVERAGE)

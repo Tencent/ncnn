@@ -267,4 +267,49 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_flatten_tnn, 60)
 
+class torch_flatten_caffe : public torch_flatten
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Flatten           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const int rank = matched_operators.at("op_0")->inputs[0]->shape.size();
+        auto axis_it = captured_params.find("op_0.axis");
+        auto end_it = captured_params.find("op_0.end_axis");
+        int axis = axis_it == captured_params.end() ? 1 : axis_it->second.i;
+        int end = end_it == captured_params.end() ? -1 : end_it->second.i;
+        if (axis < 0)
+            axis += rank;
+        if (end < 0)
+            end += rank;
+        return axis > 0 && end >= axis && end < rank;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const int rank = op->inputs[0]->shape.size();
+        auto axis_it = captured_params.find("op_0.axis");
+        auto end_it = captured_params.find("op_0.end_axis");
+        int axis = axis_it == captured_params.end() ? 1 : axis_it->second.i;
+        int end = end_it == captured_params.end() ? -1 : end_it->second.i;
+        if (axis < 0)
+            axis += rank;
+        if (end < 0)
+            end += rank;
+        op->params["start_dim"] = axis;
+        op->params["end_dim"] = end;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_flatten_caffe, 60)
+
 } // namespace pnnx

@@ -7,9 +7,10 @@ namespace pnnx {
 
 namespace ncnn {
 
-void eliminate_output(Graph& graph)
+void eliminate_output(Graph& graph, bool preserve_output_set)
 {
     int output_index = 0;
+    std::set<Operand*> outputs;
 
     for (;;)
     {
@@ -33,6 +34,7 @@ void eliminate_output(Graph& graph)
 
             for (Operand* r : op->inputs)
             {
+                outputs.insert(r);
                 r->remove_consumer(op);
             }
 
@@ -53,6 +55,21 @@ void eliminate_output(Graph& graph)
 
         if (!need_eliminate)
             break;
+    }
+
+    if (preserve_output_set)
+    {
+        // ncnn otherwise exposes unused tops of multi-output layers as outputs
+        // consume values discarded by the source graph, such as Caffe Silence
+        int silence_index = 0;
+        for (Operand* r : graph.operands)
+        {
+            if (!r->consumers.empty() || outputs.count(r))
+                continue;
+            Operator* op = graph.new_operator("Noop", "silence_" + std::to_string(silence_index++));
+            op->inputs.push_back(r);
+            r->consumers.push_back(op);
+        }
     }
 }
 

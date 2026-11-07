@@ -27,4 +27,25 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_repeat, 60)
 
+class Tensor_repeat_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Tile              op_0        1 1 input out sizes=%sizes
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.repeat";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_repeat_caffe, 60)
+
 } // namespace pnnx

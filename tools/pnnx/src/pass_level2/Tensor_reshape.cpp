@@ -230,4 +230,44 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_tnn_2, 61)
 
+class Tensor_reshape_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Reshape           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Tensor.reshape";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const std::vector<int>& shape = matched_operators.at("op_0")->outputs[0]->shape;
+        if (shape.empty())
+            return false;
+        for (int dim : shape)
+        {
+            if (dim <= 0)
+                return false;
+        }
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        // caffe preprocessing resolves axis/num_axes and copied/inferred dims
+        op->params["shape"] = op->outputs[0]->shape;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_reshape_caffe, 60)
+
 } // namespace pnnx

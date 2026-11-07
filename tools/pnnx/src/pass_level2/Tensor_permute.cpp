@@ -101,4 +101,36 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_permute_tnn, 60)
 
+class Tensor_permute_caffe : public Tensor_permute
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Permute           op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        auto it = captured_params.find("op_0.order");
+        std::vector<int> order = it == captured_params.end() ? std::vector<int>() : it->second.ai;
+        const int rank = op->inputs[0]->shape.size();
+        std::vector<bool> used(rank, false);
+        for (int dim : order)
+            used[dim] = true;
+        for (int i = 0; i < rank; i++)
+        {
+            if (!used[i])
+                order.push_back(i);
+        }
+        op->params["dims"] = order;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(Tensor_permute_caffe, 60)
+
 } // namespace pnnx

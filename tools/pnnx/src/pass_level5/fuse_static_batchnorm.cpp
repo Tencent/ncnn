@@ -20,7 +20,7 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
 pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
-F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
+F.batch_norm            op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -86,7 +86,7 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
 pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
-F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps #input=(?,?,?,?)f32
+F.batch_norm            op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps #input=(?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -140,7 +140,7 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_mean     0 1 running_mean @data=(%num_features)f32
 pnnx.Attribute          op_var      0 1 running_var @data=(%num_features)f32
-F.batchnorm             op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps #input=(?,?,?,?,?)f32
+F.batch_norm            op_0        3 1 input running_mean running_var out weight=None bias=None eps=%eps #input=(?,?,?,?,?)f32
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

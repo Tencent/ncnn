@@ -580,4 +580,84 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_tnn_1, 140)
 
+class F_conv2d_caffe : public GraphRewriterPass
+{
+public:
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return captured_params.at("op_0.bias_term").b;
+    }
+
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Convolution      op_0        1 1 input out %*=%* @0 @1
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Attribute          weight      0 1 weight @data=%op_0.0
+pnnx.Attribute          bias        0 1 bias @data=%op_0.1
+F.conv2d                conv        3 1 input weight bias out stride=%op_0.stride padding=%op_0.pad dilation=%op_0.dilation groups=%op_0.group
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        GraphRewriterPass::write(ops, captured_params, captured_attrs);
+
+        Operator* weight = ops.at("weight");
+        weight->outputs[0]->shape = weight->attrs.at("data").shape;
+        weight->outputs[0]->type = weight->attrs.at("data").type;
+        if (ops.find("bias") != ops.end())
+        {
+            Operator* bias = ops.at("bias");
+            bias->outputs[0]->shape = bias->attrs.at("data").shape;
+            bias->outputs[0]->type = bias->attrs.at("data").type;
+        }
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_caffe, 140)
+
+class F_conv2d_caffe_1 : public F_conv2d_caffe
+{
+public:
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        return !captured_params.at("op_0.bias_term").b;
+    }
+
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Convolution      op_0        1 1 input out %*=%* @0
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Attribute          weight      0 1 weight @data=%op_0.0
+F.conv2d                conv        2 1 input weight out bias=None stride=%op_0.stride padding=%op_0.pad dilation=%op_0.dilation groups=%op_0.group
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_caffe_1, 140)
+
 } // namespace pnnx

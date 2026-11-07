@@ -1527,4 +1527,25 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_onnx_3d_nearest_exact, 111)
 
+class F_interpolate_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Interp            op_0        1 1 input out size=%size mode=%mode align_corners=%align_corners
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_caffe, 110)
+
 } // namespace pnnx

@@ -30,6 +30,10 @@
 #if BUILD_TNN2PNNX
 #include "load_tnn.h"
 #endif
+#if BUILD_CAFFE2PNNX
+#include "load_caffe.h"
+#include "pass_caffe.h"
+#endif
 
 #include "model_stat.h"
 #include "pass_ncnn.h"
@@ -257,9 +261,15 @@ static bool model_file_maybe_tnnproto(const std::string& path)
     return signature == 4206624772;
 }
 
+static bool model_file_maybe_caffeproto(const std::string& path)
+{
+    return path.size() >= 9 && path.compare(path.size() - 9, 9, ".prototxt") == 0;
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
+    fprintf(stderr, "  Caffe: pnnx model.prototxt (loads model.caffemodel)\n");
     fprintf(stderr, "  pnnxparam=model.pnnx.param\n");
     fprintf(stderr, "  pnnxbin=model.pnnx.bin\n");
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
@@ -339,6 +349,8 @@ int main(int argc, char** argv)
         if (eqs == NULL)
         {
             fprintf(stderr, "unrecognized arg %s\n", kv);
+            if (model_file_maybe_caffeproto(ptpath))
+                return -1;
             continue;
         }
 
@@ -451,6 +463,18 @@ int main(int argc, char** argv)
     // clang-format off
     // *INDENT-OFF*
 
+    if (model_file_maybe_caffeproto(ptpath))
+    {
+#if BUILD_CAFFE2PNNX
+        int ret = load_caffe(ptpath, pnnx_graph, input_shapes, input_types);
+        if (ret != 0)
+            return ret;
+#else
+        fprintf(stderr, "pnnx build without Caffe support, rebuild with PNNX_CAFFE2PNNX=ON\n");
+        return -1;
+#endif
+    }
+    else
 #if BUILD_TNN2PNNX
     if (model_file_maybe_tnnproto(ptpath))
     {
@@ -493,6 +517,11 @@ int main(int argc, char** argv)
 
     pnnx::pass_level2(pnnx_graph);
 
+#if BUILD_CAFFE2PNNX
+    if (model_file_maybe_caffeproto(ptpath) && pnnx::check_caffe_operators(pnnx_graph) != 0)
+        return -1;
+#endif
+
     // pnnx_graph.save("debug.param", "debug.bin");
 
     if (optlevel >= 1)
@@ -522,12 +551,25 @@ int main(int argc, char** argv)
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
     const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
-    pnnx_graph.save(pnnxparampath, pnnxbinpath);
+    if (pnnx_graph.save(pnnxparampath, pnnxbinpath) != 0)
+        return -1;
 
-    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
+    if (pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat) != 0)
+        return -1;
 
 #if BUILD_PNNX2ONNX
-    pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
+    bool has_caffe_operator = false;
+    for (const pnnx::Operator* op : pnnx_graph.ops)
+        if (op->type.compare(0, 6, "caffe.") == 0)
+            has_caffe_operator = true;
+    if (has_caffe_operator)
+        fprintf(stderr, "Caffe extension operators are not supported by ONNX export, skip saving onnx\n");
+    else if (pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16) != 0)
+    {
+        if (!model_file_maybe_caffeproto(ptpath))
+            return -1;
+        fprintf(stderr, "Optional Caffe ONNX export failed; %s may be incomplete. Continuing ncnn export.\n", pnnxonnxpath.c_str());
+    }
 #else
     fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
 #endif
@@ -536,9 +578,22 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        pnnx::pass_ncnn(pnnx_graph, module_operators);
+        pnnx::pass_ncnn(pnnx_graph, module_operators, model_file_maybe_caffeproto(ptpath));
 
-        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
+        if (model_file_maybe_caffeproto(ptpath))
+        {
+            for (const pnnx::Operator* op : pnnx_graph.ops)
+            {
+                if (op->type.find('.') != std::string::npos || op->type.find(':') != std::string::npos)
+                {
+                    fprintf(stderr, "Caffe layer %s (%s) cannot be lowered to ncnn\n", op->name.c_str(), op->type.c_str());
+                    return -1;
+                }
+            }
+        }
+
+        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+            return -1;
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
