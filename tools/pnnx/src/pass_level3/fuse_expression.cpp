@@ -4,6 +4,7 @@
 #include "fuse_expression.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "storezip.h"
 #include "utils.h"
@@ -248,8 +249,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
         else if (param.type == 10)
         {
-            char tmp[32];
-            snprintf(tmp, 32, "%e%+ej", param.c.real(), param.c.imag());
+            char tmp[64];
+            const int precision = std::numeric_limits<float>::max_digits10 - 1;
+            snprintf(tmp, sizeof(tmp), "%.*e%+.*ej", precision, param.c.real(), precision, param.c.imag());
             expr += tmp;
         }
         else
