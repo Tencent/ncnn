@@ -70,12 +70,13 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     }
 
     // partial sort topk with index
-    // optional value
+    // optional value; with abs the sort key (and the value reported by
+    // out_max_val) is the magnitude
     std::vector<std::pair<float, int> > vec;
     vec.resize(size);
     for (int i = 0; i < size; i++)
     {
-        vec[i] = std::make_pair(ptr[i], i);
+        vec[i] = std::make_pair(abs ? fabsf(ptr[i]) : ptr[i], i);
     }
 
     std::partial_sort(vec.begin(), vec.begin() + topk, vec.end(),
