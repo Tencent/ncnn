@@ -29,6 +29,13 @@ public:
     Pipeline* pipeline_softmax_exp_sub_max_pack4;
     Pipeline* pipeline_softmax_reduce_sum_pack4;
     Pipeline* pipeline_softmax_div_sum_pack4;
+
+    // subgroup
+    Pipeline* pipeline_softmax_reduce_max_subgroup;
+    Pipeline* pipeline_softmax_reduce_sum_subgroup;
+
+    Pipeline* pipeline_softmax_reduce_max_subgroup_pack4;
+    Pipeline* pipeline_softmax_reduce_sum_subgroup_pack4;
 };
 
 } // namespace ncnn
