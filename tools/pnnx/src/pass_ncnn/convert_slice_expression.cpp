@@ -204,6 +204,9 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
                         }
 
                         int bi = std::stoi(b);
+                        int a_rank = (int)ordered_references[input_index]->shape.size();
+                        if (bi < 0)
+                            bi += a_rank;
 
                         const int a_ncnn_batch_axis = ordered_references[input_index]->params["__ncnn_batch_axis"].i;
 
@@ -215,15 +218,11 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
                         }
                         else
                         {
-                            int a_rank = (int)ordered_references[input_index]->shape.size();
-
-                            if (bi < 0)
-                                bi = a_rank + bi;
-
-                            if (a_ncnn_batch_axis != 233 && bi > a_ncnn_batch_axis)
+                            if (a_ncnn_batch_axis != 233)
                             {
                                 a_rank -= 1;
-                                bi -= 1;
+                                if (bi > a_ncnn_batch_axis)
+                                    bi -= 1;
                             }
 
                             if (a_rank == 1 && bi == 0)
@@ -431,6 +430,26 @@ static void drop_expression_op(Graph& graph, const Operator* op_this, Operator* 
     }
 }
 
+static bool is_strided_slice_expression(const std::string& expr)
+{
+    const std::vector<std::string> tokens = split_into_tokens(expr);
+    if (tokens.empty())
+        return false;
+    for (const std::string& t : tokens)
+    {
+        if (t == "+" || t == "-" || t == "*" || t == "//" || t == "min" || t == "max" || t == "neg")
+            continue;
+        if (t.size() == 2 && token_is_ncnn_argument(t))
+            continue;
+        std::istringstream iss(t);
+        int value;
+        iss >> std::noskipws >> value;
+        if (!iss.eof() || iss.fail())
+            return false;
+    }
+    return true;
+}
+
 void convert_slice_expression_single_axis_ranged(Graph& graph)
 {
     int op_index = 0;
@@ -455,7 +474,12 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             if (!op->has_param("dim"))
                 continue;
 
-            const int dim = op->params.at("dim").i;
+            int dim = op->params.at("dim").i;
+            const int rank = op->inputs[0]->shape.size();
+            if (dim < 0)
+                dim += rank;
+            if (rank == 0 || dim < 0 || dim >= rank)
+                continue;
 
             int start = 0;
             int end = 0;
@@ -463,7 +487,6 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             int select = 0;
             Operator* op_start = 0;
             Operator* op_end = 0;
-            Operator* op_step = 0;
             Operator* op_select = 0;
 
             if (op->has_param("start"))
@@ -483,7 +506,7 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
             if (op->has_param("end"))
             {
-                end = op->params.at("end").i;
+                end = op->params.at("end").type == 0 ? INT_MAX : op->params.at("end").i;
             }
             else if (op->has_input("end"))
             {
@@ -496,20 +519,9 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
                 continue;
             }
 
-            if (op->has_param("step"))
-            {
-                step = op->params.at("step").i;
-            }
-            else if (op->has_input("step"))
-            {
-                op_step = op->named_input("step")->producer;
-                if (op_step->type != "pnnx.Expression")
-                    continue;
-            }
-            else
-            {
+            if (!op->has_param("step"))
                 continue;
-            }
+            step = op->params.at("step").i;
 
             if (op->has_param("select"))
             {
@@ -526,22 +538,24 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
             std::string start_expr = op_start ? op_start->params["expr"].s : std::to_string(start);
             std::string end_expr = op_end ? op_end->params["expr"].s : std::to_string(end);
-            std::string step_expr = op_step ? op_step->params["expr"].s : std::to_string(step);
             std::string select_expr = op_select ? op_select->params["expr"].s : std::to_string(select);
 
-            bool has_select = !op_step && step == 0;
+            if (step < 0 || (step == 0 && !op->has_param("select") && !op_select))
+            {
+                fprintf(stderr, "slice requires a static positive step\n");
+                continue;
+            }
+            bool has_select = step == 0;
             if (has_select)
             {
                 // simulate select as slice
                 start_expr = select_expr;
                 end_expr = std::string("add(") + select_expr + ",1)";
-                step_expr = "1";
             }
 
             // split into tokens
             std::vector<std::string> start_tokens = split_into_tokens(start_expr);
             std::vector<std::string> end_tokens = split_into_tokens(end_expr);
-            std::vector<std::string> step_tokens = split_into_tokens(step_expr);
 
             // collect inputs and references
             std::map<Operand*, int> references;
@@ -586,24 +600,6 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
                 t = "@" + std::to_string(references[r]);
             }
-            for (size_t i = 0; i < step_tokens.size(); i++)
-            {
-                std::string& t = step_tokens[i];
-
-                if (t[0] != '@')
-                    continue;
-
-                int input_index = std::stoi(t.substr(1));
-                Operand* r = op_step->inputs[input_index];
-
-                if (references.find(r) == references.end())
-                {
-                    references[r] = reference_index++;
-                }
-
-                // reuse the same reference
-                t = "@" + std::to_string(references[r]);
-            }
 
             std::vector<Operand*> ordered_references(references.size());
             for (auto x : references)
@@ -618,17 +614,18 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             if (ncnn_batch_axis != 233 && dim == ncnn_batch_axis)
             {
                 fprintf(stderr, "slice along batch axis %d is not supported\n", batch_index);
+                continue;
             }
+            if (step > 1 && rank - (ncnn_batch_axis != 233 ? 1 : 0) > 4)
+                continue;
 
             std::string starts_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
             std::string ends_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, ncnn_batch_axis);
-            std::string steps_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, ncnn_batch_axis);
-
-            if (steps_expr != std::to_string(1))
+            if (step > 1 && (!is_strided_slice_expression(starts_expr) || !is_strided_slice_expression(ends_expr)))
             {
-                fprintf(stderr, "slice with step expression %s is not supported\n", steps_expr.c_str());
+                fprintf(stderr, "strided slice requires integer shape boundary expressions\n");
+                continue;
             }
-
             std::vector<int> reshape_input_shape = op->outputs[0]->shape;
             std::map<std::string, Parameter> reshape_params;
             if (has_select)
@@ -643,13 +640,20 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
 
             matched = true;
 
-            op->type = "Crop";
+            op->type = step > 1 ? "StridedSlice" : "Crop";
             op->name = std::string("slice1_") + std::to_string(op_index++);
 
             op->params.clear();
             op->params["19"] = starts_expr;
             op->params["20"] = ends_expr;
             op->params["21"] = std::to_string(ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim);
+            if (step > 1)
+            {
+                op->params.erase("21");
+                op->params["11"] = std::vector<int> {ncnn_batch_axis != 233 && dim > ncnn_batch_axis ? dim - 1 : dim};
+                op->params["12"] = std::vector<int> {step};
+                op->params["1"] = !op_end && end == INT_MAX ? 1 : 0;
+            }
 
             // link references to reshape
             {
@@ -664,7 +668,6 @@ void convert_slice_expression_single_axis_ranged(Graph& graph)
             // drop expression
             drop_expression_op(graph, op, op_start);
             drop_expression_op(graph, op, op_end);
-            drop_expression_op(graph, op, op_step);
             drop_expression_op(graph, op, op_select);
 
             // reshape for output, squeezing the slice dim
@@ -1039,7 +1042,17 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
             if (!op->has_param("dims"))
                 continue;
 
-            const std::vector<int>& dims = op->params.at("dims").ai;
+            std::vector<int> dims = op->params.at("dims").ai;
+            const int rank = op->inputs[0]->shape.size();
+            bool invalid_axes = rank == 0;
+            for (int& axis : dims)
+            {
+                if (axis < 0)
+                    axis += rank;
+                invalid_axes |= axis < 0 || axis >= rank;
+            }
+            if (invalid_axes)
+                continue;
 
             std::vector<int> starts;
             std::vector<int> ends;
@@ -1047,7 +1060,6 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
             std::vector<int> selects;
             Operator* op_starts = 0;
             Operator* op_ends = 0;
-            Operator* op_steps = 0;
             Operator* op_selects = 0;
 
             if (op->has_param("starts"))
@@ -1080,20 +1092,9 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 continue;
             }
 
-            if (op->has_param("steps"))
-            {
-                steps = op->params.at("steps").ai;
-            }
-            else if (op->has_input("steps"))
-            {
-                op_steps = op->named_input("steps")->producer;
-                if (op_steps->type != "pnnx.SliceIndexes")
-                    continue;
-            }
-            else
-            {
+            if (!op->has_param("steps"))
                 continue;
-            }
+            steps = op->params.at("steps").ai;
 
             if (op->has_param("selects"))
             {
@@ -1110,11 +1111,22 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 continue;
             }
 
+            if (steps.size() != dims.size())
+                continue;
+            bool strided = false;
+            bool unsupported = false;
+            for (int step : steps)
+            {
+                strided |= step > 1;
+                unsupported |= step < 0;
+            }
+            if (unsupported)
+                continue;
+
             fprintf(stderr, "----------------------------convert_slice_expression_multi_axis_ranged\n");
 
             std::vector<std::string> starts_expr;
             std::vector<std::string> ends_expr;
-            std::vector<std::string> steps_expr;
             std::vector<std::string> selects_expr;
             if (op_starts)
             {
@@ -1136,17 +1148,6 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 for (int i : ends)
                 {
                     ends_expr.push_back(std::to_string(i));
-                }
-            }
-            if (op_steps)
-            {
-                steps_expr = op_steps->params["indexes"].as;
-            }
-            else
-            {
-                for (int i : steps)
-                {
-                    steps_expr.push_back(std::to_string(i));
                 }
             }
             if (op_selects)
@@ -1173,25 +1174,47 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
             std::vector<int> selected_axes;
             bool has_select = false;
 
+            if (starts_expr.size() != dims.size() || ends_expr.size() != dims.size() || selects_expr.size() != dims.size())
+                continue;
+
+            const int native_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
+            if (native_batch_axis >= 0 && native_batch_axis < rank && op->inputs[0]->shape[native_batch_axis] == 1)
+            {
+                for (int i = (int)dims.size() - 1; i >= 0; i--)
+                {
+                    if (dims[i] != native_batch_axis || starts_expr[i] != "0" || ends_expr[i] != "1" || steps[i] != 1 || selects_expr[i] != std::to_string(INT_MAX))
+                        continue;
+                    dims.erase(dims.begin() + i);
+                    starts_expr.erase(starts_expr.begin() + i);
+                    ends_expr.erase(ends_expr.begin() + i);
+                    selects_expr.erase(selects_expr.begin() + i);
+                    steps.erase(steps.begin() + i);
+                }
+            }
+            if (dims.empty())
+                continue;
             const size_t dims_count = dims.size();
 
             for (size_t i = 0; i < dims_count; i++)
             {
                 const std::string& start_expr = starts_expr[i];
                 const std::string& end_expr = ends_expr[i];
-                const std::string& step_expr = steps_expr[i];
                 const std::string& select_expr = selects_expr[i];
 
                 // split into tokens
                 std::vector<std::string> start_tokens = split_into_raw_tokens(start_expr);
                 std::vector<std::string> end_tokens = split_into_raw_tokens(end_expr);
-                std::vector<std::string> step_tokens = split_into_raw_tokens(step_expr);
                 std::vector<std::string> select_tokens = split_into_raw_tokens(select_expr);
 
                 bool is_select = true;
                 if (select_tokens.size() == 1 && select_tokens[0] == std::to_string(INT_MAX))
                 {
                     is_select = false;
+                    if (steps[i] == 0)
+                    {
+                        unsupported = true;
+                        break;
+                    }
                 }
 
                 if (is_select)
@@ -1223,13 +1246,11 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
                     start_tokens = select_tokens;
                     end_tokens.clear();
-                    step_tokens.clear();
                     end_tokens.push_back("add");
                     end_tokens.push_back("(");
                     for (auto t : select_tokens)
                     {
                         end_tokens.push_back(t);
-                        step_tokens.push_back("1");
                     }
                     end_tokens.push_back(",");
                     end_tokens.push_back("1");
@@ -1271,29 +1292,10 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
                         t = "@" + std::to_string(references[r]);
                     }
-                    for (size_t j = 0; j < step_tokens.size(); j++)
-                    {
-                        std::string& t = step_tokens[j];
-
-                        if (t[0] != '@')
-                            continue;
-
-                        int input_index = std::stoi(t.substr(1));
-                        Operand* r = op_steps->inputs[input_index];
-
-                        if (references.find(r) == references.end())
-                        {
-                            references[r] = reference_index++;
-                        }
-
-                        // reuse the same reference
-                        t = "@" + std::to_string(references[r]);
-                    }
                 }
 
                 std::string new_start_expr;
                 std::string new_end_expr;
-                std::string new_step_expr;
                 for (const std::string& t : start_tokens)
                 {
                     new_start_expr += t;
@@ -1302,13 +1304,8 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
                 {
                     new_end_expr += t;
                 }
-                for (const std::string& t : step_tokens)
-                {
-                    new_step_expr += t;
-                }
                 starts_expr[i] = new_start_expr;
                 ends_expr[i] = new_end_expr;
-                steps_expr[i] = new_step_expr;
             }
 
             std::vector<Operand*> ordered_references(references.size());
@@ -1324,47 +1321,54 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
             std::string new_starts_expr;
             std::string new_ends_expr;
-            std::string new_steps_expr;
             std::string new_dims_expr;
+            std::vector<int> runtime_axes;
+            int end_mask = 0;
+            if (strided && (has_select || rank - (ncnn_batch_axis != 233 ? 1 : 0) > 4))
+                continue;
 
             for (size_t i = 0; i < dims_count; i++)
             {
                 if (ncnn_batch_axis != 233 && dims[i] == ncnn_batch_axis)
                 {
                     fprintf(stderr, "slice along batch axis %d is not supported\n", batch_index);
+                    unsupported = true;
+                    break;
                 }
+                runtime_axes.push_back(ncnn_batch_axis != 233 && dims[i] > ncnn_batch_axis ? dims[i] - 1 : dims[i]);
+                if (ends_expr[i] == std::to_string(INT_MAX))
+                    end_mask |= 1 << i;
 
                 const std::string& start_expr = starts_expr[i];
                 const std::string& end_expr = ends_expr[i];
-                const std::string& step_expr = steps_expr[i];
 
                 // split into tokens
                 std::vector<std::string> start_tokens = split_into_tokens(start_expr);
                 std::vector<std::string> end_tokens = split_into_tokens(end_expr);
-                std::vector<std::string> step_tokens = split_into_tokens(step_expr);
 
                 std::string new_start_expr = transform_nchw_annotation_and_drop_batch_index(start_tokens, ordered_references, ncnn_batch_axis);
                 std::string new_end_expr = transform_nchw_annotation_and_drop_batch_index(end_tokens, ordered_references, ncnn_batch_axis);
-                std::string new_step_expr = transform_nchw_annotation_and_drop_batch_index(step_tokens, ordered_references, ncnn_batch_axis);
-
-                if (new_step_expr != std::to_string(1))
+                if (strided && (!is_strided_slice_expression(new_start_expr) || !is_strided_slice_expression(new_end_expr)))
                 {
-                    fprintf(stderr, "slice with step expression %s is not supported\n", new_step_expr.c_str());
+                    fprintf(stderr, "strided slice requires integer shape boundary expressions\n");
+                    unsupported = true;
+                    break;
                 }
 
                 new_starts_expr += new_start_expr;
                 new_ends_expr += new_end_expr;
-                new_steps_expr += new_step_expr;
                 new_dims_expr += std::to_string(ncnn_batch_axis != 233 && dims[i] > ncnn_batch_axis ? dims[i] - 1 : dims[i]);
 
                 if (i + 1 != dims_count)
                 {
                     new_starts_expr += ",";
                     new_ends_expr += ",";
-                    new_steps_expr += ",";
                     new_dims_expr += ",";
                 }
             }
+
+            if (unsupported)
+                continue;
 
             std::vector<int> reshape_input_shape = op->outputs[0]->shape;
             std::map<std::string, Parameter> reshape_params;
@@ -1383,13 +1387,20 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
 
             matched = true;
 
-            op->type = "Crop";
+            op->type = strided ? "StridedSlice" : "Crop";
             op->name = std::string("slice3_") + std::to_string(op_index++);
 
             op->params.clear();
             op->params["19"] = new_starts_expr;
             op->params["20"] = new_ends_expr;
             op->params["21"] = new_dims_expr;
+            if (strided)
+            {
+                op->params.erase("21");
+                op->params["11"] = runtime_axes;
+                op->params["12"] = steps;
+                op->params["1"] = end_mask;
+            }
 
             // link references to reshape
             {
@@ -1404,7 +1415,6 @@ void convert_slice_expression_multi_axis_ranged(Graph& graph)
             // drop expression
             drop_expression_op(graph, op, op_starts);
             drop_expression_op(graph, op, op_ends);
-            drop_expression_op(graph, op, op_steps);
             drop_expression_op(graph, op, op_selects);
 
             // reshape for output, squeezing the slice dim

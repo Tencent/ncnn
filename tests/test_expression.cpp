@@ -105,6 +105,7 @@ static int test_expression_1()
 
     return 0
            || test_eval_list_expression("+(trunc(*(0w,0.5)),-(0c,10)),floor(/(1h,0.5)),+(0c,1c),round(2.0)", blobs, 4, 84, 40, 48, 2)
+           || test_eval_list_expression("//(-3,2),//(3,-2),//(-3,-2),//(-4,2),//(3,2)", blobs, 5, -2, -2, 1, -2, 1)
            || test_eval_list_expression("//(0w,3),+(0w,1w),-(0h,1h),*(0c,1c)", blobs, 4, 33, 110, 180, 176)
            || test_eval_list_expression("floor(//(0w,2.99)),round(+(0w,1.01)),trunc(-(0h,1.9)),ceil(*(1d,2.99))", blobs, 4, 33, 101, 198, 6)
            || test_eval_list_expression("round(*(abs(asin(sin(0w))),10.11)),ceil(*(abs(acos(cos(+(0w,3)))),10.11))", blobs, 2, 5, 25)
@@ -145,6 +146,10 @@ static int test_expression_2()
     if (test_eval_list_expression("1c,#(0w,1)", blobs, 0) != -1)
         return -1;
     if (test_eval_list_expression("1c,+(qwq,1w)", blobs, 0) != -1)
+        return -1;
+    if (test_eval_list_expression("-(0w)", blobs, 0) != -1)
+        return -1;
+    if (test_eval_list_expression("neg()", blobs, 0) != -1)
         return -1;
 
     return 0;

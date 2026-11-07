@@ -102,6 +102,7 @@
 #include "layer/softmax.h"
 #include "layer/split.h"
 #include "layer/squeeze.h"
+#include "layer/stridedslice.h"
 #include "layer/threshold.h"
 #include "layer/tile.h"
 #include "layer/unaryop.h"
@@ -1382,6 +1383,32 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             {
                 if (op->axes_expr != op_default->axes_expr) fprintf(pp, " 21=\"%s\"", op->axes_expr.c_str());
+            }
+        }
+        else if (layer->type == "StridedSlice")
+        {
+            ncnn::StridedSlice* op = (ncnn::StridedSlice*)layer;
+            ncnn::StridedSlice* op_default = (ncnn::StridedSlice*)layer_default;
+
+            fprintf_param_value(" 0=%d", begin_mask)
+            fprintf_param_value(" 1=%d", end_mask)
+            {
+                if (!op->starts.empty()) fprintf_param_int_array(9, op->starts, pp);
+            }
+            {
+                if (!op->ends.empty()) fprintf_param_int_array(10, op->ends, pp);
+            }
+            {
+                if (!op->axes.empty()) fprintf_param_int_array(11, op->axes, pp);
+            }
+            {
+                if (!op->steps.empty()) fprintf_param_int_array(12, op->steps, pp);
+            }
+            {
+                if (op->starts_expr != op_default->starts_expr) fprintf(pp, " 19=\"%s\"", op->starts_expr.c_str());
+            }
+            {
+                if (op->ends_expr != op_default->ends_expr) fprintf(pp, " 20=\"%s\"", op->ends_expr.c_str());
             }
         }
         else if (layer->type == "CumulativeSum")
