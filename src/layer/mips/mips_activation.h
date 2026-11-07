@@ -8,7 +8,6 @@
 #include "mat.h"
 
 #if __mips_msa
-#include <msa.h>
 #include "mips_usability.h"
 #include "msa_mathfun.h"
 
