@@ -16,6 +16,8 @@
 #include <vector>
 #include <cstdint>
 
+#include "../fileio.h"
+
 #define OUTPUT_LAYER_MAP 0 //enable this to generate darknet style layer output
 
 void file_error(const char* s)
@@ -927,7 +929,12 @@ int main(int argc, char** argv)
 
         if (s->name == "convolutional")
         {
-            fseek(bp, 4, SEEK_CUR);
+            if (ncnn_file_seek(bp, 4, SEEK_CUR) != 0)
+            {
+                fclose(bp);
+                fclose(pp);
+                return -1;
+            }
             if (s->weights.size() > 0)
                 fwrite(&s->weights[0], sizeof(float), s->weights.size(), bp);
             if (s->scales.size() > 0)

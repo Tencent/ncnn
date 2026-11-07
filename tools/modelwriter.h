@@ -14,6 +14,7 @@
 
 // ncnn public header
 #include "datareader.h"
+#include "fileio.h"
 #include "layer.h"
 #include "layer_type.h"
 #include "net.h"
@@ -689,7 +690,9 @@ static void fwrite_weight_data_little_endian(ncnn::Mat& data, FILE* bp)
 
 int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
-    int p0 = ftell(bp);
+    const int64_t p0 = ncnn_file_tell(bp);
+    if (p0 < 0)
+        return -1;
 
     const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
     if (data_size > (size_t)INT_MAX)
@@ -746,7 +749,10 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
     }
 
     // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
+    const int64_t p1 = ncnn_file_tell(bp);
+    if (p1 < p0)
+        return -1;
+    const size_t nwrite = (size_t)(p1 - p0);
     size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
@@ -761,7 +767,9 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, bool ra
 
 int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
-    int p0 = ftell(bp);
+    const int64_t p0 = ncnn_file_tell(bp);
+    if (p0 < 0)
+        return -1;
 
     const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
     if (data_size > (size_t)INT_MAX)
@@ -782,7 +790,10 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
     fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
 
     // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
+    const int64_t p1 = ncnn_file_tell(bp);
+    if (p1 < p0)
+        return -1;
+    const size_t nwrite = (size_t)(p1 - p0);
     size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);

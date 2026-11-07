@@ -5,6 +5,8 @@
 #include <string.h>
 #include <string>
 
+#include "fileio.h"
+
 static int copy_param(const char* parampath, FILE* outparamfp, int* total_layer_count, int* total_blob_count)
 {
     // resolve model namespace from XYZ.param
@@ -110,25 +112,31 @@ static int copy_bin(const char* binpath, FILE* outbinfp)
         return -1;
     }
 
-    fseek(fp, 0, SEEK_END);
-    int len = (int)ftell(fp);
-    rewind(fp);
+    if (ncnn_file_seek(fp, 0, SEEK_END) != 0)
+    {
+        fclose(fp);
+        return -1;
+    }
+    const int64_t len = ncnn_file_tell(fp);
+    if (len < 0 || ncnn_file_seek(fp, 0, SEEK_SET) != 0)
+    {
+        fclose(fp);
+        return -1;
+    }
 
     char buffer[4096];
-    int i = 0;
-    for (; i + 4095 < len;)
+    int64_t copied = 0;
+    while (copied < len)
     {
-        size_t nread = fread(buffer, 1, 4096, fp);
+        const size_t want = (size_t)((len - copied) < (int64_t)sizeof(buffer) ? (len - copied) : sizeof(buffer));
+        size_t nread = fread(buffer, 1, want, fp);
         size_t nwrite = fwrite(buffer, 1, nread, outbinfp);
-        i += (int)nwrite;
-    }
-    {
-        size_t nread = fread(buffer, 1, len - i, fp);
-        size_t nwrite = fwrite(buffer, 1, nread, outbinfp);
-        i += (int)nwrite;
+        copied += (int64_t)nwrite;
+        if (nread == 0 || nwrite != nread)
+            break;
     }
 
-    if (i != len)
+    if (copied != len)
     {
         fprintf(stderr, "copy %s incomplete\n", binpath);
     }
