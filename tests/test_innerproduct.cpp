@@ -12,7 +12,7 @@ static int test_innerproduct(const ncnn::Mat& a, int outch, int bias)
     pd.set(1, bias);  // bias_term
     pd.set(2, outch * a.w * a.h * a.d * a.c);
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
@@ -96,7 +96,7 @@ static int test_innerproduct_int8(const ncnn::Mat& a, int outch, int bias, bool 
     pd.set(2, outch * a.w * a.h * a.d * a.c);
     pd.set(8, 1); // int8_scale_term
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
@@ -196,7 +196,7 @@ static int test_innerproduct_gemm(const ncnn::Mat& a, int outch, int bias, int f
     pd.set(1, bias);
     pd.set(2, outch * a.w);
 
-    int activation_type = RAND() % 7;
+    int activation_type = RAND() % 11;
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);

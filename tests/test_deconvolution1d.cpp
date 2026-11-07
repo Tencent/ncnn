@@ -25,7 +25,7 @@ static int test_deconvolution1d(int w, int h, int outh, int kernel, int dilation
     pd.set(5, bias);
     pd.set(6, outh * h * kernel);
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);  // beta
@@ -112,7 +112,7 @@ static int test_deconvolution1d_dynamic(int w, int h, int outh, int kernel, int 
     pd.set(6, 0);
     pd.set(28, 1); // dynamic weight
 
-    int activation_type = RAND() % 5; // 0 1 2 3 4
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);  // beta

@@ -21,7 +21,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     pd.set(6, outh / group * h / group * kernel * kernel * group);
     pd.set(7, group);
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
@@ -132,7 +132,7 @@ static int test_convolutiondepthwise1d_dynamic(int w, int h, int outh, int kerne
     pd.set(7, group);
     pd.set(19, 1); // dynamic weight
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta

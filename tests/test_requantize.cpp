@@ -412,7 +412,21 @@ static int test_requantize_load_param()
               || test_requantize_load_param_activation(base, 6, ncnn::Mat(0), -1)
               || test_requantize_load_param_activation(base, 6, params, 0)
               || test_requantize_load_param_activation(base, 6, params.range(0, 1), -1)
-              || test_requantize_load_param_activation(base, 7, ncnn::Mat(), -1);
+              || test_requantize_load_param_activation(base, 7, ncnn::Mat(), -1)
+              || test_requantize_load_param_activation(base, 7, ncnn::Mat(0), -1)
+              || test_requantize_load_param_activation(base, 7, params, 0)
+              || test_requantize_load_param_activation(base, 7, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 8, ncnn::Mat(), 0)
+              || test_requantize_load_param_activation(base, 8, ncnn::Mat(0), 0)
+              || test_requantize_load_param_activation(base, 8, params, 0)
+              || test_requantize_load_param_activation(base, 9, ncnn::Mat(), -1)
+              || test_requantize_load_param_activation(base, 9, ncnn::Mat(0), -1)
+              || test_requantize_load_param_activation(base, 9, params, 0)
+              || test_requantize_load_param_activation(base, 9, params.range(0, 1), 0)
+              || test_requantize_load_param_activation(base, 10, ncnn::Mat(), -1)
+              || test_requantize_load_param_activation(base, 10, ncnn::Mat(0), -1)
+              || test_requantize_load_param_activation(base, 10, params, 0)
+              || test_requantize_load_param_activation(base, 10, params.range(0, 1), -1);
     if (ret != 0)
         return ret;
 

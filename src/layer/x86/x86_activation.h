@@ -66,6 +66,31 @@ static NCNN_FORCEINLINE __m128 elu_sse(__m128 inputs, __m128 alphas)
     return _mm_comp_fmadd_ps(alphas, neg, pos);
 }
 
+static NCNN_FORCEINLINE __m128 gelu_sse(__m128 inputs, int fast_gelu)
+{
+    const __m128 _half = _mm_set1_ps(0.5f);
+    const __m128 _one = _mm_set1_ps(1.f);
+    const __m128 _inv_sqrt2 = _mm_set1_ps(0.70710678f);
+
+    if (fast_gelu)
+    {
+        const __m128 _fast1c = _mm_set1_ps(0.79788452f);
+        const __m128 _fast2c = _mm_set1_ps(0.044715f);
+        __m128 _cube = _mm_mul_ps(inputs, inputs);
+        _cube = _mm_mul_ps(inputs, _cube);
+        __m128 _blob = _mm_mul_ps(_fast2c, _cube);
+        _blob = _mm_add_ps(inputs, _blob);
+        _blob = _mm_mul_ps(_fast1c, _blob);
+        _blob = tanh_ps(_blob);
+        _blob = _mm_add_ps(_one, _blob);
+        return _mm_mul_ps(_half, _mm_mul_ps(_blob, inputs));
+    }
+
+    __m128 _erf = erf_ps(_mm_mul_ps(inputs, _inv_sqrt2));
+    __m128 _blob = _mm_add_ps(_one, _erf);
+    return _mm_mul_ps(_half, _mm_mul_ps(_blob, inputs));
+}
+
 static NCNN_FORCEINLINE __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
@@ -102,6 +127,29 @@ static NCNN_FORCEINLINE __m128 activation_sse(__m128 _v, int activation_type, co
         __m128 _a = _mm_set1_ps(activation_params[0]);
         __m128 _b = _mm_set1_ps(activation_params[1]);
         return hardswish_sse(_v, _a, _b);
+    }
+    case 7:
+    {
+        // Gelu
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_sse(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // Swish
+        return swish_sse(_v);
+    }
+    case 9:
+    {
+        // Elu
+        return elu_sse(_v, _mm_set1_ps(activation_params[0]));
+    }
+    case 10:
+    {
+        // Selu
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        return _mm_mul_ps(_mm_set1_ps(lambda), elu_sse(_v, _mm_set1_ps(alpha)));
     }
     }
 
@@ -170,6 +218,31 @@ static NCNN_FORCEINLINE __m256 elu_avx(__m256 inputs, __m256 alphas)
     return _mm256_comp_fmadd_ps(alphas, neg, pos);
 }
 
+static NCNN_FORCEINLINE __m256 gelu_avx(__m256 inputs, int fast_gelu)
+{
+    const __m256 _half = _mm256_set1_ps(0.5f);
+    const __m256 _one = _mm256_set1_ps(1.f);
+    const __m256 _inv_sqrt2 = _mm256_set1_ps(0.70710678f);
+
+    if (fast_gelu)
+    {
+        const __m256 _fast1c = _mm256_set1_ps(0.79788452f);
+        const __m256 _fast2c = _mm256_set1_ps(0.044715f);
+        __m256 _cube = _mm256_mul_ps(inputs, inputs);
+        _cube = _mm256_mul_ps(inputs, _cube);
+        __m256 _blob = _mm256_mul_ps(_fast2c, _cube);
+        _blob = _mm256_add_ps(inputs, _blob);
+        _blob = _mm256_mul_ps(_fast1c, _blob);
+        _blob = tanh256_ps(_blob);
+        _blob = _mm256_add_ps(_one, _blob);
+        return _mm256_mul_ps(_half, _mm256_mul_ps(_blob, inputs));
+    }
+
+    __m256 _erf = erf256_ps(_mm256_mul_ps(inputs, _inv_sqrt2));
+    __m256 _blob = _mm256_add_ps(_one, _erf);
+    return _mm256_mul_ps(_half, _mm256_mul_ps(_blob, inputs));
+}
+
 static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
@@ -206,6 +279,29 @@ static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, co
         __m256 _a = _mm256_set1_ps(activation_params[0]);
         __m256 _b = _mm256_set1_ps(activation_params[1]);
         return hardswish_avx(_v, _a, _b);
+    }
+    case 7:
+    {
+        // Gelu
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_avx(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // Swish
+        return swish_avx(_v);
+    }
+    case 9:
+    {
+        // Elu
+        return elu_avx(_v, _mm256_set1_ps(activation_params[0]));
+    }
+    case 10:
+    {
+        // Selu
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        return _mm256_mul_ps(_mm256_set1_ps(lambda), elu_avx(_v, _mm256_set1_ps(alpha)));
     }
     }
 
@@ -261,6 +357,31 @@ static NCNN_FORCEINLINE __m512 elu_avx512(__m512 inputs, __m512 alphas)
     return _mm512_fmadd_ps(alphas, neg, pos);
 }
 
+static NCNN_FORCEINLINE __m512 gelu_avx512(__m512 inputs, int fast_gelu)
+{
+    const __m512 _half = _mm512_set1_ps(0.5f);
+    const __m512 _one = _mm512_set1_ps(1.f);
+    const __m512 _inv_sqrt2 = _mm512_set1_ps(0.70710678f);
+
+    if (fast_gelu)
+    {
+        const __m512 _fast1c = _mm512_set1_ps(0.79788452f);
+        const __m512 _fast2c = _mm512_set1_ps(0.044715f);
+        __m512 _cube = _mm512_mul_ps(inputs, inputs);
+        _cube = _mm512_mul_ps(inputs, _cube);
+        __m512 _blob = _mm512_mul_ps(_fast2c, _cube);
+        _blob = _mm512_add_ps(inputs, _blob);
+        _blob = _mm512_mul_ps(_fast1c, _blob);
+        _blob = tanh512_ps(_blob);
+        _blob = _mm512_add_ps(_one, _blob);
+        return _mm512_mul_ps(_half, _mm512_mul_ps(_blob, inputs));
+    }
+
+    __m512 _erf = erf512_ps(_mm512_mul_ps(inputs, _inv_sqrt2));
+    __m512 _blob = _mm512_add_ps(_one, _erf);
+    return _mm512_mul_ps(_half, _mm512_mul_ps(_blob, inputs));
+}
+
 static NCNN_FORCEINLINE __m512 prelu_avx512(__m512 inputs, __m512 alphas)
 {
     __m512 pos = _mm512_max_ps(_mm512_setzero_ps(), inputs);
@@ -304,6 +425,29 @@ static NCNN_FORCEINLINE __m512 activation_avx512(__m512 _v, int activation_type,
         __m512 _a = _mm512_set1_ps(activation_params[0]);
         __m512 _b = _mm512_set1_ps(activation_params[1]);
         return hardswish_avx512(_v, _a, _b);
+    }
+    case 7:
+    {
+        // Gelu
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_avx512(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // Swish
+        return swish_avx512(_v);
+    }
+    case 9:
+    {
+        // Elu
+        return elu_avx512(_v, _mm512_set1_ps(activation_params[0]));
+    }
+    case 10:
+    {
+        // Selu
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        return _mm512_mul_ps(_mm512_set1_ps(lambda), elu_avx512(_v, _mm512_set1_ps(alpha)));
     }
     }
 

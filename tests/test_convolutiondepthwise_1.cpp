@@ -103,7 +103,7 @@ static int test_convolutiondepthwise_dynamic_activation_tails()
     for (int i = 0; i < 2; i++)
     {
         const int* c = channels[i];
-        for (int activation = 0; activation < 7; activation++)
+        for (int activation = 0; activation < 11; activation++)
         {
             if (test_convolutiondepthwise_dynamic(112, 2, c[0], c[1], 2, 1, 1, 0, c[2], c[3], activation) != 0)
                 return -1;
@@ -366,7 +366,7 @@ static int test_convolutiondepthwise_1()
             if (test_convolutiondepthwise_int8(10, 8, ch[0], ch[1], 2, 1, 1, 0, 0, ch[2], requant != 0, 0, false, 0)
                     || test_convolutiondepthwise_int8(10, 8, ch[0], ch[1], 2, 1, 1, 0, 1, ch[2], requant != 0, 0, false, 0))
                 return -1;
-            for (int act = 1; act < 7; act++)
+            for (int act = 1; act < 11; act++)
             {
                 if (test_convolutiondepthwise_int8(10, 8, ch[0], ch[1], 2, 1, 1, 0, activation_bias[i][act - 1], ch[2], requant != 0, 0, false, act) != 0)
                     return -1;
@@ -579,7 +579,7 @@ static int test_convolutiondepthwise_dynamic_scalar_pack4_activation_tails()
     for (int i = 0; i < 2; i++)
     {
         const int* c = channels[i];
-        for (int activation = 0; activation < 7; activation++)
+        for (int activation = 0; activation < 11; activation++)
         {
             if (test_convolutiondepthwise_dynamic(112, 2, c[0], c[1], 2, 1, 1, 0, c[2], c[3], activation) != 0)
                 return -1;

@@ -38,12 +38,9 @@ int HardSwish::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i = 0; i < size; i++)
         {
-            if (ptr[i] < lower)
-                ptr[i] = 0.f;
-            else if (ptr[i] > upper)
-                ;
-            else
-                ptr[i] = ptr[i] * (ptr[i] * alpha + beta);
+            // keep this identical to the vectorized hardswish helpers and the vulkan shader,
+            // the lower/upper form diverges from them when alpha <= 0
+            ptr[i] = ptr[i] * std::min(std::max(ptr[i] * alpha + beta, 0.f), 1.f);
         }
     }
 
