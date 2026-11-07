@@ -1285,6 +1285,12 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 {
     //     NCNN_LOGE("record_pipeline %p", pipeline);
 
+    if (!pipeline->pipeline())
+    {
+        NCNN_LOGE("record_pipeline skipped, pipeline was not created");
+        return;
+    }
+
     const int buffer_binding_count = (int)buffer_bindings.size();
     const int image_binding_count = (int)image_bindings.size();
     const int constant_count = (int)constants.size();
