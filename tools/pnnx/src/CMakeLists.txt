@@ -708,6 +708,7 @@ if(onnxruntime_FOUND)
         pass_onnx/dead_code_elimination.cpp
         pass_onnx/eliminate_initializer_input.cpp
         pass_onnx/eliminate_noop.cpp
+        pass_onnx/eliminate_sequences.cpp
         pass_onnx/fold_constants.cpp
         pass_onnx/inline_containers.cpp
         pass_onnx/inline_if_graph.cpp
