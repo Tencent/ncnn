@@ -1,6 +1,7 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import platform
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,6 +16,11 @@ class Model(nn.Module):
         if version.parse(torch.__version__) >= version.parse('1.11'):
             self.up_recompute = nn.Upsample(scale_factor=1.5, mode='bilinear', align_corners=False, recompute_scale_factor=True)
             self.up_recompute_nearest = nn.Upsample(scale_factor=(1.5, 0.8), mode='nearest', recompute_scale_factor=True)
+            self.up_exact_1d = nn.Upsample(size=3, mode='nearest-exact')
+            self.up_exact_2d = nn.Upsample(scale_factor=(1.14, 2.3), mode='nearest-exact')
+            self.up_exact_recompute = nn.Upsample(scale_factor=(1.3, 0.7), mode='nearest-exact', recompute_scale_factor=True)
+            self.up_exact_near_one = nn.Upsample(scale_factor=0.99999999, mode='nearest-exact')
+            self.up_exact_near_one_2d = nn.Upsample(scale_factor=(1.0, 0.99999999), mode='nearest-exact')
 
     def forward(self, x, y, z):
         outputs = [
@@ -49,14 +55,37 @@ class Model(nn.Module):
         if self.up_recompute is not None:
             outputs.append(self.up_recompute(y))
             outputs.append(self.up_recompute_nearest(y))
+        if version.parse(torch.__version__) >= version.parse('1.11') and platform.machine().lower() in ['x86_64', 'amd64', 'i386', 'i686']:
+            outputs += [self.up_exact_1d(x), self.up_exact_2d(y), self.up_exact_recompute(y)]
+            outputs += [self.up_exact_near_one(x), self.up_exact_near_one_2d(y)]
+            outputs.append(F.interpolate(y, scale_factor=(0.99999999, 1.0), mode='nearest-exact'))
+            for data in [x, y, z]:
+                outputs += [
+                    F.interpolate(data, size=1, mode='nearest-exact'),
+                    F.interpolate(data, size=3, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.0, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=0.99999999, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.5, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.1, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.7, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=2.3, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=2.3000000000000003, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.14, mode='nearest-exact'),
+                    F.interpolate(data, scale_factor=1.5, mode='nearest-exact', recompute_scale_factor=True),
+                ]
+            for recompute in [False, True]:
+                outputs += [
+                    F.interpolate(x, scale_factor=0.7, mode='nearest-exact', recompute_scale_factor=recompute),
+                    F.interpolate(y, scale_factor=(1.3, 0.7), mode='nearest-exact', recompute_scale_factor=recompute),
+                ]
         return tuple(outputs)
 
 def test():
     net = Model()
     net.eval()
     torch.manual_seed(0)
-    inputs = (torch.rand(1, 3, 7), torch.rand(1, 3, 7, 7), torch.rand(1, 3, 2, 3))
-    inputs2 = (torch.rand(1, 3, 9), torch.rand(1, 3, 9, 11), torch.rand(1, 3, 3, 2))
+    inputs = (torch.rand(1, 3, 101), torch.rand(1, 3, 50, 50), torch.rand(1, 3, 2, 3))
+    inputs2 = (torch.rand(1, 3, 103), torch.rand(1, 3, 51, 53), torch.rand(1, 3, 3, 2))
 
     mod = torch.jit.trace(net, inputs)
 
@@ -65,11 +94,14 @@ def test():
         name = 'test_F_interpolate_scale_factor_dynamic' if dynamic else 'test_F_interpolate_scale_factor_static'
         mod.save(name + '.pt')
 
-        command = '../../src/pnnx ' + name + '.pt inputshape=[1,3,7],[1,3,7,7],[1,3,2,3]'
+        command = '../../src/pnnx ' + name + '.pt inputshape=[1,3,101],[1,3,50,50],[1,3,2,3]'
         if dynamic:
-            command += ' inputshape2=[1,3,9],[1,3,9,11],[1,3,3,2]'
+            command += ' inputshape2=[1,3,103],[1,3,51,53],[1,3,3,2]'
         if os.system(command) != 0:
             return False
+
+        import runpy
+        restored = runpy.run_path(name + '_pnnx.py')['Model']().eval()
 
         import ncnn
         import numpy as np
@@ -87,6 +119,10 @@ def test():
             # run both shapes through the same dynamic model
             for data in [inputs, inputs2] if dynamic else [inputs]:
                 a = net(*data)
+                p = restored(*data)
+                if len(a) != len(p) or any(a0.shape != p0.shape or not torch.allclose(a0, p0, 1e-4, 1e-4) for a0, p0 in zip(a, p)):
+                    print('pnnx regeneration mismatch', dynamic)
+                    return False
                 with converted.create_extractor() as ex:
                     for i, x in enumerate(data):
                         if ex.input('in%d' % i, ncnn.Mat(x.squeeze(0).numpy()).clone()) != 0:

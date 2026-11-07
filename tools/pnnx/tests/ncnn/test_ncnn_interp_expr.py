@@ -1,6 +1,7 @@
 # Copyright 2025 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import platform
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -23,7 +24,15 @@ class Model(nn.Module):
         out8 = F.interpolate(qz, size=(qy.size(1)*2,qy.size(1)*4), mode='bilinear', align_corners=True)
         out9 = F.interpolate(qz, size=(qy.size(3),qy.size(2)), mode='bicubic', align_corners=False)
 
-        return out0, out1, out2, out3, out4, out5, out6, out7, out8, out9
+        outputs = (out0, out1, out2, out3, out4, out5, out6, out7, out8, out9)
+        if version.parse(torch.__version__) >= version.parse('1.11') and platform.machine().lower() in ['x86_64', 'amd64', 'i386', 'i686']:
+            outputs += (
+                F.interpolate(x, size=(x.size(2)//6), mode='nearest-exact'),
+                F.interpolate(y, size=(z.size(3)+2,z.size(2)-2), mode='nearest-exact'),
+                F.interpolate(qx, size=(qx.size(2)//6), mode='nearest-exact'),
+                F.interpolate(qy, size=(qz.size(3)+2,qz.size(2)-2), mode='nearest-exact'),
+            )
+        return outputs
 
 def test():
     net = Model().half().float()

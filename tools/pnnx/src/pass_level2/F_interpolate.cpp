@@ -650,6 +650,85 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_7, 110)
 
+class F_interpolate_nearest_exact1d_recompute : public F_interpolate
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+15 14
+pnnx.Input              input       0 1 input
+Tensor.size             op_0        1 1 input 6 dim=2
+prim::NumToTensor       op_1        1 1 6 7
+Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+prim::Constant          op_3        0 1 scale value=%scale
+Tensor.to               op_4        1 1 scale 20 copy=False dtype=torch.float
+aten::detach            op_5        1 1 20 23
+aten::mul               op_6        2 1 13 23 24
+Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+aten::floor             op_8        1 1 28 31
+aten::Int               op_9        1 1 31 33
+prim::ListConstruct     op_10       1 1 33 size
+prim::Constant          op_11       0 1 scale_factor value=None
+aten::_upsample_nearest_exact1d op_12 3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_interpolate::write(op, captured_params);
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact1d_recompute, 110)
+
+class F_interpolate_nearest_exact2d_recompute : public F_interpolate_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+26 25
+pnnx.Input              input       0 1 input
+Tensor.size             op_0        1 1 input 6 dim=2
+prim::NumToTensor       op_1        1 1 6 7
+Tensor.to               op_2        1 1 7 13 copy=False dtype=torch.float
+prim::Constant          op_3        0 1 scale_h value=%scale_h
+Tensor.to               op_4        1 1 scale_h 20 copy=False dtype=torch.float
+aten::detach            op_5        1 1 20 23
+aten::mul               op_6        2 1 13 23 24
+Tensor.to               op_7        1 1 24 28 copy=False dtype=torch.float
+aten::floor             op_8        1 1 28 30
+aten::Int               op_9        1 1 30 32
+Tensor.size             op_10       1 1 input 35 dim=3
+prim::NumToTensor       op_11       1 1 35 36
+Tensor.to               op_12       1 1 36 41 copy=False dtype=torch.float
+prim::Constant          op_13       0 1 scale_w value=%scale_w
+Tensor.to               op_14       1 1 scale_w 48 copy=False dtype=torch.float
+aten::detach            op_15       1 1 48 51
+aten::mul               op_16       2 1 41 51 52
+Tensor.to               op_17       1 1 52 56 copy=False dtype=torch.float
+aten::floor             op_18       1 1 56 60
+aten::Int               op_19       1 1 60 62
+prim::ListConstruct     op_20       2 1 32 62 size
+prim::Constant          op_21       0 1 scale_h_none value=None
+prim::Constant          op_22       0 1 scale_w_none value=None
+aten::_upsample_nearest_exact2d op_23 4 1 input size scale_h_none scale_w_none out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        F_interpolate_2::write(op, captured_params);
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact2d_recompute, 110)
+
 class F_interpolate_nearest_exact1d : public GraphRewriterPass
 {
 public:
@@ -670,11 +749,14 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         op->params["scale_factor"] = captured_params.at("scale_factor");
         op->params["mode"] = "nearest-exact";
         op->params["recompute_scale_factor"] = false;
+        auto it = captured_attrs.find("op_2.scale_factor");
+        if (it != captured_attrs.end())
+            op->attrs["scale_factor"] = it->second;
     }
 };
 
@@ -704,7 +786,6 @@ pnnx.Output             output      1 0 out
     {
         op->params["size"] = captured_params.at("size");
         op->params["mode"] = "nearest-exact";
-        op->params["recompute_scale_factor"] = false;
     }
 };
 
@@ -746,6 +827,53 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact2d_1, 110)
+
+class F_interpolate_nearest_exact1d_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 scale_factor value=None
+aten::_upsample_nearest_exact1d op_1 3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["mode"] = "nearest-exact";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact1d_2, 111)
+
+class F_interpolate_nearest_exact2d_2 : public F_interpolate_nearest_exact1d_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 size
+prim::Constant          op_0        0 1 scale_factor_h value=None
+prim::Constant          op_1        0 1 scale_factor_w value=None
+aten::_upsample_nearest_exact2d op_2 4 1 input size scale_factor_h scale_factor_w out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact2d_2, 111)
 
 class F_interpolate_nearest_exact3d : public F_interpolate_nearest_exact1d
 {

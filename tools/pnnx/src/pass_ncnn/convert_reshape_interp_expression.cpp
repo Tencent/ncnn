@@ -476,6 +476,8 @@ void convert_reshape_interp_expression(Graph& graph)
 
                 if (mode == "nearest")
                     op->params["0"] = 1;
+                if (mode == "nearest-exact")
+                    op->params["0"] = 4;
                 if (mode == "bilinear" || mode == "linear")
                     op->params["0"] = 2;
                 if (mode == "bicubic")

@@ -93,9 +93,9 @@ static void interp_fp32(const Mat& bottom_blob, Mat& top_blob, int resize_type, 
 
     if (dims == 2)
     {
-        if (resize_type == 1) // nearest
+        if (resize_type == 1 || resize_type == 4) // nearest
         {
-            const float ws = (output_width || has_output_size) ? w / (float)outw : 1.f / width_scale;
+            const float ws = resize_type == 4 ? width_scale : ((output_width || has_output_size) ? w / (float)outw : 1.f / width_scale);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -104,7 +104,7 @@ static void interp_fp32(const Mat& bottom_blob, Mat& top_blob, int resize_type, 
                 float* outptr = top_blob.row(y);
                 for (int x = 0; x < outw; x++)
                 {
-                    int in_x = std::min((int)(x * ws), (w - 1));
+                    int in_x = std::min((int)((resize_type == 4 ? x + 0.5f : x) * ws), (w - 1));
                     const float* Sp = ptr + in_x * elempack;
 
                     int ep = 0;
@@ -322,10 +322,10 @@ static void interp_fp32(const Mat& bottom_blob, Mat& top_blob, int resize_type, 
         return;
     }
 
-    if (resize_type == 1) // nearest
+    if (resize_type == 1 || resize_type == 4) // nearest
     {
-        const float hs = (output_height || has_output_size) ? h / (float)outh : 1.f / height_scale;
-        const float ws = (output_width || has_output_size) ? w / (float)outw : 1.f / width_scale;
+        const float hs = resize_type == 4 ? height_scale : ((output_height || has_output_size) ? h / (float)outh : 1.f / height_scale);
+        const float ws = resize_type == 4 ? width_scale : ((output_width || has_output_size) ? w / (float)outw : 1.f / width_scale);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -335,13 +335,13 @@ static void interp_fp32(const Mat& bottom_blob, Mat& top_blob, int resize_type, 
 
             for (int y = 0; y < outh; y++)
             {
-                int in_y = std::min((int)(y * hs), (h - 1));
+                int in_y = std::min((int)((resize_type == 4 ? y + 0.5f : y) * hs), (h - 1));
 
                 const float* ptr = src.row(in_y);
                 float* outptr = dst.row(y);
                 for (int x = 0; x < outw; x++)
                 {
-                    int in_x = std::min((int)(x * ws), (w - 1));
+                    int in_x = std::min((int)((resize_type == 4 ? x + 0.5f : x) * ws), (w - 1));
                     const float* Sp = ptr + in_x * elempack;
 
                     memcpy(outptr, Sp, elempack * sizeof(float));
