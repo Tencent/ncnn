@@ -190,7 +190,7 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
 
             exprstack.push(size);
         }
-        else if (t == "+" || t == "-" || t == "*" || t == "//" || t == "max" || t == "min")
+        else if (t == "+" || t == "-" || t == "*" || t == "//" || t == "trunc_divide" || t == "max" || t == "min")
         {
             typed_value ta = exprstack.top();
             exprstack.pop();
@@ -215,7 +215,7 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                 {
                     r = a * b;
                 }
-                else if (t == "//")
+                else if (t == "//" || t == "trunc_divide")
                 {
                     if (b == 0)
                     {
@@ -258,6 +258,10 @@ int eval_list_expression(const std::string& expr, const std::vector<Mat>& blobs,
                 else if (t == "//")
                 {
                     r = floorf(a / b);
+                }
+                else if (t == "trunc_divide")
+                {
+                    r = truncf(a / b);
                 }
                 else if (t == "max")
                 {

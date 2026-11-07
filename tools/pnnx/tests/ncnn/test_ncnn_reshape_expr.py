@@ -97,8 +97,41 @@ def test():
 
     return True
 
+class TruncDivideShapeModel(nn.Module):
+    def forward(self, x):
+        width = torch.div(x.size(1) + 16777219, 2, rounding_mode='trunc') - 8388608
+        return x.reshape(x.size(0), -1, width)
+
+def test_trunc_divide():
+    net = TruncDivideShapeModel().eval()
+    x0 = torch.arange(24, dtype=torch.float32).reshape(1, 4, 6)
+    x1 = torch.arange(12, dtype=torch.float32).reshape(1, 2, 6)
+    if version.parse(torch.__version__) < version.parse('2.0'):
+        mod = torch.jit.trace(net, x0)
+    else:
+        mod = torch.jit.trace(net, x0, _store_inputs=False)
+    mod.save("test_ncnn_reshape_trunc_divide.pt")
+
+    import os
+    os.system("../../src/pnnx test_ncnn_reshape_trunc_divide.pt inputshape=[1,4,6] inputshape2=[1,2,6]")
+
+    import numpy as np
+    import ncnn
+    with ncnn.Net() as model:
+        if model.load_param("test_ncnn_reshape_trunc_divide.ncnn.param") != 0:
+            return False
+        if model.load_model("test_ncnn_reshape_trunc_divide.ncnn.bin") != 0:
+            return False
+        for x in (x0, x1):
+            with model.create_extractor() as ex:
+                ex.input("in0", ncnn.Mat(x.numpy()).clone())
+                ret, out = ex.extract("out0")
+                if ret != 0 or not torch.equal(net(x), torch.from_numpy(np.array(out))):
+                    return False
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_trunc_divide():
         exit(0)
     else:
         exit(1)

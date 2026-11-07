@@ -188,6 +188,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
         else if (t == "add"
                  || t == "atan2"
                  || t == "div"
+                 || t == "trunc_divide"
                  || t == "floor_divide"
                  || t == "fmod"
                  || t == "logaddexp"
@@ -205,10 +206,11 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             std::string b = exprstack.top();
             exprstack.pop();
 
-            std::string r = t + "(" + (token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))]->name : a) + "," + (token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))]->name : b) + ")";
+            const std::string mathop = t == "trunc_divide" ? "div" : t;
+            std::string r = mathop + "(" + (token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))]->name : a) + "," + (token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))]->name : b) + ")";
             exprstack.push(r);
 
-            Operator* op_binary = graph.new_operator_before("BinaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
+            Operator* op_binary = graph.new_operator_before("BinaryOp", mathop + "_" + std::to_string(pnnx_expr_index++), op);
 
             // default todo type mark  :[
             op_binary->params["0"] = -1;
@@ -216,7 +218,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "add") op_binary->params["0"] = 0;
             if (t == "sub") op_binary->params["0"] = 1;
             if (t == "mul") op_binary->params["0"] = 2;
-            if (t == "div") op_binary->params["0"] = 3;
+            if (t == "div" || t == "trunc_divide") op_binary->params["0"] = 3;
             if (t == "logaddexp") op_binary->params["0"] = 14;
             if (t == "max" || t == "maximum") op_binary->params["0"] = 4;
             if (t == "min" || t == "minimum") op_binary->params["0"] = 5;
@@ -229,7 +231,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (token_is_literal(a))
             {
                 if (t == "sub") op_binary->params["0"] = 7;
-                if (t == "div") op_binary->params["0"] = 8;
+                if (t == "div" || t == "trunc_divide") op_binary->params["0"] = 8;
                 if (t == "pow") op_binary->params["0"] = 9;
                 if (t == "atan2") op_binary->params["0"] = 11;
                 if (t == "fmod") op_binary->params["0"] = 13;
@@ -320,6 +322,23 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary->inputs.push_back(op_binary_ina);
                 op_binary->inputs.push_back(op_binary_inb);
                 op_binary->outputs.push_back(op_binary_out);
+            }
+
+            if (t == "trunc_divide")
+            {
+                Operand* op_div_out = op_binary->outputs[0];
+                Operator* op_trunc = graph.new_operator_before("UnaryOp", "trunc_" + std::to_string(pnnx_expr_index++), op);
+                op_trunc->params["0"] = 19;
+                op_div_out->consumers.push_back(op_trunc);
+
+                r = "trunc(" + r + ")";
+                Operand* op_trunc_out = graph.new_operand(op->name + "_" + r);
+                op_trunc_out->producer = op_trunc;
+                op_trunc_out->shape = op_div_out->shape;
+                op_trunc->inputs.push_back(op_div_out);
+                op_trunc->outputs.push_back(op_trunc_out);
+                exprstack.pop();
+                exprstack.push(r);
             }
         }
         else if (t == "[") // list

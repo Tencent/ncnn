@@ -328,6 +328,7 @@ static std::string transform_nchw_annotation_and_drop_batch_index(const std::vec
                  || t == "*"
                  || t == "/"
                  || t == "//"
+                 || t == "trunc_divide"
                  || t == "atan2"
                  || t == "max"
                  || t == "min"

@@ -984,6 +984,9 @@ static bool count_addmm(const Operator* op, ModelStat& stat)
 
 static uint64_t expression_function_cost(const std::string& name)
 {
+    if (name == "trunc_divide")
+        return 2;
+
     if (type_in(name, {"add", "sub", "rsub", "mul", "div", "floor_divide", "remainder", "fmod",
                        "maximum", "minimum", "max", "min", "clamp", "clip", "where", "abs", "neg", "square",
                        "reciprocal", "round", "floor", "ceil", "trunc", "sign",

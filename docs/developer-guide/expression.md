@@ -84,6 +84,8 @@ Evaluate the result list according to expression and input blob calculate. If th
 |type|operators|
 |---|---|
 |float to int|`trunc` `ceil` `floor` `round`|
-|binary arithmetic|`+` `-` `*` `/` `//` `max` `min` `pow` `fmod` `remainder` `atan2` `logaddexp`|
+|binary arithmetic|`+` `-` `*` `/` `//` `trunc_divide` `max` `min` `pow` `fmod` `remainder` `atan2` `logaddexp`|
 |unary arithmetic|`abs` `neg` `sign` `square` `sqrt` `rsqrt` `reciprocal` `exp` `log` `log10` `sin` `asin` `cos` `acos` `tan` `atan` `sinh` `asinh` `cosh` `acosh` `tanh` `atanh`|
 |integer bitwise|`and` `or` `xor` `lshift` `rshift`|
+
+`trunc_divide` divides with truncation toward zero. When both operands are integers, the division stays in integer arithmetic; if either operand is a decimal, the quotient is truncated toward zero.

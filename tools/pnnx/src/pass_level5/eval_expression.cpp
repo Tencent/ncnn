@@ -503,6 +503,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "minimum"
                  || t == "mul"
                  || t == "floor_divide"
+                 || t == "trunc_divide"
                  || t == "remainder")
         {
             typed_expr a = exprstack.top();
@@ -536,7 +537,7 @@ static std::string eval_expression(const Operator* op)
                 {
                     r = ai * bi;
                 }
-                if (t == "floor_divide")
+                if (t == "floor_divide" || t == "trunc_divide")
                 {
                     r = ai / bi;
                 }
@@ -575,6 +576,10 @@ static std::string eval_expression(const Operator* op)
                 if (t == "floor_divide")
                 {
                     r = (int)af / (int)bf;
+                }
+                if (t == "trunc_divide")
+                {
+                    r = trunc(af / bf);
                 }
                 if (t == "remainder")
                 {
