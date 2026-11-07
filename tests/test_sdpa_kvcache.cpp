@@ -21,6 +21,13 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
         return 0;
     }
 
+    if (storage_type == 3 && !op->support_fp16_storage)
+    {
+        delete reference;
+        delete op;
+        return 0;
+    }
+
     ncnn::ParamDict pd;
     pd.set(5, mask_type != 0);
     pd.set(7, 1); // kv_cache
@@ -38,7 +45,7 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
     opt.num_threads = num_threads;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
+    opt.use_fp16_storage = storage_type == 3;
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = storage_type == 1;
     opt.kvcache_max_seqlen_hint = 32;
@@ -96,6 +103,27 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
             mask = mask_bf16;
         }
 #endif // NCNN_BF16
+        if (storage_type == 3)
+        {
+            ncnn::Mat query_fp16;
+            ncnn::Mat key_fp16;
+            ncnn::Mat value_fp16;
+            ncnn::Mat mask_fp16;
+            ncnn::cast_float32_to_float16(reference_query, query_fp16, reference_opt);
+            ncnn::cast_float32_to_float16(reference_key_current, key_fp16, reference_opt);
+            ncnn::cast_float32_to_float16(reference_value_current, value_fp16, reference_opt);
+            if (mask_type)
+                ncnn::cast_float32_to_float16(reference_mask, mask_fp16, reference_opt);
+            ncnn::cast_float16_to_float32(query_fp16, reference_query, reference_opt);
+            ncnn::cast_float16_to_float32(key_fp16, reference_key_current, reference_opt);
+            ncnn::cast_float16_to_float32(value_fp16, reference_value_current, reference_opt);
+            if (mask_type)
+                ncnn::cast_float16_to_float32(mask_fp16, reference_mask, reference_opt);
+            query = query_fp16;
+            key = key_fp16;
+            value = value_fp16;
+            mask = mask_fp16;
+        }
 
         std::vector<ncnn::Mat> reference_bottoms;
         reference_bottoms.push_back(reference_query);
@@ -169,6 +197,9 @@ static int test_sdpa_0()
            || test_sdpa_kvcache(37, 29, 15, 3, 2, 1)
            || test_sdpa_kvcache(63, 47, 31, 1, 3, 1, 4)
 #endif // NCNN_BF16
+           || test_sdpa_kvcache(37, 29, 15, 3, 1, 3)
+           || test_sdpa_kvcache(37, 29, 15, 3, 2, 3)
+           || test_sdpa_kvcache(63, 47, 31, 1, 3, 3, 4)
 #if NCNN_INT8
            || test_sdpa_kvcache(32, 20, 8, 8, 0, 2)
            || test_sdpa_kvcache(37, 29, 15, 3, 1, 2)
