@@ -10,6 +10,18 @@
 
 namespace pnnx {
 
+static bool round_decimals_supported(const Operator* op)
+{
+    if (op->inputs.size() == 1)
+        return true;
+
+    if (op->inputs.size() != 2 || op->inputs[1]->producer->type != "prim::Constant")
+        return false;
+
+    const Parameter& decimals = op->inputs[1]->producer->params.at("value");
+    return decimals.type == 2 && decimals.i == 0;
+}
+
 static bool operand_maybe_shape_tensor(const Operand* operand)
 {
     const Operator* op = operand->producer;
@@ -645,6 +657,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
              || op->type == "aten::tanh"
              || op->type == "aten::trunc")
     {
+        if (op->type == "aten::round" && !round_decimals_supported(op))
+            goto DEFAULT;
+
         std::string mathop = op->type.substr(6);
 
         expr += mathop;
@@ -908,6 +923,12 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
             {
                 need_fuse = true;
+            }
+
+            if (op->type == "aten::round" && !round_decimals_supported(op))
+            {
+                fprintf(stderr, "round with nonzero or non-constant decimals is not supported yet\n");
+                need_fuse = false;
             }
 
             if (need_fuse)
