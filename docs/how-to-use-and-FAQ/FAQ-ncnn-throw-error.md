@@ -6,7 +6,7 @@ Checkout the latest ncnn code, build it and regenerate param and model binary fi
 
 Make sure that your param file starts with the magic number 7767517.
 
-you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet)
+you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet.md)
 
 If the original model is missing, you can try to manually fix the layer specific parameters in param file
 
@@ -53,13 +53,13 @@ layer {
 }
 ```
 
-you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet).
+you may find more info on [use-ncnn-with-alexnet](use-ncnn-with-alexnet.md).
 
 ### layer XYZ not exists or registered
 
 Your network contains some operations that are not implemented in ncnn.
 
-You may implement them as custom layer followed in [how-to-implement-custom-layer-step-by-step](how-to-implement-custom-layer-step-by-step).
+You may implement them as custom layer followed in [how-to-implement-custom-layer-step-by-step](../developer-guide/how-to-implement-custom-layer-step-by-step.md).
 
 Or you could simply register them as no-op if you are sure those operations make no sense.
 
@@ -81,7 +81,7 @@ You shall call Net::load_param() first, then Net::load_model().
 
 This error may also happens when Net::load_param() failed, but not properly handled.
 
-For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
+For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model.md)
 
 ### memory not 32-bit aligned at XYZ
 

@@ -162,7 +162,7 @@ for (int i=0; i<count; i++)
 
 If you want to load plain param file buffer, you shall use Net::load_param_mem instead of Net::load_param.
 
-For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model)
+For more information about the ncnn model load api, see [ncnn-load-model](ncnn-load-model.md)
 
 ```cpp
 ncnn::Net net;

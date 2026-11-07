@@ -32,7 +32,7 @@ Some platforms have been tested and known working. In theory, if your platform s
 You can search [the vulkan database](https://vulkan.gpuinfo.org) to see if your device supports vulkan.
 
 Some old buggy drivers may produce wrong result, that are blacklisted in ncnn and treated as non-vulkan capable device.
-You could check if your device and driver have this issue with  [my conformance test here](vulkan-conformance-test).
+You could check if your device and driver have this issue with  [my conformance test here](../benchmark/vulkan-conformance-test.md).
 Most of these systems are android with version lower than 8.1.
 
 ### why using vulkan over cuda/opencl/metal

@@ -41,7 +41,7 @@ Custom `DataReader::scan()` implementations and C API `ncnn_datareader_t::scan` 
 ```
 key index should be unique in each layer line, pair can be omitted if the default value used
 
-the meaning of existing param key index can be looked up at [operation-param-weight-table](operation-param-weight-table)
+the meaning of existing param key index can be looked up at [operation-param-weight-table](operation-param-weight-table.md)
 
 * integer or float key : index 0 ~ 31
 * integer value : int
