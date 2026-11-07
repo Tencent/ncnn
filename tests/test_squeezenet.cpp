@@ -55,6 +55,12 @@ static int check_top2(const std::vector<float>& cls_scores, float epsilon = 0.00
 {
     // partial sort topk with index
     int size = cls_scores.size();
+    if (size < 2)
+    {
+        fprintf(stderr, "cls_scores size %d too small to check top2\n", size);
+        return -1;
+    }
+
     std::vector<std::pair<float, int> > vec;
     vec.resize(size);
     for (int i = 0; i < size; i++)
