@@ -20,6 +20,7 @@ public:
 public:
     int out_max_val;
     int topk;
+    int abs; // rank (and report, with out_max_val) by absolute value
 };
 
 } // namespace ncnn
