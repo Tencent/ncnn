@@ -413,6 +413,7 @@ set(pnnx_pass_level5_SRCS
 
 set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_attribute.cpp
+    pass_ncnn/convert_avg_pool.cpp
     pass_ncnn/convert_batch_layout.cpp
     pass_ncnn/convert_custom_op.cpp
     pass_ncnn/convert_module_op.cpp
