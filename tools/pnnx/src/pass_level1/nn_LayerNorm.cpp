@@ -24,12 +24,20 @@ public:
 
         op->params["normalized_shape"] = ln->namedInput("normalized_shape");
         op->params["eps"] = ln->namedInput("eps");
-        op->params["elementwise_affine"] = mod.hasattr("weight") && mod.hasattr("bias");
+        op->params["elementwise_affine"] = mod.hasattr("weight");
 
-        if (mod.hasattr("weight") && mod.hasattr("bias"))
+        if (mod.hasattr("weight"))
         {
             op->attrs["weight"] = mod.attr("weight");
-            op->attrs["bias"] = mod.attr("bias");
+            if (mod.hasattr("bias"))
+            {
+                op->attrs["bias"] = mod.attr("bias");
+            }
+            else
+            {
+                op->attrs["bias"] = op->attrs["weight"];
+                op->attrs["bias"].data.assign(op->attrs["bias"].data.size(), 0);
+            }
         }
     }
 };

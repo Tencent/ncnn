@@ -14,6 +14,13 @@ class Model(nn.Module):
         self.ln_0.bias = nn.Parameter(torch.rand(64))
         self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
 
+        self.ln_3 = nn.LayerNorm(64)
+        self.ln_3.weight = nn.Parameter(torch.rand(64))
+        self.ln_3.bias = None
+        self.ln_4 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-3)
+        self.ln_4.weight = nn.Parameter(torch.rand(24,64))
+        self.ln_4.bias = None
+
     def forward(self, x, y, z):
         x = self.ln_0(x)
         x = self.ln_1(x)
@@ -23,7 +30,9 @@ class Model(nn.Module):
 
         z = self.ln_0(z)
         z = self.ln_1(z)
-        return x, y, z
+        u = self.ln_3(x)
+        v = self.ln_4(y)
+        return x, y, z, u, v
 
 def test():
     net = Model()
@@ -34,7 +43,7 @@ def test():
     y = torch.rand(1, 12, 24, 64)
     z = torch.rand(1, 12, 16, 24, 64)
 
-    a0, a1, a2 = net(x, y, z)
+    a0, a1, a2, a3, a4 = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
@@ -46,9 +55,9 @@ def test():
 
     # pnnx inference
     import test_nn_LayerNorm_pnnx
-    b0, b1, b2 = test_nn_LayerNorm_pnnx.test_inference()
+    b0, b1, b2, b3, b4 = test_nn_LayerNorm_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2) and torch.equal(a3, b3) and torch.equal(a4, b4)
 
 if __name__ == "__main__":
     if test():

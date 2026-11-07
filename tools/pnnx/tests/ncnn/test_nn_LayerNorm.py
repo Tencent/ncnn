@@ -15,6 +15,13 @@ class Model(nn.Module):
         self.ln_1 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-2, elementwise_affine=False)
         self.ln_2 = nn.LayerNorm(normalized_shape=(3,24,64), eps=1e-3)
 
+        self.ln_3 = nn.LayerNorm(64)
+        self.ln_3.weight = nn.Parameter(torch.rand(64))
+        self.ln_3.bias = None
+        self.ln_4 = nn.LayerNorm(normalized_shape=(24,64), eps=1e-3)
+        self.ln_4.weight = nn.Parameter(torch.rand(24,64))
+        self.ln_4.bias = None
+
     def forward(self, x, y, w, q):
         x = self.ln_0(x)
         y = self.ln_0(y)
@@ -23,7 +30,9 @@ class Model(nn.Module):
         w1 = self.ln_1(w)
         w2 = self.ln_2(w)
         q = self.ln_0(q)
-        return x, y, z, w0, w1, w2, q
+        u = self.ln_3(x)
+        v = self.ln_4(y)
+        return x, y, z, w0, w1, w2, q, u, v
 
 def test():
     net = Model()
