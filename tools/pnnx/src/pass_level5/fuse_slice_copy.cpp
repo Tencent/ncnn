@@ -3,219 +3,97 @@
 
 #include "fuse_slice_copy.h"
 
-#include <limits.h>
 #include <algorithm>
-#include <stack>
-#include "pass_level2.h"
+#include <vector>
 
 namespace pnnx {
 
 void fuse_slice_copy(Graph& graph)
 {
-    while (1)
+    const std::vector<Operator*> ops = graph.ops;
+    for (Operator* op : ops)
     {
-        bool matched = false;
+        if (op->type != "Tensor.copy")
+            continue;
 
-        for (size_t i = 0; i < graph.ops.size(); i++)
+        // Reverse each view in order. Choosing only the outermost slice loses
+        // nested/overlapping slices and slices of the same dimension. A select
+        // also changes the rank seen by the next writeback.
+        std::vector<Operator*> views;
+        Operand* base = op->inputs[0];
+        while (base->producer->type == "Tensor.slice" || base->producer->type == "Tensor.select")
         {
-            Operator* op = graph.ops[i];
-
-            if (op->type != "Tensor.copy")
-                continue;
-
-            // collect slice / select op chain
-            std::stack<Operator*> slice_select_ops;
-            int descent_dim_current = INT_MAX;
-            Operand* in0 = op->inputs[0];
-            while (in0->producer->type == "Tensor.slice" || in0->producer->type == "Tensor.select")
-            {
-                Operator* sop = in0->producer;
-                if (sop->type == "Tensor.slice")
-                {
-                    if (!sop->has_param("dim") && !sop->has_param("dims"))
-                    {
-                        fprintf(stderr, "dynamic dims in slice copy chain is not supported\n");
-                        break;
-                    }
-
-                    int dims0 = sop->has_param("dim") ? sop->params.at("dim").i : sop->params.at("dims").ai[0];
-                    if (descent_dim_current < dims0)
-                    {
-                        break;
-                    }
-
-                    descent_dim_current = dims0;
-                }
-
-                if (sop->type == "Tensor.select")
-                {
-                    if (!sop->has_param("dim"))
-                    {
-                        fprintf(stderr, "dynamic dim in select copy chain is not supported\n");
-                        break;
-                    }
-
-                    int dim = sop->params.at("dim").i;
-                    if (descent_dim_current < dim)
-                    {
-                        break;
-                    }
-
-                    descent_dim_current = dim;
-                }
-
-                slice_select_ops.push(sop);
-                in0 = sop->inputs[0];
-            }
-
-            matched = true;
-
-            if (slice_select_ops.empty())
-            {
-                // eliminate noop copy
-                Operand* out = op->outputs[0];
-
-                for (auto& x : out->consumers)
-                {
-                    for (size_t j = 0; j < x->inputs.size(); j++)
-                    {
-                        if (x->inputs[j] == out)
-                            x->inputs[j] = op->inputs[1];
-                    }
-
-                    op->inputs[1]->consumers.push_back(x);
-                }
-
-                op->inputs[0]->remove_consumer(op);
-                op->inputs[1]->remove_consumer(op);
-
-                op->inputs[1]->name = out->name;
-
-                out->producer = 0;
-                out->consumers.clear();
-
-                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), out));
-                delete out;
-
-                op->inputs.clear();
-                op->outputs.clear();
-
-                graph.ops.erase(graph.ops.begin() + i);
-                delete op;
-
-                break;
-            }
-
-            Operator* top_sop = slice_select_ops.top();
-
-            op->type = "Tensor.slice_copy";
-
-            // insert clone just after the producer
-            Operator* op_clone = graph.new_operator_after("Tensor.clone", op->name + "_ncnnclone", top_sop->inputs[0]->producer);
-            Operand* clone_out = graph.new_operand(op->name + "_ncnnclone_out");
-
-            clone_out->type = top_sop->inputs[0]->type;
-            clone_out->shape = top_sop->inputs[0]->shape;
-
-            op_clone->inputs.push_back(top_sop->inputs[0]);
-            top_sop->inputs[0]->consumers.push_back(op_clone);
-
-            op_clone->outputs.push_back(clone_out);
-            clone_out->producer = op_clone;
-
-            op->inputs[0]->remove_consumer(op);
-            op->inputs[0] = clone_out;
-            clone_out->consumers.push_back(op);
-
-            if (top_sop->type == "Tensor.slice")
-            {
-                // shadow slice params and inputs to slice_copy
-                op->params = top_sop->params;
-                // self op->inputs[0]
-                // src  op->inputs[1]
-
-                if (top_sop->has_input("start"))
-                {
-                    Operand* start = top_sop->named_input("start");
-                    op->inputs.push_back(start);
-                    op->inputnames.push_back("start");
-                    start->consumers.push_back(op);
-                }
-                if (top_sop->has_input("starts"))
-                {
-                    Operand* starts = top_sop->named_input("starts");
-                    op->inputs.push_back(starts);
-                    op->inputnames.push_back("starts");
-                    starts->consumers.push_back(op);
-                }
-                if (top_sop->has_input("end"))
-                {
-                    Operand* end = top_sop->named_input("end");
-                    op->inputs.push_back(end);
-                    op->inputnames.push_back("end");
-                    end->consumers.push_back(op);
-                }
-                if (top_sop->has_input("ends"))
-                {
-                    Operand* ends = top_sop->named_input("ends");
-                    op->inputs.push_back(ends);
-                    op->inputnames.push_back("ends");
-                    ends->consumers.push_back(op);
-                }
-                if (top_sop->has_input("step"))
-                {
-                    Operand* step = top_sop->named_input("step");
-                    op->inputs.push_back(step);
-                    op->inputnames.push_back("step");
-                    step->consumers.push_back(op);
-                }
-                if (top_sop->has_input("steps"))
-                {
-                    Operand* steps = top_sop->named_input("steps");
-                    op->inputs.push_back(steps);
-                    op->inputnames.push_back("steps");
-                    steps->consumers.push_back(op);
-                }
-                if (top_sop->has_input("select"))
-                {
-                    Operand* select = top_sop->named_input("select");
-                    op->inputs.push_back(select);
-                    op->inputnames.push_back("select");
-                    select->consumers.push_back(op);
-                }
-                if (top_sop->has_input("selects"))
-                {
-                    Operand* selects = top_sop->named_input("selects");
-                    op->inputs.push_back(selects);
-                    op->inputnames.push_back("selects");
-                    selects->consumers.push_back(op);
-                }
-            }
-            else // if (top_sop->type == "Tensor.select")
-            {
-                op->params["dim"] = top_sop->params.at("dim").i;
-                op->params["start"] = 0;
-                op->params["end"] = 0;
-                op->params["step"] = 0;
-
-                if (top_sop->has_param("index"))
-                {
-                    op->params["select"] = top_sop->params.at("index").i;
-                }
-                else // if (top_sop->has_input("index"))
-                {
-                    Operand* index = top_sop->named_input("index");
-                    op->inputs.push_back(index);
-                    op->inputnames.push_back("select");
-                    index->consumers.push_back(op);
-                }
-            }
-
-            break;
+            views.push_back(base->producer);
+            base = base->producer->inputs[0];
         }
 
-        if (!matched)
-            break;
+        Operand* value = op->inputs[1];
+        for (size_t i = 0; i < views.size(); i++)
+        {
+            Operator* view = views[i];
+            Operand* parent = view->inputs[0];
+            const std::string name = op->name + "_writeback_" + std::to_string(i);
+            Operator* clone = graph.new_operator_before("Tensor.clone", name + "_clone", op);
+            Operand* cloned = graph.new_operand(clone->name + "_out");
+            cloned->type = parent->type;
+            cloned->shape = parent->shape;
+            cloned->params = parent->params;
+            cloned->producer = clone;
+            clone->inputs.push_back(parent);
+            parent->consumers.push_back(clone);
+            clone->outputs.push_back(cloned);
+
+            Operator* copy = graph.new_operator_before("Tensor.slice_copy", name, op);
+            copy->inputs = {cloned, value};
+            copy->inputnames = {"self", "src"};
+            cloned->consumers.push_back(copy);
+            value->consumers.push_back(copy);
+            copy->params = view->params;
+            if (view->type == "Tensor.select")
+            {
+                copy->params["start"] = 0;
+                copy->params["end"] = 0;
+                copy->params["step"] = 0;
+                if (view->has_param("index"))
+                {
+                    copy->params["select"] = view->params.at("index");
+                    copy->params.erase("index");
+                }
+            }
+            for (size_t j = 1; j < view->inputs.size(); j++)
+            {
+                Operand* input = view->inputs[j];
+                copy->inputs.push_back(input);
+                std::string inputname = view->inputnames[j];
+                if (inputname == "index")
+                    inputname = "select";
+                copy->inputnames.push_back(inputname);
+                input->consumers.push_back(copy);
+            }
+            Operand* out = graph.new_operand(name + "_out");
+            out->type = parent->type;
+            out->shape = parent->shape;
+            out->params = parent->params;
+            out->producer = copy;
+            copy->outputs.push_back(out);
+            value = out;
+        }
+
+        Operand* out = op->outputs[0];
+        for (Operator* consumer : out->consumers)
+        {
+            for (Operand*& input : consumer->inputs)
+                if (input == out)
+                    input = value;
+            value->consumers.push_back(consumer);
+        }
+        for (Operand* input : op->inputs)
+            input->remove_consumer(op);
+        value->name = out->name;
+        graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), out));
+        delete out;
+        graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op));
+        delete op;
     }
 }
 

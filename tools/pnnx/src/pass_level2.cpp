@@ -1137,9 +1137,10 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
     }
 }
 
-void pass_level2(Graph& g)
+int pass_level2(Graph& g)
 {
-    functionize(g);
+    if (functionize(g) != 0)
+        return -1;
 
     eliminate_contiguous(g);
 
@@ -1155,6 +1156,7 @@ void pass_level2(Graph& g)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+    return 0;
 }
 
 } // namespace pnnx

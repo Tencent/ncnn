@@ -113,7 +113,12 @@ def test():
                          ('slice_view_local', ViewWrite(sliced=True, return_base=False)),
                          ('view_alias', ViewWrite(return_base=False, observe_alias=True)),
                          ('slice_view_alias', ViewWrite(sliced=True, return_base=False, observe_alias=True)),
-                         ('view_repeat_alias', LocalViewAliases(True))]:
+                         ('view_repeat_alias', LocalViewAliases(True)),
+                         ('alias_write', AliasWrite()),
+                         ('view_write', ViewWrite()),
+                         ('slice_view_write', ViewWrite(sliced=True)),
+                         ('view_alias_list', LocalViewAliases(False)),
+                         ('root_alias_list', LocalViewAliases(False, view=False))]:
         model.eval()
         torch.manual_seed(0)
         x = torch.randn(2, 3)
@@ -157,11 +162,6 @@ def test():
     for name, model, message in [
         ('input_write', InputWrite(), 'mutable'),
         ('buffer_write', BufferWrite(), 'mutable'),
-        ('alias_write', AliasWrite(), 'observable alias'),
-        ('view_write', ViewWrite(), 'observable alias'),
-        ('slice_view_write', ViewWrite(sliced=True), 'observable alias'),
-        ('view_alias_list', LocalViewAliases(False), 'multi-input alias'),
-        ('root_alias_list', LocalViewAliases(False, view=False), 'multi-input alias'),
         ('detach_write', DetachWrite(), 'external tensor'),
     ]:
         # Mutation samples exercise rejection, so avoid running their stateful references.

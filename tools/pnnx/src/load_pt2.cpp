@@ -880,7 +880,10 @@ public:
                     return fail("mutable operator writes external tensor storage");
             auto root = [&](const Operand* r) {
                 while (r->producer->type == "aten::slice" || r->producer->type == "aten::select"
-                        || functionalizable.count(r->producer->type))
+                        || r->producer->type == "aten::view"
+                        || r->producer->type == "aten::transpose" || r->producer->type == "aten::t"
+                        || r->producer->type == "aten::permute" || r->producer->type == "aten::squeeze"
+                        || r->producer->type == "aten::unsqueeze" || functionalizable.count(r->producer->type))
                     r = r->producer->inputs[0];
                 return r;
             };
@@ -893,8 +896,8 @@ public:
                         aliases = true;
                 if (!aliases || (remaining[value.first] == 0 && value.first != n))
                     continue;
-                // Shared writeback can only reconstruct slice/select chains.
-                // A view with a different layout needs an independent local root.
+                // Only explicitly supported, invertible aliases can write back
+                // to an observable base. Other views need a local dense root.
                 const Operand* r = root(values.at(value.first));
                 if (unsupported_aliases.count(r) || unsupported_aliases.count(mutation_root))
                 {
@@ -905,10 +908,6 @@ public:
                         return fail("mutation has an unsupported observable alias");
                 }
             }
-            // Once the earlier base is unobservable, make the proven local root
-            // explicit to functionize, which otherwise also follows aten::view.
-            if (mutation_root->producer->type == "aten::view")
-                mutation_root->producer->type = "aten::reshape";
         }
         if (detach)
         {
@@ -1179,7 +1178,8 @@ public:
         return true;
     }
 
-    bool load(StoreZipReader& zip, const std::string& root, const std::string& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types, const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2)
+    bool load(StoreZipReader& zip, const std::string& root, const std::string& model, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
+              const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2)
     {
         context = "archive";
         std::string version, byteorder;
@@ -1453,7 +1453,8 @@ public:
     std::map<Operator*, Pt2TensorMeta> layout_sources;
 };
 
-int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types, const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2)
+int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
+             const std::vector<std::vector<int64_t> >& input_shapes2, const std::vector<std::string>& input_types2)
 {
     StoreZipReader zip;
     if (zip.open(path) != 0)

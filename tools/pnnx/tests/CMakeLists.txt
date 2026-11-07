@@ -5,6 +5,7 @@ macro(pnnx_add_test name)
     add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()
 
+pnnx_add_test(functionize)
 pnnx_add_test(F_adaptive_avg_pool1d)
 pnnx_add_test(F_adaptive_avg_pool2d)
 pnnx_add_test(F_adaptive_avg_pool3d)

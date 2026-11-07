@@ -524,7 +524,8 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level2\n");
 
-    pnnx::pass_level2(pnnx_graph);
+    if (pnnx::pass_level2(pnnx_graph) != 0)
+        return -1;
 
     // pnnx_graph.save("debug.param", "debug.bin");
 

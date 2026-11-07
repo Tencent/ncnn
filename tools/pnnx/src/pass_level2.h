@@ -49,7 +49,7 @@ public:
 
 void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opindex);
 
-void pass_level2(Graph& g);
+int pass_level2(Graph& g);
 
 } // namespace pnnx
 
