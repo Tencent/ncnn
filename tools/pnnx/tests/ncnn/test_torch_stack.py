@@ -59,8 +59,71 @@ def test():
             return False
     return True
 
+class DynamicModel(nn.Module):
+    def __init__(self):
+        super(DynamicModel, self).__init__()
+
+    def forward(self, x, y, z, w):
+        z = F.max_pool2d(z, 1)
+        w = F.max_pool2d(w, 1)
+        return (torch.stack((x, y), dim=0).relu(),
+                torch.stack((x, y), dim=1).relu(),
+                torch.stack((x, y), dim=-1).relu(),
+                torch.stack((z, w), dim=1).relu(),
+                torch.stack((z, w), dim=-3).relu(),
+                torch.stack((z, w), dim=-1).relu())
+
+def test_dynamic():
+    import ncnn
+    import subprocess
+
+    model = DynamicModel().eval()
+    torch.manual_seed(0)
+    inputs = []
+    for shape, batch_shape in [((3, 5), (2, 3, 5, 7)),
+                               ((4, 7), (3, 4, 6, 9)),
+                               ((5, 8), (4, 2, 7, 10))]:
+        inputs.append((torch.rand(shape), torch.rand(shape),
+                       torch.rand(batch_shape), torch.rand(batch_shape)))
+
+    mod = torch.jit.trace(model, inputs[0])
+    mod.save("test_torch_stack_dynamic.pt")
+
+    def input_shapes(data):
+        return ",".join("[" + ",".join(str(d) for d in x.shape) + "]" for x in data)
+
+    if subprocess.call(["../../src/pnnx", "test_torch_stack_dynamic.pt",
+                        "inputshape=" + input_shapes(inputs[0]),
+                        "inputshape2=" + input_shapes(inputs[1]), "fp16=0"]) != 0:
+        return False
+
+    with ncnn.Net() as net:
+        if net.load_param("test_torch_stack_dynamic.ncnn.param") != 0:
+            return False
+        if net.load_model("test_torch_stack_dynamic.ncnn.bin") != 0:
+            return False
+
+        # The third shape is not used during conversion.
+        for data in inputs:
+            expected = model(*data)
+            with net.create_extractor() as ex:
+                for i, x in enumerate(data):
+                    batch_axis = 233 if i < 2 else 0
+                    if ex.input("in" + str(i), ncnn.Mat(x.numpy(), batch_index=batch_axis).clone()) != 0:
+                        return False
+                for i, a in enumerate(expected):
+                    ret, out = ex.extract("out" + str(i))
+                    if ret != 0:
+                        return False
+                    batch_axis = 233 if i < 3 else 0
+                    b = torch.from_numpy(out.numpy(batch_index=batch_axis).copy())
+                    if a.shape != b.shape or not torch.equal(a, b):
+                        return False
+
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_dynamic():
         exit(0)
     else:
         exit(1)
