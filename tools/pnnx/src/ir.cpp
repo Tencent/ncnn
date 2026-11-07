@@ -9,6 +9,8 @@
 #include <string.h>
 #include <algorithm>
 #include <fstream>
+#include <map>
+#include <set>
 #include <sstream>
 #include <string>
 #include <stack>
@@ -942,6 +944,20 @@ static std::string sanitize_identifier(const std::string& s)
     return ss;
 }
 
+static bool is_python_keyword(const std::string& s)
+{
+    static const char* const keywords[] = {
+        "False", "None", "True", "and", "as", "assert", "async", "await", "break", "class", "continue", "def", "del", "elif", "else", "except", "finally", "for", "from", "global", "if", "import", "in", "is", "lambda", "nonlocal", "not", "or", "pass", "raise", "return", "try", "while", "with", "yield"};
+
+    for (size_t i = 0; i < sizeof(keywords) / sizeof(keywords[0]); i++)
+    {
+        if (s == keywords[i])
+            return true;
+    }
+
+    return false;
+}
+
 static bool token_is_complex(const std::string& t)
 {
     // 2.000000e+00+3.000000e+00j
@@ -1470,6 +1486,32 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
         return -1;
     }
 
+    // python keywords are not valid as self.xxx attribute names, append _ until the name is unique among all operators
+    std::set<std::string> op_names;
+    for (const Operator* op : ops)
+    {
+        op_names.insert(sanitize_identifier(op->name));
+    }
+
+    std::map<std::string, std::string> python_attr_names;
+    for (const std::string& name : op_names)
+    {
+        if (!is_python_keyword(name))
+            continue;
+
+        std::string attr = name + "_";
+        while (op_names.find(attr) != op_names.end())
+            attr += "_";
+
+        python_attr_names[name] = attr;
+    }
+
+    auto python_attr_name = [&](const std::string& opname) {
+        const std::string name = sanitize_identifier(opname);
+        std::map<std::string, std::string>::const_iterator it = python_attr_names.find(name);
+        return it != python_attr_names.end() ? it->second : name;
+    };
+
     const std::string input_shapes_stat = format_model_stat_input_shapes(*this);
     const std::string flops = format_model_stat_ops(model_stat.flops);
     const std::string memops = format_model_stat_ops(model_stat.memops);
@@ -1507,7 +1549,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             if (op->type.substr(0, 3) != "nn." && op->type.substr(0, 16) != "torchvision.ops.")
                 continue;
 
-            fprintf(pyfp, "        self.%s = %s(", sanitize_identifier(op->name).c_str(), op->type.c_str());
+            fprintf(pyfp, "        self.%s = %s(", python_attr_name(op->name).c_str(), op->type.c_str());
 
             int param_count = op->params.size();
             if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
@@ -1656,10 +1698,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
                 }
 
-                fprintf(pyfp, "        self.%s.set_weight_bias(self_%s_weight, self_%s_bias)\n", sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, "        self.%s.set_weight_bias(self_%s_weight, self_%s_bias)\n", python_attr_name(op->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str());
                 std::string scale_str = float_to_string(op->params.at("scale").f);
-                fprintf(pyfp, "        self.%s.scale = %s\n", sanitize_identifier(op->name).c_str(), scale_str.c_str());
-                fprintf(pyfp, "        self.%s.zero_point = %d\n", sanitize_identifier(op->name).c_str(), op->params.at("zero_point").i);
+                fprintf(pyfp, "        self.%s.scale = %s\n", python_attr_name(op->name).c_str(), scale_str.c_str());
+                fprintf(pyfp, "        self.%s.zero_point = %d\n", python_attr_name(op->name).c_str(), op->params.at("zero_point").i);
 
                 continue;
             }
@@ -1668,11 +1710,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             {
                 if (it.first == "running_mean" || it.first == "running_var")
                 {
-                    fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
+                    fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", python_attr_name(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
                 }
                 else
                 {
-                    fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
+                    fprintf(pyfp, "        self.%s.%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", python_attr_name(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
                 }
 
                 const Attribute& attr = it.second;
@@ -2073,7 +2115,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     fprintf(pyfp, "v_%s, v_%s", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->outputs[1]->name).c_str());
                 }
-                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, " = self.%s(", python_attr_name(op->name).c_str());
                 fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
                 if (op->inputs.size() == 2)
                 {
@@ -2091,7 +2133,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 {
                     fprintf(pyfp, "v_%s, (v_%s, v_%s)", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->outputs[1]->name).c_str(), sanitize_identifier(op->outputs[2]->name).c_str());
                 }
-                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, " = self.%s(", python_attr_name(op->name).c_str());
                 fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
                 if (op->inputs.size() == 3)
                 {
@@ -2116,7 +2158,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                             fprintf(pyfp, ", ");
                     }
                 }
-                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, " = self.%s(", python_attr_name(op->name).c_str());
                 if (op->inputs.size() == 1)
                 {
                     std::string in0 = sanitize_identifier(op->inputs[0]->name);
@@ -2192,7 +2234,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                     if (i + 1 != op->outputs.size())
                         fprintf(pyfp, ", ");
                 }
-                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, " = self.%s(", python_attr_name(op->name).c_str());
                 for (size_t i = 0; i < op->inputs.size(); i++)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());

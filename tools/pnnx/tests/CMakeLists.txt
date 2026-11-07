@@ -423,6 +423,10 @@ pnnx_add_test(transformers_xlm_attention)
 pnnx_add_test(transformers_xlm_roberta_attention)
 pnnx_add_test(transformers_xlnet_attention)
 
+add_executable(test_ir_python_keyword test_ir_python_keyword.cpp ../src/ir.cpp ../src/model_stat.cpp ../src/storezip.cpp ../src/utils.cpp)
+target_include_directories(test_ir_python_keyword PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
+add_test(NAME test_ir_python_keyword COMMAND test_ir_python_keyword ${Python3_EXECUTABLE})
+
 add_subdirectory(ncnn)
 
 if(onnxruntime_FOUND)
