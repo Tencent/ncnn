@@ -75,7 +75,12 @@ int LSTM::load_model(const ModelBin& mb)
     if (int8_scale_term)
     {
         weight_xc_data_int8_scales = mb.load(hidden_size * 4, num_directions, 1);
+        if (weight_xc_data_int8_scales.empty())
+            return -100;
+
         weight_hc_data_int8_scales = mb.load(hidden_size * 4, num_directions, 1);
+        if (weight_hc_data_int8_scales.empty())
+            return -100;
     }
 #endif // NCNN_INT8
 
@@ -448,6 +453,11 @@ static int lstm_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
 int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blob, Mat(), Mat()) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     int T = bottom_blob.h;
 
     int num_directions = direction == 2 ? 2 : 1;
@@ -546,6 +556,11 @@ int LSTM::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs[0], bottom_blobs.size() == 3 ? bottom_blobs[1] : Mat(), bottom_blobs.size() == 3 ? bottom_blobs[2] : Mat()) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
@@ -656,6 +671,24 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         top_blobs[1] = hidden;
         top_blobs[2] = cell;
     }
+
+    return 0;
+}
+
+int LSTM::check_input_shapes(const Mat& bottom_blob, const Mat& hidden_blob, const Mat& cell_blob) const
+{
+    // every row of weight_xc_data holds size input elements, the hidden state
+    // holds num_output and the cell state hidden_size elements per direction
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / hidden_size / 4;
+    if (bottom_blob.dims > 2 || bottom_blob.w != size)
+        return -1;
+
+    if (!hidden_blob.empty() && (hidden_blob.dims > 2 || hidden_blob.w != num_output || hidden_blob.h * hidden_blob.elempack < num_directions))
+        return -1;
+
+    if (!cell_blob.empty() && (cell_blob.dims > 2 || cell_blob.w != hidden_size || cell_blob.h * cell_blob.elempack < num_directions))
+        return -1;
 
     return 0;
 }

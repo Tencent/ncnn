@@ -422,11 +422,17 @@ int Gemm::load_model(const ModelBin& mb)
         if (constantA == 1)
         {
             A_data_int8_scales = mb.load(constantM, 1);
+            if (A_data_int8_scales.empty())
+                return -100;
         }
 
         if (constantB == 1)
         {
-            B_data_int8_scale = mb.load(1, 1)[0];
+            Mat B_data_int8_scale_data = mb.load(1, 1);
+            if (B_data_int8_scale_data.empty())
+                return -100;
+
+            B_data_int8_scale = B_data_int8_scale_data[0];
         }
     }
 #endif // NCNN_INT8
@@ -752,6 +758,11 @@ int Gemm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_WEIGHT_QUANT
     if (weight_block_quantize)
     {
@@ -1139,5 +1150,53 @@ int Gemm::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
     return 0;
 }
 #endif // NCNN_INT8
+
+int Gemm::check_input_shapes(const std::vector<Mat>& bottom_blobs) const
+{
+    // gemm reads K elements of every row of A and of every column of B,
+    // and constant C data is sized by constantM and constantN
+    int M = constantM;
+    int N = constantN;
+    int KA = constantK;
+    int KB = constantK;
+
+    if (!constantA)
+    {
+        if (bottom_blobs.empty())
+            return -1;
+
+        const Mat& A = bottom_blobs[0];
+        const int A_rows = (A.dims == 3 ? A.c : A.h) * A.elempack;
+        M = transA ? A.w : A_rows;
+        KA = transA ? A_rows : A.w;
+    }
+
+    if (!constantB)
+    {
+        const size_t B_blob_i = constantA ? 0 : 1;
+        if (bottom_blobs.size() <= B_blob_i)
+            return -1;
+
+        const Mat& B = bottom_blobs[B_blob_i];
+        const int B_rows = (B.dims == 3 ? B.c : B.h) * B.elempack;
+        N = transB ? B_rows : B.w;
+        KB = transB ? B.w : B_rows;
+    }
+
+    // a runtime B may hold more K than A uses, constant A or B data must match K exactly
+    if (KA > KB || ((constantA || constantB) && KA != KB))
+        return -1;
+
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        const int type = constant_broadcast_type_C;
+        if ((type == 1 || type == 2 || type == 3) && M != constantM)
+            return -1;
+        if ((type == 3 || type == 4) && N != constantN)
+            return -1;
+    }
+
+    return 0;
+}
 
 } // namespace ncnn

@@ -234,7 +234,14 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         q_weight_data_int8_scales = mb.load(embed_dim, 1);
         k_weight_data_int8_scales = mb.load(embed_dim, 1);
         v_weight_data_int8_scales = mb.load(embed_dim, 1);
-        out_weight_data_int8_scale = mb.load(1, 1)[0];
+        if (q_weight_data_int8_scales.empty() || k_weight_data_int8_scales.empty() || v_weight_data_int8_scales.empty())
+            return -100;
+
+        Mat out_weight_data_int8_scale_data = mb.load(1, 1);
+        if (out_weight_data_int8_scale_data.empty())
+            return -100;
+
+        out_weight_data_int8_scale = out_weight_data_int8_scale_data[0];
     }
 #endif // NCNN_INT8
 
@@ -307,6 +314,11 @@ int MultiHeadAttention::create_or_grow_kvcache(const Mat& cache, Mat& new_cache,
 // refers to https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_BATCH
     if (kv_cache && bottom_blobs[0].n > 1)
         return -1;
@@ -1718,5 +1730,66 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     return 0;
 }
 #endif
+
+int MultiHeadAttention::check_input_shapes(const std::vector<Mat>& bottom_blobs) const
+{
+    // q, k and v rows are multiplied by weights of qdim, kdim and vdim columns,
+    // and every key row needs a matching value row
+    int q_blob_i = 0;
+    int k_blob_i = 0;
+    int v_blob_i = 0;
+    int attn_mask_i = 0;
+    int cached_xk_i = 0;
+    int cached_xv_i = 0;
+    resolve_bottom_blob_index((int)bottom_blobs.size(), q_blob_i, k_blob_i, v_blob_i, attn_mask_i, cached_xk_i, cached_xv_i);
+
+    const int bottom_blob_count = (int)bottom_blobs.size();
+    if (q_blob_i >= bottom_blob_count || k_blob_i >= bottom_blob_count || v_blob_i >= bottom_blob_count)
+        return -1;
+
+    if (kv_cache && (cached_xk_i >= bottom_blob_count || cached_xv_i >= bottom_blob_count))
+        return -1;
+
+    const Mat& q_blob = bottom_blobs[q_blob_i];
+    const int qdim = weight_data_size / embed_dim;
+    if (q_blob.w != qdim)
+        return -1;
+
+    Mat empty_cache;
+    const Mat& past_xk_blob = kv_cache ? bottom_blobs[cached_xk_i] : empty_cache;
+    const Mat& past_xv_blob = kv_cache ? bottom_blobs[cached_xv_i] : empty_cache;
+    if (kv_cache)
+    {
+        if (past_xk_blob.empty() != past_xv_blob.empty())
+            return -1;
+
+        if (!past_xk_blob.empty())
+        {
+            const int embed_dim_per_head = embed_dim / num_heads;
+            if (past_xk_blob.dims != 3 || past_xv_blob.dims != 3 || past_xk_blob.w != embed_dim_per_head || past_xv_blob.w != embed_dim_per_head)
+                return -1;
+
+            if (past_xk_blob.h != past_xv_blob.h || past_xk_blob.c * past_xk_blob.elempack != num_heads || past_xv_blob.c * past_xv_blob.elempack != num_heads)
+                return -1;
+        }
+    }
+
+    const int past_seqlen = kv_cache && !past_xk_blob.empty() ? past_xk_blob.h : 0;
+    // Match forward: a populated cross-attention cache does not read current k/v.
+    // Self-attention and an empty cache still require valid current k/v.
+    const bool append_kv = past_seqlen == 0 || q_blob_i == k_blob_i;
+    if (append_kv)
+    {
+        const Mat& k_blob = bottom_blobs[k_blob_i];
+        const Mat& v_blob = bottom_blobs[v_blob_i];
+        if (k_blob.w != kdim || v_blob.w != vdim)
+            return -1;
+
+        if (k_blob.h * k_blob.elempack != v_blob.h * v_blob.elempack)
+            return -1;
+    }
+
+    return 0;
+}
 
 } // namespace ncnn
