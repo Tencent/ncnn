@@ -38,47 +38,60 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
     const float* ptr = bottom_blob;
 
     // fast path for the common reduce-all-over-a-1d-blob topk == 1 case:
-    // no top-k materialization. two vectorizable passes over the logical
-    // elements: an fmax reduction, then the last index equal to the max --
-    // the same tie order as the partial sort below for all non-NaN inputs
-    // (NaN inputs are handled explicitly: fmaxf skips NaNs, so an all-NaN
-    // input leaves max_val as NaN, the equality scan never matches, and the
-    // established partial-sort order for NaN entries -- larger index first
-    // -- calls for the last index)
+    // no top-k materialization. a single pass in the integer domain: the
+    // IEEE-754 bit pattern maps to an order-preserving unsigned key
+    // (negative floats flipped, non-negative floats sign-bit set), NaN
+    // entries are skipped by a raw-bit test, and equal keys resolve to the
+    // larger index -- the same tie order as the partial sort below for all
+    // non-NaN inputs. integer comparison keeps the reduction immune to
+    // -ffast-math NaN folding, which otherwise misorders mixed-NaN inputs
+    // (a no-NaN-assumption float max drops or keeps NaNs depending on the
+    // emitted instruction, and an NaN == NaN equality scan folds to true)
     if (topk == 1 && bottom_blob.dims == 1)
     {
         const int count = bottom_blob.w;
 
-        float max_val = abs ? fabsf(ptr[0]) : ptr[0];
-        for (int i = 1; i < count; i++)
+        unsigned int best_key = 0;
+        int index = -1;
+        for (int i = 0; i < count; i++)
         {
-            const float v = abs ? fabsf(ptr[i]) : ptr[i];
-            max_val = fmaxf(max_val, v);
+            unsigned int u;
+            memcpy(&u, &ptr[i], 4);
+
+            // NaN: exponent all ones, mantissa nonzero -- no magnitude order
+            if ((u & 0x7f800000u) == 0x7f800000u && (u & 0x007fffffu) != 0)
+                continue;
+
+            if (abs)
+                u &= 0x7fffffffu; // |x|: clear the sign bit
+
+            if (u & 0x80000000u)
+                u = ~u;
+            else
+                u |= 0x80000000u;
+
+            if (index < 0 || u >= best_key)
+            {
+                best_key = u;
+                index = i;
+            }
         }
 
-        // bit-level NaN test: immune to -ffast-math folding of x != x
-        unsigned int max_bits = 0;
-        memcpy(&max_bits, &max_val, 4);
-        const bool max_is_nan = (max_bits & 0x7f800000u) == 0x7f800000u &&
-                                (max_bits & 0x007fffffu) != 0;
-
-        int index = max_is_nan ? count - 1 : 0;
-        if (!max_is_nan)
+        if (index < 0)
         {
-            for (int i = 0; i < count; i++)
-            {
-                const float v = abs ? fabsf(ptr[i]) : ptr[i];
-                if (v == max_val)
-                    index = i;
-            }
+            // every element was NaN: the partial sort orders NaN entries
+            // with the larger index first, so the established result is
+            // the last index
+            index = count - 1;
         }
 
         float* outptr = top_blob;
         if (out_max_val)
         {
-            // report the selected element's own value bits: with abs=0 the
-            // fmaxf reduction can settle on +0 while the scan selected a
-            // -0 element, and sign-of-zero is observable downstream
+            // report the selected element's own value bits (magnitude with
+            // abs) so the value always agrees with the reported index --
+            // signed zero included, where the integer order ranks +0 over
+            // -0 while the float comparator treated them as tied
             outptr[0] = abs ? fabsf(ptr[index]) : ptr[index];
             outptr[topk] = index;
         }
