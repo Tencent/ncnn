@@ -76,7 +76,10 @@ int ArgMax::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         float* outptr = top_blob;
         if (out_max_val)
         {
-            outptr[0] = max_val;
+            // report the selected element's own value bits: with abs=0 the
+            // fmaxf reduction can settle on +0 while the scan selected a
+            // -0 element, and sign-of-zero is observable downstream
+            outptr[0] = abs ? fabsf(ptr[index]) : ptr[index];
             outptr[topk] = index;
         }
         else
