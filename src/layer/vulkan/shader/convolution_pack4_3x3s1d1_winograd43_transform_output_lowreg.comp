@@ -1,0 +1,154 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_control_flow_attributes : require
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int c = 0;
+
+#define shape_constant_id_offset 5
+layout(constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 1) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int block_y = 0;
+
+layout(constant_id = shape_constant_id_offset + 3) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer top_tm_blob { sfpvec4 top_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 2) readonly buffer bias_blob { sfpvec4 bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+} p;
+
+#define sq2    1.41421356237
+#define sq2_m2 1.41421356237 * 2
+#define sq2_d2 1.41421356237 / 2
+#define sq2_d4 1.41421356237 / 4
+
+void store_row(int v_offset, int x, int y, int i, afpvec4 m[6], afpvec4 bias_value)
+{
+    afpvec4 o0 = m[0] + m[1] + m[2] + m[3] + m[4];
+    afpvec4 o1 = (m[1] - m[2]) * afp(sq2_d2) + (m[3] - m[4]) * afp(sq2);
+    afpvec4 o2 = (m[1] + m[2]) * afp(0.5) + (m[3] + m[4]) * afp(2);
+    afpvec4 o3 = m[5] + (m[1] - m[2]) * afp(sq2_d4) + (m[3] - m[4]) * afp(sq2_m2);
+
+    if (bias_term == 1)
+    {
+        o0 = bias_value + o0;
+        o1 = bias_value + o1;
+        o2 = bias_value + o2;
+        o3 = bias_value + o3;
+    }
+
+    o0 = activation_afpvec4(o0, activation_type, activation_param_0, activation_param_1);
+    o1 = activation_afpvec4(o1, activation_type, activation_param_0, activation_param_1);
+    o2 = activation_afpvec4(o2, activation_type, activation_param_0, activation_param_1);
+    o3 = activation_afpvec4(o3, activation_type, activation_param_0, activation_param_1);
+
+    if (y + i < psc(outh))
+    {
+        int o = v_offset + i * psc(outw);
+        buffer_st4(top_blob_data, o + 0, o0);
+        if (x + 1 < psc(outw)) buffer_st4(top_blob_data, o + 1, o1);
+        if (x + 2 < psc(outw)) buffer_st4(top_blob_data, o + 2, o2);
+        if (x + 3 < psc(outw)) buffer_st4(top_blob_data, o + 3, o3);
+    }
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= c)
+        return;
+
+    int v_tm_offset = gz * psc(cstep) + gy * psc(block_x) + gx;
+    int tm_step = psc(cstep) * c;
+
+    afpvec4 bias_value = afpvec4(0.f);
+    if (bias_term == 1)
+        bias_value = buffer_ld4(bias_data, gz);
+
+    int x = gx * 4;
+    int y = gy * 4;
+    int v_offset = gz * psc(outcstep) + y * psc(outw) + x;
+
+    // const float otm[4][6] = {
+    //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
+    //     {0.0f, sq2/2, -sq2/2, sq2,   -sq2,   0.0f},
+    //     {0.0f, 0.5f,   0.5f,  2.0f,  2.0f,   0.0f},
+    //     {0.0f, sq2/4, -sq2/4, sq2*2, -sq2*2, 1.0f}
+    // };
+
+    // the transform is separable: output row i depends only on m[i][0..5],
+    // and m[i][r] depends only on row r of the 6x6 input.
+    // produce one output row per pass, reloading the inputs instead of
+    // keeping all 36 inputs and the 4x6 intermediate in registers.
+    // keep the loop rolled: forced unrolling brings the spills back (mesa 26.1.8, comet lake)
+    [[dont_unroll]] for (int i = 0; i < 4; i++)
+    {
+        // rows 0 and 2 add columns 1 2 and 3 4, rows 1 and 3 subtract them
+        const bool add = i == 0 || i == 2;
+        const afp a1 = i == 0 ? afp(1) : i == 1 ? afp(sq2_d2)
+                                     : i == 2   ? afp(0.5)
+                                                : afp(sq2_d4);
+        const afp a3 = i == 0 ? afp(1) : i == 1 ? afp(sq2)
+                                     : i == 2   ? afp(2)
+                                                : afp(sq2_m2);
+
+        afpvec4 m[6];
+        for (int r = 0; r < 6; r++)
+        {
+            int o = v_tm_offset + r * 6 * tm_step;
+            afpvec4 v1 = buffer_ld4(top_tm_blob_data, o + 1 * tm_step);
+            afpvec4 v2 = buffer_ld4(top_tm_blob_data, o + 2 * tm_step);
+            afpvec4 v3 = buffer_ld4(top_tm_blob_data, o + 3 * tm_step);
+            afpvec4 v4 = buffer_ld4(top_tm_blob_data, o + 4 * tm_step);
+
+            if (i == 0)
+            {
+                // same association as the unrolled original: v0 + v1 + v2 + v3 + v4
+                afpvec4 v0 = buffer_ld4(top_tm_blob_data, o + 0 * tm_step);
+                m[r] = v0 + v1 + v2 + v3 + v4;
+            }
+            else
+            {
+                afpvec4 v12 = add ? v1 + v2 : v1 - v2;
+                afpvec4 v34 = add ? v3 + v4 : v3 - v4;
+                if (i == 3)
+                {
+                    // v5 + (v1 - v2) * sq2/4 + (v3 - v4) * sq2*2, in that order
+                    afpvec4 v5 = buffer_ld4(top_tm_blob_data, o + 5 * tm_step);
+                    m[r] = v5 + v12 * a1 + v34 * a3;
+                }
+                else
+                {
+                    m[r] = v12 * a1 + v34 * a3;
+                }
+            }
+        }
+
+        store_row(v_offset, x, y, i, m, bias_value);
+    }
+}
