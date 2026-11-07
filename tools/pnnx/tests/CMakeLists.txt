@@ -428,3 +428,7 @@ add_subdirectory(ncnn)
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()
+
+add_executable(test_pnnx_ir test_pnnx_ir.cpp ../src/ir.cpp ../src/utils.cpp ../src/storezip.cpp ../src/model_stat.cpp)
+target_include_directories(test_pnnx_ir PRIVATE ../src)
+add_test(NAME test_pnnx_ir COMMAND test_pnnx_ir)
