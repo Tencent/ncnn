@@ -78,6 +78,40 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
+template<typename Op>
+static int unary_op_inplace_m4(Mat& a, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int size = w * h * d;
+    int elempack = a.elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        float* ptr = a.channel(q);
+
+        int n = size * elempack;
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e32m4(n);
+
+            vfloat32m4_t _p = __riscv_vle32_v_f32m4(ptr, vl);
+            _p = op(_p, vl);
+            __riscv_vse32_v_f32m4(ptr, _p, vl);
+
+            ptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
 #endif // __riscv_vector
 
 int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -127,13 +161,13 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         return unary_op_inplace<unary_op_log>(bottom_top_blob, opt);
 
     if (op_type == Operation_SIN)
-        return unary_op_inplace<unary_op_sin>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_sin>(bottom_top_blob, opt);
 
     if (op_type == Operation_COS)
-        return unary_op_inplace<unary_op_cos>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_cos>(bottom_top_blob, opt);
 
     if (op_type == Operation_TAN)
-        return unary_op_inplace<unary_op_tan>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_tan>(bottom_top_blob, opt);
 
     if (op_type == Operation_ASIN)
         return unary_op_inplace<unary_op_asin>(bottom_top_blob, opt);
@@ -174,25 +208,25 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         return unary_op_inplace<unary_op_sign>(bottom_top_blob, opt);
 
     if (op_type == Operation_EXPM1)
-        return unary_op_inplace<unary_op_expm1>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_expm1>(bottom_top_blob, opt);
 
     if (op_type == Operation_SINH)
-        return unary_op_inplace<unary_op_sinh>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_sinh>(bottom_top_blob, opt);
 
     if (op_type == Operation_ASINH)
-        return unary_op_inplace<unary_op_asinh>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_asinh>(bottom_top_blob, opt);
 
     if (op_type == Operation_COSH)
-        return unary_op_inplace<unary_op_cosh>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_cosh>(bottom_top_blob, opt);
 
     if (op_type == Operation_ACOSH)
-        return unary_op_inplace<unary_op_acosh>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_acosh>(bottom_top_blob, opt);
 
     if (op_type == Operation_ATANH)
-        return unary_op_inplace<unary_op_atanh>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_atanh>(bottom_top_blob, opt);
 
     if (op_type == Operation_LOG1P)
-        return unary_op_inplace<unary_op_log1p>(bottom_top_blob, opt);
+        return unary_op_inplace_m4<unary_op_log1p>(bottom_top_blob, opt);
 
     return 0;
 #else  // __riscv_vector
@@ -290,19 +324,19 @@ int UnaryOp_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
 
     if (op_type == Operation_SINH)
-        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_sinh>(bottom_top_blob, opt);
 
     if (op_type == Operation_ASINH)
-        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_asinh>(bottom_top_blob, opt);
 
     if (op_type == Operation_COSH)
         return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
 
     if (op_type == Operation_ACOSH)
-        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_acosh>(bottom_top_blob, opt);
 
     if (op_type == Operation_ATANH)
-        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_atanh>(bottom_top_blob, opt);
 
     if (op_type == Operation_LOG1P)
         return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);

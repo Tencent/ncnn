@@ -57,6 +57,47 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
     return 0;
 }
 
+template<typename Op>
+static int unary_op_inplace_fp16s_m4(Mat& a, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int size = w * h * d;
+    int elempack = a.elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        __fp16* ptr = a.channel(q);
+
+#if __riscv_zvfh
+        int n = size * elempack;
+        while (n > 0)
+        {
+            size_t vl = __riscv_vsetvl_e16m4(n);
+
+            vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+            _p = op(_p, vl);
+            __riscv_vse16_v_f16m4(ptr, _p, vl);
+
+            ptr += vl;
+            n -= vl;
+        }
+#else  // __riscv_zvfh
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] = op(ptr[i]);
+        }
+#endif // __riscv_zvfh
+    }
+
+    return 0;
+}
+
 namespace UnaryOp_riscv_functor {
 
 struct unary_op_abs_fp16s
@@ -204,7 +245,7 @@ struct unary_op_log_fp16s
 struct unary_op_sin_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return sin_ps(x, vl);
     }
@@ -219,7 +260,7 @@ struct unary_op_sin_fp16s
 struct unary_op_cos_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return cos_ps(x, vl);
     }
@@ -234,20 +275,20 @@ struct unary_op_cos_fp16s
 struct unary_op_tan_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
 #if __riscv_xtheadvector
         std::vector<__fp16> tmp(vl);
-        __riscv_vse16_v_f16m8(tmp.data(), x, vl);
+        __riscv_vse16_v_f16m4(tmp.data(), x, vl);
         for (size_t i = 0; i < vl; i++)
         {
             tmp[i] = (__fp16)tanf((float)tmp[i]);
         }
-        return __riscv_vle16_v_f16m8(tmp.data(), vl);
+        return __riscv_vle16_v_f16m4(tmp.data(), vl);
 #else
-        vfloat16m8_t sin_x, cos_x;
+        vfloat16m4_t sin_x, cos_x;
         sincos_ps(x, &sin_x, &cos_x, vl);
-        return __riscv_vfdiv_vv_f16m8(sin_x, cos_x, vl);
+        return __riscv_vfdiv_vv_f16m4(sin_x, cos_x, vl);
 #endif
     }
 #else  // __riscv_zvfh
@@ -430,9 +471,8 @@ struct unary_op_sign_fp16s
         vbool2_t pos = __riscv_vmfgt_vf_f16m8_b2(x, (__fp16)0.f, vl);
         vbool2_t neg = __riscv_vmflt_vf_f16m8_b2(x, (__fp16)0.f, vl);
         vfloat16m8_t zero = __riscv_vfmv_v_f_f16m8((__fp16)0.f, vl);
-        vfloat16m8_t one = __riscv_vfmv_v_f_f16m8((__fp16)1.f, vl);
-        vfloat16m8_t negone = __riscv_vfmv_v_f_f16m8((__fp16)-1.f, vl);
-        return __riscv_vmerge_vvm_f16m8(__riscv_vmerge_vvm_f16m8(zero, one, pos, vl), negone, neg, vl);
+        zero = __riscv_vfmerge_vfm_f16m8(zero, (__fp16)1.f, pos, vl);
+        return __riscv_vfmerge_vfm_f16m8(zero, (__fp16)-1.f, neg, vl);
     }
 #else
     __fp16 operator()(const __fp16& x) const
@@ -460,7 +500,7 @@ struct unary_op_expm1_fp16s
 struct unary_op_sinh_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return sinh_ps(x, vl);
     }
@@ -475,7 +515,7 @@ struct unary_op_sinh_fp16s
 struct unary_op_asinh_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return asinh_ps(x, vl);
     }
@@ -490,7 +530,7 @@ struct unary_op_asinh_fp16s
 struct unary_op_cosh_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return cosh_ps(x, vl);
     }
@@ -505,7 +545,7 @@ struct unary_op_cosh_fp16s
 struct unary_op_acosh_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return acosh_ps(x, vl);
     }
@@ -520,7 +560,7 @@ struct unary_op_acosh_fp16s
 struct unary_op_atanh_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return atanh_ps(x, vl);
     }
@@ -535,7 +575,7 @@ struct unary_op_atanh_fp16s
 struct unary_op_log1p_fp16s
 {
 #if __riscv_zvfh
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const size_t& vl) const
+    vfloat16m4_t operator()(const vfloat16m4_t& x, const size_t& vl) const
     {
         return log1p_ps(x, vl);
     }
@@ -581,13 +621,13 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         return unary_op_inplace_fp16s<unary_op_log_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_SIN)
-        return unary_op_inplace_fp16s<unary_op_sin_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_sin_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_COS)
-        return unary_op_inplace_fp16s<unary_op_cos_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_cos_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_TAN)
-        return unary_op_inplace_fp16s<unary_op_tan_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_tan_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_ASIN)
         return unary_op_inplace_fp16s<unary_op_asin_fp16s>(bottom_top_blob, opt);
@@ -631,22 +671,22 @@ int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         return unary_op_inplace_fp16s<unary_op_expm1_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_SINH)
-        return unary_op_inplace_fp16s<unary_op_sinh_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_sinh_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_ASINH)
-        return unary_op_inplace_fp16s<unary_op_asinh_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_asinh_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_COSH)
-        return unary_op_inplace_fp16s<unary_op_cosh_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_cosh_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_ACOSH)
-        return unary_op_inplace_fp16s<unary_op_acosh_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_acosh_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_ATANH)
-        return unary_op_inplace_fp16s<unary_op_atanh_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_atanh_fp16s>(bottom_top_blob, opt);
 
     if (op_type == Operation_LOG1P)
-        return unary_op_inplace_fp16s<unary_op_log1p_fp16s>(bottom_top_blob, opt);
+        return unary_op_inplace_fp16s_m4<unary_op_log1p_fp16s>(bottom_top_blob, opt);
 
     return 0;
 }
