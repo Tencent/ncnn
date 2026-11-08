@@ -2446,6 +2446,10 @@ int Net::load_model(const DataReader& dr)
         if (layer->support_vulkan && opt.use_vulkan_compute && cmd_upload)
         {
             int uret = layer->upload_model(*cmd_upload, get_masked_option(opt_upload, layer));
+            if (uret == 0 && cmd_upload->status() != 0)
+            {
+                uret = cmd_upload->status();
+            }
             if (uret != 0)
             {
 #if NCNN_STRING

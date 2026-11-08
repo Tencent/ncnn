@@ -2362,6 +2362,7 @@ public:
     const VulkanDevice* vkdev;
 
     uint64_t pending_upload_total;
+    int upload_status;
 
     VkCommandPool compute_command_pool;
     VkCommandPool transfer_command_pool;
@@ -2381,6 +2382,7 @@ VkTransferPrivate::VkTransferPrivate(const VulkanDevice* _vkdev)
     : vkdev(_vkdev)
 {
     pending_upload_total = 0;
+    upload_status = 0;
 
     compute_command_pool = 0;
     transfer_command_pool = 0;
@@ -2638,11 +2640,17 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
 
     Mat src_flattened = flatten ? src.reshape(src.w * src.h * src.c) : src;
 
+    if (src_flattened.empty())
+    {
+        return;
+    }
+
     // create dst
     dst.create_like(src_flattened, opt.blob_vkallocator);
 
     if (dst.empty())
     {
+        d->upload_status = -100;
         return;
     }
 
@@ -2688,6 +2696,12 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
     // create staging
     VkMat dst_staging;
     dst_staging.create_like(src_flattened, opt.staging_vkallocator);
+
+    if (dst_staging.empty())
+    {
+        d->upload_status = -100;
+        return;
+    }
 
     // memcpy src_flattened to staging
     for (int b = 0; b < src_flattened.n; b++)
@@ -2933,6 +2947,7 @@ int VkTransfer::submit_and_wait()
     }
 
     d->pending_upload_total = 0;
+    d->upload_status = 0;
 
     return 0;
 }
@@ -2942,6 +2957,7 @@ int VkTransfer::reset()
     d->upload_staging_buffers.clear();
 
     d->pending_upload_total = 0;
+    d->upload_status = 0;
 
     // reset command buffer and fence
     {
@@ -2989,6 +3005,11 @@ int VkTransfer::reset()
 uint64_t VkTransfer::pending_upload_total() const
 {
     return d->pending_upload_total;
+}
+
+int VkTransfer::status() const
+{
+    return d->upload_status;
 }
 
 } // namespace ncnn
