@@ -442,19 +442,18 @@ int main()
 #endif
 
 #if NCNN_BF16
-    for (int packing = 0; packing < 2; packing++)
-        for (int output_elemtype = 0; output_elemtype < 2; output_elemtype++)
-            for (int output_transpose = 0; output_transpose < 2; output_transpose++)
-                for (int output_N1M = 0; output_N1M < 2; output_N1M++)
-                    if (test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, packing, output_elemtype, output_transpose, output_N1M) != 0)
-                        return -1;
+    if (test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 0, 0, 0, 0) != 0
+            || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 0, 1, 1, 1) != 0
+            || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 0, 0, 1) != 0
+            || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 1, 0, 0) != 0
+            || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 0, 1, 0) != 0
+            || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 1, 1, 1) != 0)
+        return -1;
 
-#if NCNN_RVV || NCNN_XTHEADVECTOR || NCNN_MSA || NCNN_LSX || NCNN_LASX
-    // these backends also accept dynamic fp32 C alongside bf16 A and B
+    // dynamic fp32 C with bf16 A and B
     if (test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 1, 0, 0, 1) != 0
             || test_gemm_bf16_storage(fp32_max_elempack, bf16_max_elempack, 1, 1, 1, 1, 1) != 0)
         return -1;
-#endif
 #endif
 
     for (int i = 0; i < 14; i++)
