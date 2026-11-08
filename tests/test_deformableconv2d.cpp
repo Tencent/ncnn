@@ -7,6 +7,65 @@
 
 #include <limits.h>
 
+static int test_deformableconv2d_sgemm_fp32(int use_fp16_storage, int use_bf16_storage)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, 1);
+    pd.set(1, 1);
+    pd.set(6, 1);
+
+    ncnn::Mat weight(1);
+    weight[0] = 1.f;
+    ncnn::ModelBinFromMatArray mb(&weight);
+
+    std::vector<ncnn::Mat> a(2);
+    a[0].create(2, 2, 1);
+    for (int i = 0; i < 4; i++)
+        ((float*)a[0])[i] = i + 1.f;
+    a[1].create(2, 2, 2);
+    a[1].fill(0.f);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+    opt.use_fp16_packed = use_fp16_storage;
+    opt.use_fp16_storage = use_fp16_storage;
+    opt.use_fp16_arithmetic = use_fp16_storage;
+    opt.use_bf16_packed = use_bf16_storage;
+    opt.use_bf16_storage = use_bf16_storage;
+    opt.use_sgemm_convolution = true;
+
+    // keep fp32 inputs while enabling global storage options
+    ncnn::Layer* op = ncnn::create_layer_cpu(ncnn::LayerType::DeformableConv2D);
+    std::vector<ncnn::Mat> b(1);
+    int ret = op->load_param(pd);
+    if (ret == 0) ret = op->load_model(mb);
+    if (ret == 0) ret = op->create_pipeline(opt);
+    if (ret == 0) ret = op->forward(a, b, opt);
+    op->destroy_pipeline(opt);
+    delete op;
+    if (ret != 0)
+        return ret;
+
+    if (b[0].elembits() != 32 || b[0].elempack != 1 || b[0].w != 2 || b[0].h != 2 || b[0].c != 1)
+    {
+        fprintf(stderr, "test_deformableconv2d_sgemm_fp32 layout failed fp16s=%d bf16s=%d\n", use_fp16_storage, use_bf16_storage);
+        return -1;
+    }
+
+    const float* outptr = b[0];
+    for (int i = 0; i < 4; i++)
+    {
+        if (outptr[i] != i + 1.f)
+        {
+            fprintf(stderr, "test_deformableconv2d_sgemm_fp32 value failed fp16s=%d bf16s=%d i=%d expected=%f actual=%f\n", use_fp16_storage, use_bf16_storage, i, i + 1.f, outptr[i]);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias)
 {
     const int kernel_extent_w = dilation * (kernel - 1) + 1;
@@ -236,6 +295,8 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_deformableconv2d_sgemm_fp32(1, 0)
+           || test_deformableconv2d_sgemm_fp32(0, 1)
            || test_deformableconv2d_0()
 #if NCNN_VALIDATION
            || test_deformableconv2d_load_param()
