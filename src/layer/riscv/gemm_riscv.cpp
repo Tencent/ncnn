@@ -4589,8 +4589,11 @@ int Gemm_riscv::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
             // cast to fp32
             if (C.elembits() == 16)
             {
+                Option opt_cast = opt;
+                opt_cast.blob_allocator = opt.workspace_allocator;
+
                 Mat CT_data;
-                cast_bfloat16_to_float32(C, CT_data, opt);
+                cast_bfloat16_to_float32(C, CT_data, opt_cast);
                 C = CT_data;
                 if (C.empty())
                     return -100;
