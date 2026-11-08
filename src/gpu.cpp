@@ -5662,6 +5662,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         option_defines.append("NCNN_shader_local_memory", 1);
     }
 
+    if (opt.use_subgroup_ops)
+    {
+        option_defines.append("NCNN_subgroup_ops", 1);
+    }
+
 #if __APPLE__
     option_defines.append("NCNN_moltenvk", 1);
 #endif

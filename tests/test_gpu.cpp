@@ -61,6 +61,44 @@ static int test_compile_spirv_module_1()
            || test_compile_spirv_module("#version 450\n#error test\n", -1);
 }
 
+static int test_compile_spirv_module_subgroup_option()
+{
+    for (int device_index = 0; device_index < ncnn::get_gpu_count(); device_index++)
+    {
+        const uint32_t subgroup_ops = ncnn::get_gpu_info(device_index).support_subgroup_ops();
+        for (int i = 0; i < 4; i++)
+        {
+            ncnn::Option opt;
+            opt.vulkan_device_index = device_index;
+            opt.use_fp16_packed = false;
+            opt.use_fp16_storage = false;
+            opt.use_fp16_arithmetic = false;
+            opt.use_subgroup_ops = (i & 1) != 0;
+            opt.use_cooperative_matrix = (i & 2) != 0;
+
+            // The option must not change the independent hardware capability macros.
+            char source[512];
+            snprintf(source, sizeof(source),
+                     "#version 450\n"
+                     "#if NCNN_subgroup_ops != %d\n#error subgroup option mismatch\n#endif\n"
+                     "#if ncnn_subgroup_basic != %d || ncnn_subgroup_arithmetic != %d\n#error subgroup capability mismatch\n#endif\n"
+                     "layout(local_size_x = 1) in;\nvoid main() {}\n",
+                     opt.use_subgroup_ops ? 1 : 0,
+                     (subgroup_ops & VK_SUBGROUP_FEATURE_BASIC_BIT) ? 1 : 0,
+                     (subgroup_ops & VK_SUBGROUP_FEATURE_ARITHMETIC_BIT) ? 1 : 0);
+
+            std::vector<uint32_t> spirv;
+            if (ncnn::compile_spirv_module(source, strlen(source), opt, spirv) != 0)
+            {
+                fprintf(stderr, "test_compile_spirv_module_subgroup_option failed device=%d subgroup=%d cooperative_matrix=%d\n", device_index, opt.use_subgroup_ops, opt.use_cooperative_matrix);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -70,5 +108,6 @@ int main()
 
     return 0
            || test_compile_spirv_module_0()
-           || test_compile_spirv_module_1();
+           || test_compile_spirv_module_1()
+           || test_compile_spirv_module_subgroup_option();
 }

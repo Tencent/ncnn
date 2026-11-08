@@ -8,6 +8,7 @@
 #if NCNN_VULKAN
 #include "command.h"
 #include "gpu.h"
+#include "layer_shader_type.h"
 #endif
 
 #include <limits.h>
@@ -348,6 +349,86 @@ static int test_reduction_depth_padding_boundaries()
 }
 
 #if NCNN_VULKAN
+static int test_reduction_subgroup_spirv(const ncnn::Option& opt, bool expected_subgroup)
+{
+    std::vector<uint32_t> spirv;
+    if (ncnn::compile_spirv_module(ncnn::LayerShaderType::reduction, opt, spirv) != 0)
+        return -1;
+
+    if (spirv.size() < 5 || spirv[0] != 0x07230203)
+        return -1;
+
+    bool subgroup_capability = false;
+    bool arithmetic_capability = false;
+    bool subgroup_instruction = false;
+    bool arithmetic_instruction = false;
+    for (size_t i = 5; i < spirv.size();)
+    {
+        const uint32_t word_count = spirv[i] >> 16;
+        const uint32_t opcode = spirv[i] & 0xffff;
+        if (word_count == 0 || word_count > spirv.size() - i)
+            return -1;
+
+        // OpCapability with GroupNonUniform through GroupNonUniformQuad.
+        if (opcode == 17 && word_count == 2)
+        {
+            subgroup_capability |= spirv[i + 1] >= 61 && spirv[i + 1] <= 68;
+            arithmetic_capability |= spirv[i + 1] == 63;
+        }
+        // OpGroupNonUniformElect through OpGroupNonUniformQuadSwap.
+        subgroup_instruction |= opcode >= 333 && opcode <= 366;
+        // OpGroupNonUniformFAdd, used by the actual Reduction shader.
+        arithmetic_instruction |= opcode == 350;
+        i += word_count;
+    }
+
+    return expected_subgroup ? !(subgroup_capability && arithmetic_capability && arithmetic_instruction)
+           : (subgroup_capability || subgroup_instruction);
+}
+
+static int test_reduction_subgroup_option()
+{
+    const char* precision_names[] = {"fp32", "fp16p", "fp16s", "fp16sa", "bf16p", "bf16p_fp16a", "bf16s", "bf16s_fp16a"};
+    for (int device_index = 0; device_index < ncnn::get_gpu_count(); device_index++)
+    {
+        const ncnn::GpuInfo& info = ncnn::get_gpu_info(device_index);
+        const uint32_t required_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+        const bool support_subgroup = (info.support_subgroup_ops() & required_ops) == required_ops;
+        for (int precision = 0; precision < 8; precision++)
+        {
+            ncnn::Option opt;
+            opt.vulkan_device_index = device_index;
+            opt.use_fp16_packed = precision == 1;
+            opt.use_fp16_storage = precision == 2 || precision == 3;
+            opt.use_fp16_arithmetic = precision == 3 || precision == 5 || precision == 7;
+            opt.use_bf16_packed = precision == 4 || precision == 5;
+            opt.use_bf16_storage = precision == 6 || precision == 7;
+            // Do not let the independent cooperative-matrix option raise the SPIR-V target.
+            opt.use_cooperative_matrix = false;
+
+            if ((opt.use_fp16_packed && !info.support_fp16_packed())
+                    || (opt.use_fp16_storage && !info.support_fp16_storage())
+                    || (opt.use_fp16_arithmetic && !info.support_fp16_arithmetic())
+                    || (opt.use_bf16_packed && !info.support_bf16_packed())
+                    || (opt.use_bf16_storage && !info.support_bf16_storage()))
+                continue;
+
+            // Reduction always uses FP32 subgroup arithmetic.
+            for (int i = 0; i < 2; i++)
+            {
+                opt.use_subgroup_ops = i != 0;
+                const bool expected_subgroup = opt.use_subgroup_ops && support_subgroup;
+                if (test_reduction_subgroup_spirv(opt, expected_subgroup) != 0)
+                {
+                    fprintf(stderr, "test_reduction_subgroup_option failed device=%d precision=%s subgroup=%d expected_subgroup=%d\n", device_index, precision_names[precision], opt.use_subgroup_ops, expected_subgroup);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
 static int test_reduction_gpu_fp16a(const ncnn::Mat& a, float coeff, const std::vector<int>& axes_array, bool use_subgroup_ops)
 {
     ncnn::ParamDict pd;
@@ -498,6 +579,11 @@ static int test_reduction_gpu_fp16a()
 int main()
 {
     SRAND(7767517);
+
+#if NCNN_VULKAN
+    if (test_reduction_subgroup_option() != 0)
+        return -1;
+#endif // NCNN_VULKAN
 
     for (op_type = 0; op_type < OP_TYPE_MAX; op_type++)
     {
