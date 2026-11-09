@@ -67,6 +67,11 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         eval_size_expr(bottom_blob_shapes, outw, outh);
     }
 
+    if ((dims == 2 || dims == 3)
+            && ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+                || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4)))))
+        return forward_small_input(bottom_blob, top_blob, outw, outh, opt);
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
@@ -115,7 +120,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
     if (dims == 2)
     {
-        if (outw == w)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -131,7 +136,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         {
             if (resize_type == 1) // nearest
             {
-                const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+                const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -157,7 +162,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                 int* xofs = buf;
                 float* alpha = (float*)(buf + outw);
 
-                linear_coeffs(w, outw, xofs, alpha, align_corner);
+                const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+                linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -195,7 +201,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                 int* xofs = buf;
                 float* alpha = (float*)(buf + outw);
 
-                cubic_coeffs(w, outw, xofs, alpha, align_corner);
+                const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+                cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -239,7 +246,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         {
             if (resize_type == 1) // nearest
             {
-                const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+                const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -265,7 +272,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                 int* xofs = buf;
                 float* alpha = (float*)(buf + outw);
 
-                linear_coeffs(w, outw, xofs, alpha, align_corner);
+                const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+                linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -303,7 +311,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                 int* xofs = buf;
                 float* alpha = (float*)(buf + outw);
 
-                cubic_coeffs(w, outw, xofs, alpha, align_corner);
+                const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+                cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -346,7 +355,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
         if (resize_type == 1) // nearest
         {
-            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -368,7 +377,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -398,7 +408,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -426,7 +437,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         return 0;
     }
 
-    if (outw == w && outh == h)
+    if (is_identity_resize(w, h, outw, outh, dims))
     {
         top_blob = bottom_blob;
         return 0;
@@ -442,8 +453,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     {
         if (resize_type == 1) // nearest
         {
-            const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
-            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+            const float hs = (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -480,8 +491,10 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
             float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
-            linear_coeffs(h, outh, yofs, beta, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            linear_coeffs(h, outh, hs, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -505,8 +518,10 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
             float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
-            cubic_coeffs(h, outh, yofs, beta, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -527,8 +542,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     {
         if (resize_type == 1) // nearest
         {
-            const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
-            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+            const float hs = (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -565,8 +580,10 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
             float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
-            linear_coeffs(h, outh, yofs, beta, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            linear_coeffs(h, outh, hs, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -590,8 +607,10 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
             float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
-            cubic_coeffs(h, outh, yofs, beta, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -611,8 +630,8 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
     if (resize_type == 1) // nearest
     {
-        const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
-        const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -645,8 +664,10 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha, align_corner);
-        linear_coeffs(h, outh, yofs, beta, align_corner);
+        const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+        linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+        const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+        linear_coeffs(h, outh, hs, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -670,8 +691,10 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
         float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-        cubic_coeffs(w, outw, xofs, alpha, align_corner);
-        cubic_coeffs(h, outh, yofs, beta, align_corner);
+        const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+        cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+        const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+        cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -2222,6 +2245,11 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
         eval_size_expr(bottom_blob_shapes, outw, outh);
     }
 
+    if ((dims == 2 || dims == 3)
+            && ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+                || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4)))))
+        return forward_small_input(bottom_blob, top_blob, outw, outh, opt);
+
     if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
@@ -2249,7 +2277,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
 
     if (dims == 2)
     {
-        if (outw == w)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -2261,7 +2289,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
 
         if (resize_type == 1) // nearest
         {
-            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -2286,7 +2314,8 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
 #if __loongarch_sx
 #if __loongarch_asx
@@ -2427,7 +2456,8 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
 #if __loongarch_sx
 #if __loongarch_asx
@@ -2589,7 +2619,7 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
 
     if (dims == 3)
     {
-        if (outw == w && outh == h)
+        if (is_identity_resize(w, h, outw, outh, dims))
         {
             top_blob = bottom_blob;
             return 0;
@@ -2601,8 +2631,8 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
 
         if (resize_type == 1) // nearest
         {
-            const float hs = (output_height || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
-            const float ws = (output_width || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+            const float hs = (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -2638,8 +2668,10 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
             float* alpha = (float*)(buf + outw + outh);
             float* beta = (float*)(buf + outw + outh + outw * 2);
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
-            linear_coeffs(h, outh, yofs, beta, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            linear_coeffs(h, outh, hs, yofs, beta, align_corner);
 
 #if __loongarch_sx
 #if __loongarch_asx
@@ -2756,8 +2788,10 @@ int Interp_loongarch::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::v
             float* alpha = (float*)(buf + outw + outh);
             float* beta = (float*)(buf + outw + outh + outw * 4);
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
-            cubic_coeffs(h, outh, yofs, beta, align_corner);
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
 
 #if __loongarch_sx
 #if __loongarch_asx

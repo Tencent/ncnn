@@ -493,6 +493,23 @@ static int test_packing_3()
            ;
 }
 
+static int test_packing_int8()
+{
+    return 0
+           || test_packing_cpu_int8(ncnn::Mat(17, 64), 1, 32)
+           || test_packing_cpu_int8(ncnn::Mat(17, 64), 32, 1)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 64), 1, 32)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 64), 32, 1)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 64), 1, 32)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 64), 32, 1)
+           || test_packing_cpu_int8(ncnn::Mat(17, 128), 1, 64)
+           || test_packing_cpu_int8(ncnn::Mat(17, 128), 64, 1)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 128), 1, 64)
+           || test_packing_cpu_int8(ncnn::Mat(9, 7, 128), 64, 1)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 128), 1, 64)
+           || test_packing_cpu_int8(ncnn::Mat(3, 5, 7, 128), 64, 1);
+}
+
 #if NCNN_VALIDATION
 static int test_packing_load_param()
 {
@@ -526,6 +543,7 @@ int main()
            || test_packing_1()
            || test_packing_2()
            || test_packing_3()
+           || test_packing_int8()
 #if NCNN_VALIDATION
            || test_packing_load_param()
 #endif // NCNN_VALIDATION

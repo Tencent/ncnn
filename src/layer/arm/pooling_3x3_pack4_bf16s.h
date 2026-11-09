@@ -294,17 +294,20 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "fmax   v18.4s, v2.4s, v6.4s    \n"
                     "fmax   v19.4s, v3.4s, v7.4s    \n"
 
-                    "ld1    {v0.4s}, [%1]           \n"
+                    "ld1    {v0.4h}, [%1]           \n"
+                    "shll   v0.4s, v0.4h, #16       \n"
 
                     "fmax   v16.4s, v16.4s, v20.4s  \n"
                     "fmax   v17.4s, v17.4s, v21.4s  \n"
 
-                    "ld1    {v1.4s}, [%2]           \n"
+                    "ld1    {v1.4h}, [%2]           \n"
+                    "shll   v1.4s, v1.4h, #16       \n"
 
                     "fmax   v18.4s, v18.4s, v22.4s  \n"
                     "fmax   v19.4s, v19.4s, v23.4s  \n"
 
-                    "ld1    {v2.4s}, [%3]           \n"
+                    "ld1    {v2.4h}, [%3]           \n"
+                    "shll   v2.4s, v2.4h, #16       \n"
 
                     "fmax   v3.4s, v0.4s, v1.4s     \n"
 

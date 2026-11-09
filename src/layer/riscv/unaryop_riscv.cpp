@@ -4,6 +4,7 @@
 #include "unaryop_riscv.h"
 
 #include <float.h>
+#include <fenv.h>
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -11,8 +12,19 @@
 #endif // __riscv_vector
 
 #include "cpu.h"
+#include "riscv_usability.h"
 
 namespace ncnn {
+
+namespace UnaryOp_riscv_functor {
+
+#include "unaryop_functor.h"
+
+} // namespace UnaryOp_riscv_functor
+
+#if NCNN_BF16
+#include "unaryop_bf16s.h"
+#endif
 
 UnaryOp_riscv::UnaryOp_riscv()
 {
@@ -25,6 +37,9 @@ UnaryOp_riscv::UnaryOp_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 }
 
@@ -63,310 +78,22 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
-namespace UnaryOp_riscv_functor {
-
-struct unary_op_abs
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfsgnj_vf_f32m8(x, 1.f, vl);
-    }
-};
-
-struct unary_op_neg
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfneg_v_f32m8(x, vl);
-    }
-};
-
-struct unary_op_floor
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8_rm(x, __RISCV_FRM_RDN, vl), vl);
-    }
-};
-
-struct unary_op_ceil
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8_rm(x, __RISCV_FRM_RUP, vl), vl);
-    }
-};
-
-struct unary_op_square
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfmul_vv_f32m8(x, x, vl);
-    }
-};
-
-struct unary_op_sqrt
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfsqrt_v_f32m8(x, vl);
-    }
-};
-
-struct unary_op_rsqrt
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-#if __riscv_xtheadvector
-        vfloat32m8_t _reciprocal = __riscv_vfrdiv_vf_f32m8(__riscv_vfsqrt_v_f32m8(x, vl), 1.f, vl);
-#else
-        vfloat32m8_t _reciprocal = __riscv_vfrsqrt7_v_f32m8(x, vl);
-        _reciprocal = __riscv_vfmul_vv_f32m8(__riscv_vfrsub_vf_f32m8(__riscv_vfmul_vv_f32m8(__riscv_vfmul_vf_f32m8(x, 0.5f, vl), __riscv_vfmul_vv_f32m8(_reciprocal, _reciprocal, vl), vl), 1.5f, vl), _reciprocal, vl);
-        // _reciprocal = __riscv_vfmul_vv_f32m8(__riscv_vfrsub_vf_f32m8(__riscv_vfmul_vv_f32m8(__riscv_vfmul_vf_f32m8(x, 0.5f, vl), __riscv_vfmul_vv_f32m8(_reciprocal, _reciprocal, vl), vl), 1.5f, vl), _reciprocal, vl);
-#endif
-        return _reciprocal;
-    }
-};
-
-struct unary_op_exp
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return exp_ps(x, vl);
-    }
-};
-
-struct unary_op_log
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return log_ps(x, vl);
-    }
-};
-
-struct unary_op_sin
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return sin_ps(x, vl);
-    }
-};
-
-struct unary_op_cos
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return cos_ps(x, vl);
-    }
-};
-
-struct unary_op_tan
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-#if __riscv_xtheadvector
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++)
-        {
-            tmp[i] = tanf(tmp[i]);
-        }
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
-#else
-        vfloat32m8_t sin_x, cos_x;
-        sincos_ps(x, &sin_x, &cos_x, vl);
-        return __riscv_vfdiv_vv_f32m8(sin_x, cos_x, vl);
-#endif
-    }
-};
-
-struct unary_op_asin
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        // TODO rvv optimize
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++)
-        {
-            tmp[i] = asinf(tmp[i]);
-        }
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
-    }
-};
-
-struct unary_op_acos
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        // TODO rvv optimize
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++)
-        {
-            tmp[i] = acosf(tmp[i]);
-        }
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
-    }
-};
-
-struct unary_op_atan
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        // TODO rvv optimize
-        std::vector<float> tmp(vl);
-        __riscv_vse32_v_f32m8(tmp.data(), x, vl);
-        for (size_t i = 0; i < vl; i++)
-        {
-            tmp[i] = atanf(tmp[i]);
-        }
-        return __riscv_vle32_v_f32m8(tmp.data(), vl);
-    }
-};
-
-struct unary_op_reciprocal
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-#if __riscv_xtheadvector
-        vfloat32m8_t _reciprocal = __riscv_vfrdiv_vf_f32m8(x, 1.f, vl);
-#else
-        vfloat32m8_t _reciprocal = __riscv_vfrec7_v_f32m8(x, vl);
-        _reciprocal = __riscv_vfmul_vv_f32m8(__riscv_vfrsub_vf_f32m8(__riscv_vfmul_vv_f32m8(x, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
-        // _reciprocal = __riscv_vfmul_vv_f32m8(__riscv_vfrsub_vf_f32m8(__riscv_vfmul_vv_f32m8(x, _reciprocal, vl), 2.f, vl), _reciprocal, vl);
-#endif
-        return _reciprocal;
-    }
-};
-
-struct unary_op_tanh
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return tanh_ps(x, vl);
-    }
-};
-
-struct unary_op_log10
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfmul_vf_f32m8(log_ps(x, vl), 0.434294481903, vl);
-    }
-};
-
-struct unary_op_round
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_x_f_v_i32m8(x, vl), vl);
-    }
-};
-
-struct unary_op_trunc
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-#if __riscv_xtheadvector
-        // simulate trunc with floor positives and ceil negative
-        // xi = round(x)
-        // floorx = xi - (xi > x)
-        // ceilx = xi + (xi < x)
-        // truncx = x >= 0 ? floorx : ceilx
-        vint32m8_t _xi = __riscv_vfcvt_x_f_v_i32m8(x, vl);
-        vfloat32m8_t _xf = __riscv_vfcvt_f_x_v_f32m8(_xi, vl);
-        vbool4_t _floormask = __riscv_vmfgt_vv_f32m8_b4(_xf, x, vl);
-        vint32m8_t _floorx = __riscv_vsub_vx_i32m8_mu(_floormask, _xi, _xi, 1, vl);
-        vbool4_t _ceilmask = __riscv_vmflt_vv_f32m8_b4(_xf, x, vl);
-        vint32m8_t _ceilx = __riscv_vadd_vx_i32m8_mu(_ceilmask, _xi, _xi, 1, vl);
-        vbool4_t _negative = __riscv_vmflt_vf_f32m8_b4(x, 0.f, vl);
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vmerge_vvm_i32m8(_floorx, _ceilx, _negative, vl), vl);
-#else
-        return __riscv_vfcvt_f_x_v_f32m8(__riscv_vfcvt_rtz_x_f_v_i32m8(x, vl), vl);
-#endif
-    }
-};
-
-struct unary_op_sign
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        vbool4_t pos = __riscv_vmfgt_vf_f32m8_b4(x, 0.f, vl);
-        vbool4_t neg = __riscv_vmflt_vf_f32m8_b4(x, 0.f, vl);
-        vfloat32m8_t zero = __riscv_vfmv_v_f_f32m8(0.f, vl);
-        vfloat32m8_t one = __riscv_vfmv_v_f_f32m8(1.f, vl);
-        vfloat32m8_t negone = __riscv_vfmv_v_f_f32m8(-1.f, vl);
-        return __riscv_vmerge_vvm_f32m8(__riscv_vmerge_vvm_f32m8(zero, one, pos, vl), negone, neg, vl);
-    }
-};
-
-struct unary_op_expm1
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return expm1_ps(x, vl);
-    }
-};
-
-struct unary_op_sinh
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return sinh_ps(x, vl);
-    }
-};
-
-struct unary_op_asinh
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return asinh_ps(x, vl);
-    }
-};
-
-struct unary_op_cosh
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return cosh_ps(x, vl);
-    }
-};
-
-struct unary_op_acosh
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return acosh_ps(x, vl);
-    }
-};
-
-struct unary_op_atanh
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return atanh_ps(x, vl);
-    }
-};
-
-struct unary_op_log1p
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
-    {
-        return log1p_ps(x, vl);
-    }
-};
-
-} // namespace UnaryOp_riscv_functor
 #endif // __riscv_vector
 
 int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_top_blob.elembits();
+#endif
 
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
 
 #if __riscv_vector
@@ -472,5 +199,116 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     return UnaryOp::forward_inplace(bottom_top_blob, opt);
 #endif // __riscv_vector
 }
+
+#if NCNN_BF16
+int UnaryOp_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
+    if (cpu_support_riscv_zvfbfmin())
+    {
+        return unaryop_bf16s_zvfbfmin(bottom_top_blob, op_type, opt);
+    }
+#endif
+
+    using namespace UnaryOp_riscv_functor;
+
+    if (op_type == Operation_ABS)
+        return unary_op_inplace_bf16s<unary_op_abs>(bottom_top_blob, opt);
+
+    if (op_type == Operation_NEG)
+        return unary_op_inplace_bf16s<unary_op_neg>(bottom_top_blob, opt);
+
+    if (op_type == Operation_FLOOR)
+        return unary_op_inplace_bf16s<unary_op_floor>(bottom_top_blob, opt);
+
+    if (op_type == Operation_CEIL)
+        return unary_op_inplace_bf16s<unary_op_ceil>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQUARE)
+        return unary_op_inplace_bf16s<unary_op_square>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SQRT)
+        return unary_op_inplace_bf16s<unary_op_sqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RSQRT)
+        return unary_op_inplace_bf16s<unary_op_rsqrt>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXP)
+        return unary_op_inplace_bf16s<unary_op_exp>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG)
+        return unary_op_inplace_bf16s<unary_op_log>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIN)
+        return unary_op_inplace_bf16s<unary_op_sin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COS)
+        return unary_op_inplace_bf16s<unary_op_cos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TAN)
+        return unary_op_inplace_bf16s<unary_op_tan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASIN)
+        return unary_op_inplace_bf16s<unary_op_asin>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOS)
+        return unary_op_inplace_bf16s<unary_op_acos>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATAN)
+        return unary_op_inplace_bf16s<unary_op_atan>(bottom_top_blob, opt);
+
+    if (op_type == Operation_RECIPROCAL)
+        return unary_op_inplace_bf16s<unary_op_reciprocal>(bottom_top_blob, opt);
+
+    if (op_type == Operation_TANH)
+        return unary_op_inplace_bf16s<unary_op_tanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG10)
+        return unary_op_inplace_bf16s<unary_op_log10>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ROUND)
+    {
+        // round to nearest even
+#ifdef FE_TONEAREST
+        int old_rm = fegetround();
+        fesetround(FE_TONEAREST);
+#endif
+        int ret = unary_op_inplace_bf16s<unary_op_round>(bottom_top_blob, opt);
+#ifdef FE_TONEAREST
+        fesetround(old_rm);
+#endif
+        return ret;
+    }
+
+    if (op_type == Operation_TRUNC)
+        return unary_op_inplace_bf16s<unary_op_trunc>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SIGN)
+        return unary_op_inplace_bf16s<unary_op_sign>(bottom_top_blob, opt);
+
+    if (op_type == Operation_EXPM1)
+        return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
+
+    if (op_type == Operation_SINH)
+        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ASINH)
+        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_COSH)
+        return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ACOSH)
+        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_ATANH)
+        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+
+    if (op_type == Operation_LOG1P)
+        return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
