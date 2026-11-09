@@ -11,6 +11,7 @@
 
 #include <torch/script.h>
 #include <torch/csrc/api/include/torch/version.h>
+#include <torch/csrc/jit/passes/quantization/helper.h>
 #include <torch/csrc/jit/serialization/import_read.h>
 
 #include <limits>
@@ -23,8 +24,29 @@ int64_t cuda_version();
 #include "pass_level0.h"
 #include "pass_level1.h"
 #include "pass_level1/fuse_module_pass.h"
+#include "torch_alias.h"
 
 namespace pnnx {
+
+TorchAliasKind torch_alias_kind(const torch::jit::Node* node)
+{
+    if (node->kind() != c10::prim::CallMethod)
+        return torch_alias_kind(node->kind().toDisplayString());
+
+    const auto class_type = node->input(0)->type()->cast<torch::jit::ClassType>();
+    if (!class_type)
+        return TorchAliasNone;
+    const std::string type = torch::jit::removeTorchMangle(class_type->str());
+    for (const auto& pass : get_global_pnnx_fuse_module_passes())
+        if (type == pass->match_type_str())
+            return torch_alias_kind(std::string(pass->type_str()));
+    return TorchAliasNone;
+}
+
+torch::jit::Value* torch_alias_input(const torch::jit::Node* node)
+{
+    return node->input(node->kind() == c10::prim::CallMethod ? 1 : 0);
+}
 
 static int get_at_tensor_type(const at::ScalarType& st)
 {

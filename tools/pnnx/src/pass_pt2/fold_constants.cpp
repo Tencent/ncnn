@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "fold_constants.h"
+#include "torch_alias.h"
 #include "pt2_tensor.h"
 
 #include <ATen/ATen.h>
@@ -172,17 +173,12 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
     };
 
     // Keep alias-producing ancestors of mutations intact for functionize.
-    static const std::set<std::string> aliases = {
-        "aten::slice", "aten::select", "aten::view", "aten::reshape", "aten::flatten",
-        "aten::transpose", "aten::t", "aten::permute", "aten::squeeze", "aten::unsqueeze",
-        "aten::alias", "aten::detach", "aten::expand", "aten::as_strided"
-    };
     std::set<const Operand*> mutable_inputs;
     for (auto it = graph.ops.rbegin(); it != graph.ops.rend(); ++it)
     {
         const Operator* op = *it;
-        bool mutable_value = op->type.size() > 2 && op->type.back() == '_' && op->type[op->type.size() - 2] != '_';
-        if (aliases.count(op->type))
+        bool mutable_value = torch_mutation_kind(op->type) != TorchMutationNone;
+        if (torch_alias_kind(op) != TorchAliasNone)
             for (const Operand* output : op->outputs)
                 mutable_value |= mutable_inputs.count(output) != 0;
         if (mutable_value && !op->inputs.empty())

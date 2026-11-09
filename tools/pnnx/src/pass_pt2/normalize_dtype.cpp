@@ -48,37 +48,6 @@ static Operand* cast_before(Graph& graph, const Operator* before, Operand* sourc
     return r;
 }
 
-static void normalize_inplace_dtype(Graph& graph, Operator* op, int& id)
-{
-    Operand* destination = op->inputs[0];
-    const std::string name = "pt2_dtype_" + std::to_string(id++);
-    Operator* functional = graph.new_operator_before(op->type.substr(0, op->type.size() - 1), name, op);
-    functional->inputs = op->inputs;
-    functional->inputnames = op->inputnames;
-    functional->params = op->params;
-    for (Operand* input : functional->inputs)
-    {
-        input->remove_consumer(op);
-        input->consumers.push_back(functional);
-    }
-    Operand* computed = graph.new_operand(name);
-    computed->producer = functional;
-    computed->shape = op->outputs[0]->shape;
-    // The functional result may be promoted. Do not reuse the in-place result's
-    // destination dtype as its metadata or cast the operands before computing.
-    functional->outputs.push_back(computed);
-    Operand* converted = cast_before(graph, op, computed, destination->type, id);
-
-    // Keep writeback explicit so the shared functionize pass also updates live
-    // aliases, including writes through slice/select chains.
-    op->type = "aten::copy_";
-    op->params.clear();
-    op->inputnames.clear();
-    op->inputs = {destination, converted};
-    destination->consumers.push_back(op);
-    converted->consumers.push_back(op);
-}
-
 int normalize_pt2_dtype(Graph& graph)
 {
     int id = 0;
@@ -116,27 +85,6 @@ int normalize_pt2_dtype(Graph& graph)
                 // PyTorch promotes half and bfloat16 to float32 opmath.
                 eps = type == 2 ? (float)DBL_EPSILON : FLT_EPSILON;
             }
-        }
-        if (op->type == "aten::add_" || op->type == "aten::sub_" || op->type == "aten::mul_" || op->type == "aten::div_"
-                || op->type == "aten::clamp_")
-        {
-            if (op->inputs.empty() || op->outputs.size() != 1 || pt2_scalar_type(op->inputs[0]->type) < 0)
-            {
-                fprintf(stderr, "pt2 dtype: unknown destination dtype for %s\n", op->type.c_str());
-                return -1;
-            }
-            // Same-dtype tensors and wrapped Number scalars keep the destination
-            // dtype. Only mixed tensor dtypes can require a narrowing writeback.
-            bool mixed_dtype = false;
-            for (size_t i = 1; i < op->inputs.size(); i++)
-            {
-                const int type = op->inputs[i]->type;
-                if (type != 0 && type != op->inputs[0]->type)
-                    mixed_dtype = true;
-            }
-            if (mixed_dtype)
-                normalize_inplace_dtype(graph, op, id);
-            continue;
         }
         const bool softmax = op->type == "aten::softmax" || op->type == "aten::log_softmax";
         const bool reduce = op->type == "aten::sum" || op->type == "aten::mean" || op->type == "aten::prod";

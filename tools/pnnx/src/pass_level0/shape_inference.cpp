@@ -5,6 +5,7 @@
 #include <unordered_set>
 
 #include "storezip.h"
+#include "torch_alias.h"
 #include "pass_level0/constant_unpooling.h"
 #include "pass_level0/convert_half_to_float.h"
 #include "pass_level0/flatten_input.h"
@@ -16,12 +17,7 @@ namespace pnnx {
 
 static bool is_inplace_op(const std::string& optype)
 {
-    return optype.size() > 2 && optype[optype.size() - 2] != '_' && optype[optype.size() - 1] == '_';
-}
-
-static bool is_alias_op(const std::string& optype)
-{
-    return optype == "aten::slice" || optype == "aten::select" || optype == "aten::view";
+    return torch_mutation_kind(optype) != TorchMutationNone;
 }
 
 static bool is_static_shape_foldable(const std::string& optype)
@@ -70,12 +66,12 @@ static void build_value_link_input_map(const torch::jit::Node* node, const std::
         }
     }
 
-    if (is_inplace_op(optype) || is_alias_op(optype))
+    if (is_inplace_op(optype) || torch_alias_kind(node) != TorchAliasNone)
     {
         // infect input0 and its alias
         while (1)
         {
-            auto in2 = node->inputs()[0];
+            auto in2 = torch_alias_input(node);
 
             std::string is = in2->debugName();
 
@@ -215,14 +211,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             if (n->kind() == c10::prim::Constant)
                 continue;
 
-            if (n->kind() == c10::prim::CallMethod)
-                continue;
-
             std::string optype = n->kind().toDisplayString();
 
             // fprintf(stderr, "optype = %s\n", optype.c_str());
 
-            if (!is_inplace_op(optype) && !is_alias_op(optype))
+            if (!is_inplace_op(optype) && torch_alias_kind(n) == TorchAliasNone)
                 continue;
 
             if (n->inputs().size() == 0)
@@ -231,7 +224,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             if (n->outputs().size() == 0)
                 continue;
 
-            std::string is = n->input(0)->debugName();
+            std::string is = torch_alias_input(n)->debugName();
 
             if (is.empty())
                 continue;
@@ -251,7 +244,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
                 if (value_alias_map.find(is) == value_alias_map.end())
                 {
-                    value_alias_map[os] = n->input(0);
+                    value_alias_map[os] = torch_alias_input(n);
                 }
                 else
                 {
@@ -299,8 +292,6 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         torch::jit::Module mod2 = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
         mod2.eval();
 
-        convert_half_to_float(mod2);
-
         auto method = mod2.find_method("forward");
         if (!method)
         {
@@ -311,7 +302,10 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         inline_block(graph2, module_operators);
 
-        reset_device(graph2, device);
+        const bool preserve_dtype = has_mutable_tensor_cast(graph2);
+        if (!preserve_dtype)
+            convert_half_to_float(mod2);
+        reset_device(graph2, device, preserve_dtype);
 
         flatten_input(graph2);
 
@@ -322,7 +316,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         for (auto n : graph2->nodes())
         {
             const std::string type = n->kind().toDisplayString();
-            if (type == "aten::transpose_" || type == "aten::t_" || type == "aten::squeeze_" || type == "aten::unsqueeze_")
+            if (torch_mutation_kind(type) == TorchMutationMetadata)
                 has_metadata_mutation = true;
 
             for (const auto& v : n->outputs())

@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 
 import torch
+import torch.nn.functional as F
 from packaging import version
 
 
@@ -142,6 +143,150 @@ class Aliases(torch.nn.Module):
             result = view.add_(2)
             result.mul_(3)
         return before, alias, result
+
+
+class ConditionalAlias(torch.nn.Module):
+    __constants__ = ['operation', 'view', 'metadata']
+
+    def __init__(self, operation, view='root', metadata=False):
+        super().__init__()
+        self.operation = operation
+        self.view = view
+        self.metadata = metadata
+
+    def forward(self, x):
+        base = x + 1
+        if self.view == 'slice':
+            target = base[:, :, 1:]
+        elif self.view == 'select':
+            target = base.select(0, 1)
+        elif self.view == 'transpose':
+            target = base.transpose(0, 1)
+        else:
+            target = base
+        old = target.transpose(0, 1)
+        child = old.select(0, 0)
+        items = [target, target]
+        before = base.clone()
+        snapshot = old + 3
+        if self.operation == 'dropout':
+            result = F.dropout(target, 0.5, False)
+        elif self.operation == 'dropout2d':
+            result = F.dropout2d(target, 0.5, False)
+        elif self.operation == 'dropout3d':
+            result = F.dropout3d(target, 0.5, False)
+        elif self.operation == 'alpha_dropout':
+            result = F.alpha_dropout(target, 0.5, False)
+        elif self.operation == 'feature_alpha_dropout':
+            result = F.feature_alpha_dropout(target, 0.5, False)
+        elif self.operation == 'type_as':
+            result = target.type_as(x)
+        elif self.operation == 'type_as_half':
+            result = target.type_as(x.half())
+        elif self.operation == 'to':
+            result = target.to(dtype=torch.float32, copy=False)
+        elif self.operation == 'to_copy':
+            result = target.to(dtype=torch.float32, copy=True)
+        elif self.operation == 'to_half':
+            result = target.to(dtype=torch.float16)
+        else:
+            result = target.clone()
+        if self.metadata:
+            result.transpose_(0, 1)
+        layout = target.clone()
+        result.add_(2)
+        middle = old + 5
+        # The new view uses the current geometry; old and child keep theirs.
+        new = result.select(0, 0)
+        new.mul_(3)
+        base.add_(1)
+        return before, snapshot, layout, middle, base, target, result, old, child, torch.stack(items)
+
+
+class CastPrecisionBoundary(torch.nn.Module):
+    __constants__ = ['mode']
+
+    def __init__(self, mode):
+        super().__init__()
+        self.mode = mode
+
+    def forward(self, x):
+        base = x + 1
+        if self.mode == 'same':
+            base = base.half()
+        converted = base.half()
+        if self.mode in ('source', 'source_metadata'):
+            old = converted[:, 1:]
+            if self.mode == 'source_metadata':
+                base.transpose_(0, 1)
+                base.add_(2)
+            else:
+                base[:, 1:].add_(2)
+        else:
+            old = base[:, 1:]
+            converted.add_(2)
+        # FP32 outputs still observe whether the earlier half cast copied.
+        return base.float(), old.float(), converted.float()
+
+
+def conditional_alias_cases():
+    for operation in ('dropout', 'dropout2d', 'dropout3d', 'alpha_dropout',
+                      'feature_alpha_dropout', 'type_as', 'type_as_half',
+                      'to', 'to_copy', 'to_half', 'clone'):
+        shape = (2, 3, 2, 4, 2) if operation == 'dropout3d' else (2, 3, 2, 4)
+        inputs = (torch.arange(96 if operation == 'dropout3d' else 48).reshape(shape).float() - 4,)
+        yield 'conditional_' + operation, ConditionalAlias(operation), inputs, ()
+    # Pair alias and independent storage on a few different view geometries.
+    for view, operations in [('slice', ('dropout2d', 'clone')),
+                             ('select', ('type_as', 'type_as_half')),
+                             ('transpose', ('to', 'to_copy'))]:
+        inputs = (torch.arange(48).reshape(2, 3, 2, 4).float() - 4,)
+        for operation in operations:
+            yield 'conditional_' + operation + '_' + view, ConditionalAlias(operation, view), inputs, ()
+    for operation in ('dropout2d', 'type_as', 'type_as_half', 'to', 'to_copy', 'to_half', 'clone'):
+        inputs = (torch.arange(48).reshape(2, 3, 2, 4).float() - 4,)
+        yield ('conditional_metadata_' + operation, ConditionalAlias(operation, metadata=True),
+               inputs, ('transpose',))
+    for mode in ('same', 'different', 'source', 'source_metadata'):
+        metadata_ops = ('transpose',) if mode == 'source_metadata' else ()
+        yield 'conditional_precision_' + mode, CastPrecisionBoundary(mode), None, metadata_ops
+
+
+class ModuleDropoutAlias(torch.nn.Module):
+    __constants__ = ['metadata']
+
+    def __init__(self, dropout, metadata=False):
+        super().__init__()
+        self.dropout = dropout
+        self.metadata = metadata
+
+    def forward(self, x):
+        base = x + 1
+        old = base.transpose(0, 1)
+        before = base.clone()
+        snapshot = old + 3
+        result = self.dropout(base)
+        if self.metadata:
+            result.transpose_(0, 1)
+        layout = base.clone()
+        result.add_(2)
+        middle = old + 5
+        result.select(0, 0).mul_(3)
+        base.add_(1)
+        return before, snapshot, layout, middle, base, result, old
+
+
+def module_dropout_cases():
+    inputs = (torch.arange(48).reshape(2, 3, 2, 4).float() - 4,)
+    for name, dropout in [('dropout', torch.nn.Dropout()), ('dropout2d', torch.nn.Dropout2d()),
+                          ('alpha_dropout', torch.nn.AlphaDropout())]:
+        yield 'module_' + name, ModuleDropoutAlias(dropout), inputs, ()
+    # Unbatched Dropout3d uses an independent view; batched eval is identity.
+    for batched in (False, True):
+        shape = (2, 3, 2, 4, 2) if batched else (2, 3, 2, 4)
+        inputs = (torch.arange(96 if batched else 48).reshape(shape).float() - 4,)
+        name = 'module_dropout3d_metadata_' + ('5d' if batched else '4d')
+        yield name, ModuleDropoutAlias(torch.nn.Dropout3d(), metadata=True), inputs, ('transpose',)
 
 
 class NestedContainers(torch.nn.Module):
@@ -685,7 +830,8 @@ def check_dynamic_copy(binary):
 
 
 def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
-             rejection=None, inputs=None, forbid_type_as=False, slice_copies=None, metadata_ops=()):
+             rejection=None, inputs=None, forbid_type_as=False, slice_copies=None, metadata_ops=(),
+             check_source=False):
     model.eval()
     # Exact integer-valued data exercises negative values and avoids tolerances
     # masking an alias update that was lost or performed at the wrong time.
@@ -728,6 +874,16 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
             args = ['input=' + ','.join(paths)]
         if dynamic:
             args.append('inputshape2=[3,4]' + suffix)
+    if check_source:
+        source = torch.export.load(path).module() if frontend == 'pt2' else torch.jit.load(path)
+        for _ in range(2):
+            values = [item.clone() for item in samples]
+            expected = model(*[item.clone() for item in samples])
+            try:
+                check_outputs(expected, source(*values))
+                check_outputs(samples, values)
+            except AssertionError as error:
+                raise AssertionError('serialized source differs from eager: ' + name) from error
     # Retained diagnostic directories may be reused; stale output must never
     # turn a failed conversion into a passing regression.
     output_suffixes = ('_pnnx.py', '.pnnx.param', '.pnnx.bin', '.pnnx.onnx',
@@ -804,6 +960,15 @@ def test():
         try:
             check_dynamic_copy(binary)
             for frontend in frontends:
+                for mode, model, inputs, metadata_ops in conditional_alias_cases():
+                    label = frontend + '/' + mode
+                    try:
+                        run_case(binary, model, mode, frontend, inputs=inputs,
+                                 metadata_ops=metadata_ops, check_source=True)
+                        print('PASS', label)
+                    except Exception as error:
+                        failures.append(label)
+                        print('FAIL', label, error)
                 for mode in ('siblings', 'nonfirst', 'chained', 'select',
                              'view_slice', 'view_select', 'view_repeat', 'view_base',
                              'transpose', 'permute', 'unsqueeze', 'squeeze', 'multiinput',
@@ -878,6 +1043,15 @@ def test():
             run_case(binary, DynamicSlice(), 'dynamic_slice', 'torchscript_script', dynamic=True,
                      rejection='constant dimension for mutation writeback')
             for frontend in ['torchscript', 'torchscript_script'] + (['pt2'] if 'pt2' in frontends else []):
+                for mode, model, inputs, metadata_ops in module_dropout_cases():
+                    label = frontend + '/' + mode
+                    try:
+                        run_case(binary, model, mode, frontend, inputs=inputs,
+                                 metadata_ops=metadata_ops, check_source=True)
+                        print('PASS', label)
+                    except Exception as error:
+                        failures.append(label)
+                        print('FAIL', label, error)
                 run_case(binary, MetadataMutation(), 'metadata_mutation', frontend, dynamic=True,
                          metadata_ops=('transpose',))
                 print('PASS', frontend + '/metadata_mutation/dynamic')

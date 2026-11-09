@@ -17,7 +17,8 @@ void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Grap
 
     constant_unpooling(g);
 
-    reset_device(g, device);
+    // Changing cast dtypes can turn independent storage into a mutable alias.
+    reset_device(g, device, has_mutable_tensor_cast(g));
 
     flatten_input(g);
 

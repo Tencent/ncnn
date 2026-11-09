@@ -789,6 +789,7 @@ set(pnnx_SRCS
     ir.cpp
     model_stat.cpp
     storezip.cpp
+    torch_alias.cpp
     utils.cpp
 
     pass_level2.cpp

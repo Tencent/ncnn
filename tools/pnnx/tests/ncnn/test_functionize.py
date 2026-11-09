@@ -34,6 +34,13 @@ class FullSlice(torch.nn.Module):
         return y
 
 
+class HalfAllocationBoundary(torch.nn.Module):
+    def forward(self, x):
+        y = torch.nn.functional.avg_pool2d(x.half(), 2)
+        y.relu_()
+        return y.float()
+
+
 class EvalDropout(torch.nn.Module):
     def forward(self, x):
         base = x + 1
@@ -41,6 +48,55 @@ class EvalDropout(torch.nn.Module):
         result = torch.nn.functional.dropout(base, 0.5, False)
         result.add_(2)
         return base, view, result
+
+
+class EvalDropoutModule(torch.nn.Module):
+    def __init__(self, dropout):
+        super().__init__()
+        self.dropout = dropout
+
+    def forward(self, x):
+        base = x + 1
+        old = base[..., 1:3]
+        before = old.clone()
+        result = self.dropout(base)
+        result.add_(2)
+        return before, base, old, result
+
+
+class ConditionalAlias(torch.nn.Module):
+    __constants__ = ['kind', 'sliced']
+    operation = 'transpose'
+
+    def __init__(self, kind, sliced):
+        super().__init__()
+        self.kind = kind
+        self.sliced = sliced
+
+    def forward(self, x):
+        base = x + 1
+        source = base[..., 1:5] if self.sliced else base
+        old = source[..., 1:3]
+        before = old.clone()
+        if self.kind == 'dropout2d':
+            result = torch.nn.functional.dropout2d(source, 0.5, False)
+        elif self.kind == 'dropout3d':
+            result = torch.nn.functional.dropout3d(source, 0.5, False)
+        elif self.kind == 'alpha_dropout':
+            result = torch.nn.functional.alpha_dropout(source, 0.5, False)
+        elif self.kind == 'feature_alpha_dropout':
+            result = torch.nn.functional.feature_alpha_dropout(source, 0.5, False)
+        elif self.kind == 'type_as':
+            result = source.type_as(x)
+        elif self.kind == 'to':
+            result = source.to(dtype=torch.float32, copy=False)
+        else:
+            result = source.to(dtype=torch.float32, copy=True)
+        # Unbatched dropout3d returns a view; mutate its 4D source and check that result stays live.
+        target = source if self.kind == 'dropout3d' else result
+        target.transpose_(-2, -1)
+        target.add_(2)
+        return before, base, source, result, old
 
 
 class Rectangle(torch.nn.Module):
@@ -163,14 +219,16 @@ def run(binary, frontend, model, inputs, copies, crops, second=None, extra=(), n
             assert 'aten::' + model.operation + '_' in mutable_ops, (name, 'raw export lost the metadata mutation', mutable_ops)
         torch.export.save(program, name + '.pt2')
         path = name + '.pt2'
+        saved = torch.export.load(path).module()
     else:
         torch.jit.trace(model, samples, check_trace=False).save(name + '.pt')
         path = name + '.pt'
+        saved = torch.jit.load(path)
     shape = lambda xs: ','.join('[' + ','.join(map(str, x.shape)) + ']' for x in xs)
     args = ['inputshape=' + shape(inputs)]
     if second is not None:
         args.append('inputshape2=' + shape(second))
-    os.system(' '.join(shlex.quote(arg) for arg in [binary, path, 'fp16=0', *args]))
+    assert os.system(' '.join(shlex.quote(arg) for arg in [binary, path, 'fp16=0', *args])) == 0, name
     spec = importlib.util.spec_from_file_location(name + '_pnnx', name + '_pnnx.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -185,17 +243,22 @@ def run(binary, frontend, model, inputs, copies, crops, second=None, extra=(), n
         net.opt.use_fp16_arithmetic = False
         assert net.load_param(name + '.ncnn.param') == 0
         assert net.load_model(name + '.ncnn.bin') == 0
-        for xs in [inputs] + ([second] if second is not None else []) + list(extra):
-            expected = model(*[x.clone() for x in xs])
-            actual = converted(*[x.clone() for x in xs])
+        for xs in [inputs] + ([second] if second is not None else []) + list(extra) + [inputs]:
+            samples = tuple(x.clone() for x in xs)
+            expected = model(*samples)
+            assert all(torch.equal(x, y) for x, y in zip(samples, xs)), (name, 'eager input mutation')
             if isinstance(expected, torch.Tensor):
                 expected = (expected,)
-            if isinstance(actual, torch.Tensor):
-                actual = (actual,)
-            assert len(actual) == len(expected), name
-            for i, (a, y) in enumerate(zip(actual, expected)):
-                assert a.shape == y.shape and a.dtype == y.dtype, (name, 'pnnx', i, a.shape, y.shape)
-                assert torch.allclose(a, y, 1e-5, 1e-5), (name, 'pnnx', i)
+            for label, candidate in [('saved', saved), ('pnnx', converted)]:
+                samples = tuple(x.clone() for x in xs)
+                actual = candidate(*samples)
+                assert all(torch.equal(x, y) for x, y in zip(samples, xs)), (name, label, 'input mutation')
+                if isinstance(actual, torch.Tensor):
+                    actual = (actual,)
+                assert len(actual) == len(expected), (name, label)
+                for i, (a, y) in enumerate(zip(actual, expected)):
+                    assert a.shape == y.shape and a.dtype == y.dtype, (name, label, i, a.shape, y.shape, a.dtype, y.dtype)
+                    assert torch.allclose(a, y, 1e-5, 1e-5), (name, label, i)
             with net.create_extractor() as ex:
                 for i, x in enumerate(xs):
                     assert ex.input('in%d' % i, ncnn.Mat(x.numpy(), batch_index=233).clone()) == 0
@@ -203,7 +266,7 @@ def run(binary, frontend, model, inputs, copies, crops, second=None, extra=(), n
                     status, output = ex.extract('out%d' % i)
                     assert status == 0
                     actual = torch.from_numpy(output.numpy(batch_index=233)).clone()
-                    assert actual.shape == y.shape, (name, 'ncnn', i, actual.shape, y.shape)
+                    assert actual.shape == y.shape and actual.dtype == y.dtype, (name, 'ncnn', i, actual.shape, y.shape, actual.dtype, y.dtype)
                     assert torch.allclose(actual, y, 1e-5, 1e-5), (name, 'ncnn', i)
 
 
@@ -227,6 +290,27 @@ def test():
                 run(binary, frontend, FullSlice(), (x,), 0, 0)
                 run(binary, frontend, EvalDropout(), (x,), 0, 0)
 
+                x = torch.arange(-54, 54).float().reshape(2, 3, 3, 6)
+                for dropout in (torch.nn.Dropout(), torch.nn.Dropout2d(), torch.nn.AlphaDropout()):
+                    run(binary, frontend, EvalDropoutModule(dropout), (x,), 0, 2, name='module_' + type(dropout).__name__)
+
+                for kind in ('dropout2d', 'dropout3d', 'alpha_dropout', 'feature_alpha_dropout', 'type_as', 'to', 'to_copy'):
+                    for sliced in (False, True):
+                        if 'dropout' in kind:
+                            # Exercise dropout3d's unbatched form within ncnn's rank limit.
+                            x = torch.arange(-54, 54).float().reshape(2, 3, 3, 6)
+                        else:
+                            x = torch.arange(-6, 6).float().reshape(2, 6)
+                        copies = int(sliced and kind != 'to_copy')
+                        crops = (2 if sliced else 1) * (1 if kind == 'to_copy' else 2)
+                        second = None
+                        extra = ()
+                        if sliced and kind in ('type_as', 'to_copy'):
+                            second = (torch.arange(-6, 15).float().reshape(3, 7),)
+                            extra = ((torch.arange(-6, 34).float().reshape(5, 8),),)
+                        run(binary, frontend, ConditionalAlias(kind, sliced), (x,), copies, crops, second, extra,
+                            name=kind + ('_slice' if sliced else '_root'))
+
                 torch.manual_seed(7767517)
                 x = torch.randn(2, 3, 6, 8)
                 x2 = torch.randn(3, 3, 7, 9)
@@ -248,6 +332,10 @@ def test():
                 run(binary, frontend, ViewMetadataReplay(), (x,), 4, 9)
                 x = torch.arange(-4, 4).float().reshape(2, 4)
                 run(binary, frontend, InputViewMetadata(), (x,), 0, 1)
+
+                if frontend == 'torchscript':
+                    x = torch.arange(-24, 24).float().reshape(2, 4, 6)
+                    run(binary, frontend, HalfAllocationBoundary(), (x,), 0, 0)
         finally:
             os.chdir(cwd)
     return True

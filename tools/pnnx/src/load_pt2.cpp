@@ -7,6 +7,7 @@
 #include "pass_pt2/pt2_tensor.h"
 #include "pass_pt2/fold_constants.h"
 #include "pass_pt2.h"
+#include "torch_alias.h"
 #include "storezip.h"
 
 #include <algorithm>
@@ -951,12 +952,43 @@ public:
         }
         if (bound.outputs.empty())
             return fail("unsupported operation without outputs");
-        const bool eval_dropout = (type == "aten::dropout" || type == "aten::dropout_") && bound.inputs.size() == 3
-                                  && bound.inputs[2].value.get("as_bool") && !bound.inputs[2].value.get("as_bool")->b;
-        bool identity = type == "aten::detach_" || eval_dropout;
-        bool inplace = !bound.writes.empty() && !identity;
-        const bool metadata_mutation = type == "aten::transpose_" || type == "aten::t_"
-                                       || type == "aten::squeeze_" || type == "aten::unsqueeze_";
+        std::vector<Operand*> inputs;
+        // Python scalar comparisons use double precision even when item()
+        // reads float32. Symbolic sizes in tensor factories do not make their
+        // fill values scalar comparison thresholds.
+        const bool precise = shape_comparison || (bound.outputs.size() == 1 && bound.outputs[0].get("as_sym_bool") && (type == "aten::ge" || type == "aten::gt" || type == "aten::le" || type == "aten::lt" || type == "aten::eq" || type == "aten::ne"));
+        for (const Pt2Argument& a : bound.inputs)
+        {
+            Operand* r = argument(a.value, type, a.name, precise);
+            if (!r)
+                return false;
+            inputs.push_back(r);
+        }
+        // Tensor/number arithmetic already preserves wrapped-number promotion.
+        // When all Tensor arguments are numbers, keep at least one Tensor so
+        // bool arithmetic and zero-dimensional Tensor returns remain intact.
+        bool has_tensor = false;
+        for (size_t i : bound.tensor_inputs)
+        {
+            if (inputs[i]->type != 0)
+                has_tensor = true;
+        }
+        if (!has_tensor && !bound.tensor_inputs.empty())
+        {
+            const size_t i = bound.tensor_inputs[0];
+            inputs[i] = number_as_tensor(inputs[i], bound.inputs[i].value);
+        }
+        // Copy's conversion and broadcasting require a Tensor source.
+        if ((type == "aten::copy" || type == "aten::copy_") && inputs[1]->type == 0)
+            inputs[1] = number_as_tensor(inputs[1], bound.inputs[1].value);
+        int output_type = 0;
+        const auto output_meta = metadata.find(value_name(bound.outputs[0]));
+        if (output_meta != metadata.end())
+            output_type = output_meta->second.type;
+        const TorchAliasKind alias_kind = torch_alias_kind(type, inputs, output_type);
+        const bool identity = alias_kind == TorchAliasIdentity;
+        const bool inplace = !bound.writes.empty() && !identity;
+        const bool metadata_mutation = torch_mutation_kind(type) == TorchMutationMetadata;
         if (inplace)
         {
             static const std::set<std::string> functionalizable = {
@@ -973,11 +1005,7 @@ public:
             if (n.empty() || provenance[n].empty())
                 return fail("cannot prove fresh storage for mutation");
             auto is_view = [](const Operand* r) {
-                const std::string& type = r->producer->type;
-                return type == "aten::slice" || type == "aten::select" || type == "aten::view"
-                       || type == "aten::transpose" || type == "aten::t" || type == "aten::permute"
-                       || type == "aten::squeeze" || type == "aten::unsqueeze"
-                       || type == "aten::detach" || type == "aten::alias";
+                return torch_alias_kind(r->producer) == TorchAliasView;
             };
             const Operand* destination = values.at(n);
             while (functionalizable.count(destination->producer->type))
@@ -1017,7 +1045,7 @@ public:
         }
         if (identity)
         {
-            if ((!eval_dropout && bound.inputs.size() != 1) || bound.outputs.size() != 1)
+            if (bound.outputs.size() != 1)
                 return fail("invalid identity signature");
             const std::string source = value_name(bound.inputs[0].value);
             const std::string result = value_name(bound.outputs[0]);
@@ -1030,35 +1058,6 @@ public:
                 known_layouts.insert(result);
             return true;
         }
-        std::vector<Operand*> inputs;
-        // Python scalar comparisons use double precision even when item()
-        // reads float32. Symbolic sizes in tensor factories do not make their
-        // fill values scalar comparison thresholds.
-        const bool precise = shape_comparison || (bound.outputs.size() == 1 && bound.outputs[0].get("as_sym_bool") && (type == "aten::ge" || type == "aten::gt" || type == "aten::le" || type == "aten::lt" || type == "aten::eq" || type == "aten::ne"));
-        for (const Pt2Argument& a : bound.inputs)
-        {
-            Operand* r = argument(a.value, type, a.name, precise);
-            if (!r)
-                return false;
-            inputs.push_back(r);
-        }
-        // Tensor/number arithmetic already preserves wrapped-number promotion.
-        // When all Tensor arguments are numbers, keep at least one Tensor so
-        // bool arithmetic and zero-dimensional Tensor returns remain intact.
-        bool has_tensor = false;
-        for (size_t i : bound.tensor_inputs)
-        {
-            if (inputs[i]->type != 0)
-                has_tensor = true;
-        }
-        if (!has_tensor && !bound.tensor_inputs.empty())
-        {
-            const size_t i = bound.tensor_inputs[0];
-            inputs[i] = number_as_tensor(inputs[i], bound.inputs[i].value);
-        }
-        // Copy's conversion and broadcasting require a Tensor source.
-        if ((type == "aten::copy" || type == "aten::copy_") && inputs[1]->type == 0)
-            inputs[1] = number_as_tensor(inputs[1], bound.inputs[1].value);
         std::string normalized = type;
         if (type == "aten::sym_size")
             normalized = "aten::size";
@@ -1123,7 +1122,12 @@ public:
                 continue;
             }
             std::set<int> storage;
-            if (i < bound.aliases.size())
+            // Conditional operators can prove either identity/view or a copy.
+            // Otherwise retain the dispatcher aliases for unlisted operators.
+            const bool classified_alias = torch_alias_kind(type) != TorchAliasNone;
+            if (alias_kind == TorchAliasView || alias_kind == TorchAliasUntracked)
+                storage = provenance[value_name(bound.inputs[0].value)];
+            if (!classified_alias && i < bound.aliases.size())
             {
                 for (size_t alias : bound.aliases[i])
                 {
@@ -1150,7 +1154,7 @@ public:
                     if (!define(name, new_value(unpack), true))
                         return false;
                     set_provenance(name, storage);
-                    if (i < bound.aliases.size() && !bound.aliases[i].empty())
+                    if (alias_kind == TorchAliasUntracked || (!classified_alias && i < bound.aliases.size() && !bound.aliases[i].empty()))
                     {
                         unsupported_aliases.insert(values.at(name));
                         if (dense_layout(metadata.at(name)))
@@ -1173,8 +1177,8 @@ public:
                             && (!contiguous_allocation || contiguous_layout(meta)))
                         known_layouts.insert(name);
                 }
-                if (!inplace && i < bound.aliases.size() && !bound.aliases[i].empty()
-                        && type != "aten::slice" && type != "aten::select")
+                if (!inplace && (alias_kind == TorchAliasUntracked
+                                 || (!classified_alias && i < bound.aliases.size() && !bound.aliases[i].empty())))
                 {
                     unsupported_aliases.insert(values.at(name));
                     if (dense_layout(metadata.at(name)))

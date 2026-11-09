@@ -40,6 +40,35 @@ class Mutation(torch.nn.Module):
         return a, b
 
 
+class ConditionalAlias(torch.nn.Module):
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, x):
+        base = torch.full((1, 2, 3, 4), 2.)
+        old = base[:, :, 1:]
+        before = old.clone()
+        if self.operation == 'dropout2d':
+            target = torch.nn.functional.dropout2d(base, 0.5, False)
+        elif self.operation == 'type_as':
+            target = base.type_as(x)
+        elif self.operation == 'type_as_half':
+            target = base.type_as(x.half())
+        elif self.operation == 'to':
+            target = base.to(dtype=torch.float32, copy=False)
+        elif self.operation == 'to_copy':
+            target = base.to(dtype=torch.float32, copy=True)
+        else:
+            target = base.clone()
+        target.add_(x)
+        middle = old * 3
+        old.mul_(2)
+        # This independent constant should still fold while alias ancestors
+        # retain the reads before and after each data write.
+        return before, middle, base, old, target, x + torch.arange(4, dtype=torch.float32)
+
+
 class Activation(torch.nn.Module):
     def forward(self, x):
         a = x + torch.arange(4, dtype=torch.float32)
@@ -93,17 +122,31 @@ def equal(actual, expected):
     return len(actual) == len(expected) and all(equal(a, b) for a, b in zip(actual, expected))
 
 
-def convert(name, model, x, options=(), dynamic=False):
+def convert(name, model, x, options=(), dynamic=False, check_source=False):
     prefix = 'test_pt2_constants_' + name
     shapes = ({0: torch.export.Dim('batch', min=2, max=8)},) if dynamic else None
     program = torch.export.export(model, (x,), dynamic_shapes=shapes)
     torch.export.save(program, prefix + '.pt2')
+    if check_source:
+        assert any(node.op == 'call_function' and getattr(node.target, '_schema', None) is not None
+                   and node.target._schema.is_mutable for node in program.graph.nodes), 'raw export lost mutation'
+        source = torch.export.load(prefix + '.pt2').module()
+        for value in (x, x + 1, x):
+            original = value.clone()
+            if not equal(source(value), model(value.clone())) or not torch.equal(value, original):
+                raise RuntimeError(name + ': serialized source differs from eager')
     result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0', *options], capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(result.stderr)
     module = load(Path(prefix + '_pnnx.py'))
     if not equal(module.Model().eval()(x), model(x)):
         raise RuntimeError(name + ': converted values differ')
+    if check_source:
+        converted = module.Model().eval()
+        for value in (x, x + 1, x):
+            original = value.clone()
+            if not equal(converted(value), model(value.clone())) or not torch.equal(value, original):
+                raise RuntimeError(name + ': repeated converted values differ or input was modified')
     return prefix, module
 
 
@@ -144,6 +187,11 @@ def test():
         return False
 
     convert('mutation', Mutation().eval(), torch.rand(3, 2))
+    for operation in ('dropout2d', 'clone', 'type_as', 'type_as_half', 'to', 'to_copy'):
+        prefix, _ = convert('conditional_' + operation, ConditionalAlias(operation).eval(),
+                            torch.arange(24).reshape(1, 2, 3, 4).float() - 4, check_source=True)
+        if 'torch.arange ' in Path(prefix + '.pnnx.param').read_text():
+            return False
     convert('integer', IntegerConstants().eval(), torch.ones(2, dtype=torch.int64))
     net = IntegerFactories().eval()
     x = torch.ones(2, dtype=torch.int64)

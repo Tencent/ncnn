@@ -5,6 +5,8 @@
 
 namespace pnnx {
 
-void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& device);
+bool has_mutable_tensor_cast(const std::shared_ptr<torch::jit::Graph>& graph);
+
+void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& device, bool preserve_dtype);
 
 } // namespace pnnx
