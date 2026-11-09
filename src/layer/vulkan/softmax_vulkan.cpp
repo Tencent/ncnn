@@ -21,6 +21,13 @@ Softmax_vulkan::Softmax_vulkan()
     pipeline_softmax_exp_sub_max_pack4 = 0;
     pipeline_softmax_reduce_sum_pack4 = 0;
     pipeline_softmax_div_sum_pack4 = 0;
+
+    // subgroup
+    pipeline_softmax_reduce_max_subgroup = 0;
+    pipeline_softmax_reduce_sum_subgroup = 0;
+
+    pipeline_softmax_reduce_max_subgroup_pack4 = 0;
+    pipeline_softmax_reduce_sum_subgroup_pack4 = 0;
 }
 
 int Softmax_vulkan::create_pipeline(const Option& opt)
@@ -30,6 +37,23 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
 
     int elempack = shape.elempack;
     size_t elemsize = shape.elemsize;
+
+    const int subgroup_size = vkdev->info.subgroup_size();
+    const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
+    const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT;
+    bool use_subgroup_ops = opt.use_subgroup_ops && ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
+    if (subgroup_size < 4 || subgroup_size > 128)
+    {
+        // sanitize wired subgroup_size
+        use_subgroup_ops = false;
+    }
+
+    if (shape.dims == 0 || positive_axis != shape.dims - 1 || shape.w < subgroup_size)
+    {
+        // the subgroup reduce splits the innermost axis over the lanes of one subgroup,
+        // and only when that axis is at least one subgroup wide
+        use_subgroup_ops = false;
+    }
 
     Mat workspace_shape;
     if (shape.dims == 1) // positive_axis == 0
@@ -109,28 +133,31 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
             local_size_xyz.c = std::min(4, workspace_shape.c);
         }
 
-        // pack1
+        if (!use_subgroup_ops)
         {
-            pipeline_softmax_reduce_max = new Pipeline(vkdev);
-            pipeline_softmax_reduce_sum = new Pipeline(vkdev);
+            // pack1
+            {
+                pipeline_softmax_reduce_max = new Pipeline(vkdev);
+                pipeline_softmax_reduce_sum = new Pipeline(vkdev);
 
-            pipeline_softmax_reduce_max->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_softmax_reduce_sum->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_softmax_reduce_max->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_softmax_reduce_sum->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_reduce_max->create(LayerShaderType::softmax_reduce_max, opt, specializations);
-            pipeline_softmax_reduce_sum->create(LayerShaderType::softmax_reduce_sum, opt, specializations);
-        }
+                pipeline_softmax_reduce_max->create(LayerShaderType::softmax_reduce_max, opt, specializations);
+                pipeline_softmax_reduce_sum->create(LayerShaderType::softmax_reduce_sum, opt, specializations);
+            }
 
-        // pack4
-        {
-            pipeline_softmax_reduce_max_pack4 = new Pipeline(vkdev);
-            pipeline_softmax_reduce_sum_pack4 = new Pipeline(vkdev);
+            // pack4
+            {
+                pipeline_softmax_reduce_max_pack4 = new Pipeline(vkdev);
+                pipeline_softmax_reduce_sum_pack4 = new Pipeline(vkdev);
 
-            pipeline_softmax_reduce_max_pack4->set_optimal_local_size_xyz(local_size_xyz);
-            pipeline_softmax_reduce_sum_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_softmax_reduce_max_pack4->set_optimal_local_size_xyz(local_size_xyz);
+                pipeline_softmax_reduce_sum_pack4->set_optimal_local_size_xyz(local_size_xyz);
 
-            pipeline_softmax_reduce_max_pack4->create(LayerShaderType::softmax_reduce_max_pack4, opt, specializations);
-            pipeline_softmax_reduce_sum_pack4->create(LayerShaderType::softmax_reduce_sum_pack4, opt, specializations);
+                pipeline_softmax_reduce_max_pack4->create(LayerShaderType::softmax_reduce_max_pack4, opt, specializations);
+                pipeline_softmax_reduce_sum_pack4->create(LayerShaderType::softmax_reduce_sum_pack4, opt, specializations);
+            }
         }
     }
 
@@ -186,6 +213,29 @@ int Softmax_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    if (use_subgroup_ops)
+    {
+        pipeline_softmax_reduce_max_subgroup = new Pipeline(vkdev);
+        pipeline_softmax_reduce_max_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_softmax_reduce_max_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_softmax_reduce_max_subgroup->create(LayerShaderType::softmax_reduce_max_subgroup, opt, specializations);
+
+        pipeline_softmax_reduce_sum_subgroup = new Pipeline(vkdev);
+        pipeline_softmax_reduce_sum_subgroup->set_subgroup_size(subgroup_size);
+        pipeline_softmax_reduce_sum_subgroup->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_softmax_reduce_sum_subgroup->create(LayerShaderType::softmax_reduce_sum_subgroup, opt, specializations);
+
+        pipeline_softmax_reduce_max_subgroup_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_reduce_max_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_softmax_reduce_max_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_softmax_reduce_max_subgroup_pack4->create(LayerShaderType::softmax_reduce_max_subgroup_pack4, opt, specializations);
+
+        pipeline_softmax_reduce_sum_subgroup_pack4 = new Pipeline(vkdev);
+        pipeline_softmax_reduce_sum_subgroup_pack4->set_subgroup_size(subgroup_size);
+        pipeline_softmax_reduce_sum_subgroup_pack4->set_local_size_xyz(subgroup_size, 1, 1);
+        pipeline_softmax_reduce_sum_subgroup_pack4->create(LayerShaderType::softmax_reduce_sum_subgroup_pack4, opt, specializations);
+    }
+
     return 0;
 }
 
@@ -214,6 +264,18 @@ int Softmax_vulkan::destroy_pipeline(const Option& /*opt*/)
 
     delete pipeline_softmax_div_sum_pack4;
     pipeline_softmax_div_sum_pack4 = 0;
+
+    delete pipeline_softmax_reduce_max_subgroup;
+    pipeline_softmax_reduce_max_subgroup = 0;
+
+    delete pipeline_softmax_reduce_sum_subgroup;
+    pipeline_softmax_reduce_sum_subgroup = 0;
+
+    delete pipeline_softmax_reduce_max_subgroup_pack4;
+    pipeline_softmax_reduce_max_subgroup_pack4 = 0;
+
+    delete pipeline_softmax_reduce_sum_subgroup_pack4;
+    pipeline_softmax_reduce_sum_subgroup_pack4 = 0;
 
     return 0;
 }
@@ -304,8 +366,28 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[11].i = max_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_reduce_max_pack4 : pipeline_softmax_reduce_max;
+        const Pipeline* pipeline_subgroup = elempack == 4 ? pipeline_softmax_reduce_max_subgroup_pack4 : pipeline_softmax_reduce_max_subgroup;
 
-        cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
+        if (pipeline_subgroup)
+        {
+            // split the output elements over x and y to stay within the dispatch limits
+            const VkMat& subgroup_workspace = max_workspace;
+            const int subgroup_outputs = subgroup_workspace.w * subgroup_workspace.h * subgroup_workspace.d * subgroup_workspace.c;
+            const int max_workgroup_count_y = (int)vkdev->info.max_workgroup_count_y();
+            const int group_count_x = (subgroup_outputs - 1) / max_workgroup_count_y + 1;
+            const int group_count_y = (subgroup_outputs - 1) / group_count_x + 1;
+
+            VkMat subgroup_dispatcher;
+            subgroup_dispatcher.w = group_count_x * pipeline_subgroup->local_size_x();
+            subgroup_dispatcher.h = group_count_y;
+            subgroup_dispatcher.c = 1;
+
+            cmd.record_pipeline(pipeline_subgroup, bindings, constants, subgroup_dispatcher);
+        }
+        else
+        {
+            cmd.record_pipeline(pipeline, bindings, constants, max_workspace);
+        }
     }
 
     // exp( v - max )
@@ -354,8 +436,28 @@ int Softmax_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, cons
         constants[11].i = sum_workspace.cstep;
 
         const Pipeline* pipeline = elempack == 4 ? pipeline_softmax_reduce_sum_pack4 : pipeline_softmax_reduce_sum;
+        const Pipeline* pipeline_subgroup = elempack == 4 ? pipeline_softmax_reduce_sum_subgroup_pack4 : pipeline_softmax_reduce_sum_subgroup;
 
-        cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+        if (pipeline_subgroup)
+        {
+            // split the output elements over x and y to stay within the dispatch limits
+            const VkMat& subgroup_workspace = sum_workspace;
+            const int subgroup_outputs = subgroup_workspace.w * subgroup_workspace.h * subgroup_workspace.d * subgroup_workspace.c;
+            const int max_workgroup_count_y = (int)vkdev->info.max_workgroup_count_y();
+            const int group_count_x = (subgroup_outputs - 1) / max_workgroup_count_y + 1;
+            const int group_count_y = (subgroup_outputs - 1) / group_count_x + 1;
+
+            VkMat subgroup_dispatcher;
+            subgroup_dispatcher.w = group_count_x * pipeline_subgroup->local_size_x();
+            subgroup_dispatcher.h = group_count_y;
+            subgroup_dispatcher.c = 1;
+
+            cmd.record_pipeline(pipeline_subgroup, bindings, constants, subgroup_dispatcher);
+        }
+        else
+        {
+            cmd.record_pipeline(pipeline, bindings, constants, sum_workspace);
+        }
     }
 
     // div sum
