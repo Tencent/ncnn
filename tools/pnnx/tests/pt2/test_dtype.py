@@ -7,6 +7,7 @@ import subprocess
 
 import torch
 from packaging import version
+from common import rewrite_archive
 
 
 class ExplicitDtype(torch.nn.Module):
@@ -19,6 +20,41 @@ class ExplicitDtype(torch.nn.Module):
 class IntegerScan(torch.nn.Module):
     def forward(self, x):
         return x.cumsum(1, dtype=torch.int32), x.cumprod(1, dtype=torch.int32)
+
+
+class NeutralTensors(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = dtype
+
+    def forward(self, x):
+        zero = torch.zeros((2, 3), dtype=self.dtype)
+        one = torch.ones((2, 3), dtype=self.dtype)
+        return x + zero, zero + x, x - zero, x * one, one * x, x / one, x ** one, torch.add(x, one, alpha=0)
+
+
+class RMSNormScalar(torch.nn.Module):
+    def forward(self, x, e):
+        value = e.item()
+        return torch.nn.functional.rms_norm(x, (3,), eps=0.1), x + value
+
+
+class NumericCopy(torch.nn.Module):
+    def __init__(self, value):
+        super().__init__()
+        self.value = value
+
+    def forward(self, x):
+        result = x.clone()
+        copied = torch.ops.aten.copy_.default(result, self.value)
+        return result, copied
+
+
+def runtime_epsilon(program, entries):
+    nodes = program['graph_module']['graph']['nodes']
+    scalar = next(n for n in nodes if n['target'] == 'torch.ops.aten.item.default')['outputs'][0]
+    norm = next(n for n in nodes if n['target'] == 'torch.ops.aten.rms_norm.default')
+    next(a for a in norm['inputs'] if a['name'] == 'eps')['arg'] = scalar
 
 
 class BufferDtype(torch.nn.Module):
@@ -72,6 +108,8 @@ def check(name, model, inputs):
         print(result.stderr)
         return False
     actual = importlib.import_module(prefix + '_pnnx').Model().eval()(*inputs)
+    if len(actual) != len(expected):
+        return False
     for a, b in zip(actual, expected):
         if a.dtype != b.dtype or a.shape != b.shape or not torch.equal(a, b):
             print(name, a, b)
@@ -96,6 +134,27 @@ def test():
         if actual.dtype != expected.dtype or not torch.equal(actual, expected):
             return False
     if not check('explicit', ExplicitDtype(), (torch.tensor([[1.25, 2.5, 3.75], [4.5, 5.25, 6.75]], dtype=torch.float16),)):
+        return False
+    for dtype in (torch.float16, torch.float32):
+        if not check('neutral_' + str(dtype).split('.')[-1], NeutralTensors(dtype),
+                     (torch.tensor([[1.25, -2.5, 3.75], [4.5, 5.25, -6.75]], dtype=torch.float16),)):
+            return False
+    for name, value, dtype in (
+        ('integer', -2.75, torch.int32),
+        ('half', 1.125, torch.float16),
+        ('bool', -2, torch.bool),
+        ('complex_real', 1 + 2j, torch.float32),
+        ('integer_overflow', 1e20, torch.int32),
+    ):
+        if not check('copy_' + name, NumericCopy(value), (torch.ones(2, 3, dtype=dtype),)):
+            return False
+    if not check('rms_scalar', RMSNormScalar(), (torch.ones(2, 3), torch.tensor(0.1))):
+        return False
+    path = 'test_pt2_dtype_rms_runtime_epsilon.pt2'
+    rewrite_archive('test_pt2_dtype_rms_scalar.pt2', path, runtime_epsilon)
+    result = subprocess.run(['../../src/pnnx', path, 'fp16=0'], capture_output=True, text=True, timeout=90)
+    if result.returncode <= 0 or 'RMSNorm epsilon must be constant' not in result.stderr:
+        print(result.stderr)
         return False
     if not check('integer_scan', IntegerScan(), (torch.tensor([[2147483647, 1], [65536, 65536]], dtype=torch.int64),)):
         return False

@@ -306,8 +306,8 @@ void eliminate_noop_math(Graph& graph)
                 }
             }
 
-            // but if shape changes
-            if (need_eliminate && op->inputs[identity_input_id]->shape != op->outputs[0]->shape)
+            // but if shape or dtype changes
+            if (need_eliminate && (op->inputs[identity_input_id]->shape != op->outputs[0]->shape || op->inputs[identity_input_id]->type <= 0 || op->inputs[identity_input_id]->type != op->outputs[0]->type))
             {
                 need_eliminate = false;
             }

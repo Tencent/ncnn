@@ -34,6 +34,15 @@ class FullSlice(torch.nn.Module):
         return y
 
 
+class EvalDropout(torch.nn.Module):
+    def forward(self, x):
+        base = x + 1
+        view = base.view(-1)
+        result = torch.nn.functional.dropout(base, 0.5, False)
+        result.add_(2)
+        return base, view, result
+
+
 class Rectangle(torch.nn.Module):
     def forward(self, x, src):
         q = x + 1
@@ -216,6 +225,7 @@ def test():
                 run(binary, frontend, Chained(), (x,), 3, 3, (x2,), ((x3,),))
                 run(binary, frontend, Assignment(), (x, torch.tensor([[2., 3.]])), 1, 0, name='assignment_broadcast')
                 run(binary, frontend, FullSlice(), (x,), 0, 0)
+                run(binary, frontend, EvalDropout(), (x,), 0, 0)
 
                 torch.manual_seed(7767517)
                 x = torch.randn(2, 3, 6, 8)

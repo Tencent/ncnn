@@ -934,6 +934,9 @@ public:
                     return fail("random attention dropout is unsupported");
             }
         }
+        if (type == "aten::instance_norm" && bound.inputs[5].value.get("as_bool") && bound.inputs[5].value.get("as_bool")->b
+                && (!bound.inputs[3].value.get("as_none") || !bound.inputs[4].value.get("as_none")))
+            return fail("instance_norm running statistics update is unsupported");
         // Input references are counted before any graph simplification or alias removal.
         for (const Pt2Argument& a : bound.inputs)
         {
@@ -948,7 +951,7 @@ public:
         }
         if (bound.outputs.empty())
             return fail("unsupported operation without outputs");
-        const bool eval_dropout = type == "aten::dropout_" && bound.inputs.size() == 3
+        const bool eval_dropout = (type == "aten::dropout" || type == "aten::dropout_") && bound.inputs.size() == 3
                                   && bound.inputs[2].value.get("as_bool") && !bound.inputs[2].value.get("as_bool")->b;
         bool identity = type == "aten::detach_" || eval_dropout;
         bool inplace = !bound.writes.empty() && !identity;
@@ -1019,7 +1022,7 @@ public:
             const std::string source = value_name(bound.inputs[0].value);
             const std::string result = value_name(bound.outputs[0]);
             if (source.empty() || result.empty())
-                return fail("invalid detach reference");
+                return fail("invalid identity reference");
             if (!define(result, values.at(source), true))
                 return false;
             set_provenance(result, provenance[source]);
@@ -1053,6 +1056,9 @@ public:
             const size_t i = bound.tensor_inputs[0];
             inputs[i] = number_as_tensor(inputs[i], bound.inputs[i].value);
         }
+        // Copy's conversion and broadcasting require a Tensor source.
+        if ((type == "aten::copy" || type == "aten::copy_") && inputs[1]->type == 0)
+            inputs[1] = number_as_tensor(inputs[1], bound.inputs[1].value);
         std::string normalized = type;
         if (type == "aten::sym_size")
             normalized = "aten::size";

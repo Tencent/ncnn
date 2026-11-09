@@ -46,6 +46,38 @@ class ScalarTensor(torch.nn.Module):
         return x + self.value
 
 
+class ScalarIndices(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.register_buffer('first', torch.tensor(1, dtype=torch.int64))
+        self.register_buffer('last', torch.tensor(-1, dtype=torch.int64))
+        self.register_buffer('vector', torch.tensor([1], dtype=torch.int64))
+
+    def forward(self, x):
+        return (torch.ops.aten.index.Tensor(x, [self.first]),
+                torch.ops.aten.index.Tensor(x, [self.last]),
+                torch.ops.aten.index.Tensor(x, [self.vector]),
+                torch.ops.aten.index.Tensor(x, [None, self.first]),
+                torch.ops.aten.index.Tensor(x, [self.first, self.last]))
+
+
+def test_scalar_indices():
+    model = ScalarIndices().eval()
+    x = torch.arange(12).reshape(3, 4).float()
+    expected = model(x)
+    torch.export.save(torch.export.export(model, (x,)), 'test_pt2_tensor_scalar_indices.pt2')
+    subprocess.run(['../../src/pnnx', 'test_pt2_tensor_scalar_indices.pt2', 'fp16=0'], check=True)
+
+    import test_pt2_tensor_scalar_indices_pnnx
+    actual = test_pt2_tensor_scalar_indices_pnnx.Model().eval()(x)
+    if len(actual) != len(expected):
+        return False
+    for a, b in zip(actual, expected):
+        if a.shape != b.shape or a.dtype != b.dtype or not torch.equal(a, b):
+            return False
+    return True
+
+
 class IntegerBounds(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -665,6 +697,7 @@ def test():
         test_views()
         and test_typed_floating()
         and test_typed_integer()
+        and test_scalar_indices()
         and test_mixed_half()
         and test_scalar_half()
         and test_scalar_bfloat16()

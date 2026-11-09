@@ -98,7 +98,13 @@ int normalize_pt2_dtype(Graph& graph)
         }
         if (op->type == "aten::rms_norm" && op->inputs.size() == 4)
         {
-            Parameter& eps = op->inputs[3]->producer->params.at("value");
+            Operator* constant = op->inputs[3]->producer;
+            if (constant->type != "prim::Constant" || !constant->has_param("value"))
+            {
+                fprintf(stderr, "pt2 dtype: RMSNorm epsilon must be constant\n");
+                return -1;
+            }
+            Parameter& eps = constant->params.at("value");
             if (eps.type == 0)
             {
                 const int type = op->inputs[0]->type;

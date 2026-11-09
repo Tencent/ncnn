@@ -83,6 +83,49 @@ class DetachWrite(torch.nn.Module):
         return x.detach().relu_()
 
 
+class EvalDropout(torch.nn.Module):
+    def __init__(self, inplace=False, external=False):
+        super().__init__()
+        self.inplace = inplace
+        self.external = external
+
+    def forward(self, x):
+        base = x if self.external else x.clone()
+        view = base.view(-1)
+        result = torch.nn.functional.dropout(base, 0.5, False, self.inplace)
+        result.add_(2)
+        return torch.stack((base.flatten(), view, result.flatten()))
+
+
+class NumericCopy(torch.nn.Module):
+    def __init__(self, value, view=False, inplace=True):
+        super().__init__()
+        self.value = value
+        self.view = view
+        self.inplace = inplace
+
+    def forward(self, x):
+        base = x.clone()
+        target = base[:, 1:] if self.view else base
+        if self.inplace:
+            result = torch.ops.aten.copy_.default(target, self.value)
+        else:
+            result = torch.ops.aten.copy.default(target, self.value)
+        return torch.cat((base.flatten(), result.flatten()))
+
+
+class InstanceNorm(torch.nn.Module):
+    def __init__(self, use_input_stats, running_stats):
+        super().__init__()
+        self.use_input_stats = use_input_stats
+        self.register_buffer('mean', torch.zeros(2) if running_stats else None)
+        self.register_buffer('var', torch.ones(2) if running_stats else None)
+
+    def forward(self, x):
+        return torch.nn.functional.instance_norm(x.unsqueeze(0), self.mean, self.var,
+                                                use_input_stats=self.use_input_stats, momentum=0.5)
+
+
 class AssertMetadata(torch.nn.Module):
     def forward(self, x):
         torch.ops.aten._assert_tensor_metadata.default(x, dtype=torch.float32, device=torch.device('cpu'), layout=torch.strided)
@@ -122,7 +165,16 @@ def test():
                          ('view_write', ViewWrite()),
                          ('slice_view_write', ViewWrite(sliced=True)),
                          ('view_alias_list', LocalViewAliases(False)),
-                         ('root_alias_list', LocalViewAliases(False, view=False))]:
+                         ('root_alias_list', LocalViewAliases(False, view=False)),
+                         ('eval_dropout', EvalDropout()),
+                         ('eval_dropout_inplace', EvalDropout(inplace=True)),
+                         ('copy_number', NumericCopy(2)),
+                         ('copy_float_view', NumericCopy(-2.75, view=True)),
+                         ('copy_bool', NumericCopy(True)),
+                         ('copy_functional', NumericCopy(2, inplace=False)),
+                         ('copy_functional_view', NumericCopy(-2.75, view=True, inplace=False)),
+                         ('instance_norm_stateless', InstanceNorm(True, False)),
+                         ('instance_norm_running', InstanceNorm(False, True))]:
         model.eval()
         torch.manual_seed(0)
         x = torch.randn(2, 3)
@@ -167,6 +219,8 @@ def test():
         ('input_write', InputWrite(), 'mutable'),
         ('buffer_write', BufferWrite(), 'mutable'),
         ('detach_write', DetachWrite(), 'external tensor'),
+        ('dropout_input_write', EvalDropout(external=True), 'external tensor'),
+        ('instance_norm_update', InstanceNorm(True, True), 'running statistics update'),
     ]:
         # Mutation samples exercise rejection, so avoid running their stateful references.
         program = torch.export.export(model.eval(), (torch.rand(2, 3),))

@@ -281,9 +281,18 @@ int functionize(Graph& graph)
             }
         }
 
-        if (op->type == "aten::detach_")
+        bool identity = op->type == "aten::detach_";
+        if ((op->type == "aten::dropout" || op->type == "aten::dropout_") && inputs.size() == 3)
         {
-            op->type = "aten::detach";
+            const Operator* training = op->inputs[2]->producer;
+            if (training->type == "prim::Constant" && training->has_param("value")
+                    && training->params.at("value").type == 1 && !training->params.at("value").b)
+                identity = true;
+        }
+        if (identity)
+        {
+            if (is_inplace_op(op))
+                op->type.resize(op->type.size() - 1);
             identities[op->outputs[0]] = identity_of(inputs[0]);
             track(op->outputs[0], inputs[0], true);
             observe(op->outputs[0], op->outputs[0]);
