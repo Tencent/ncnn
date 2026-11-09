@@ -168,6 +168,19 @@ static int test_gridsample_3()
            || test_gridsample(RandomMat(16, 12, 11, 16), RandomMat(11, 12, 16, 3), 2, 3, 1, 1);
 }
 
+static int test_gridsample_4()
+{
+    // permute_fusion 0 with output height 1 or output depth less than 3
+    return 0
+           || test_gridsample(RandomMat(3, 7, 1), RandomMat(2, 11, 1), 1, 1, 0, 0)
+           || test_gridsample(RandomMat(3, 7, 1), RandomMat(2, 11, 1), 2, 2, 1, 0)
+           || test_gridsample(RandomMat(3, 7, 1), RandomMat(2, 11, 1), 3, 3, 0, 0)
+           || test_gridsample(RandomMat(8, 12, 16), RandomMat(2, 24, 1), 1, 3, 1, 0)
+           || test_gridsample(RandomMat(5, 7, 11, 13), RandomMat(3, 17, 11, 1), 1, 1, 0, 0)
+           || test_gridsample(RandomMat(5, 7, 11, 13), RandomMat(3, 17, 11, 2), 2, 3, 1, 0)
+           || test_gridsample(RandomMat(16, 12, 11, 16), RandomMat(3, 11, 12, 2), 1, 2, 0, 0);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -176,5 +189,6 @@ int main()
            || test_gridsample_0()
            || test_gridsample_1()
            || test_gridsample_2()
-           || test_gridsample_3();
+           || test_gridsample_3()
+           || test_gridsample_4();
 }
