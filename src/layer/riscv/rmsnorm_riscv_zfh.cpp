@@ -11,7 +11,7 @@
 namespace ncnn {
 
 #if NCNN_ZFH
-#if __riscv_zvfh
+#if __riscv_vector
 #if __riscv_xtheadvector
 // FIXME inline causes illegal instruction :(
 __attribute__((noinline)) static vfloat32m8_t
@@ -23,13 +23,13 @@ reset_tails(vfloat32m8_t x, size_t vl, float v)
     return x;
 }
 #endif // __riscv_xtheadvector
-#endif // __riscv_zvfh
+#endif // __riscv_vector
 
 static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int elemcount, int elempack)
 {
     const int size = elemcount * elempack;
 
-#if __riscv_zvfh
+#if __riscv_vector
     const int packn = csrr_vlenb() / 2;
 
     // reduce sqsum
@@ -178,7 +178,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
             __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vlr), vlr);
         }
     }
-#else  // __riscv_zvfh
+#else  // __riscv_vector
     float sqsum = 0.f;
     for (int i = 0; i < size; i++)
     {
@@ -204,7 +204,7 @@ static void rmsnorm_fp16s(__fp16* ptr, const float* gamma_ptr, float eps, int el
             ptr[i] = (__fp16)((float)ptr[i] * a);
         }
     }
-#endif // __riscv_zvfh
+#endif // __riscv_vector
 }
 
 int RMSNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
