@@ -249,6 +249,10 @@ void fuse_slice_copy(Graph& graph)
         clone->outputs.push_back(cloned);
 
         op->type = "Tensor.slice_copy";
+        if (op->has_param("start") && op->params.at("start").type == 0)
+            op->params["start"] = 0;
+        if (op->has_param("end") && op->params.at("end").type == 0)
+            op->params["end"] = INT_MAX;
         op->inputs[0] = cloned;
         parent->remove_consumer(op);
         cloned->consumers.push_back(op);

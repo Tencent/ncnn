@@ -950,8 +950,10 @@ public:
             return fail("unsupported operation without outputs");
         const bool eval_dropout = type == "aten::dropout_" && bound.inputs.size() == 3
                                   && bound.inputs[2].value.get("as_bool") && !bound.inputs[2].value.get("as_bool")->b;
-        bool detach = type == "aten::detach" || type == "aten::detach_" || type == "aten::alias" || eval_dropout;
-        bool inplace = !bound.writes.empty() && !detach;
+        bool identity = type == "aten::detach_" || eval_dropout;
+        bool inplace = !bound.writes.empty() && !identity;
+        const bool metadata_mutation = type == "aten::transpose_" || type == "aten::t_"
+                                       || type == "aten::squeeze_" || type == "aten::unsqueeze_";
         if (inplace)
         {
             static const std::set<std::string> functionalizable = {
@@ -959,23 +961,30 @@ public:
                 "aten::silu_", "aten::leaky_relu_", "aten::sigmoid_", "aten::hardsigmoid_",
                 "aten::elu_", "aten::celu_", "aten::selu_", "aten::tanh_", "aten::threshold_", "aten::mish_",
                 "aten::add_", "aten::sub_", "aten::mul_", "aten::div_", "aten::exp_",
-                "aten::clamp_", "aten::masked_fill_", "aten::fill_", "aten::copy_", "aten::index_put_"
+                "aten::clamp_", "aten::masked_fill_", "aten::fill_", "aten::copy_", "aten::index_put_",
+                "aten::transpose_", "aten::t_", "aten::squeeze_", "aten::unsqueeze_"
             };
             if (!functionalizable.count(type) || bound.writes.size() != 1 || bound.writes[0] != 0 || bound.outputs.size() != 1)
                 return fail("unsupported mutable operator");
             const std::string n = value_name(bound.inputs[bound.writes[0]].value);
             if (n.empty() || provenance[n].empty())
                 return fail("cannot prove fresh storage for mutation");
+            auto is_view = [](const Operand* r) {
+                const std::string& type = r->producer->type;
+                return type == "aten::slice" || type == "aten::select" || type == "aten::view"
+                       || type == "aten::transpose" || type == "aten::t" || type == "aten::permute"
+                       || type == "aten::squeeze" || type == "aten::unsqueeze"
+                       || type == "aten::detach" || type == "aten::alias";
+            };
+            const Operand* destination = values.at(n);
+            while (functionalizable.count(destination->producer->type))
+                destination = destination->producer->inputs[0];
             const std::set<int>& storage = provenance[n];
             for (int id : storage)
-                if (external.count(id))
+                if (external.count(id) && !(metadata_mutation && is_view(destination)))
                     return fail("mutable operator writes external tensor storage");
             auto root = [&](const Operand* r) {
-                while (r->producer->type == "aten::slice" || r->producer->type == "aten::select"
-                        || r->producer->type == "aten::view"
-                        || r->producer->type == "aten::transpose" || r->producer->type == "aten::t"
-                        || r->producer->type == "aten::permute" || r->producer->type == "aten::squeeze"
-                        || r->producer->type == "aten::unsqueeze" || functionalizable.count(r->producer->type))
+                while (is_view(r) || functionalizable.count(r->producer->type))
                     r = r->producer->inputs[0];
                 return r;
             };
@@ -1003,7 +1012,7 @@ public:
                 }
             }
         }
-        if (detach)
+        if (identity)
         {
             if ((!eval_dropout && bound.inputs.size() != 1) || bound.outputs.size() != 1)
                 return fail("invalid identity signature");
@@ -1071,7 +1080,8 @@ public:
             if (type == "aten::slice" || type == "aten::select" || type == "aten::view" || type == "aten::reshape"
                     || type == "aten::transpose" || type == "aten::permute" || type == "aten::t"
                     || type == "aten::squeeze" || type == "aten::unsqueeze" || type == "aten::expand"
-                    || type == "aten::as_strided" || normalized == "aten::clone"
+                    || type == "aten::as_strided" || type == "aten::detach" || type == "aten::alias"
+                    || normalized == "aten::clone" || metadata_mutation
                     || type == "aten::pad" || type == "aten::constant_pad_nd")
                 known_layout = known_layouts.count(source) != 0;
             if (normalized == "aten::clone" && inputs.size() == 2 && inputs[1]->producer->type == "prim::Constant")
@@ -1087,9 +1097,9 @@ public:
                 if (inputs[i]->producer->type != "prim::Constant")
                     known_layout = false;
             }
-            // The supported mutations above cannot resize or change the
-            // destination layout, even when their other inputs are unknown.
-            if (inplace)
+            // Data mutations preserve the destination layout even when their
+            // other inputs are unknown. Metadata changes need constant axes.
+            if (inplace && !metadata_mutation)
                 known_layout = known_layouts.count(source) != 0;
         }
         Operator* op = new_op(normalized);

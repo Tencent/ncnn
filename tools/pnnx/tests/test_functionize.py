@@ -279,7 +279,7 @@ class MetadataReplay(torch.nn.Module):
         return before, after, view_before, middle, torch.stack(items), y, result, previous, view
 
 
-class UnsafeMetadataMutation(torch.nn.Module):
+class ObservedMetadataMutation(torch.nn.Module):
     __constants__ = ['operation', 'mode']
 
     def __init__(self, operation, mode):
@@ -316,8 +316,119 @@ class UnsafeMetadataMutation(torch.nn.Module):
         y.add_(2)
         # Observe values after the metadata change and the subsequent write.
         if self.mode == 'container':
-            return y + 3, torch.stack(stored) * 2
-        return y + 3, sibling * 2
+            return y + 3, torch.stack(stored) * 2, base + 5
+        return y + 3, sibling * 2, base + 5
+
+
+class ViewMetadataMutation(torch.nn.Module):
+    __constants__ = ['operation', 'view']
+
+    def __init__(self, operation, view):
+        super().__init__()
+        self.operation = operation
+        self.view = view
+
+    def mutate(self, value):
+        if self.operation == 'transpose':
+            return value.transpose_(0, 1)
+        if self.operation == 't':
+            return value.t_()
+        if self.operation == 'squeeze':
+            return value.squeeze_(1)
+        return value.unsqueeze_(1)
+
+    def forward(self, x):
+        base = x + 1
+        if self.view == 'slice':
+            target = base[1:3, 1:5]
+        elif self.view == 'select':
+            target = base.view(2, 2, 6).select(0, 1)
+        elif self.view == 'view':
+            target = base.view(3, 8)
+        elif self.view == 'transpose':
+            target = base.transpose(0, 1)
+        elif self.view == 't':
+            target = base.t()
+        elif self.view == 'permute':
+            target = base.permute(1, 0)
+        elif self.view == 'squeeze':
+            target = base.unsqueeze(1).squeeze(1)
+        elif self.view == 'unsqueeze':
+            target = base.select(0, 1).unsqueeze(0)
+        elif self.view == 'detach':
+            target = base.detach()
+        else:
+            target = torch.ops.aten.alias(base)
+        if self.operation == 'squeeze':
+            target = target.unsqueeze(1)
+        sibling = base.transpose(0, 1)
+        old = target.transpose(0, 1)
+        child = old.select(0, 0)
+        previous = target.add_(2)
+        targets = [target, previous]
+        old_views = [old, old]
+        before_base = base.clone()
+        before_target = target.clone()
+        before_old = old.clone()
+        before_child = child.clone()
+        result = self.mutate(previous)
+        after_target = target.clone()
+        after_old = old.clone()
+        after_container = torch.stack(targets)
+        old_container = torch.stack(old_views)
+        base.add_(x)
+        root_write = target.clone()
+        sibling.select(0, 1).mul_(3)
+        sibling_write = target.clone()
+        target.select(0, 0).add_(5)
+        target_write = base.clone()
+        # A view made between metadata writes retains that intermediate layout.
+        middle = target.transpose(0, 1)
+        middle_before = middle.clone()
+        if self.operation == 'squeeze':
+            result.unsqueeze_(1)
+        repeated = self.mutate(result)
+        repeated.mul_(2)
+        return (before_base, before_target, before_old, before_child, after_target, after_old,
+                after_container, old_container, root_write, sibling_write, target_write,
+                middle_before, base, target, previous, result, repeated, old, child, middle,
+                torch.stack(targets), torch.stack(old_views))
+
+
+class InputViewMetadata(torch.nn.Module):
+    def forward(self, x):
+        view = x[0]
+        old = view[:]
+        items = [view, view]
+        before = view.clone()
+        result = view.unsqueeze_(0)
+        return before, x, old, view, result, torch.stack(items), view + 3
+
+
+class DetachMetadata(torch.nn.Module):
+    __constants__ = ['operation']
+
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, x):
+        base = x + 1
+        if self.operation == 'detach':
+            target = base.detach()
+        elif self.operation == 'alias':
+            target = torch.ops.aten.alias(base)
+        else:
+            target = base.detach_()
+        items = [base, base]
+        targets = [target, target]
+        before = torch.stack(items)
+        target.unsqueeze_(0)
+        after = torch.stack(items)
+        after_target = torch.stack(targets)
+        base.add_(2)
+        target.mul_(3)
+        return before, after, after_target, base, target, torch.stack(items), torch.stack(targets)
 
 
 class StorageMutation(torch.nn.Module):
@@ -338,6 +449,28 @@ class StorageMutation(torch.nn.Module):
         else:
             y.as_strided_((4, 2), (1, 4))
         return y + 3
+
+
+def metadata_cases():
+    yield 'metadata_mutation', MetadataMutation(), None, ('transpose',), None
+    for operation in ('transpose', 't', 'squeeze', 'unsqueeze'):
+        shape = (2, 1, 4) if operation == 'squeeze' else (2, 4)
+        inputs = (torch.arange(-4, 4).reshape(shape).float(),)
+        yield 'metadata_' + operation + '_local', LocalMetadataMutation(operation), inputs, (operation,), None
+        yield ('metadata_' + operation + '_replay', MetadataReplay(operation), inputs,
+               (operation, 'unsqueeze', 'squeeze'), None)
+        for mode in ('target', 'sibling', 'container', 'descendant', 'mutation_result',
+                     'untracked_target', 'untracked_sibling'):
+            rejection = 'unsupported observable alias' if mode.startswith('untracked_') else None
+            yield ('metadata_' + operation + '_' + mode, ObservedMetadataMutation(operation, mode),
+                   inputs, (operation,), rejection)
+        for view in ('slice', 'select', 'view', 'transpose', 't', 'permute',
+                     'squeeze', 'unsqueeze', 'detach', 'alias'):
+            yield ('metadata_' + operation + '_view_' + view, ViewMetadataMutation(operation, view),
+                   (torch.arange(-12, 12).reshape(4, 6).float(),), (operation, operation), None)
+    yield 'metadata_input_view', InputViewMetadata(), None, ('unsqueeze',), None
+    for operation in ('detach', 'detach_', 'alias'):
+        yield 'metadata_identity_' + operation, DetachMetadata(operation), None, ('unsqueeze',), None
 
 
 class IndexedContainer(torch.nn.Module):
@@ -552,7 +685,7 @@ def check_dynamic_copy(binary):
 
 
 def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
-             rejection=None, inputs=None, forbid_type_as=False, slice_copies=None):
+             rejection=None, inputs=None, forbid_type_as=False, slice_copies=None, metadata_ops=()):
     model.eval()
     # Exact integer-valued data exercises negative values and avoids tolerances
     # masking an alias update that was lost or performed at the wrong time.
@@ -563,9 +696,13 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
     if frontend == 'pt2':
         shapes = ({0: torch.export.Dim('batch', min=2, max=8)},) if dynamic else None
         program = torch.export.export(model, tuple(value.clone() for value in samples), dynamic_shapes=shapes)
-        assert any(node.op == 'call_function' and
-                   getattr(node.target, '_schema', None) is not None and node.target._schema.is_mutable
-                   for node in program.graph.nodes), 'raw export lost the mutation under test'
+        mutable = [node.target._schema.name for node in program.graph.nodes
+                   if node.op == 'call_function' and getattr(node.target, '_schema', None) is not None
+                   and node.target._schema.is_mutable]
+        assert mutable, 'raw export lost the mutation under test'
+        for operation in set(metadata_ops):
+            assert mutable.count('aten::' + operation + '_') >= metadata_ops.count(operation), (
+                'raw export lost metadata mutation', operation, mutable)
         torch.export.save(program, path)
         args = ['inputshape=[2,4]', 'inputshape2=[3,4]'] if dynamic else []
     else:
@@ -740,26 +877,24 @@ def test():
                      inputs=(torch.arange(16).reshape(4, 4).float(),))
             run_case(binary, DynamicSlice(), 'dynamic_slice', 'torchscript_script', dynamic=True,
                      rejection='constant dimension for mutation writeback')
-            run_case(binary, MetadataMutation(), 'metadata_mutation', 'torchscript',
-                     rejection='changes tensor metadata or storage')
-            for frontend in ('torchscript', 'torchscript_script'):
-                for operation in ('transpose', 't', 'squeeze', 'unsqueeze'):
-                    shape = (2, 1, 4) if operation == 'squeeze' else (2, 4)
-                    inputs = (torch.arange(-4, 4).reshape(shape).float(),)
-                    for label, model in [('local', LocalMetadataMutation(operation)),
-                                         ('replay', MetadataReplay(operation))]:
-                        run_case(binary, model, 'metadata_' + operation + '_' + label, frontend, inputs=inputs)
-                    for mode in ('target', 'untracked_target', 'sibling', 'untracked_sibling',
-                                 'container', 'descendant', 'mutation_result'):
-                        run_case(binary, UnsafeMetadataMutation(operation, mode),
-                                 'metadata_' + operation + '_' + mode, frontend, inputs=inputs,
-                                 rejection='changes tensor metadata or storage')
-                # Tracing can omit resize_ entirely; scripting retains all of
-                # these storage mutations for the rejection check.
-                if frontend == 'torchscript_script':
-                    for operation in ('resize', 'resize_as', 'set', 'as_strided'):
-                        run_case(binary, StorageMutation(operation), 'storage_' + operation, frontend,
-                                 rejection='changes tensor metadata or storage')
+            for frontend in ['torchscript', 'torchscript_script'] + (['pt2'] if 'pt2' in frontends else []):
+                run_case(binary, MetadataMutation(), 'metadata_mutation', frontend, dynamic=True,
+                         metadata_ops=('transpose',))
+                print('PASS', frontend + '/metadata_mutation/dynamic')
+                for mode, model, inputs, metadata_ops, rejection in metadata_cases():
+                    label = frontend + '/' + mode
+                    try:
+                        run_case(binary, model, mode, frontend, inputs=inputs,
+                                 metadata_ops=metadata_ops, rejection=rejection)
+                        print('PASS', label)
+                    except Exception as error:
+                        failures.append(label)
+                        print('FAIL', label, error)
+            # Tracing can omit resize_ entirely; scripting retains all of
+            # these storage mutations for the rejection check.
+            for operation in ('resize', 'resize_as', 'set', 'as_strided'):
+                run_case(binary, StorageMutation(operation), 'storage_' + operation, 'torchscript_script',
+                         rejection='changes tensor metadata or storage')
             run_case(binary, IndexedContainer(), 'indexed_container', 'torchscript_script')
             for mode in ('reshape', 'flatten', 'split'):
                 run_case(binary, UntrackedView(mode), 'untracked_' + mode, 'torchscript',

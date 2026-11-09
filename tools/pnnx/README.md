@@ -176,7 +176,9 @@ Run the focused tests from the pnnx build directory:
 ctest --output-on-failure -j 4 -R '^test_pt2_'
 ```
 
-The tests require Python PyTorch 2.11 or newer and a converter built with pt2 support. They compare generated Python results with PyTorch references and run supported models through ncnn. Root-directory operator tests retain their TorchScript checks and enable the additional pt2 checks only when both requirements are met.
+The focused `tests/pt2` suite is registered only for builds with LibTorch 2.11 or newer, and its scripts require Python PyTorch 2.11 or newer. These tests compare generated Python results with PyTorch references and run supported models through ncnn.
+
+Root-directory operator tests retain their TorchScript checks and enable the additional pt2 checks based only on the Python PyTorch version (2.11 or newer). They do not check the converter's build version; pairing newer Python PyTorch with an older LibTorch build will fail at the pt2 step rather than skip it.
 
 # The pnnx.param format
 

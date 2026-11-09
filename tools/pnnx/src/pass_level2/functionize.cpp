@@ -97,7 +97,7 @@ struct Alias
 {
     Operand* parent;
     Operator* op;
-    // View arguments are snapshots taken at creation time.
+    // Parent geometry and view arguments are fixed at creation time.
     std::vector<Operand*> args;
 };
 
@@ -125,6 +125,8 @@ int functionize(Graph& graph)
     const std::vector<Operator*> ops = graph.ops;
     std::map<Operand*, Alias> aliases;
     std::map<Operand*, Alias> containers;
+    std::map<Operand*, Operand*> identities;
+    std::map<Operand*, Operand*> metadata_versions;
     std::map<Operand*, Operand*> versions;
     std::map<Operand*, Operand*> replayed;
     std::set<Operand*> resolved;
@@ -141,6 +143,15 @@ int functionize(Graph& graph)
         for (Operand* input : op->inputs)
             remaining[input]++;
 
+    auto identity_of = [&](Operand* value) {
+        while (identities.count(value))
+            value = identities.at(value);
+        return value;
+    };
+    auto view_of = [&](Operand* value) {
+        value = identity_of(value);
+        return metadata_versions.count(value) ? metadata_versions.at(value) : value;
+    };
     auto root_of = [&](Operand* value) {
         return roots.count(value) ? roots.at(value) : value;
     };
@@ -154,8 +165,7 @@ int functionize(Graph& graph)
             uncertain_storage.insert(storage[value]);
     };
     std::function<void(Operand*, Operand*)> observe = [&](Operand* owner, Operand* value) {
-        while (aliases.count(value) && !aliases.at(value).op)
-            value = aliases.at(value).parent;
+        value = identity_of(value);
         if (containers.count(value))
         {
             for (Operand* item : containers.at(value).args)
@@ -165,30 +175,14 @@ int functionize(Graph& graph)
             observations[storage_of(value)].push_back({owner, value});
     };
 
-    std::function<Operand*(Operand*, Operator*)> resolve = [&](Operand* value, Operator* before) -> Operand* {
+    std::function<Operand*(Operand*, Operator*)> resolve_view = [&](Operand* value, Operator* before) -> Operand* {
         if (resolved.count(value))
             return replayed.at(value);
-        if (containers.count(value))
-        {
-            resolved.insert(value);
-            const Alias& container = containers.at(value);
-            std::vector<Operand*> args;
-            for (Operand* input : container.args)
-                args.push_back(resolve(input, before));
-            Operand* previous = replayed.at(value);
-            if (args == previous->producer->inputs)
-                return previous;
-            Operator* op = graph.new_operator_before(container.op->type, container.op->name + "_replay_" + std::to_string(index++), before);
-            op->inputs = args;
-            return replayed[value] = tensor_like(graph, op, value);
-        }
         if (!aliases.count(value))
             return versions.count(value) ? versions.at(value) : value;
         resolved.insert(value);
         const Alias& alias = aliases.at(value);
-        Operand* parent = resolve(alias.parent, before);
-        if (!alias.op)
-            return replayed[value] = parent;
+        Operand* parent = resolve_view(alias.parent, before);
         Operand* previous = replayed.at(value);
         if (parent == previous->producer->inputs[0])
             return previous;
@@ -198,6 +192,25 @@ int functionize(Graph& graph)
         op->inputnames = alias.op->inputnames;
         op->inputs.push_back(parent);
         op->inputs.insert(op->inputs.end(), alias.args.begin(), alias.args.end());
+        return replayed[value] = tensor_like(graph, op, value);
+    };
+
+    std::function<Operand*(Operand*, Operator*)> resolve = [&](Operand* value, Operator* before) -> Operand* {
+        value = identity_of(value);
+        if (!containers.count(value))
+            return resolve_view(view_of(value), before);
+        if (resolved.count(value))
+            return replayed.at(value);
+        resolved.insert(value);
+        const Alias& container = containers.at(value);
+        std::vector<Operand*> args;
+        for (Operand* input : container.args)
+            args.push_back(resolve(input, before));
+        Operand* previous = replayed.at(value);
+        if (args == previous->producer->inputs)
+            return previous;
+        Operator* op = graph.new_operator_before(container.op->type, container.op->name + "_replay_" + std::to_string(index++), before);
+        op->inputs = args;
         return replayed[value] = tensor_like(graph, op, value);
     };
 
@@ -231,8 +244,7 @@ int functionize(Graph& graph)
         }
 
         Operand* container = inputs.size() == 1 ? inputs[0] : 0;
-        while (aliases.count(container) && !aliases.at(container).op)
-            container = aliases.at(container).parent;
+        container = identity_of(container);
         if ((op->type == "prim::ListUnpack" || op->type == "prim::TupleUnpack")
                 && containers.count(container))
         {
@@ -241,12 +253,7 @@ int functionize(Graph& graph)
             {
                 for (size_t i = 0; i < items.size(); i++)
                 {
-                    Alias alias;
-                    alias.parent = items[i];
-                    alias.op = 0;
-                    aliases[op->outputs[i]] = alias;
-                    replayed[op->outputs[i]] = op->outputs[i];
-                    resolved.insert(op->outputs[i]);
+                    identities[op->outputs[i]] = identity_of(items[i]);
                     track(op->outputs[i], items[i], true);
                     observe(op->outputs[i], op->outputs[i]);
                 }
@@ -256,9 +263,7 @@ int functionize(Graph& graph)
 
         if ((op->type == "aten::__getitem__" || op->type == "prim::TupleIndex") && inputs.size() == 2)
         {
-            Operand* list = inputs[0];
-            while (aliases.count(list) && !aliases.at(list).op)
-                list = aliases.at(list).parent;
+            Operand* list = identity_of(inputs[0]);
             const Operator* index_op = inputs[1]->producer;
             if (containers.count(list) && index_op->type == "prim::Constant" && index_op->has_param("value") && index_op->params.at("value").type == 2)
             {
@@ -268,10 +273,7 @@ int functionize(Graph& graph)
                     item += (int)items.size();
                 if (item >= 0 && item < (int)items.size())
                 {
-                    Alias alias;
-                    alias.parent = items[item];
-                    alias.op = 0;
-                    aliases[op->outputs[0]] = alias;
+                    identities[op->outputs[0]] = identity_of(items[item]);
                     track(op->outputs[0], items[item], true);
                     observe(op->outputs[0], op->outputs[0]);
                     continue;
@@ -280,12 +282,18 @@ int functionize(Graph& graph)
         }
 
         if (op->type == "aten::detach_")
+        {
             op->type = "aten::detach";
+            identities[op->outputs[0]] = identity_of(inputs[0]);
+            track(op->outputs[0], inputs[0], true);
+            observe(op->outputs[0], op->outputs[0]);
+            continue;
+        }
 
         if (is_alias_op(op))
         {
             Alias alias;
-            alias.parent = inputs[0];
+            alias.parent = view_of(inputs[0]);
             alias.op = op;
             alias.args.assign(op->inputs.begin() + 1, op->inputs.end());
             aliases[op->outputs[0]] = alias;
@@ -307,34 +315,6 @@ int functionize(Graph& graph)
 
         const bool metadata = op->type == "aten::transpose_" || op->type == "aten::t_"
                               || op->type == "aten::squeeze_" || op->type == "aten::unsqueeze_";
-        if (metadata && !inputs.empty() && op->outputs.size() == 1)
-        {
-            Operand* target = inputs[0];
-            while (aliases.count(target) && !aliases.at(target).op)
-                target = aliases.at(target).parent;
-            // Metadata belongs to the tensor object, not its shared storage.
-            // Replaying an existing view on a root with new metadata is unsafe.
-            const auto observed_storage = observations.find(storage_of(target));
-            bool unsafe = aliases.count(target) || storage_of(target) != target || observed_storage == observations.end();
-            if (observed_storage != observations.end())
-            {
-                for (const auto& observation : observed_storage->second)
-                {
-                    if (remaining[observation.owner] == 0)
-                        continue;
-                    Operand* observed = observation.value;
-                    while (aliases.count(observed) && !aliases.at(observed).op)
-                        observed = aliases.at(observed).parent;
-                    if (observed != target)
-                        unsafe = true;
-                }
-            }
-            if (unsafe)
-            {
-                fprintf(stderr, "functionize: %s changes tensor metadata or storage with an observable view\n", op->type.c_str());
-                return -1;
-            }
-        }
 
         const bool untracked = is_untracked_alias_op(op)
                                || ((op->type == "prim::ListUnpack" || op->type == "prim::TupleUnpack")
@@ -356,7 +336,7 @@ int functionize(Graph& graph)
             return -1;
         }
 
-        Operand* target = inputs[0];
+        Operand* target = view_of(inputs[0]);
         if (uncertain_storage.count(storage_of(target)))
         {
             // A view that may allocate cannot be replayed as an unconditional
@@ -374,18 +354,24 @@ int functionize(Graph& graph)
         Operator* after = op;
         if (op->type == "aten::copy_")
         {
-            Operand* view = target;
-            while (aliases.count(view) && !aliases.at(view).op)
-                view = aliases.at(view).parent;
-            const bool slice = aliases.count(view) && (aliases.at(view).op->type == "aten::slice" || aliases.at(view).op->type == "aten::select");
+            const bool slice = aliases.count(target) && (aliases.at(target).op->type == "aten::slice" || aliases.at(target).op->type == "aten::select");
             normalize_copy(graph, op, slice);
         }
         else if (metadata)
         {
-            // The target is a root (possibly through identity aliases).
-            // Publish its new metadata through the same version/cache update
-            // as a data write, without recording another view to replay.
+            // Change only this tensor object's view. Existing views keep their
+            // parent geometry, while identity aliases follow the new metadata.
             op->type.resize(op->type.size() - 1);
+            Alias alias;
+            alias.parent = target;
+            alias.op = op;
+            alias.args.assign(op->inputs.begin() + 1, op->inputs.end());
+            aliases[value] = alias;
+            replayed[value] = value;
+            metadata_versions[identity_of(inputs[0])] = value;
+            identities[value] = identity_of(inputs[0]);
+            resolved.clear();
+            continue;
         }
         else
         {
@@ -456,11 +442,6 @@ int functionize(Graph& graph)
         while (aliases.count(root))
         {
             const Alias& alias = aliases.at(root);
-            if (!alias.op)
-            {
-                root = alias.parent;
-                continue;
-            }
             const std::string& type = alias.op->type;
             if (type == "aten::slice" || type == "aten::select")
             {
@@ -470,7 +451,7 @@ int functionize(Graph& graph)
                     fprintf(stderr, "functionize: %s requires a constant dimension for mutation writeback\n", alias.op->name.c_str());
                     return -1;
                 }
-                std::vector<Operand*> args = {resolve(alias.parent, op), value};
+                std::vector<Operand*> args = {resolve_view(alias.parent, op), value};
                 args.insert(args.end(), alias.args.begin(), alias.args.end());
                 root = alias.parent;
                 // Keep the writeback region independent of subsequent view rewrites.
@@ -488,7 +469,7 @@ int functionize(Graph& graph)
                 }
                 continue;
             }
-            Operand* parent = resolve(alias.parent, op);
+            Operand* parent = resolve_view(alias.parent, op);
             if (type == "aten::view" || type == "aten::squeeze" || type == "aten::unsqueeze")
             {
                 value = append("aten::reshape_as", {value, parent}, alias.parent);
@@ -555,10 +536,7 @@ int functionize(Graph& graph)
 
         versions[root] = value;
         resolved.clear();
-        Alias result_alias;
-        result_alias.parent = target;
-        result_alias.op = 0;
-        aliases[op->outputs[0]] = result_alias;
+        identities[op->outputs[0]] = identity_of(inputs[0]);
     }
     return 0;
 }

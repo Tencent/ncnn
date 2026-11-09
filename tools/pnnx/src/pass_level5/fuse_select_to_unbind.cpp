@@ -39,9 +39,9 @@ void fuse_select_to_unbind(Graph& graph)
                 continue;
 
             const int select_dimsize = op_in->shape[dim];
-            if (select_dimsize == -1)
+            if (select_dimsize <= 1)
             {
-                // skip dynamic
+                // Fusion needs multiple selects along a static dimension.
                 continue;
             }
 

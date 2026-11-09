@@ -318,8 +318,13 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         constant_unpooling(graph2);
 
         std::vector<torch::jit::Value*> values2;
+        bool has_metadata_mutation = false;
         for (auto n : graph2->nodes())
         {
+            const std::string type = n->kind().toDisplayString();
+            if (type == "aten::transpose_" || type == "aten::t_" || type == "aten::squeeze_" || type == "aten::unsqueeze_")
+                has_metadata_mutation = true;
+
             for (const auto& v : n->outputs())
             {
                 auto tensor_type = v->type()->cast<torch::jit::TensorType>();
@@ -331,6 +336,18 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                     values2.push_back(v);
                     // fprintf(stderr, "%s  ", v->debugName().c_str());
                 }
+            }
+        }
+        if (has_metadata_mutation)
+        {
+            // Keep each value's metadata at its definition, before subsequent
+            // in-place shape changes. alias shares data without copying it.
+            for (auto& v : values2)
+            {
+                auto snapshot = graph2->create(c10::Symbol::fromQualString("aten::alias"), {v});
+                snapshot->output()->setType(v->type());
+                snapshot->insertAfter(v->node());
+                v = snapshot->output();
             }
         }
         fprintf(stderr, "\n----------------\n\n");

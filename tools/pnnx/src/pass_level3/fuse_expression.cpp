@@ -105,7 +105,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]);
     }
 
-    if (op->type == "Tensor.to" || op->type == "aten::detach")
+    if (op->type == "Tensor.to" || op->type == "aten::detach" || op->type == "aten::alias")
     {
         return operand_maybe_tensor(op->inputs[0]);
     }
@@ -653,7 +653,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             goto DEFAULT;
         }
     }
-    else if (op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
+    else if (op->type == "aten::detach" || op->type == "aten::alias" || op->type == "aten::ScalarImplicit")
     {
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, zip);
     }
@@ -898,7 +898,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
                 bool is_scalar = !operand_maybe_tensor(op->outputs[0]);
                 need_fuse = noop_to || is_scalar;
             }
-            if (op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
+            if (op->type == "aten::detach" || op->type == "aten::alias" || op->type == "aten::ScalarImplicit")
             {
                 need_fuse = true;
             }
