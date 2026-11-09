@@ -77,6 +77,23 @@ class Fill(torch.nn.Module):
         return a, x + 1, b
 
 
+class TensorFill(torch.nn.Module):
+    def forward(self, x, value):
+        a = torch.ops.aten.fill.Tensor(x, value)
+        b = x.clone()
+        result = b[:, 1:].fill_(value)
+        return a, x + 1, b, result, value
+
+
+class ConstantTensorFill(torch.nn.Module):
+    def forward(self, x):
+        value = torch.tensor(2.5)
+        a = torch.ops.aten.fill.Tensor(x, value)
+        b = x.clone()
+        b[:, 1:].fill_(value)
+        return a, x + 1, b, value
+
+
 class Scalar(torch.nn.Module):
     def forward(self, x):
         return x.reshape(())
@@ -96,6 +113,12 @@ def test():
         ('copy_float', Copy(), (torch.randn(2, 3), torch.tensor([2], dtype=torch.int32))),
         ('copy_int', Copy(), (torch.zeros(2, 3, dtype=torch.int32), torch.tensor([2.75]))),
         ('fill', Fill(), (torch.randn(2, 3),)),
+        ('fill_tensor', TensorFill(), (torch.randn(2, 3), torch.tensor(2.5))),
+        ('fill_tensor_int', TensorFill(), (torch.zeros(2, 3, dtype=torch.int32), torch.tensor(2.75))),
+        ('fill_tensor_int64', TensorFill(), (torch.zeros(2, 3, dtype=torch.int64), torch.tensor(2**40 + 1))),
+        ('fill_tensor_half', TensorFill(), (torch.randn(2, 3, dtype=torch.float16), torch.tensor(2.501))),
+        ('fill_tensor_complex', TensorFill(), (torch.zeros(2, 3, dtype=torch.complex64), torch.tensor(2.5 + 1.25j))),
+        ('fill_tensor_constant', ConstantTensorFill(), (torch.randn(2, 3),)),
         ('scalar', Scalar(), (torch.tensor([2.]),)),
     ]:
         prefix = 'test_pt2_' + name

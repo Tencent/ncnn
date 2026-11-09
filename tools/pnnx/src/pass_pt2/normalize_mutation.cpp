@@ -38,6 +38,14 @@ int normalize_pt2_mutation(Graph& graph)
             // Allocation and writeback are distinct: functional fill must not
             // modify self, while fill_ still participates in alias propagation.
             const bool inplace = op->type == "aten::fill_";
+            if (op->inputs[1]->type != 0)
+            {
+                // A zero-dimensional Tensor fill uses copy's dtype conversion
+                // and broadcasting. full_like takes a Number fill value.
+                op->type = inplace ? "aten::copy_" : "aten::copy";
+                op->inputnames.clear();
+                continue;
+            }
             std::vector<Operand*> inputs = op->inputs;
             const char* suffixes[] = {"_dtype", "_layout", "_device", "_pin_memory", "_memory_format"};
             for (const char* suffix : suffixes)

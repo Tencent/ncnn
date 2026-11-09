@@ -629,7 +629,7 @@ def test():
                 run_case(binary, UntrackedView(mode, False), 'local_' + mode, 'torchscript')
             run_case(binary, UntrackedContainer(), 'untracked_container', 'torchscript_script',
                      rejection='unsupported observable alias')
-            if hasattr(torch.ops.aten, 'copy'):
+            if version.parse(torch.__version__) >= version.parse('1.12'):
                 run_case(binary, FunctionalCopy(), 'functional_copy', 'torchscript')
             if 'pt2' in frontends:
                 for mode, message in [('input', 'mutable'), ('detach', 'external tensor'),
