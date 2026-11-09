@@ -46,7 +46,7 @@ void main()
     if (op_type == 16) res = tanh(v);
 #endif
     if (op_type == 17) res = log(v) * afp(0.434294481903);
-    if (op_type == 18) res = round(v);
+    if (op_type == 18) res = roundEven(v);
     if (op_type == 19) res = trunc(v);
     if (op_type == 20) res = sign(v);
     if (op_type == 21) res = exp(v) - afp(1.f);

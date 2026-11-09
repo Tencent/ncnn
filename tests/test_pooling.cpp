@@ -59,6 +59,12 @@ static int test_pooling_0()
         }
     }
 
+    // 3x3s2 output widths 6 and 7 reach the two and one column tails
+    if (test_pooling(11, 7, 4, 0, 3, 2, 1, 0, 1, 0, 0, 0) != 0)
+        return -1;
+    if (test_pooling(13, 7, 4, 0, 3, 2, 1, 0, 1, 0, 0, 0) != 0)
+        return -1;
+
     // packed stride1 contrasts the specialized stride2 dispatch guards
     static const int generic_packing[][2] = {{4, 3}, {8, 1}, {16, 3}};
     for (int kernel = 2; kernel <= 3; kernel++)

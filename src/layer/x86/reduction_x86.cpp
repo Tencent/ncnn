@@ -61,7 +61,7 @@ int Reduction_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     }
 
     const int size = top_blob.w * top_blob.h * top_blob.d;
-    if (operation == ReductionOp_LogSum || operation == ReductionOp_LogSumExp)
+    if (operation == ReductionOp_LogSum)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < top_blob.c; q++)

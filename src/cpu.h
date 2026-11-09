@@ -115,6 +115,10 @@ NCNN_EXPORT int cpu_support_riscv_v();
 NCNN_EXPORT int cpu_support_riscv_zfh();
 // zvfh = riscv vector half-precision float
 NCNN_EXPORT int cpu_support_riscv_zvfh();
+// zvfbfmin = riscv vector bfloat16 conversion
+NCNN_EXPORT int cpu_support_riscv_zvfbfmin();
+// zvfbfwma = riscv vector bfloat16 widening multiply-accumulate
+NCNN_EXPORT int cpu_support_riscv_zvfbfwma();
 // xtheadvector = riscv xtheadvector
 NCNN_EXPORT int cpu_support_riscv_xtheadvector();
 // vlenb = riscv vector length in bytes

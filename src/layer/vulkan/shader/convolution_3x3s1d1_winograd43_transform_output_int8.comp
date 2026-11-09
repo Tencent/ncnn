@@ -280,6 +280,22 @@ void main()
         if (x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.r + 2, afp(out02));
         if (x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.r + 3, afp(out03));
 
+#if ncnn_vendorID == 0x5143
+        if (y + 1 < psc(outh)) buffer_st1(top_blob_data, v_offset.g + 0, afp(out10));
+        if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.g + 1, afp(out11));
+        if (y + 1 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.g + 2, afp(out12));
+        if (y + 1 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.g + 3, afp(out13));
+
+        if (y + 2 < psc(outh)) buffer_st1(top_blob_data, v_offset.b + 0, afp(out20));
+        if (y + 2 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.b + 1, afp(out21));
+        if (y + 2 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.b + 2, afp(out22));
+        if (y + 2 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.b + 3, afp(out23));
+
+        if (y + 3 < psc(outh)) buffer_st1(top_blob_data, v_offset.a + 0, afp(out30));
+        if (y + 3 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 1, afp(out31));
+        if (y + 3 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 2, afp(out32));
+        if (y + 3 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 3, afp(out33));
+#else
         if (y + 1 < psc(outh))
         {
             buffer_st1(top_blob_data, v_offset.g + 0, afp(out10));
@@ -303,5 +319,6 @@ void main()
             if (x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 2, afp(out32));
             if (x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 3, afp(out33));
         }
+#endif
     }
 }

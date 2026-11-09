@@ -19,6 +19,9 @@ protected:
 #if NCNN_ZFH
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
+    int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn
