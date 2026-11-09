@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,7 @@
 
 #include "model_stat.h"
 #include "pass_ncnn.h"
+#include "ncnn_model.h"
 #include "save_ncnn.h"
 
 #if BUILD_PNNX2ONNX
@@ -260,6 +262,8 @@ static bool model_file_maybe_tnnproto(const std::string& path)
 static void show_usage()
 {
     fprintf(stderr, "Usage: pnnx [model.pt] [(key=value)...]\n");
+    fprintf(stderr, "       pnnx [in.param] [in.bin] [out.param] [out.bin] [flag] [cutstart] [cutend]\n");
+    fprintf(stderr, "       pnnx ncnnoptimize [in.param] [in.bin] [out.param] [out.bin] [flag] [cutstart] [cutend]\n");
     fprintf(stderr, "  pnnxparam=model.pnnx.param\n");
     fprintf(stderr, "  pnnxbin=model.pnnx.bin\n");
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
@@ -282,6 +286,85 @@ static void show_usage()
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
+    fprintf(stderr, "ncnn optimizer flag: 0=fp32, 1=fp16, 2=bf16 (65536 is accepted for fp16)\n");
+}
+
+static int ncnn_storage_type(const char* value)
+{
+    const int flag = std::atoi(value);
+    if (flag == 1 || flag == 65536)
+        return 1;
+    if (flag == 2)
+        return 2;
+    return 0;
+}
+
+static int run_ncnn_optimizer(int argc, char** argv, int offset)
+{
+    // offset points at the input param. The positional form intentionally
+    // mirrors the long-standing ncnnoptimize command line.
+    if (argc - offset < 5)
+    {
+        show_usage();
+        return -1;
+    }
+
+    const std::string inparam = argv[offset];
+    const std::string inbin = argv[offset + 1];
+    const std::string outparam = argv[offset + 2];
+    const std::string outbin = argv[offset + 3];
+    int storage_type = 0;
+    if (argc - offset > 4)
+        storage_type = ncnn_storage_type(argv[offset + 4]);
+    const std::string cutstart = argc - offset > 5 ? argv[offset + 5] : std::string();
+    const std::string cutend = argc - offset > 6 ? argv[offset + 6] : std::string();
+
+    pnnx::Graph graph;
+    if (pnnx::load_ncnn_model(inparam, inbin, graph) != 0)
+        return -1;
+
+    int cutstart_index = -1;
+    int cutend_index = -1;
+    if (!cutstart.empty())
+    {
+        for (int i = 0; i < (int)graph.ops.size(); i++)
+        {
+            if (graph.ops[i]->name == cutstart)
+            {
+                cutstart_index = i;
+                break;
+            }
+        }
+        if (cutstart_index < 0)
+        {
+            fprintf(stderr, "not find target cutstart layer %s\n", cutstart.c_str());
+            return -1;
+        }
+    }
+    if (!cutend.empty())
+    {
+        for (int i = 0; i < (int)graph.ops.size(); i++)
+        {
+            if (graph.ops[i]->name == cutend)
+            {
+                cutend_index = i;
+                break;
+            }
+        }
+        if (cutend_index < 0)
+        {
+            fprintf(stderr, "not find target cutend layer %s\n", cutend.c_str());
+            return -1;
+        }
+    }
+
+    if (pnnx::prepare_ncnn_graph_for_passes(graph) != 0)
+        return -1;
+
+    fprintf(stderr, "############# pass_ncnn (native ncnn)\n");
+    pnnx::pass_ncnn(graph, std::vector<std::string>());
+
+    return pnnx::save_ncnn_model(graph, outparam, outbin, storage_type, cutstart, cutend, cutstart_index, cutend_index);
 }
 
 int main(int argc, char** argv)
@@ -295,6 +378,12 @@ int main(int argc, char** argv)
         show_usage();
         return -1;
     }
+
+    if (strcmp(argv[1], "ncnnoptimize") == 0)
+        return run_ncnn_optimizer(argc, argv, 2);
+
+    if (pnnx::is_ncnn_param_file(argv[1]))
+        return run_ncnn_optimizer(argc, argv, 1);
 
     for (int i = 1; i < argc; i++)
     {
