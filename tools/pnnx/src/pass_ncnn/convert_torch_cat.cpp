@@ -36,13 +36,11 @@ void convert_torch_cat(Graph& graph)
         bool axis_is_batch = false;
         if (ncnn_batch_axis != 233 && axis == ncnn_batch_axis)
         {
-            fprintf(stderr, "cat along batch axis %d is not supported\n", ncnn_batch_axis);
             axis_is_batch = true;
         }
 
         if (axis_is_batch)
         {
-            // keep Concat op for future across-batch support
             op->params["0"] = -233;
 
             op->params.erase("dim");

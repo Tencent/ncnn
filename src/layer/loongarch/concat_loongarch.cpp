@@ -25,12 +25,38 @@ Concat_loongarch::Concat_loongarch()
 
 int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    int dims = bottom_blobs[0].dims;
+    int positive_axis = axis == -233 ? -1 : (axis < 0 ? dims + axis : axis);
+
+#if NCNN_BATCH
+    if (support_batch)
+    {
+        int B = 1;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            if (bottom_blobs[b].n > 1)
+            {
+                B = bottom_blobs[b].n;
+                break;
+            }
+        }
+        if (axis == -233 || B > 1)
+            return forward_batch(bottom_blobs, top_blobs, opt);
+    }
+#else
+    if (axis == -233)
+    {
+        NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch concat");
+        return -1;
+    }
+#endif
+
+    if (positive_axis < 0 || positive_axis >= dims)
+        return -100;
+
     int elembits = bottom_blobs[0].elembits();
     if (elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
-
-    int dims = bottom_blobs[0].dims;
-    int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1) // positive_axis == 0
     {
@@ -682,7 +708,10 @@ int Concat_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 int Concat_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
-    int positive_axis = axis < 0 ? dims + axis : axis;
+    int positive_axis = axis == -233 ? -1 : (axis < 0 ? dims + axis : axis);
+
+    if (positive_axis < 0 || positive_axis >= dims)
+        return -100;
 
     if (dims == 1) // positive_axis == 0
     {
