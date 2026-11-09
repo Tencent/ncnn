@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 template<GridSample::PaddingMode padding_mode, bool align_corner>
-static void gridsample_2d_bicubic_compute_blob_arm(const Mat& src, const Mat& grid, Mat& offset_value, int permute_fusion)
+static void gridsample_2d_bicubic_compute_blob_arm(const Mat& src, const Mat& grid, Mat& offset_value, int permute_fusion, const Option& opt)
 {
+    (void)opt;
+
     const int outw = offset_value.w;
     const int outh = offset_value.h;
 
     if (permute_fusion == 0)
     {
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int y = 0; y < outh; y++)
         {
             const float* gridptr = grid.channel(y);
@@ -42,6 +45,7 @@ static void gridsample_2d_bicubic_compute_blob_arm(const Mat& src, const Mat& gr
     }
     else
     {
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int y = 0; y < outh; y++)
         {
             const float* gridptr_x = grid.channel(0).row(y);
@@ -77,7 +81,7 @@ static void gridsample_2d_bicubic_compute_blob_arm(const Mat& src, const Mat& gr
     }
 }
 
-static void gridsample_2d_bicubic_compute_blob_arm(const Mat& src, const Mat& grid, Mat& offset_value, int padding_mode, int align_corner, int permute_fusion)
+static void gridsample_2d_bicubic_compute_blob_arm(const Mat& src, const Mat& grid, Mat& offset_value, int padding_mode, int align_corner, int permute_fusion, const Option& opt)
 {
-    GRIDSAMPLE_COMPUTE_BLOB_DISPATCH(gridsample_2d_bicubic_compute_blob_arm, src, grid, offset_value, padding_mode, align_corner, permute_fusion);
+    GRIDSAMPLE_COMPUTE_BLOB_DISPATCH(gridsample_2d_bicubic_compute_blob_arm, src, grid, offset_value, padding_mode, align_corner, permute_fusion, opt);
 }
