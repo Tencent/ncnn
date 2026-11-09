@@ -5,6 +5,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 from common import rewrite_archive
 
 
@@ -33,6 +34,9 @@ def check_reject(path, message, options=()):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     net = Nested().eval()
     torch.manual_seed(0)
     x = torch.rand(2, 3)

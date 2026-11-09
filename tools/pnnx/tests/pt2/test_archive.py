@@ -11,6 +11,7 @@ import subprocess
 import zipfile
 
 import torch
+from packaging import version
 from common import rewrite_archive
 
 
@@ -38,6 +39,9 @@ def multiple(p, entries):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     net = Model().eval()
     torch.manual_seed(0)
     x = torch.rand(2, 3)

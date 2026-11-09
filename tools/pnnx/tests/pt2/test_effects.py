@@ -6,6 +6,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 from common import rewrite_archive
 
 
@@ -107,6 +108,9 @@ def bad_assert(p, entries):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     for name, model in [('local', Local()), ('lifted', Lifted()),
                          ('view_local', ViewWrite(return_base=False)),

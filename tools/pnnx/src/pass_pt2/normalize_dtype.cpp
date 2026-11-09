@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "normalize_dtype.h"
-#include "load_pt2/pt2_tensor.h"
+#include "pt2_tensor.h"
 
 #include <algorithm>
 #include <float.h>

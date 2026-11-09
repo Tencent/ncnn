@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 
 import torch
+from packaging import version
 
 
 class HalfWeight(torch.nn.Module):
@@ -156,6 +157,9 @@ def check_invalid_indices():
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     torch.manual_seed(0)
     x = torch.rand(2, 4)

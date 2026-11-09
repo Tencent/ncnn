@@ -6,6 +6,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 
 
 class ExplicitDtype(torch.nn.Module):
@@ -72,6 +73,9 @@ def check(name, model, inputs):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     if not check('explicit', ExplicitDtype(), (torch.tensor([[1.25, 2.5, 3.75], [4.5, 5.25, 6.75]], dtype=torch.float16),)):
         return False

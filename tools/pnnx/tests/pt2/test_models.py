@@ -5,6 +5,7 @@ import importlib
 import os
 
 import torch
+from packaging import version
 
 
 class CNN(torch.nn.Module):
@@ -34,6 +35,9 @@ class Attention(torch.nn.Module):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     torch.manual_seed(0)
     for name, model, shape in [

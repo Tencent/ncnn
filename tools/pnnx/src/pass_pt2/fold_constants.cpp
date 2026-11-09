@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "fold_constants.h"
-#include "load_pt2/pt2_tensor.h"
+#include "pt2_tensor.h"
 
 #include <ATen/ATen.h>
 #include <ATen/ScalarOps.h>

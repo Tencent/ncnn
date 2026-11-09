@@ -55,7 +55,7 @@ def test_bool_attribute(shape, fp16):
     if data != mask + bytes((-len(mask)) % 4):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # export exported program

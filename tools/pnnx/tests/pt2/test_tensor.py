@@ -8,6 +8,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 
 from common import rewrite_archive
 
@@ -656,6 +657,9 @@ def test_archive_errors():
 
 @torch.no_grad()
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     return (
         test_views()

@@ -63,7 +63,7 @@ def test():
     if not (torch.equal(a0, ts_b0) and torch.equal(a1, ts_b1) and torch.equal(a2, ts_b2)):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # export exported program

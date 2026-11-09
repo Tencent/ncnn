@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 
 import torch
+from packaging import version
 
 
 class Copy(torch.nn.Module):
@@ -82,6 +83,9 @@ class Scalar(torch.nn.Module):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     for name, model, inputs in [
         ('derived_result', DerivedMutationResult(), (torch.randn(2, 4),)),
         ('chained_result', ChainedMutationResult(), (torch.randn(2, 4),)),

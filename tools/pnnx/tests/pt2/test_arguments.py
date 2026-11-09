@@ -5,6 +5,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 from common import rewrite_archive
 
 
@@ -59,6 +60,9 @@ def bad_arg(p, entries):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     model = Arguments().eval()
     x = torch.tensor(-3.5)

@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 
 import torch
+from packaging import version
 
 from common import rewrite_archive
 
@@ -107,6 +108,9 @@ def convert(name, model, x, options=(), dynamic=False):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.manual_seed(0)
     x = torch.rand(4, 4)
     net = Factories().eval()

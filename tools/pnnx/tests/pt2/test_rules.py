@@ -5,6 +5,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -1337,6 +1338,9 @@ def test_native_batch_norm_stats():
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     if not test_conv1d():
         print("conv1d failed")

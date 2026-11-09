@@ -3,8 +3,8 @@
 
 #include "load_pt2.h"
 #include "json.h"
-#include "load_pt2/pt2_operator.h"
-#include "load_pt2/pt2_tensor.h"
+#include "pass_pt2/pt2_operator.h"
+#include "pass_pt2/pt2_tensor.h"
 #include "pass_pt2/fold_constants.h"
 #include "pass_pt2.h"
 #include "storezip.h"

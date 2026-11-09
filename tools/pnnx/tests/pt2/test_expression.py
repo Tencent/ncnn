@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 
 import torch
+from packaging import version
 
 
 class Arithmetic(torch.nn.Module):
@@ -120,6 +121,9 @@ def check(name, model, inputs, *, torchscript=False, inline=False):
 
 @torch.no_grad()
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     f32 = (torch.arange(6, dtype=torch.float32).reshape(2, 3),)
     i64 = (torch.zeros(2, 3, dtype=torch.int64),)

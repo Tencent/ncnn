@@ -6,6 +6,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 
 
 class Multi(torch.nn.Module):
@@ -46,6 +47,9 @@ class NativeBatch(torch.nn.Module):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     for name, model, shapes in [
         ('multi', Multi(), ((2, 3), (2, 4))),

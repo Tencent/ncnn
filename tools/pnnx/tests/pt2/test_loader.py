@@ -9,6 +9,7 @@ import subprocess
 import zipfile
 
 import torch
+from packaging import version
 
 from common import rewrite_archive
 
@@ -290,6 +291,9 @@ def test_storage():
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.set_num_threads(1)
     # Export outside no_grad so Nested retains its inference wrapper.
     test_float_parameters()

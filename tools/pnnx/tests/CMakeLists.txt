@@ -1,14 +1,8 @@
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-# Match ../src/CMakeLists.txt; BUILD_PT22PNNX is a local compile definition.
-set(PNNX_BUILD_PT2 0)
-if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
-    set(PNNX_BUILD_PT2 1)
-endif()
-
 macro(pnnx_add_test name)
-    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -DPNNX_BUILD_PT2=${PNNX_BUILD_PT2} -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
+    add_test(NAME test_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/run_test.cmake)
 endmacro()
 
 pnnx_add_test(functionize)
@@ -437,6 +431,6 @@ if(onnxruntime_FOUND)
     add_subdirectory(onnx)
 endif()
 
-if(PNNX_BUILD_PT2)
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
     add_subdirectory(pt2)
 endif()

@@ -57,7 +57,7 @@ def _test_basic():
 
     if not (_allclose(a, b)):
         return False
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # export exported program
@@ -127,7 +127,7 @@ def _test_input2():
 
     if not (_allclose(a0, b0) and _allclose(a1, b1)):
         return False
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # export exported program
@@ -186,7 +186,7 @@ def _test_int64():
 
     if not (torch.equal(a, b)):
         return False
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # export exported program
@@ -240,7 +240,7 @@ def _test_embedding():
 
     if not (torch.equal(a, b)):
         return False
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # export exported program

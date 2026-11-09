@@ -60,7 +60,7 @@ def test():
     w2 = torch.rand(10)
     b2 = torch.rand(10)
 
-    if version.parse(torch.__version__) >= version.parse('2.11') and os.environ.get('PNNX_BUILD_PT2', '1') != '0':
+    if version.parse(torch.__version__) >= version.parse('2.11'):
         # instance_norm updates running statistics even when net is in eval mode.
         m0_initial, v0_initial = m0.clone(), v0.clone()
         m1_initial, v1_initial = m1.clone(), v1.clone()
@@ -85,7 +85,7 @@ def test():
     if not (torch.equal(a0, ts_b0) and torch.equal(a1, ts_b1) and torch.equal(a2, ts_b2)):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
+    if version.parse(torch.__version__) < version.parse('2.11'):
         return True
 
     # Restore the running statistics used for the original reference.

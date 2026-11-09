@@ -8,6 +8,7 @@ import sys
 from unittest import mock
 
 import torch
+from packaging import version
 from common import rewrite_archive
 
 
@@ -25,6 +26,9 @@ def rejects(convert_module, path, **kwargs):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / 'python'))
     convert_module = importlib.import_module('pnnx.utils.convert')
     convert_module.EXEC_PATH = '../../src/pnnx'

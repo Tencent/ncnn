@@ -5,7 +5,7 @@
 #define PNNX_PASS_PT2_H
 
 #include "ir.h"
-#include "load_pt2/pt2_tensor.h"
+#include "pass_pt2/pt2_tensor.h"
 
 namespace pnnx {
 

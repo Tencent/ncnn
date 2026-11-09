@@ -5,6 +5,7 @@ import os
 import subprocess
 
 import torch
+from packaging import version
 
 
 class Dynamic(torch.nn.Module):
@@ -30,6 +31,9 @@ class TensorArguments(torch.nn.Module):
 
 
 def test():
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
     torch.manual_seed(0)
     net = Dynamic().eval()
     x = torch.rand(3, 3, 4)

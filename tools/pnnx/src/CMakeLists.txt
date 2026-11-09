@@ -1,15 +1,6 @@
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(pnnx_pass_pt2_SRCS
-    pass_pt2/fold_constants.cpp
-    pass_pt2/normalize_arguments.cpp
-    pass_pt2/normalize_as_strided.cpp
-    pass_pt2/normalize_scalar.cpp
-    pass_pt2/normalize_mutation.cpp
-    pass_pt2/normalize_dtype.cpp
-)
-
 set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
     pass_level0/convert_half_to_float.cpp
@@ -689,10 +680,19 @@ set(torch2pnnx_SRCS
 )
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
+    set(pnnx_pass_pt2_SRCS
+        pass_pt2/fold_constants.cpp
+        pass_pt2/normalize_arguments.cpp
+        pass_pt2/normalize_as_strided.cpp
+        pass_pt2/normalize_scalar.cpp
+        pass_pt2/normalize_mutation.cpp
+        pass_pt2/normalize_dtype.cpp
+        pass_pt2/pt2_operator.cpp
+        pass_pt2/pt2_tensor.cpp
+    )
+
     list(APPEND torch2pnnx_SRCS
         load_pt2.cpp
-        load_pt2/pt2_tensor.cpp
-        load_pt2/pt2_operator.cpp
         json.cpp
         pass_pt2.cpp
         ${pnnx_pass_pt2_SRCS}
