@@ -104,9 +104,9 @@ struct Alias
 int functionize(Graph& graph)
 {
     if (std::none_of(graph.ops.begin(), graph.ops.end(), [](const Operator* op) {
-        return is_inplace_op(op) || op->type == "aten::copy";
+    return is_inplace_op(op) || op->type == "aten::copy";
     }))
-        return 0;
+    return 0;
 
     // Writes replace the root value. Later reads replay aliases on that version.
     const std::vector<Operator*> ops = graph.ops;
