@@ -153,31 +153,32 @@ torch.export.save(program, "model.pt2")
 pnnx model.pt2 fp16=0
 ```
 
-Static input shapes and dtypes come from the archive. The Python package also accepts `pnnx.convert("model.pt2", fp16=False)` without repeating static input shapes. Conversion errors propagate as `subprocess.CalledProcessError`.
+Static input shapes and dtypes come from the archive. The Python package also accepts `pnnx.convert("model.pt2", fp16=False)` without repeating them.
 
-For dynamic inputs, supply concrete samples with the existing `inputshape` or `input` options. `inputshape2` can check a second sample against the same contract. Symbolic dimensions remain dynamic in the generated model; samples do not specialize the graph.
+Dynamic inputs require concrete samples through `inputshape` or `input`. A single sample specializes the input dimensions and known dependent shapes, enabling constant shape calculations and static optimization. Supply `inputshape2` or `input2` to retain the exported dynamic dimensions. Both samples must satisfy shared dimensions and range constraints.
 
 ```sh
+pnnx model.pt2 inputshape=[2,3,224,224] fp16=0
 pnnx model.pt2 inputshape=[2,3,224,224] inputshape2=[4,3,224,224] fp16=0
 ```
 
-This frontend is validated at `optlevel=2` on CPU dense-strided inference graphs. It supports parameters, persistent and non-persistent buffers, lifted tensors, storage views, flat Tensor leaves from standard tuple/list/dict interfaces, specialized scalar inputs, multiple returns, and basic symbolic shape arithmetic. Supplied input samples are checked against shared dimensions and range constraints. Exported guards and pure runtime assertions are discarded during import; callers must supply inputs that satisfy the original model constraints. Dynamic control flow is rejected.
+The frontend supports CPU dense-strided inference with parameters, buffers, lifted tensors, storage views, specialized scalar inputs, and Tensor leaves from standard tuple/list/dict interfaces. Use the default optimization level of 2. Deterministic constant tensor subgraphs, including common factories, windows and masks, are folded before the public optimization passes. Uninitialized allocations and values involved in mutation remain runtime operations. Exported guards and runtime assertions are discarded; callers must satisfy the original model constraints and any specialized input shapes. Dynamic control flow is rejected.
 
 The supported container contract is archive version 0, schema 8.17 through 8.20, and ATen opset 10. These minor revisions keep the supported fields unchanged; unimplemented dtype and Argument variants are rejected. ZIP/ZIP64 stored entries and data descriptors are supported. Legacy layouts, compressed required payloads, pickle weights, custom objects/operators/PyTrees, sparse or quantized tensors, non-Tensor outputs, external state writes, training and random operations are rejected. `sample_inputs` pickle files are never read. Raw exported programs do not need `run_decompositions()` before conversion. Selected local in-place operations use the shared functionalization pass after storage and live-alias checks. Slice/select, view, transpose/t, constant permute, and squeeze/unsqueeze aliases support inverse writeback and replay after updates, including overlapping slices and multi-input consumers. Aliases whose writeback cannot be proved safe are rejected; detach does not bypass storage-write checks.
 
 FP32 is the main inference path. Targeted Python output tests also cover FP16, BF16, integer/bool tensors, and complex arithmetic and FFT. FP64 numerical accuracy is outside the validation scope; constant processing may use FP32 intermediate arithmetic. Scalar comparisons used by inference must have representable thresholds. `as_strided` supports statically proven, non-overlapping dense source layouts when every accessed element can be proved to lie inside the source tensor. User-input sample strides are not a runtime layout contract; an explicit fixed-format clone can establish one. Proven source layout and offsets are normalized before public optimization. `view(dtype)` reinterpretation and other unimplemented storage-dependent operations are rejected before ordinary reshape rewrites. The frontend preserves inference values, not Python tensor identity, output storage aliases or gradients.
 
-The ncnn subset is narrower. Its validated models use FP32, nonempty tensors with explicit ranks. Unsupported dtypes, scalar/empty tensor interfaces, nearest-exact interpolation, tracked InstanceNorm, and residual operators produce a nonzero exit with a `pt2 ncnn: unsupported` diagnostic after the pnnx Python/IR artifacts have been saved. The Python artifact can be used independently in that case. A build with optional ONNX output also rejects dtypes its writer cannot represent.
+The ncnn backend supports a narrower subset, including FP32 computation, FP16 weights converted through its existing weight pass, and direct integer indices into static Embedding tables. It does not provide general int64 computation; valid Embedding indices are represented as int32. Scalar or empty tensor interfaces, nearest-exact interpolation, tracked InstanceNorm and other unsupported operations are diagnosed separately from pnnx conversion. A build with optional ONNX output also rejects dtypes its writer cannot represent.
 
-`src/load_pt2.cpp` provides the loading interface, and `src/pass_pt2.cpp` drives preprocessing. Tensor reading, schema binding and the individual preprocessing steps live under `src/pass_pt2/`. Layout and scalar normalization, inherited `new_full` dtype, RMSNorm's default epsilon and optional slice bounds are resolved before public level2 rewrites. Explicit reduction/softmax dtypes use existing casts instead of a separate dtype helper in the public operator rules.
+CLI exit status `0` means conversion succeeded, `2` means pnnx Python/IR were saved but an optional backend is unsupported, and other nonzero statuses indicate conversion or output-writing failure. The Python `convert()` API returns the pnnx model for statuses `0` and `2`, and raises `subprocess.CalledProcessError` for failures. An unsupported backend does not regenerate its output files.
 
-Run the focused tests with:
+Run the focused tests from the pnnx build directory:
 
 ```sh
-ctest --test-dir /tmp/pnnx-pt2-build --output-on-failure -j 4 -R '^test_pt2_'
+ctest --output-on-failure -j 4 -R '^test_pt2_'
 ```
 
-The focused tests export models, run the converter and compare the generated Python results with their PyTorch references. Shape, dtype and layout checks belong to the corresponding cases. Linear, MLP, CNN and attention models also use the generated ncnn Python scripts. Malformed archives/JSON and storage bounds are tested through the converter CLI. These scripts use the existing CTest runner and leave artifacts in the build directory. Existing root-directory operator and model tests additionally compare pt2-generated Python directly with their original references, preserving the TorchScript checks. These added branches require PyTorch 2.11 or newer. The full inference suite is validated with the installed PyTorch 2.15; no historical runtime validation matrix is maintained. The dynamic slice test covers the exportable batch `[4,8]` domain; PyTorch 2.15 rejects exporting the wider `[2,8]` domain for this model before conversion.
+The tests require Python PyTorch 2.11 or newer and a converter built with pt2 support. They compare generated Python results with PyTorch references and run supported models through ncnn. Root-directory operator tests retain their TorchScript checks and enable the additional pt2 checks only when both requirements are met.
 
 # The pnnx.param format
 
@@ -211,6 +212,8 @@ pnnx.Output     output      1 0 2
 * input operands : name list of all the input blob names, separated by space
 * output operands : name list of all the output blob names, separated by space
 * operator params : key=value pair list, separated by space, operator weights are prefixed by ```@``` symbol, tensor shapes are prefixed by ```#``` symbol, input parameter keys are prefixed by ```$```
+
+Parameter values preserve `None` separately from empty lists. Integer lists use `(1,2,3)` and an empty integer list uses `()` or `[]`. Typed empty float, string and complex lists use `[]f`, `[]s` and `[]c`, respectively, so their element types survive parsing and graph rewrites.
 
 # The pnnx.bin format
 

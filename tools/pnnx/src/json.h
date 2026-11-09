@@ -49,7 +49,8 @@ public:
 
     const JsonValue* get(const std::string& key) const
     {
-        if (type != Object) return 0;
+        if (type != Object)
+            return 0;
         std::map<std::string, JsonValue>::const_iterator it = o.find(key);
         return it == o.end() ? 0 : &it->second;
     }

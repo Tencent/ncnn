@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
+#include "pooling.h"
 
 namespace pnnx {
 
@@ -32,23 +33,14 @@ pnnx.Output             output      1 0 out
     bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
     {
         const Operator* stride = matched_operators.at("op_6")->inputs[2]->producer;
-        return (stride->type == "prim::Constant" && stride->has_param("value") && stride->params.at("value").type == 5)
-               || (stride->type == "prim::ListConstruct" && stride->inputs.empty());
+        return match_pooling_stride(stride);
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         GraphRewriterPass::write(op, captured_params);
 
-        const Operator* stride = op->inputs[1]->producer;
-        if (stride->type == "prim::ListConstruct" || stride->params.at("value").ai.empty())
-            op->params["stride"] = captured_params.at("kernel_size");
-        else
-            op->params["stride"] = stride->params.at("value");
-
-        op->inputs[1]->remove_consumer(op);
-        op->inputs.erase(op->inputs.begin() + 1);
-        op->inputnames.resize(1);
+        write_pooling_stride(op);
     }
 };
 

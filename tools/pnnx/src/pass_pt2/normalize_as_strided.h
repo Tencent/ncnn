@@ -4,7 +4,7 @@
 #ifndef PNNX_NORMALIZE_PT2_AS_STRIDED_H
 #define PNNX_NORMALIZE_PT2_AS_STRIDED_H
 
-#include "pt2_tensor.h"
+#include "load_pt2/pt2_tensor.h"
 
 namespace pnnx {
 

@@ -44,7 +44,7 @@ def test():
         if not torch.allclose(a0, b0, 1e-6, 1e-6):
             return False
 
-    if version.parse(torch.__version__) < version.parse('2.11'):
+    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
         return True
 
     # export exported program

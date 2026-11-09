@@ -2,8 +2,7 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(pnnx_pass_pt2_SRCS
-    pass_pt2/pt2_tensor.cpp
-    pass_pt2/pt2_operator.cpp
+    pass_pt2/fold_constants.cpp
     pass_pt2/normalize_arguments.cpp
     pass_pt2/normalize_as_strided.cpp
     pass_pt2/normalize_scalar.cpp
@@ -692,6 +691,8 @@ set(torch2pnnx_SRCS
 if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
     list(APPEND torch2pnnx_SRCS
         load_pt2.cpp
+        load_pt2/pt2_tensor.cpp
+        load_pt2/pt2_operator.cpp
         json.cpp
         pass_pt2.cpp
         ${pnnx_pass_pt2_SRCS}
@@ -806,6 +807,10 @@ set(pnnx_SRCS
 )
 
 add_executable(pnnx ${pnnx_SRCS})
+
+if(NOT WIN32)
+    target_compile_definitions(pnnx PRIVATE _FILE_OFFSET_BITS=64)
+endif()
 
 set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
 target_link_libraries(pnnx PRIVATE torch2pnnx)

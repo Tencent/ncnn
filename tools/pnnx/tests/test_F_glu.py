@@ -47,7 +47,7 @@ def test():
     if not (torch.equal(x0, x0p) and torch.equal(y0, y0p) and torch.equal(y1, y1p) and torch.equal(z0, z0p) and torch.equal(z1, z1p) and torch.equal(z2, z2p)):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.11'):
+    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
         return True
 
     # export exported program

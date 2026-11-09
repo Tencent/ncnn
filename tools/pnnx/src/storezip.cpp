@@ -1,10 +1,6 @@
 // Copyright 2021 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#ifndef _FILE_OFFSET_BITS
-#define _FILE_OFFSET_BITS 64
-#endif
-
 #include "storezip.h"
 
 #include <stdio.h>
@@ -90,7 +86,7 @@ PACK(struct end_of_central_directory_record {
     uint16_t comment_length;
 });
 
-static uint32_t CRC32_TABLE[256];
+static uint32_t CRC32_TABLE[8][256];
 
 static void CRC32_TABLE_INIT()
 {
@@ -108,8 +104,14 @@ static void CRC32_TABLE_INIT()
                     else
                         c >>= 1;
                 }
-                CRC32_TABLE[i] = c;
+                CRC32_TABLE[0][i] = c;
             }
+            for (int j = 1; j < 8; j++)
+                for (int i = 0; i < 256; i++)
+                {
+                    const uint32_t c = CRC32_TABLE[j - 1][i];
+                    CRC32_TABLE[j][i] = (c >> 8) ^ CRC32_TABLE[0][c & 0xff];
+                }
         }
     };
     static const Initializer initializer;
@@ -117,15 +119,24 @@ static void CRC32_TABLE_INIT()
 
 static uint32_t CRC32(uint32_t x, unsigned char ch)
 {
-    return (x >> 8) ^ CRC32_TABLE[(x ^ ch) & 0xff];
+    return (x >> 8) ^ CRC32_TABLE[0][(x ^ ch) & 0xff];
 }
 
 static uint32_t CRC32_buffer(const unsigned char* data, uint64_t len)
 {
     uint32_t x = 0xffffffff;
 
-    for (uint64_t i = 0; i < len; i++)
-        x = CRC32(x, data[i]);
+    while (len >= 8)
+    {
+        x ^= (uint32_t)data[0] | (uint32_t)data[1] << 8 | (uint32_t)data[2] << 16 | (uint32_t)data[3] << 24;
+        x = CRC32_TABLE[7][x & 0xff] ^ CRC32_TABLE[6][(x >> 8) & 0xff]
+            ^ CRC32_TABLE[5][(x >> 16) & 0xff] ^ CRC32_TABLE[4][x >> 24]
+            ^ CRC32_TABLE[3][data[4]] ^ CRC32_TABLE[2][data[5]] ^ CRC32_TABLE[1][data[6]] ^ CRC32_TABLE[0][data[7]];
+        data += 8;
+        len -= 8;
+    }
+    while (len-- != 0)
+        x = CRC32(x, *data++);
 
     return x ^ 0xffffffff;
 }

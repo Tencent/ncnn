@@ -180,6 +180,43 @@ static bool operand_maybe_tensor(const Operand* operand)
     return true;
 }
 
+static bool can_inline_tensor_scalar(const Operand* operand, int type)
+{
+    // Expression evaluation uses float32 literals, so retain double Tensors.
+    if (type == 2)
+        return false;
+
+    // Only arithmetic that accepts Python scalars may lose a Tensor operand.
+    // Require a ranked Tensor of the same dtype to preserve promotion, shape,
+    // and Tensor returns, including when the constant itself is zero-dimensional.
+    for (const Operator* consumer : operand->consumers)
+    {
+        if (consumer->type != "aten::add" && consumer->type != "aten::sub" && consumer->type != "aten::rsub"
+                && consumer->type != "aten::mul" && consumer->type != "aten::div" && consumer->type != "aten::floor_divide"
+                && consumer->type != "aten::remainder" && consumer->type != "aten::pow")
+            return false;
+
+        bool tensor_input = false;
+        for (const Operand* input : consumer->inputs)
+        {
+            if (input == operand)
+                continue;
+            // TorchScript scalar constants (e.g. add alpha) may have type -1.
+            // Unknown Tensor dtypes must still fail the dtype check below.
+            if (input->producer->type == "prim::Constant" && !operand_maybe_tensor(input))
+                continue;
+            if (input->type != type)
+                return false;
+            if (!input->shape.empty() && input->producer->type != "pnnx.Attribute")
+                tensor_input = true;
+        }
+        if (!tensor_input)
+            return false;
+    }
+
+    return !operand->consumers.empty();
+}
+
 static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, StoreZipReader& zip, bool checksubgraph = true)
 {
     Operator* op = operand->producer;
@@ -262,24 +299,10 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         // fprintf(stderr, "operand pnnx.Attribute %s\n", operand->name.c_str());
 
         const Attribute& data = op->attrs["data"];
-        if (data.shape.size() == 1 && data.shape[0] == 1 && data.type != -1)
+        if ((data.shape.empty() || (data.shape.size() == 1 && data.shape[0] == 1)) && data.type != -1)
         {
-            // Keep Tensor dtype promotion and broadcasting after scalarization.
-            for (const Operator* consumer : operand->consumers)
-            {
-                bool tensor_input = false;
-                for (const Operand* input : consumer->inputs)
-                {
-                    if (input == operand || input->type == 0)
-                        continue;
-                    if (input->type != data.type)
-                        goto DEFAULT;
-                    if (!input->shape.empty() && input->producer->type != "pnnx.Attribute")
-                        tensor_input = true;
-                }
-                if (!tensor_input)
-                    goto DEFAULT;
-            }
+            if (!can_inline_tensor_scalar(operand, data.type))
+                goto DEFAULT;
 
             if (data.type == 1)
             {
@@ -350,6 +373,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
             if (data.shape.size() == 1 && data.type != -1)
             {
+                if (!can_inline_tensor_scalar(operand, data.type))
+                    goto DEFAULT;
+
                 // resolve scalar i
                 int si = 0;
                 for (size_t i = 0; i < op->outputs.size(); i++)
@@ -382,8 +408,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 else if (data.type == 5)
                 {
                     int64_t v = ((const int64_t*)data.data.data())[si];
-                    if (v == std::numeric_limits<int64_t>::max()) v = INT_MAX;
-                    if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
+                    if (v < INT_MIN || v > INT_MAX)
+                        goto DEFAULT;
 
                     char tmp[32];
                     snprintf(tmp, 32, "%d", (int)v);
@@ -429,6 +455,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         if (operand->shape.size() == 0 && operand->type != -1)
         {
+            if (!can_inline_tensor_scalar(operand, operand->type))
+                goto DEFAULT;
+
             // fuse literal constant into expression
             if (operand->type == 0)
             {
@@ -462,11 +491,11 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 int64_t v;
                 zip.read_file(operand->name, (char*)&v);
 
-                if (v == std::numeric_limits<int64_t>::max()) v = INT_MAX;
-                if (v == std::numeric_limits<int64_t>::min()) v = INT_MIN;
+                if (v < INT_MIN || v > INT_MAX)
+                    goto DEFAULT;
 
                 char tmp[32];
-                snprintf(tmp, 32, "%ld", v);
+                snprintf(tmp, 32, "%d", (int)v);
                 expr += tmp;
             }
             else if (operand->type == 6)

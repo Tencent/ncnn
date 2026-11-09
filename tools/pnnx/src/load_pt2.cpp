@@ -3,8 +3,9 @@
 
 #include "load_pt2.h"
 #include "json.h"
-#include "pass_pt2/pt2_operator.h"
-#include "pass_pt2/pt2_tensor.h"
+#include "load_pt2/pt2_operator.h"
+#include "load_pt2/pt2_tensor.h"
+#include "pass_pt2/fold_constants.h"
 #include "pass_pt2.h"
 #include "storezip.h"
 
@@ -13,6 +14,7 @@
 #include <limits>
 #include <stdio.h>
 #include <string.h>
+#include <utility>
 
 namespace pnnx {
 
@@ -386,11 +388,38 @@ public:
         return true;
     }
 
+    void set_provenance(const std::string& name, const std::set<int>& storage)
+    {
+        provenance[name] = storage;
+        if (remaining[name] > 0)
+            for (int id : storage)
+                live_references[id].insert(name);
+    }
+
+    void consume_reference(const std::string& name)
+    {
+        auto use = remaining.find(name);
+        if (use == remaining.end() || use->second == 0 || --use->second != 0)
+            return;
+        auto value = provenance.find(name);
+        if (value == provenance.end())
+            return;
+        for (int id : value->second)
+        {
+            auto live = live_references.find(id);
+            if (live == live_references.end())
+                continue;
+            live->second.erase(name);
+            if (live->second.empty())
+                live_references.erase(live);
+        }
+    }
+
     bool int_parameter(int64_t value, Parameter& p, const std::string& target, const std::string& argname)
     {
         if (value < INT_MIN || value > INT_MAX)
         {
-            if (target == "aten::slice" && argname == "end" && value == INT64_MAX)
+            if ((target == "aten::slice" || target == "aten::slice_scatter") && argname == "end" && value == INT64_MAX)
                 value = INT_MAX;
             else
                 return fail("integer outside pnnx parameter range");
@@ -599,7 +628,10 @@ public:
             fail("unsupported Argument " + tag);
             return 0;
         }
-        return constant(p);
+        Operand* r = constant(p);
+        if (tag == "as_float" && (v.type == JsonValue::Float || v.type == JsonValue::Int))
+            floating_constants[r] = v.type == JsonValue::Float ? v.f : (double)v.i;
+        return r;
     }
 
     bool treespec_node(const JsonValue& node, size_t& leaves)
@@ -643,6 +675,55 @@ public:
             return fail("invalid treespec");
         size_t leaves = 0;
         return treespec_node(spec.a[1], leaves) && (leaves == expected || fail("treespec leaf count mismatch"));
+    }
+
+    bool specialize_shape(Pt2TensorMeta& meta)
+    {
+        for (size_t i = 0; i < meta.shape.size(); i++)
+        {
+            if (meta.shape[i] >= 0 || meta.shape_symbols[i].empty())
+                continue;
+            std::string symbol = meta.shape_symbols[i];
+            int64_t scale = 1;
+            const size_t star = symbol.find('*');
+            if (star != std::string::npos)
+            {
+                scale = atoi(symbol.substr(0, star).c_str());
+                symbol = symbol.substr(star + 1);
+            }
+            const auto value = shape_bindings.find(symbol);
+            if (value == shape_bindings.end())
+                continue;
+            if (value->second > INT_MAX / scale)
+                return fail("specialized tensor dimension exceeds pnnx range");
+            meta.shape[i] = (int)(value->second * scale);
+        }
+        return true;
+    }
+
+    bool specialize_shapes(const std::vector<std::vector<int64_t> >& supplied)
+    {
+        for (size_t i = 0; i < runtime_inputs.size(); i++)
+        {
+            const Pt2TensorMeta& meta = metadata.at(runtime_inputs[i]);
+            for (size_t j = 0; j < meta.shape.size(); j++)
+            {
+                if (meta.shape[j] >= 0)
+                    continue;
+                const std::string& symbol = meta.shape_symbols[j];
+                const size_t star = symbol.find('*');
+                if (star == std::string::npos)
+                    shape_bindings[symbol] = supplied[i][j];
+                else
+                    shape_bindings[symbol.substr(star + 1)] = supplied[i][j] / atoi(symbol.substr(0, star).c_str());
+            }
+        }
+        for (auto& item : metadata)
+            if (!specialize_shape(item.second))
+                return false;
+        for (const std::string& name : runtime_inputs)
+            values.at(name)->shape = metadata.at(name).shape;
+        return true;
     }
 
     bool shapes(const std::vector<std::vector<int64_t> >& supplied, const std::vector<std::string>& types, const JsonValue& ranges, bool required)
@@ -746,7 +827,9 @@ public:
             bool discard = type == "torch.ops.aten._assert_scalar.default"
                            || type == "torch.ops.aten._assert_tensor_metadata.default"
                            || type == "torch.ops.aten._assert_async.default"
-                           || type == "torch.ops.aten._assert_async.msg";
+                           || type == "torch.ops.aten._assert_async.msg"
+                           || type == "torch.ops.aten.sym_constrain_range.default"
+                           || type == "torch.ops.aten.sym_constrain_range_for_size.default";
             if (discard && !out->a.empty())
                 return fail("unexpected assertion outputs");
             const bool scalar = type == "_operator.add" || type == "_operator.sub" || type == "_operator.mul" || type == "_operator.floordiv"
@@ -769,6 +852,11 @@ public:
             for (const std::string& ref : refs)
                 remaining[ref]--;
         }
+        // Inputs and captures were defined before their use counts were known.
+        for (const auto& value : provenance)
+            if (remaining[value.first] > 0)
+                for (int id : value.second)
+                    live_references[id].insert(value.first);
         for (size_t i = 0; i < nodes.a.size(); i++)
             if (!skip[i] && !node(nodes.a[i]))
                 return false;
@@ -867,8 +955,7 @@ public:
             {
                 if (!values.count(ref))
                     return fail("undefined input " + ref);
-                if (remaining[ref] > 0)
-                    remaining[ref]--;
+                consume_reference(ref);
             }
         }
         if (bound.outputs.empty())
@@ -881,6 +968,8 @@ public:
         {
             static const std::set<std::string> functionalizable = {
                 "aten::relu_", "aten::relu6_", "aten::hardtanh_", "aten::hardswish_",
+                "aten::silu_", "aten::leaky_relu_", "aten::sigmoid_", "aten::hardsigmoid_",
+                "aten::elu_", "aten::celu_", "aten::selu_", "aten::tanh_", "aten::threshold_", "aten::mish_",
                 "aten::add_", "aten::sub_", "aten::mul_", "aten::div_", "aten::exp_",
                 "aten::clamp_", "aten::masked_fill_", "aten::fill_", "aten::copy_", "aten::index_put_"
             };
@@ -903,17 +992,19 @@ public:
                 return r;
             };
             const Operand* mutation_root = root(values.at(n));
-            for (const auto& value : provenance)
+            // The destination still needs checking even if this is its last use.
+            std::set<std::string> aliases = {n};
+            for (int id : storage)
             {
-                bool aliases = false;
-                for (int id : value.second)
-                    if (storage.count(id))
-                        aliases = true;
-                if (!aliases || (remaining[value.first] == 0 && value.first != n))
-                    continue;
+                auto live = live_references.find(id);
+                if (live != live_references.end())
+                    aliases.insert(live->second.begin(), live->second.end());
+            }
+            for (const std::string& alias : aliases)
+            {
                 // Only explicitly supported, invertible aliases can write back
                 // to an observable base. Other views need a local dense root.
-                const Operand* r = root(values.at(value.first));
+                const Operand* r = root(values.at(alias));
                 if (unsupported_aliases.count(r) || unsupported_aliases.count(mutation_root))
                 {
                     // A dense view can become the local functionalization root
@@ -934,25 +1025,18 @@ public:
                 return fail("invalid detach reference");
             if (!define(result, values.at(source), true))
                 return false;
-            provenance[result] = provenance[source];
+            set_provenance(result, provenance[source]);
             if (known_layouts.count(source))
                 known_layouts.insert(result);
             return true;
         }
         std::vector<Operand*> inputs;
-        bool precise = shape_comparison;
-        for (const Pt2Argument& a : bound.inputs)
-        {
-            std::vector<std::string> refs;
-            references(a.value, refs);
-            for (const std::string& ref : refs)
-            {
-                // Exported Python scalars use double precision even when item()
-                // reads a float32 Tensor. Do not narrow their comparison bounds.
-                if (symbols.count(ref))
-                    precise = true;
-            }
-        }
+        // Python scalar comparisons use double precision even when item()
+        // reads float32. Symbolic sizes in tensor factories do not make their
+        // fill values scalar comparison thresholds.
+        const bool precise = shape_comparison || (bound.outputs.size() == 1 && bound.outputs[0].get("as_sym_bool")
+                             && (type == "aten::ge" || type == "aten::gt" || type == "aten::le"
+                                 || type == "aten::lt" || type == "aten::eq" || type == "aten::ne"));
         for (const Pt2Argument& a : bound.inputs)
         {
             Operand* r = argument(a.value, type, a.name, precise);
@@ -1023,6 +1107,7 @@ public:
                 known_layout = known_layouts.count(source) != 0;
         }
         Operator* op = new_op(normalized);
+        targets[op] = target;
         for (Operand* r : inputs)
             input(op, r);
         for (size_t i = 0; i < bound.outputs.size(); i++)
@@ -1062,7 +1147,7 @@ public:
                     const std::string& name = name_value->s;
                     if (!define(name, new_value(unpack), true))
                         return false;
-                    provenance[name] = storage;
+                    set_provenance(name, storage);
                     if (i < bound.aliases.size() && !bound.aliases[i].empty())
                     {
                         unsupported_aliases.insert(values.at(name));
@@ -1076,7 +1161,7 @@ public:
                 const std::string name = value_name(output);
                 if (!define(name, new_value(op), output.get("as_tensor") != 0))
                     return false;
-                provenance[name] = storage;
+                set_provenance(name, storage);
                 if (known_layout && output.get("as_tensor"))
                 {
                     const Pt2TensorMeta& meta = metadata.at(name);
@@ -1146,6 +1231,7 @@ public:
         child.next_id = next_id;
         child.next_storage = next_storage;
         child.context = context;
+        child.shape_bindings = shape_bindings;
         child.unsupported_aliases = unsupported_aliases;
         child.dense_aliases = dense_aliases;
         const JsonValue* tensor_values = field(*body, "tensor_values", JsonValue::Object);
@@ -1154,12 +1240,18 @@ public:
         for (const auto& item : tensor_values->o)
         {
             Pt2TensorMeta meta;
-            if (parse_pt2_tensor_meta(item.second, meta, true, child.error) != 0)
-                return fail(child.error);
+            std::string meta_error;
+            if (parse_pt2_tensor_meta(item.second, meta, true, meta_error) != 0)
+                return fail("tensor " + item.first + ": " + meta_error);
             if (meta.type == 12)
                 return fail("complex32 tensors are unsupported by the Python writer");
             for (std::string& symbol : meta.shape_symbols)
                 symbol = direct_symbol(symbol);
+            if (!child.specialize_shape(meta))
+            {
+                error = child.error;
+                return false;
+            }
             child.metadata[item.first] = meta;
         }
         for (size_t i = 0; i < inputs->a.size(); i++)
@@ -1176,19 +1268,24 @@ public:
             if (r->type != meta.type || r->shape != meta.shape)
                 return fail("inference wrapper input metadata mismatch");
             if (!child.define(name, r, true))
-                return fail(child.error);
-            child.provenance[name] = provenance[source];
+            {
+                error = child.error;
+                return false;
+            }
+            child.set_provenance(name, provenance[source]);
             if (known_layouts.count(source))
                 child.known_layouts.insert(name);
             child.external.insert(provenance[source].begin(), provenance[source].end());
-            if (remaining[source] > 0)
-                remaining[source]--;
+            consume_reference(source);
         }
         const JsonValue* nodes = field(*body, "nodes", JsonValue::Array);
         if (!nodes)
             return false;
         if (!child.load_nodes(*nodes, *outputs))
-            return fail(child.error);
+        {
+            error = child.error;
+            return false;
+        }
         for (size_t i = 0; i < returns->a.size(); i++)
         {
             const std::string source = value_name(outputs->a[i]);
@@ -1200,7 +1297,7 @@ public:
                 return fail("inference wrapper output metadata mismatch");
             if (!define(name, r, true))
                 return false;
-            provenance[name] = child.provenance[source];
+            set_provenance(name, child.provenance[source]);
             if (child.known_layouts.count(source))
                 known_layouts.insert(name);
         }
@@ -1209,6 +1306,8 @@ public:
         unsupported_aliases.insert(child.unsupported_aliases.begin(), child.unsupported_aliases.end());
         dense_aliases.insert(child.dense_aliases.begin(), child.dense_aliases.end());
         layout_sources.insert(child.layout_sources.begin(), child.layout_sources.end());
+        targets.insert(child.targets.begin(), child.targets.end());
+        floating_constants.insert(child.floating_constants.begin(), child.floating_constants.end());
         return true;
     }
 
@@ -1290,7 +1389,29 @@ public:
             return false;
         if (zip.has_file(constant_path) && !read_json(zip, constant_path, constants, error))
             return false;
-        std::map<std::string, std::vector<char> > storage_cache;
+        std::map<std::string, Pt2TensorStorage> storage_cache;
+        // Count only payloads referenced by this signature. Unused config
+        // entries must not keep raw storage alive after its final import.
+        for (const JsonValue& spec : specs->a)
+        {
+            if (spec.type != JsonValue::Object || spec.o.size() != 1)
+                continue;
+            const std::string& kind = spec.o.begin()->first;
+            const JsonValue& detail = spec.o.begin()->second;
+            const char* key = kind == "parameter" ? "parameter_name"
+                              : kind == "buffer" ? "buffer_name"
+                              : kind == "tensor_constant" ? "tensor_constant_name" : 0;
+            if (!key)
+                continue;
+            const JsonValue* state = detail.get(key);
+            const JsonValue* persistent = detail.get("persistent");
+            const bool is_weight = kind == "parameter" || (kind == "buffer" && persistent && persistent->type == JsonValue::Bool && persistent->b);
+            const JsonValue* config = (is_weight ? weights : constants).get("config");
+            const JsonValue* payload = config && state && state->type == JsonValue::String ? config->get(state->s) : 0;
+            const JsonValue* path = payload ? payload->get("path_name") : 0;
+            if (path && path->type == JsonValue::String)
+                storage_cache[root + (is_weight ? "data/weights/" : "data/constants/") + path->s].remaining++;
+        }
         size_t user_leaves = 0;
         bool dynamic = false;
         for (size_t i = 0; i < inputs->a.size(); i++)
@@ -1331,6 +1452,7 @@ public:
                 if (!inputs->a[i].get("as_tensor"))
                     return fail("only Tensor runtime inputs are supported");
                 Operator* op = new_op("pnnx.Input");
+                op->name = "pnnx_input_" + std::to_string(runtime_inputs.size());
                 if (!define(name, new_value(op), true))
                     return false;
                 runtime_inputs.push_back(name);
@@ -1393,14 +1515,14 @@ public:
                 if (m == metadata.end() || m->second.type != physical.type || m->second.shape != physical.shape || m->second.strides != physical.strides || m->second.storage_offset != physical.storage_offset)
                     return fail("payload/graph tensor metadata mismatch");
                 Operator* op = new_op("pnnx.Attribute");
-                op->attrs["data"] = attr;
+                op->attrs["data"] = std::move(attr);
                 if (!define(name, new_value(op), true))
                     return false;
                 known_layouts.insert(name);
             }
             else
                 return fail("unsupported input signature " + kind);
-            provenance[name].insert(next_storage);
+            set_provenance(name, {next_storage});
             external.insert(next_storage++);
         }
         context = "signature";
@@ -1452,18 +1574,22 @@ public:
             return fail("dynamic inputs require concrete inputshape or input samples");
         if (!shapes(input_shapes, input_types, *ranges, dynamic) || !shapes(input_shapes2, input_types2, *ranges, false))
             return false;
+        if (!input_shapes.empty() && input_shapes2.empty() && !specialize_shapes(input_shapes))
+            return false;
         const JsonValue* nodes = field(*graph, "nodes", JsonValue::Array);
         if (!nodes)
             return false;
         if (!load_nodes(*nodes, *outputs))
             return false;
         context = "outputs";
+        size_t output_index = 0;
         for (const JsonValue& out : outputs->a)
         {
             Operand* r = argument(out, "", "");
             if (!r)
                 return false;
             Operator* op = new_op("pnnx.Output");
+            op->name = "pnnx_output_" + std::to_string(output_index++);
             input(op, r);
         }
         return true;
@@ -1480,11 +1606,15 @@ public:
     std::set<std::string> known_layouts;
     std::vector<std::string> runtime_inputs;
     std::map<std::string, std::set<int> > provenance;
+    std::map<int, std::set<std::string> > live_references;
     std::set<const Operand*> unsupported_aliases;
     std::set<const Operand*> dense_aliases;
     std::set<int> external;
     std::map<std::string, int> remaining;
     std::map<Operator*, Pt2TensorMeta> layout_sources;
+    std::map<Operator*, std::string> targets;
+    std::map<const Operand*, double> floating_constants;
+    std::map<std::string, int64_t> shape_bindings;
 };
 
 int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types,
@@ -1509,6 +1639,8 @@ int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<in
         fprintf(stderr, "pt2 load: %s\n", loader.error.c_str());
         return -1;
     }
+    if (fold_pt2_constants(graph, loader.targets, loader.floating_constants) != 0)
+        return -1;
     if (pass_pt2(graph, loader.layout_sources) != 0)
         return -1;
     g.ops.swap(graph.ops);

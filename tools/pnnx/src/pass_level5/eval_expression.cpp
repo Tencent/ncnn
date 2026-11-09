@@ -712,9 +712,9 @@ static std::string eval_expression(const Operator* op)
                 }
             }
         }
-        else if (t == "eq" || t == "ne" || t == "lt" || t == "le" || t == "gt" || t == "ge" || t == "scalar_max" || t == "scalar_min")
+        else if (t == "eq" || t == "ne" || t == "lt" || t == "le" || t == "gt" || t == "ge")
         {
-            // Preserve runtime scalar comparisons and min/max without folding
+            // Preserve runtime scalar comparisons without folding
             // them through the float32 arithmetic used by numeric expressions.
             typed_expr a = exprstack.top();
             exprstack.pop();

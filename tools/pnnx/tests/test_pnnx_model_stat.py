@@ -395,7 +395,7 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
     if not _allclose(a, b):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.11'):
+    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
         return True
 
     # export exported program

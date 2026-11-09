@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
+#include <utility>
 
 namespace pnnx {
 
@@ -184,7 +185,7 @@ int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allo
         return -1;
     }
 
-    meta = m;
+    meta = std::move(m);
     return 0;
 }
 
@@ -214,7 +215,7 @@ static size_t tensor_elemsize(int type)
 }
 
 int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const JsonValue& payload, Attribute& attr, Pt2TensorMeta& meta,
-                    std::map<std::string, std::vector<char> >& storage_cache, std::string& error)
+                    std::map<std::string, Pt2TensorStorage>& storage_cache, std::string& error)
 {
     error.clear();
     const JsonValue* path_name = payload.get("path_name");
@@ -309,8 +310,8 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
         }
     }
 
-    std::map<std::string, std::vector<char> >::iterator it = storage_cache.find(path);
-    if (it == storage_cache.end())
+    Pt2TensorStorage& storage = storage_cache[path];
+    if (storage.data.empty())
     {
         std::vector<char> data((size_t)size);
         char empty_data;
@@ -319,10 +320,9 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
             error = "failed to read tensor storage " + path;
             return -1;
         }
-        it = storage_cache.insert(std::make_pair(path, std::vector<char>())).first;
-        it->second.swap(data);
+        storage.data.swap(data);
     }
-    if (it->second.size() != size)
+    if (storage.data.size() != size)
     {
         error = "inconsistent cached tensor storage " + path;
         return -1;
@@ -331,41 +331,55 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
     Attribute r;
     r.type = m.type;
     r.shape = m.shape;
-    r.data.resize(numel * elemsize);
+    const bool last_use = storage.remaining <= 1;
     if (numel != 0)
     {
-        bool contiguous = true;
-        uint64_t stride = 1;
-        for (size_t i = m.shape.size(); i > 0; i--)
+        // Coalesce the contiguous suffix, including size-one axes whose
+        // strides do not affect addresses. Walk outer axes without division.
+        size_t block = 1;
+        size_t outer_rank = m.shape.size();
+        while (outer_rank > 0)
         {
-            if (m.shape[i - 1] > 1 && (uint64_t)m.strides[i - 1] != stride)
-                contiguous = false;
-            stride *= (uint64_t)m.shape[i - 1];
+            const size_t axis = outer_rank - 1;
+            if (m.shape[axis] > 1 && (uint64_t)m.strides[axis] != block)
+                break;
+            block *= (size_t)m.shape[axis];
+            outer_rank--;
         }
-
-        const char* data = it->second.data();
-        if (contiguous)
+        if (outer_rank == 0 && m.storage_offset == 0 && numel * elemsize == storage.data.size() && last_use)
         {
-            memcpy(r.data.data(), data + (size_t)m.storage_offset * elemsize, r.data.size());
+            r.data = std::move(storage.data);
         }
         else
         {
-            for (size_t i = 0; i < numel; i++)
+            r.data.resize(numel * elemsize);
+            std::vector<int> indices(outer_rank, 0);
+            uint64_t offset = (uint64_t)m.storage_offset;
+            for (size_t i = 0; i < numel; i += block)
             {
-                size_t q = i;
-                uint64_t offset = (uint64_t)m.storage_offset;
-                for (size_t j = m.shape.size(); j > 0; j--)
+                memcpy(r.data.data() + i * elemsize, storage.data.data() + (size_t)offset * elemsize, block * elemsize);
+                if (i + block == numel)
+                    break;
+                for (size_t j = outer_rank; j > 0; j--)
                 {
-                    offset += (q % (size_t)m.shape[j - 1]) * (uint64_t)m.strides[j - 1];
-                    q /= (size_t)m.shape[j - 1];
+                    const size_t axis = j - 1;
+                    if (++indices[axis] < m.shape[axis])
+                    {
+                        offset += (uint64_t)m.strides[axis];
+                        break;
+                    }
+                    indices[axis] = 0;
+                    offset -= (uint64_t)(m.shape[axis] - 1) * (uint64_t)m.strides[axis];
                 }
-                memcpy(r.data.data() + i * elemsize, data + (size_t)offset * elemsize, elemsize);
             }
         }
     }
-
-    attr = r;
-    meta = m;
+    if (last_use)
+        storage_cache.erase(path);
+    else
+        storage.remaining--;
+    attr = std::move(r);
+    meta = std::move(m);
     return 0;
 }
 

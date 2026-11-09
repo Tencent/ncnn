@@ -1,6 +1,8 @@
 # Copyright 2021 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import os
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -58,7 +60,7 @@ def test():
     w2 = torch.rand(10)
     b2 = torch.rand(10)
 
-    if version.parse(torch.__version__) >= version.parse('2.11'):
+    if version.parse(torch.__version__) >= version.parse('2.11') and os.environ.get('PNNX_BUILD_PT2', '1') != '0':
         # instance_norm updates running statistics even when net is in eval mode.
         m0_initial, v0_initial = m0.clone(), v0.clone()
         m1_initial, v1_initial = m1.clone(), v1.clone()
@@ -74,7 +76,6 @@ def test():
     mod.save("test_F_instance_norm.pt")
 
     # torchscript to pnnx
-    import os
     os.system("../src/pnnx test_F_instance_norm.pt inputshape=[1,12,24],[2,3,12,16],[1,10,12,16,24],[12],[12],[12],[12],[3],[3],[3],[3],[10],[10],[10],[10]")
 
     # pnnx inference
@@ -84,7 +85,7 @@ def test():
     if not (torch.equal(a0, ts_b0) and torch.equal(a1, ts_b1) and torch.equal(a2, ts_b2)):
         return False
 
-    if version.parse(torch.__version__) < version.parse('2.11'):
+    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
         return True
 
     # Restore the running statistics used for the original reference.

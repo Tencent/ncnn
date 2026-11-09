@@ -42,6 +42,10 @@
 #include "save_onnx.h"
 #endif
 
+// Reserved for valid, saved pnnx artifacts with an unsupported optional backend.
+// Frontend, conversion and file-writing errors must never use this status.
+static const int EXIT_OPTIONAL_BACKEND_UNSUPPORTED = 2;
+
 static std::string get_basename(const std::string& path)
 {
     std::string dirpath;
@@ -285,6 +289,7 @@ static void show_usage()
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
+    fprintf(stderr, "Exit status: 0 = success; 2 = pnnx saved, optional backend unavailable this run; other = conversion or write failure\n");
 }
 
 int main(int argc, char** argv)
@@ -480,7 +485,7 @@ int main(int argc, char** argv)
         }
         int ret = pnnx::load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
         if (ret != 0)
-            return ret;
+            return -1;
     }
     else
 #endif
@@ -489,7 +494,7 @@ int main(int argc, char** argv)
     {
         int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
         if (ret != 0)
-            return ret;
+            return -1;
     }
     else
 #endif
@@ -500,7 +505,7 @@ int main(int argc, char** argv)
                             input_shapes, input_types,
                             input_shapes2, input_types2);
         if (ret != 0)
-            return ret;
+            return -1;
     }
     else
 #endif
@@ -516,7 +521,7 @@ int main(int argc, char** argv)
                                    customop_modules, module_operators,
                                    foldable_constants_zippath, foldable_constants);
         if (ret != 0)
-            return ret;
+            return -1;
     }
 
     // *INDENT-ON*
@@ -571,16 +576,20 @@ int main(int argc, char** argv)
     if (pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat) != 0)
         return -1;
 
+    bool optional_backend_unsupported = false;
 #if BUILD_PNNX2ONNX
 #if BUILD_PT22PNNX
     if (pt2 && pnnx::check_onnx(pnnx_graph, output_error) != 0)
     {
         fprintf(stderr, "pt2 onnx: %s; pnnx artifacts were saved\n", output_error.c_str());
-        return -1;
+        optional_backend_unsupported = true;
     }
+    else
 #endif
-    if (pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16) != 0)
-        return -1;
+    {
+        if (pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16) != 0)
+            return -1;
+    }
 #else
     fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
 #endif
@@ -589,24 +598,35 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
+        bool ncnn_supported = true;
 #if BUILD_PT22PNNX
         if (pt2 && pnnx::check_ncnn(pnnx_graph, output_error) != 0)
         {
             fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
-            return -1;
+            ncnn_supported = false;
         }
 #endif
-        pnnx::pass_ncnn(pnnx_graph, module_operators);
-#if BUILD_PT22PNNX
-        if (pt2 && pnnx::check_ncnn_output(pnnx_graph, output_error) != 0)
+        if (ncnn_supported)
         {
-            fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
-            return -1;
-        }
+            pnnx::pass_ncnn(pnnx_graph, module_operators);
+#if BUILD_PT22PNNX
+            if (pt2 && pnnx::check_ncnn_output(pnnx_graph, output_error) != 0)
+            {
+                fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
+                ncnn_supported = false;
+            }
 #endif
+        }
 
-        if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
-            return -1;
+        if (ncnn_supported)
+        {
+            if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
+                return -1;
+        }
+        else
+        {
+            optional_backend_unsupported = true;
+        }
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
@@ -617,5 +637,5 @@ int main(int argc, char** argv)
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
     //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
-    return 0;
+    return optional_backend_unsupported ? EXIT_OPTIONAL_BACKEND_UNSUPPORTED : 0;
 }

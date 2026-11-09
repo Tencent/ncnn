@@ -482,7 +482,8 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 6)
     {
-        if (param.af.empty()) return "[]f";
+        if (param.af.empty())
+            return "[]f";
         std::string s("(");
         for (size_t i = 0; i < param.af.size(); i++)
         {
@@ -495,7 +496,8 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 7)
     {
-        if (param.as.empty()) return "[]s";
+        if (param.as.empty())
+            return "[]s";
         std::string s("(");
         for (size_t i = 0; i < param.as.size(); i++)
         {
@@ -514,7 +516,8 @@ std::string Parameter::encode_to_string(const Parameter& param)
     }
     if (param.type == 11)
     {
-        if (param.ac.empty()) return "[]c";
+        if (param.ac.empty())
+            return "[]c";
         std::string s("(");
         for (size_t i = 0; i < param.ac.size(); i++)
         {
@@ -1023,8 +1026,10 @@ static bool token_is_literal(const std::string& t)
 
 static std::string float_to_python(float f)
 {
-    if (std::isnan(f)) return "float('nan')";
-    if (std::isinf(f)) return f < 0 ? "float('-inf')" : "float('inf')";
+    if (std::isnan(f))
+        return "float('nan')";
+    if (std::isinf(f))
+        return f < 0 ? "float('-inf')" : "float('inf')";
     return float_to_string(f);
 }
 
@@ -1165,8 +1170,6 @@ static std::string expand_expression(const Operator* op)
         }
         else if (t == "atan2"
                  || t == "fmod"
-                 || t == "scalar_max"
-                 || t == "scalar_min"
                  || t == "max"
                  || t == "maximum"
                  || t == "min"
@@ -1177,8 +1180,6 @@ static std::string expand_expression(const Operator* op)
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
             if (t == "fmod") binaryop = "torch.fmod";
-            if (t == "scalar_max") binaryop = "max";
-            if (t == "scalar_min") binaryop = "min";
             if (t == "max") binaryop = "torch.max";
             if (t == "maximum") binaryop = "torch.maximum";
             if (t == "min") binaryop = "torch.min";
@@ -1244,12 +1245,18 @@ static std::string expand_expression(const Operator* op)
             if (t == "xor") binaryop = "^";
             if (t == "lshift") binaryop = "<<";
             if (t == "rshift") binaryop = ">>";
-            if (t == "eq") binaryop = "==";
-            if (t == "ne") binaryop = "!=";
-            if (t == "lt") binaryop = "<";
-            if (t == "le") binaryop = "<=";
-            if (t == "gt") binaryop = ">";
-            if (t == "ge") binaryop = ">=";
+            if (t == "eq")
+                binaryop = "==";
+            if (t == "ne")
+                binaryop = "!=";
+            if (t == "lt")
+                binaryop = "<";
+            if (t == "le")
+                binaryop = "<=";
+            if (t == "gt")
+                binaryop = ">";
+            if (t == "ge")
+                binaryop = ">=";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1306,7 +1313,8 @@ static std::string expand_expression(const Operator* op)
                     char* imag;
                     strtod(t.c_str(), &imag);
                     const std::string real = t.substr(0, imag - t.c_str());
-                    if (*imag == '+') imag++;
+                    if (*imag == '+')
+                        imag++;
                     exprstack.push("complex(float('" + real + "'), float('" + std::string(imag, t.c_str() + t.size() - 1 - imag) + "'))");
                 }
                 else
@@ -1561,9 +1569,12 @@ static std::string make_index_expression(const Operator* op)
         if (i != index_expr.size())
         {
             const char c = index_expr[i];
-            if (c == '[' || c == '(') depth++;
-            if (c == ']' || c == ')') depth--;
-            if (c != ',' || depth != 0) continue;
+            if (c == '[' || c == '(')
+                depth++;
+            if (c == ']' || c == ')')
+                depth--;
+            if (c != ',' || depth != 0)
+                continue;
         }
 
         std::string index = index_expr.substr(start, i - start);
@@ -1572,8 +1583,10 @@ static std::string make_index_expression(const Operator* op)
         {
             index = index.substr(first, index.find_last_not_of(" \t") - first + 1);
             // ATen None consumes one dimension; it is not a Python new axis.
-            if (index == "None") index = ":";
-            if (!r.empty()) r += ", ";
+            if (index == "None")
+                index = ":";
+            if (!r.empty())
+                r += ", ";
             r += index;
         }
         start = i + 1;
@@ -2017,7 +2030,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
                 else
                 {
                     const std::vector<int>& shape = op->params.at("shape").ai;
-                    if (shape.empty()) fprintf(pyfp, "()");
+                    if (shape.empty())
+                        fprintf(pyfp, "()");
                     for (size_t i = 0; i < shape.size(); i++)
                     {
                         if (shape[i] == 0)
@@ -2685,7 +2699,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                if (r->shape.empty()) fprintf(pyfp, "(), ");
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2751,7 +2766,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                if (r->shape.empty()) fprintf(pyfp, "(), ");
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2873,7 +2889,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                if (r->shape.empty()) fprintf(pyfp, "(), ");
+                if (r->shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < r->shape.size(); i++)
                 {
                     fprintf(pyfp, "%d, ", r->shape[i]);
@@ -2967,7 +2984,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, con
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-                if (input_shape.empty()) fprintf(pyfp, "(), ");
+                if (input_shape.empty())
+                    fprintf(pyfp, "(), ");
                 for (size_t i = 0; i < input_shape.size(); i++)
                 {
                     int dimsize = input_shape[i];

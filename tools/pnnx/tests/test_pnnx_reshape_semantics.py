@@ -65,7 +65,7 @@ def run_case(name, model, shapes):
             print(name, "pnnx inputs", [tuple(x.shape) for x in data])
             return False
 
-    if version.parse(torch.__version__) < version.parse('2.11'):
+    if version.parse(torch.__version__) < version.parse('2.11') or os.environ.get('PNNX_BUILD_PT2', '1') == '0':
         return True
 
     # export exported program

@@ -370,7 +370,7 @@ def test():
     torch.set_num_threads(1)
     binary = str(Path(os.environ.get('PNNX_BIN', '../src/pnnx')).resolve())
     frontends = ['torchscript']
-    if version.parse(torch.__version__) >= version.parse('2.11'):
+    if version.parse(torch.__version__) >= version.parse('2.11') and os.environ.get('PNNX_BUILD_PT2', '1') != '0':
         frontends.append('pt2')
     failures = []
     cwd = os.getcwd()

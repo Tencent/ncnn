@@ -83,7 +83,7 @@ def test():
                 if not torch.allclose(a0, b0, 1e-4, 1e-4):
                     print('dynamic', dynamic, 'input shapes', [tuple(x.shape) for x in data], 'output', i, 'shapes', tuple(a0.shape), tuple(b0.shape), 'max diff', (a0 - b0).abs().max().item())
                     return False
-        if version.parse(torch.__version__) >= version.parse('2.11'):
+        if version.parse(torch.__version__) >= version.parse('2.11') and os.environ.get('PNNX_BUILD_PT2', '1') != '0':
             # export exported program
             if dynamic:
                 dynamic_shapes = {
