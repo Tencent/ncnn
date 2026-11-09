@@ -19,18 +19,18 @@ TorchAliasKind torch_alias_kind(const std::string& type)
         return TorchAliasIdentity;
 
     if (type == "aten::slice" || type == "aten::select" || type == "aten::view"
-        || type == "aten::transpose" || type == "aten::t" || type == "aten::permute"
-        || type == "aten::squeeze" || type == "aten::unsqueeze"
-        || type == "aten::detach" || type == "aten::alias")
+            || type == "aten::transpose" || type == "aten::t" || type == "aten::permute"
+            || type == "aten::squeeze" || type == "aten::unsqueeze"
+            || type == "aten::detach" || type == "aten::alias")
         return TorchAliasView;
 
     if (type == "aten::reshape" || type == "aten::reshape_as" || type == "aten::flatten" || type == "aten::view_as"
-        || type == "aten::expand" || type == "aten::expand_as" || type == "aten::as_strided"
-        || type == "aten::diagonal" || type == "aten::narrow" || type == "aten::unfold"
-        || type == "aten::split" || type == "aten::split_with_sizes" || type == "aten::chunk" || type == "aten::unbind"
-        || type == "aten::view_as_real" || type == "aten::view_as_complex" || type == "aten::real" || type == "aten::imag"
-        || type == "aten::contiguous" || type == "aten::to" || type == "aten::type_as" || is_dropout(type)
-        || type == "nn.Dropout3d")
+            || type == "aten::expand" || type == "aten::expand_as" || type == "aten::as_strided"
+            || type == "aten::diagonal" || type == "aten::narrow" || type == "aten::unfold"
+            || type == "aten::split" || type == "aten::split_with_sizes" || type == "aten::chunk" || type == "aten::unbind"
+            || type == "aten::view_as_real" || type == "aten::view_as_complex" || type == "aten::real" || type == "aten::imag"
+            || type == "aten::contiguous" || type == "aten::to" || type == "aten::type_as" || is_dropout(type)
+            || type == "nn.Dropout3d")
         return TorchAliasUntracked;
 
     return TorchAliasNone;
@@ -64,7 +64,7 @@ TorchAliasKind torch_alias_kind(const std::string& type, const std::vector<Opera
         const Parameter* training = constant_value(inputs[2]);
         const Parameter* probability = constant_value(inputs[1]);
         if ((training && training->type == 1 && !training->b)
-            || (probability && ((probability->type == 3 && probability->f == 0.f) || (probability->type == 2 && probability->i == 0))))
+                || (probability && ((probability->type == 3 && probability->f == 0.f) || (probability->type == 2 && probability->i == 0))))
             return TorchAliasIdentity;
         if (training && training->type == 1 && training->b)
             return TorchAliasNone;
@@ -92,7 +92,7 @@ TorchAliasKind torch_alias_kind(const std::string& type, const std::vector<Opera
         if (copy->b)
             return TorchAliasNone;
         if (inputs[0]->type > 0 && inputs[0]->type == output_type
-            && (format->type == 0 || format->i == 1))
+                && (format->type == 0 || format->i == 1))
             return TorchAliasIdentity;
     }
 

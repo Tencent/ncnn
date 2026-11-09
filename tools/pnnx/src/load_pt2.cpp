@@ -1177,8 +1177,7 @@ public:
                             && (!contiguous_allocation || contiguous_layout(meta)))
                         known_layouts.insert(name);
                 }
-                if (!inplace && (alias_kind == TorchAliasUntracked
-                                 || (!classified_alias && i < bound.aliases.size() && !bound.aliases[i].empty())))
+                if (!inplace && (alias_kind == TorchAliasUntracked || (!classified_alias && i < bound.aliases.size() && !bound.aliases[i].empty())))
                 {
                     unsupported_aliases.insert(values.at(name));
                     if (dense_layout(metadata.at(name)))

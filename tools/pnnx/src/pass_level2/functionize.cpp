@@ -110,7 +110,7 @@ static Operator* normalize_inplace(Graph& graph, Operator* op)
         if (destination->type == 12 && input->type == 3)
             continue;
         if (destination->type >= 4 && destination->type <= 8 && input->type >= 4 && input->type <= 9
-            && input->shape.empty() && !destination->shape.empty())
+                && input->shape.empty() && !destination->shape.empty())
             continue;
         mixed_dtype = true;
     }
@@ -325,7 +325,7 @@ int functionize(Graph& graph)
         Operand* container = inputs.size() == 1 ? inputs[0] : 0;
         container = state.identity_of(container);
         if ((op->type == "prim::ListUnpack" || op->type == "prim::TupleUnpack")
-            && state.containers.count(container))
+                && state.containers.count(container))
         {
             const std::vector<Operand*>& items = state.containers.at(container).args;
             if (items.size() == op->outputs.size())
