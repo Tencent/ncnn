@@ -13,6 +13,7 @@
 #include <cmath>
 #include <limits>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <utility>
 
@@ -526,13 +527,12 @@ public:
         }
         else if (tag == "as_scalar_type" && v.type == JsonValue::Int)
         {
-            static const int types[] = {-1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15};
             if (v.i < 1 || v.i > 13)
             {
                 fail("unsupported scalar type");
                 return 0;
             }
-            p = types[v.i];
+            p = pt2_scalar_type(pt2_tensor_type((int)v.i));
         }
         else if (tag == "as_memory_format" && v.type == JsonValue::Int)
         {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "normalize_dtype.h"
+#include "load_pt2/pt2_tensor.h"
 
 #include <algorithm>
 #include <float.h>
@@ -9,16 +10,10 @@
 
 namespace pnnx {
 
-static int scalar_type(int type)
-{
-    static const int types[] = {-1, 6, 7, 5, 3, 4, 2, 1, 0, 11, 9, 10, 8, 15};
-    return type >= 1 && type <= 13 ? types[type] : -1;
-}
-
 static int operand_type(int dtype)
 {
     for (int type = 1; type <= 13; type++)
-        if (scalar_type(type) == dtype)
+        if (pt2_scalar_type(type) == dtype)
             return type;
     return 0;
 }
@@ -36,7 +31,7 @@ static Operand* new_constant(Graph& graph, const Operator* before, const Paramet
 
 static Operand* cast_before(Graph& graph, const Operator* before, Operand* source, int type, int& id)
 {
-    Operand* dtype = new_constant(graph, before, Parameter(scalar_type(type)), id);
+    Operand* dtype = new_constant(graph, before, Parameter(pt2_scalar_type(type)), id);
     Operand* non_blocking = new_constant(graph, before, Parameter(false), id);
     Operand* copy = new_constant(graph, before, Parameter(false), id);
     Operand* format = new_constant(graph, before, Parameter(), id);
@@ -96,7 +91,7 @@ int normalize_pt2_dtype(Graph& graph)
             Operand* source = op->inputs[0];
             Parameter& dtype = op->inputs[3]->producer->params.at("value");
             if (dtype.type == 0)
-                dtype = scalar_type(source->type);
+                dtype = pt2_scalar_type(source->type);
             source->remove_consumer(op);
             op->inputs.erase(op->inputs.begin());
             op->type = "aten::full";
@@ -119,7 +114,7 @@ int normalize_pt2_dtype(Graph& graph)
         if (op->type == "aten::add_" || op->type == "aten::sub_" || op->type == "aten::mul_" || op->type == "aten::div_"
                 || op->type == "aten::clamp_")
         {
-            if (op->inputs.empty() || op->outputs.size() != 1 || scalar_type(op->inputs[0]->type) < 0)
+            if (op->inputs.empty() || op->outputs.size() != 1 || pt2_scalar_type(op->inputs[0]->type) < 0)
             {
                 fprintf(stderr, "pt2 dtype: unknown destination dtype for %s\n", op->type.c_str());
                 return -1;

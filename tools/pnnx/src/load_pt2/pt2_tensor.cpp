@@ -10,6 +10,12 @@
 
 namespace pnnx {
 
+int pt2_scalar_type(int type)
+{
+    static const int types[] = {-1, 6, 7, 5, 3, 4, 2, 1, 0, 11, 9, 10, 8, 15};
+    return type >= 1 && type <= 13 ? types[type] : -1;
+}
+
 int pt2_tensor_type(int serde_type)
 {
     switch (serde_type)

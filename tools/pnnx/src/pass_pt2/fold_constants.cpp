@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "fold_constants.h"
+#include "load_pt2/pt2_tensor.h"
 
 #include <ATen/ATen.h>
 #include <ATen/ScalarOps.h>
@@ -19,12 +20,8 @@ namespace pnnx {
 
 static at::ScalarType scalar_type(int type)
 {
-    static const at::ScalarType types[] = {
-        at::ScalarType::Undefined, at::kFloat, at::kDouble, at::kHalf,
-        at::kInt, at::kLong, at::kShort, at::kChar, at::kByte, at::kBool,
-        at::kComplexFloat, at::kComplexDouble, at::kComplexHalf, at::kBFloat16
-    };
-    return type > 0 && type < 14 ? types[type] : at::ScalarType::Undefined;
+    const int dtype = pt2_scalar_type(type);
+    return dtype < 0 ? at::ScalarType::Undefined : (at::ScalarType)dtype;
 }
 
 static bool constant_value(const Operand* operand, const c10::TypePtr& type, const std::map<const Operand*, double>& floating_constants, c10::IValue& value)
@@ -175,15 +172,21 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
     };
 
     // Keep alias-producing ancestors of mutations intact for functionize.
+    static const std::set<std::string> aliases = {
+        "aten::slice", "aten::select", "aten::view", "aten::reshape", "aten::flatten",
+        "aten::transpose", "aten::t", "aten::permute", "aten::squeeze", "aten::unsqueeze",
+        "aten::alias", "aten::detach", "aten::expand", "aten::as_strided"
+    };
     std::set<const Operand*> mutable_inputs;
     for (auto it = graph.ops.rbegin(); it != graph.ops.rend(); ++it)
     {
         const Operator* op = *it;
-        bool mutable_value = !op->type.empty() && op->type.back() == '_';
-        for (const Operand* output : op->outputs)
-            mutable_value |= mutable_inputs.count(output) != 0;
-        if (mutable_value)
-            mutable_inputs.insert(op->inputs.begin(), op->inputs.end());
+        bool mutable_value = op->type.size() > 2 && op->type.back() == '_' && op->type[op->type.size() - 2] != '_';
+        if (aliases.count(op->type))
+            for (const Operand* output : op->outputs)
+                mutable_value |= mutable_inputs.count(output) != 0;
+        if (mutable_value && !op->inputs.empty())
+            mutable_inputs.insert(op->inputs[0]);
     }
 
     at::NoGradGuard guard;

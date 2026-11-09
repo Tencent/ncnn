@@ -21,6 +21,45 @@ class Aliases(torch.nn.Module):
 
     def forward(self, x):
         base = x + 1
+        if self.mode == 'full_slice':
+            before = base.clone()
+            result = base[:, :].add_(2)
+            return before, base, result
+        if self.mode == 'unbind_writeback':
+            left, right = base[0], base[1]
+            before = right.clone()
+            left.add_(2)
+            return before, base, left, right
+        if self.mode == 'split_writeback':
+            left, right = base[:1], base[1:]
+            before = right.clone()
+            left.add_(2)
+            return before, base, left, right
+        if self.mode == 'dynamic_bounds':
+            base = torch.cat((base, base), 0)
+            view = base[:x.size(0) * 2 - 1, 1:]
+            before = view.clone()
+            view.add_(2)
+            return before, base, view
+        if self.mode == 'chained_view':
+            result = base[:, 1:].relu_()
+            result[:, 1:].add_(1)
+            return base, result
+        if self.mode == 'chained_select':
+            result = base.select(0, 1).relu_()
+            result[1:].add_(2)
+            return base, result
+        if self.mode == 'repeated_operand':
+            view = base[:, 1:]
+            view.add_(view)
+            return base, view, view + view
+        if self.mode == 'unrelated_write':
+            view = base.transpose(0, 1)
+            before = view.clone()
+            base.add_(2)
+            middle = view + 1
+            other = (x + 3).relu_()
+            return before, middle, view + 2, other
         if self.mode == 'nested_slice':
             outer = base[:, 1:]
             inner = outer[:, 1:]
@@ -139,6 +178,102 @@ class DynamicPermutation(torch.nn.Module):
         view = base.permute(dim, 1 - dim)
         view.add_(2)
         return base, view
+
+
+class NestedUnpack(torch.nn.Module):
+    def forward(self, x):
+        base = x + 1
+        view = base.transpose(0, 1)
+        nested = ([base, view],)
+        items, = nested
+        left, right = items
+        before = left.clone()
+        right.add_(2)
+        left.mul_(3)
+        return before, base, view, left, right
+
+
+class SharedShape(torch.nn.Module):
+    def forward(self, x):
+        shape = [2, 8]
+        before = x.view(shape)
+        y = (x + 1).relu_()
+        return before, y.view(shape)
+
+
+class ScalarAdd(torch.nn.Module):
+    def forward(self, x):
+        y = x + 1
+        y.add_(1)
+        return y
+
+
+class DynamicSlice(torch.nn.Module):
+    def forward(self, x):
+        y = x + 1
+        y.select(x.size(0) - 2, 1).add_(1)
+        return y
+
+
+class MetadataMutation(torch.nn.Module):
+    def forward(self, x):
+        y = x + 1
+        sibling = y.view(-1)
+        y.transpose_(0, 1)
+        y.add_(2)
+        return y, sibling
+
+
+class IndexedContainer(torch.nn.Module):
+    def forward(self, x):
+        base = x + 1
+        view = base.transpose(0, 1)
+        items = [base, view]
+        selected = items[-1]
+        selected.add_(2)
+        return base, view, selected
+
+
+class UntrackedView(torch.nn.Module):
+    def __init__(self, mode, observe_base=True):
+        super().__init__()
+        self.mode = mode
+        self.observe_base = observe_base
+
+    def forward(self, x):
+        base = x + 1
+        if self.mode == 'reshape':
+            view = base.reshape(-1)
+        elif self.mode == 'flatten':
+            view = base.flatten()
+        else:
+            view, _ = base.split(2, 1)
+        view.add_(2)
+        return (base, view) if self.observe_base else view
+
+
+class UntrackedContainer(torch.nn.Module):
+    def forward(self, x):
+        base = x + 1
+        view = base.reshape(-1)
+        stored = (view,)
+        base.add_(2)
+        return stored, base
+
+
+class FunctionalCopy(torch.nn.Module):
+    def forward(self, x):
+        base = x + 1
+        view = base[:, 1:]
+        result = torch.ops.aten.copy(view, torch.ones(1, 3))
+        return base, result
+
+
+class FullCopy(torch.nn.Module):
+    def forward(self, x, source):
+        base = x + 1
+        base[:, :] = source
+        return base
 
 
 class MixedMutation(torch.nn.Module):
@@ -277,8 +412,31 @@ def check_ncnn(name, model, value):
     assert torch.equal(value, original), 'ncnn modified a caller input'
 
 
+def check_dynamic_copy(binary):
+    model = FullCopy().eval()
+    x = torch.zeros(2, 4)
+    source = torch.arange(8).reshape(2, 4).float()
+    name = 'torchscript_dynamic_full_copy'
+    torch.jit.trace(model, (x, source)).save(name + '.pt')
+    result = subprocess.run([binary, name + '.pt', 'fp16=0', 'optlevel=2',
+                             'inputshape=[2,4],[2,4]', 'inputshape2=[3,4],[3,4]'],
+                            capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    spec = importlib.util.spec_from_file_location(name, name + '_pnnx.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    converted = module.Model().eval()
+    # Both traced dimensions become -1, but valid runtime inputs may broadcast.
+    for n, m in [(2, 2), (3, 3), (5, 1)]:
+        x = torch.arange(n * 4).reshape(n, 4).float()
+        source = torch.arange(m * 4).reshape(m, 4).float() - 3
+        originals = (x.clone(), source.clone())
+        check_outputs(model(x, source), converted(x, source))
+        check_outputs(originals, (x, source))
+
+
 def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
-             rejection=None, inputs=None, forbid_type_as=False):
+             rejection=None, inputs=None, forbid_type_as=False, slice_copies=None):
     model.eval()
     # Exact integer-valued data exercises negative values and avoids tolerances
     # masking an alias update that was lost or performed at the wrong time.
@@ -290,7 +448,7 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
         shapes = ({0: torch.export.Dim('batch', min=2, max=8)},) if dynamic else None
         program = torch.export.export(model, tuple(value.clone() for value in samples), dynamic_shapes=shapes)
         assert any(node.op == 'call_function' and
-                   str(node.target).split('.')[-2].endswith('_')
+                   getattr(node.target, '_schema', None) is not None and node.target._schema.is_mutable
                    for node in program.graph.nodes), 'raw export lost the mutation under test'
         torch.export.save(program, path)
         args = ['inputshape=[2,4]', 'inputshape2=[3,4]'] if dynamic else []
@@ -322,7 +480,7 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
     for suffix in ('_pnnx.py', '.pnnx.param', '.pnnx.bin',
                    '_ncnn.py', '.ncnn.param', '.ncnn.bin'):
         Path(name + suffix).unlink(missing_ok=True)
-    result = subprocess.run([binary, path, 'fp16=0'] + args,
+    result = subprocess.run([binary, path, 'fp16=0', 'optlevel=2'] + args,
                             capture_output=True, text=True, timeout=90)
     Path(name + '.conversion.log').write_text(result.stdout + result.stderr)
     if rejection is not None:
@@ -358,12 +516,17 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
         assert all(torch.equal(a, b) for a, b in zip(values, originals)), 'modified a caller input on repeat'
     if forbid_type_as:
         assert 'Tensor.type_as' not in Path(name + '.pnnx.param').read_text(), 'unnecessary dtype cast'
+    if slice_copies is not None:
+        param = Path(name + '.pnnx.param').read_text()
+        count = sum(line.split()[0] == 'Tensor.slice_copy' for line in param.splitlines()[2:])
+        assert count == slice_copies, ('slice copies', count, slice_copies)
     # Raw pt2 ones_like is currently rejected by the ncnn backend.
     if (os.environ.get('PNNX_TEST_NCNN') == '1' and dtype == torch.float32 and
             not dynamic and mode in ('siblings', 'nonfirst', 'chained', 'select', 'view_base') and
             not (frontend == 'pt2' and mode == 'nonfirst')):
         check_ncnn(name, model, x.clone())
         print('PASS ncnn/' + name)
+    return Path(name + '.pnnx.param').read_text()
 
 
 def test():
@@ -382,6 +545,7 @@ def test():
     with context as work:
         os.chdir(work)
         try:
+            check_dynamic_copy(binary)
             for frontend in frontends:
                 for mode in ('siblings', 'nonfirst', 'chained', 'select',
                              'view_slice', 'view_select', 'view_repeat', 'view_base',
@@ -396,6 +560,18 @@ def test():
                         except Exception as error:
                             failures.append(label)
                             print('FAIL', label, error)
+                for mode in ('chained_view', 'chained_select', 'repeated_operand', 'unrelated_write'):
+                    run_case(binary, Aliases(mode), mode, frontend)
+                for mode, copies, read_op in [('full_slice', 0, None),
+                                             ('unbind_writeback', 1, 'torch.unbind'),
+                                             ('split_writeback', 1, 'torch.tensor_split')]:
+                    param = run_case(binary, Aliases(mode), mode, frontend, slice_copies=copies)
+                    if read_op is not None:
+                        assert read_op + ' ' in param, ('missing read fusion', read_op)
+                run_case(binary, Aliases('dynamic_bounds'), 'dynamic_bounds', frontend, dynamic=True)
+                for dtype in (torch.float32, torch.int32):
+                    run_case(binary, ScalarAdd(), 'scalar_add', frontend, dtype=dtype,
+                             inputs=(torch.tensor(2, dtype=dtype),), forbid_type_as=True)
                 for mode, model, inputs in mixed_cases():
                     label = frontend + '/' + mode
                     try:
@@ -438,6 +614,23 @@ def test():
             except Exception as error:
                 failures.append(label)
                 print('FAIL', label, error)
+            run_case(binary, NestedUnpack(), 'nested_unpack', 'torchscript_script',
+                     inputs=(torch.arange(9).reshape(3, 3).float(),))
+            run_case(binary, SharedShape(), 'shared_shape', 'torchscript_script',
+                     inputs=(torch.arange(16).reshape(4, 4).float(),))
+            run_case(binary, DynamicSlice(), 'dynamic_slice', 'torchscript_script', dynamic=True,
+                     rejection='constant dimension for mutation writeback')
+            run_case(binary, MetadataMutation(), 'metadata_mutation', 'torchscript',
+                     rejection='changes tensor metadata or storage')
+            run_case(binary, IndexedContainer(), 'indexed_container', 'torchscript_script')
+            for mode in ('reshape', 'flatten', 'split'):
+                run_case(binary, UntrackedView(mode), 'untracked_' + mode, 'torchscript',
+                         rejection='unsupported observable alias')
+                run_case(binary, UntrackedView(mode, False), 'local_' + mode, 'torchscript')
+            run_case(binary, UntrackedContainer(), 'untracked_container', 'torchscript_script',
+                     rejection='unsupported observable alias')
+            if hasattr(torch.ops.aten, 'copy'):
+                run_case(binary, FunctionalCopy(), 'functional_copy', 'torchscript')
             if 'pt2' in frontends:
                 for mode, message in [('input', 'mutable'), ('detach', 'external tensor'),
                                       ('as_strided', 'as_strided')]:

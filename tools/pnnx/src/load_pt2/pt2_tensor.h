@@ -33,6 +33,7 @@ struct Pt2TensorStorage
 };
 
 int pt2_tensor_type(int serde_type);
+int pt2_scalar_type(int type);
 
 int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allow_symbolic, std::string& error);
 

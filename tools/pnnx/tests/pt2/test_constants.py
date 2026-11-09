@@ -39,6 +39,20 @@ class Mutation(torch.nn.Module):
         return a, b
 
 
+class Activation(torch.nn.Module):
+    def forward(self, x):
+        a = x + torch.arange(4, dtype=torch.float32)
+        b = a.relu_()
+        return b
+
+
+class CopySource(torch.nn.Module):
+    def forward(self, x):
+        a = x + 1
+        a.copy_(torch.arange(4, dtype=torch.float32))
+        return a
+
+
 class IntegerConstants(torch.nn.Module):
     def __init__(self):
         super().__init__()
@@ -102,6 +116,13 @@ def test():
         return False
     if not equal(load(Path(prefix + '_ncnn.py')).test_inference(), net(x)):
         return False
+
+    for name, net in [('activation', Activation()), ('copy_source', CopySource())]:
+        prefix, _ = convert(name, net, x)
+        if 'torch.arange ' in Path(prefix + '.pnnx.param').read_text():
+            return False
+        if not equal(load(Path(prefix + '_ncnn.py')).test_inference(), net(x)):
+            return False
 
     x = torch.rand(4, 3)
     net = ShapeFactory().eval()

@@ -34,6 +34,13 @@ class CopyResult(torch.nn.Module):
         return base, result, result + 3
 
 
+class DynamicCopy(torch.nn.Module):
+    def forward(self, x, y):
+        a = x.clone()
+        a.copy_(y)
+        return a
+
+
 class OverlappingMutation(torch.nn.Module):
     def forward(self, x):
         base = x + 1
@@ -108,6 +115,31 @@ def test():
         if any(not torch.equal(a, b) for a, b in zip(actual_inputs, inputs)):
             print(name, 'modified a caller input')
             return False
+    for name, model, broadcast in [('slice', CopyResult(), False), ('root', DynamicCopy(), True)]:
+        prefix = 'test_pt2_copy_dynamic_' + name
+        batch = torch.export.Dim('batch', min=2, max=8)
+        inputs = (torch.randn(2, 3), torch.randn(1, 3) if broadcast else torch.randn(2, 2))
+        shapes = ({0: batch}, {} if broadcast else {0: batch})
+        program = torch.export.export(model, inputs, dynamic_shapes=shapes)
+        torch.export.save(program, prefix + '.pt2')
+        args = ['inputshape=[2,3],[1,3]', 'inputshape2=[3,3],[1,3]'] if broadcast else [
+            'inputshape=[2,3],[2,2]', 'inputshape2=[3,3],[3,2]']
+        result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0', 'optlevel=2', *args], capture_output=True, text=True)
+        if result.returncode not in (0, 2):
+            print(result.stderr)
+            return False
+        param = Path(prefix + '.pnnx.param').read_text()
+        if param.count('Tensor.expand_as ') != int(broadcast):
+            return False
+        converted = importlib.import_module(prefix + '_pnnx').Model().eval()
+        for n in (2, 3, 5):
+            xs = (torch.randn(n, 3), torch.randn(1, 3) if broadcast else torch.randn(n, 2))
+            expected = model(*[x.clone() for x in xs])
+            actual = converted(*[x.clone() for x in xs])
+            if isinstance(expected, torch.Tensor):
+                expected, actual = (expected,), (actual,)
+            if any(a.shape != b.shape or not torch.equal(a, b) for a, b in zip(expected, actual)):
+                return False
     return True
 
 
