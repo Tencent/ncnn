@@ -168,9 +168,7 @@ Legacy archive layouts, compressed model payloads, pickle weights, custom object
 
 FP32 is the main inference path. Tests also cover FP16, BF16, integer/bool tensors, and complex arithmetic and FFT. FP64 numerical accuracy is outside the validation scope; constant processing may use FP32 intermediate arithmetic. Scalar comparisons require representable thresholds. Storage-dependent operations such as `as_strided` require a provably valid layout; dtype reinterpretation with `view(dtype)` is unsupported. The frontend preserves inference values, not Python tensor identity, output storage aliases or gradients.
 
-The ncnn backend supports a narrower subset, including FP32 computation, FP16 weights converted through its existing weight pass, and direct integer indices into static Embedding tables. It does not provide general int64 computation; valid Embedding indices are represented as int32. Scalar or empty tensor interfaces, nearest-exact interpolation, tracked InstanceNorm and other unsupported operations are diagnosed separately from pnnx conversion. A build with optional ONNX output also rejects dtypes its writer cannot represent.
-
-CLI exit status `0` means conversion succeeded, `2` means pnnx Python/IR were saved but an optional backend is unsupported, and other nonzero statuses indicate conversion or output-writing failure. The Python `convert()` API returns the pnnx model for statuses `0` and `2`, and raises `subprocess.CalledProcessError` for failures. An unsupported backend does not regenerate its output files.
+The ncnn backend has narrower operator and dtype support than pnnx Python. Conversion uses the existing backend passes and diagnostics; successful pnnx Python inference does not imply that the generated ncnn model is supported.
 
 Run the focused tests from the pnnx build directory:
 

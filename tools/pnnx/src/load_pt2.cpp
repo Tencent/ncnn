@@ -153,18 +153,6 @@ static int archive_root(StoreZipReader& zip, std::string& root, std::string& mod
     return 1;
 }
 
-int probe_pt2(const std::string& path)
-{
-    StoreZipReader zip;
-    if (zip.open(path) != 0)
-        return ends_with(path, ".pt2") ? -1 : 0;
-    std::string root, model, error;
-    int ret = archive_root(zip, root, model, error);
-    if (ret < 0)
-        fprintf(stderr, "pt2 archive: %s\n", error.c_str());
-    return ret;
-}
-
 static bool same_json(const JsonValue& a, const JsonValue& b)
 {
     if (a.type != b.type)

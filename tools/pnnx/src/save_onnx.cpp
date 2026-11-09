@@ -13,19 +13,6 @@
 
 namespace pnnx {
 
-int check_onnx(const Graph& g, std::string& error)
-{
-    for (const Operand* r : g.operands)
-    {
-        if (r->type == 12 || r->type == 13)
-        {
-            error = "unsupported dtype at " + r->name;
-            return -1;
-        }
-    }
-    return 0;
-}
-
 int save_onnx(const Graph& g, const char* onnxpath, int fp16)
 {
     onnx::ModelProto model;

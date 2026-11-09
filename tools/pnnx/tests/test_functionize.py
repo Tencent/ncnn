@@ -224,6 +224,122 @@ class MetadataMutation(torch.nn.Module):
         return y, sibling
 
 
+class LocalMetadataMutation(torch.nn.Module):
+    __constants__ = ['operation']
+
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, x):
+        y = x + 1
+        before = y.clone()
+        if self.operation == 'transpose':
+            y.transpose_(0, 1)
+        elif self.operation == 't':
+            y.t_()
+        elif self.operation == 'squeeze':
+            y.squeeze_(1)
+        else:
+            y.unsqueeze_(1)
+        y.add_(2)
+        return before, y, y * 3
+
+
+class MetadataReplay(torch.nn.Module):
+    __constants__ = ['operation']
+
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, x):
+        y = x + 1
+        previous = y.add_(2)
+        items = [y, previous]
+        # This old view is dead before the metadata write. The container and
+        # the previous mutation result still refer to the same tensor object.
+        before = y.transpose(0, 1).clone()
+        if self.operation == 'transpose':
+            result = previous.transpose_(0, 1)
+        elif self.operation == 't':
+            result = previous.t_()
+        elif self.operation == 'squeeze':
+            result = previous.squeeze_(1)
+        else:
+            result = previous.unsqueeze_(1)
+        after = y + 3
+        result.unsqueeze_(0)
+        y.squeeze_(0)
+        view = y.select(0, 0)
+        view_before = view.clone()
+        y.add_(2)
+        middle = view + 3
+        view.mul_(2)
+        return before, after, view_before, middle, torch.stack(items), y, result, previous, view
+
+
+class UnsafeMetadataMutation(torch.nn.Module):
+    __constants__ = ['operation', 'mode']
+
+    def __init__(self, operation, mode):
+        super().__init__()
+        self.operation = operation
+        self.mode = mode
+
+    def forward(self, x):
+        base = x + 1
+        if self.mode == 'target':
+            y = base[1:]
+            sibling = y
+        elif self.mode == 'untracked_target':
+            y = base.reshape_as(base)
+            sibling = y
+        else:
+            y = base
+            sibling = base.transpose(0, 1)
+            if self.mode == 'descendant':
+                sibling = sibling.select(0, 0)
+            elif self.mode == 'untracked_sibling':
+                sibling = base.reshape(-1)
+            elif self.mode == 'mutation_result':
+                sibling = sibling.add_(2)
+        stored = [sibling, sibling]
+        if self.operation == 'transpose':
+            y.transpose_(0, 1)
+        elif self.operation == 't':
+            y.t_()
+        elif self.operation == 'squeeze':
+            y.squeeze_(1)
+        else:
+            y.unsqueeze_(1)
+        y.add_(2)
+        # Observe values after the metadata change and the subsequent write.
+        if self.mode == 'container':
+            return y + 3, torch.stack(stored) * 2
+        return y + 3, sibling * 2
+
+
+class StorageMutation(torch.nn.Module):
+    __constants__ = ['operation']
+
+    def __init__(self, operation):
+        super().__init__()
+        self.operation = operation
+
+    def forward(self, x):
+        y = x + 1
+        if self.operation == 'resize':
+            y.resize_(4, 2)
+        elif self.operation == 'resize_as':
+            y.resize_as_(x.transpose(0, 1))
+        elif self.operation == 'set':
+            y.set_(x)
+        else:
+            y.as_strided_((4, 2), (1, 4))
+        return y + 3
+
+
 class IndexedContainer(torch.nn.Module):
     def forward(self, x):
         base = x + 1
@@ -477,8 +593,9 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
             args.append('inputshape2=[3,4]' + suffix)
     # Retained diagnostic directories may be reused; stale output must never
     # turn a failed conversion into a passing regression.
-    for suffix in ('_pnnx.py', '.pnnx.param', '.pnnx.bin',
-                   '_ncnn.py', '.ncnn.param', '.ncnn.bin'):
+    output_suffixes = ('_pnnx.py', '.pnnx.param', '.pnnx.bin', '.pnnx.onnx',
+                       '_ncnn.py', '.ncnn.param', '.ncnn.bin')
+    for suffix in output_suffixes:
         Path(name + suffix).unlink(missing_ok=True)
     result = subprocess.run([binary, path, 'fp16=0', 'optlevel=2'] + args,
                             capture_output=True, text=True, timeout=90)
@@ -486,12 +603,15 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
     if rejection is not None:
         assert result.returncode > 0, ('unsupported mutation did not reject cleanly', result.returncode)
         assert rejection in result.stderr, result.stderr
-        assert not Path(name + '_pnnx.py').exists(), 'rejected graph emitted executable output'
+        assert not any(Path(name + suffix).exists() for suffix in output_suffixes), 'rejected graph emitted output'
+        if frontend != 'pt2':
+            # A rejected conversion must still originate from a valid model.
+            # Check its values, including uses after the unsupported mutation.
+            expected = model(*[item.clone() for item in samples])
+            actual = torch.jit.load(path)(*[item.clone() for item in samples])
+            check_outputs(expected, actual)
         return
-    # ncnn has narrower coverage than pnnx. Its explicit unsupported diagnostic
-    # may occur after successful pnnx conversion, but other errors must fail.
-    assert result.returncode == 0 or ('pt2 ncnn: unsupported' in result.stderr and
-                                    Path(name + '_pnnx.py').is_file()), result.stderr
+    assert result.returncode == 0, result.stderr
     spec = importlib.util.spec_from_file_location(name, name + '_pnnx.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -622,6 +742,24 @@ def test():
                      rejection='constant dimension for mutation writeback')
             run_case(binary, MetadataMutation(), 'metadata_mutation', 'torchscript',
                      rejection='changes tensor metadata or storage')
+            for frontend in ('torchscript', 'torchscript_script'):
+                for operation in ('transpose', 't', 'squeeze', 'unsqueeze'):
+                    shape = (2, 1, 4) if operation == 'squeeze' else (2, 4)
+                    inputs = (torch.arange(-4, 4).reshape(shape).float(),)
+                    for label, model in [('local', LocalMetadataMutation(operation)),
+                                         ('replay', MetadataReplay(operation))]:
+                        run_case(binary, model, 'metadata_' + operation + '_' + label, frontend, inputs=inputs)
+                    for mode in ('target', 'untracked_target', 'sibling', 'untracked_sibling',
+                                 'container', 'descendant', 'mutation_result'):
+                        run_case(binary, UnsafeMetadataMutation(operation, mode),
+                                 'metadata_' + operation + '_' + mode, frontend, inputs=inputs,
+                                 rejection='changes tensor metadata or storage')
+                # Tracing can omit resize_ entirely; scripting retains all of
+                # these storage mutations for the rejection check.
+                if frontend == 'torchscript_script':
+                    for operation in ('resize', 'resize_as', 'set', 'as_strided'):
+                        run_case(binary, StorageMutation(operation), 'storage_' + operation, frontend,
+                                 rejection='changes tensor metadata or storage')
             run_case(binary, IndexedContainer(), 'indexed_container', 'torchscript_script')
             for mode in ('reshape', 'flatten', 'split'):
                 run_case(binary, UntrackedView(mode), 'untracked_' + mode, 'torchscript',

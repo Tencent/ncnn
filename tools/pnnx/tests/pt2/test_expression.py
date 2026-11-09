@@ -90,10 +90,7 @@ def check(name, model, inputs, *, torchscript=False, inline=False):
         command.append('inputshape=' + ','.join(
             '[' + ','.join(map(str, x.shape)) + ']' + dtypes[x.dtype] for x in inputs))
     result = subprocess.run(command, capture_output=True, text=True, timeout=90)
-    # A backend dtype/rank rejection is allowed only after PNNX artifacts were
-    # saved. Safe FP32 scalar fusion must also make it through ncnn conversion.
-    if (not generated.is_file() or (result.returncode != 0 and
-            (torchscript or inline or 'pt2 ncnn: unsupported' not in result.stderr))):
+    if not generated.is_file() or result.returncode != 0:
         print(name, result.stderr)
         return False
 

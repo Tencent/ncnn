@@ -187,7 +187,7 @@ def test_allocation_layout():
             continue
         # Test the frontend's physical layout reconstruction in pnnx Python.
         # ncnn may reject the strided view or its boolean mask producer.
-        if result.returncode != 0 and ('pt2 ncnn: unsupported' not in result.stderr or 'pnnx artifacts were saved' not in result.stderr):
+        if result.returncode != 0:
             print(source, result.stderr)
             return False
         converted = importlib.import_module(prefix + '_pnnx').Model().eval()
@@ -229,7 +229,7 @@ def test_runtime_layout():
             if os.path.exists(prefix + '_pnnx.py'):
                 return False
             continue
-        if result.returncode != 0 and 'pt2 ncnn: unsupported unconverted operator at torch.as_strided' not in result.stderr:
+        if result.returncode != 0:
             print(result.stderr)
             return False
         converted = importlib.import_module(prefix + '_pnnx').Model().eval()
@@ -271,7 +271,7 @@ def test_layout_queries():
                 return False
             continue
         # This exercises pnnx Python; the ncnn backend has no as_strided layer.
-        if result.returncode != 0 and 'pt2 ncnn: unsupported unconverted operator at torch.as_strided' not in result.stderr:
+        if result.returncode != 0:
             print(result.stderr)
             return False
         converted = importlib.import_module(prefix + '_pnnx').Model().eval()

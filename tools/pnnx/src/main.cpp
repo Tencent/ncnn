@@ -26,6 +26,7 @@
 #endif
 #if BUILD_PT22PNNX
 #include "load_pt2.h"
+#include "storezip.h"
 #endif
 #if BUILD_ONNX2PNNX
 #include "load_onnx.h"
@@ -41,10 +42,6 @@
 #if BUILD_PNNX2ONNX
 #include "save_onnx.h"
 #endif
-
-// Reserved for valid, saved pnnx artifacts with an unsupported optional backend.
-// Frontend, conversion and file-writing errors must never use this status.
-static const int EXIT_OPTIONAL_BACKEND_UNSUPPORTED = 2;
 
 static std::string get_basename(const std::string& path)
 {
@@ -236,6 +233,35 @@ static bool model_file_maybe_torchscript(const std::string& path)
     return signature == 0x04034b50;
 }
 
+#if BUILD_PT22PNNX
+static bool model_file_maybe_pt2(const std::string& path)
+{
+    if (!model_file_maybe_torchscript(path))
+        return false;
+
+    pnnx::StoreZipReader zip;
+    if (zip.open(path) != 0)
+        return path.size() >= 4 && path.compare(path.size() - 4, 4, ".pt2") == 0;
+
+    for (const std::string& name : zip.get_names())
+    {
+        if (name == "serialized_exported_program.json")
+            return true;
+        const size_t slash = name.find('/');
+        if (slash == std::string::npos || slash == 0)
+            continue;
+        const std::string tail = name.substr(slash + 1);
+        if (tail == "archive_format" || tail == "serialized_exported_program.json")
+            return true;
+        if (tail.compare(0, 7, "models/") == 0 && tail.find('/', 7) == std::string::npos
+                && tail.size() >= 5 && tail.compare(tail.size() - 5, 5, ".json") == 0)
+            return true;
+    }
+
+    return false;
+}
+#endif
+
 static bool model_file_maybe_tnnproto(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -289,7 +315,6 @@ static void show_usage()
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
-    fprintf(stderr, "Exit status: 0 = success; 2 = pnnx saved, optional backend unavailable this run; other = conversion or write failure\n");
 }
 
 int main(int argc, char** argv)
@@ -463,20 +488,12 @@ int main(int argc, char** argv)
     std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
 
     pnnx::Graph pnnx_graph;
-#if BUILD_PT22PNNX
-    const int pt2 = model_file_maybe_torchscript(ptpath) ? pnnx::probe_pt2(ptpath) : 0;
-    if (pt2 < 0)
-    {
-        fprintf(stderr, "pt2 archive: invalid or unsupported archive\n");
-        return -1;
-    }
-#endif
 
     // clang-format off
     // *INDENT-OFF*
 
 #if BUILD_PT22PNNX
-    if (pt2 == 1)
+    if (model_file_maybe_pt2(ptpath))
     {
         if (device != "cpu")
         {
@@ -485,7 +502,7 @@ int main(int argc, char** argv)
         }
         int ret = pnnx::load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
         if (ret != 0)
-            return -1;
+            return ret;
     }
     else
 #endif
@@ -494,7 +511,7 @@ int main(int argc, char** argv)
     {
         int ret = load_tnn(ptpath, pnnx_graph, input_shapes, input_types);
         if (ret != 0)
-            return -1;
+            return ret;
     }
     else
 #endif
@@ -505,7 +522,7 @@ int main(int argc, char** argv)
                             input_shapes, input_types,
                             input_shapes2, input_types2);
         if (ret != 0)
-            return -1;
+            return ret;
     }
     else
 #endif
@@ -521,7 +538,7 @@ int main(int argc, char** argv)
                                    customop_modules, module_operators,
                                    foldable_constants_zippath, foldable_constants);
         if (ret != 0)
-            return -1;
+            return ret;
     }
 
     // *INDENT-ON*
@@ -557,39 +574,16 @@ int main(int argc, char** argv)
     // delete foldable_constants_zippath
     remove(foldable_constants_zippath.c_str());
 
-#if BUILD_PT22PNNX
-    std::string output_error;
-    if (pt2 && pnnx_graph.check_python(output_error) != 0)
-    {
-        fprintf(stderr, "pt2 pnnx: %s\n", output_error.c_str());
-        return -1;
-    }
-#endif
-
     pnnx::ModelStat model_stat = pnnx::get_model_stat(pnnx_graph);
     const std::string input_shapes_stat = pnnx::format_model_stat_input_shapes(pnnx_graph);
     const std::string flops = pnnx::format_model_stat_ops(model_stat.flops);
     const std::string memops = pnnx::format_model_stat_ops(model_stat.memops);
-    if (pnnx_graph.save(pnnxparampath, pnnxbinpath) != 0)
-        return -1;
+    pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
-    if (pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat) != 0)
-        return -1;
+    pnnx_graph.python(pnnxpypath, pnnxbinpath, input_shapes, model_stat);
 
-    bool optional_backend_unsupported = false;
 #if BUILD_PNNX2ONNX
-#if BUILD_PT22PNNX
-    if (pt2 && pnnx::check_onnx(pnnx_graph, output_error) != 0)
-    {
-        fprintf(stderr, "pt2 onnx: %s; pnnx artifacts were saved\n", output_error.c_str());
-        optional_backend_unsupported = true;
-    }
-    else
-#endif
-    {
-        if (pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16) != 0)
-            return -1;
-    }
+    pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str(), fp16);
 #else
     fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
 #endif
@@ -598,35 +592,9 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
-        bool ncnn_supported = true;
-#if BUILD_PT22PNNX
-        if (pt2 && pnnx::check_ncnn(pnnx_graph, output_error) != 0)
-        {
-            fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
-            ncnn_supported = false;
-        }
-#endif
-        if (ncnn_supported)
-        {
-            pnnx::pass_ncnn(pnnx_graph, module_operators);
-#if BUILD_PT22PNNX
-            if (pt2 && pnnx::check_ncnn_output(pnnx_graph, output_error) != 0)
-            {
-                fprintf(stderr, "pt2 ncnn: %s; pnnx artifacts were saved\n", output_error.c_str());
-                ncnn_supported = false;
-            }
-#endif
-        }
+        pnnx::pass_ncnn(pnnx_graph, module_operators);
 
-        if (ncnn_supported)
-        {
-            if (pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16) != 0)
-                return -1;
-        }
-        else
-        {
-            optional_backend_unsupported = true;
-        }
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath, input_shapes, fp16);
     }
 
     fprintf(stderr, "model inputshape = %s\n", input_shapes_stat.c_str());
@@ -637,5 +605,5 @@ int main(int argc, char** argv)
 
     //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
     //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
-    return optional_backend_unsupported ? EXIT_OPTIONAL_BACKEND_UNSUPPORTED : 0;
+    return 0;
 }

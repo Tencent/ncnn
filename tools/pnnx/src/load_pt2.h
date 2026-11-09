@@ -8,8 +8,6 @@
 
 namespace pnnx {
 
-int probe_pt2(const std::string& path);
-
 int load_pt2(const std::string& path, Graph& g,
              const std::vector<std::vector<int64_t> >& input_shapes,
              const std::vector<std::string>& input_types,

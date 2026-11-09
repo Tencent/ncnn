@@ -8,8 +8,6 @@
 
 namespace pnnx {
 
-int check_ncnn_output(const Graph& g, std::string& error);
-
 int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath, const std::vector<std::vector<int64_t> >& input_shapes, int fp16);
 
 } // namespace pnnx

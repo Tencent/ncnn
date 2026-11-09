@@ -75,8 +75,8 @@ static void normalize_copy(Graph& graph, Operator* op, bool slice)
     }
     else if (!static_shape && source != destination && (!slice || source->shape != destination->shape))
     {
-        // Slice writeback performs broadcasting itself. Other inverse
-        // views need the full destination shape before they run.
+        // Dynamic slice writeback only skips expansion when the recorded
+        // shapes match. Other writes need the runtime destination shape.
         Operator* expand = graph.new_operator_before("aten::expand_as", op->name + "_broadcast", op);
         expand->inputs = {source, destination};
         source = tensor_like(graph, expand, destination);
@@ -101,12 +101,25 @@ struct Alias
     std::vector<Operand*> args;
 };
 
+struct Observation
+{
+    Operand* owner;
+    Operand* value;
+};
+
 int functionize(Graph& graph)
 {
-    if (std::none_of(graph.ops.begin(), graph.ops.end(), [](const Operator* op) {
-    return is_inplace_op(op) || op->type == "aten::copy";
-    }))
-    return 0;
+    bool has_mutation = false;
+    for (const Operator* op : graph.ops)
+    {
+        if (is_inplace_op(op) || op->type == "aten::copy")
+        {
+            has_mutation = true;
+            break;
+        }
+    }
+    if (!has_mutation)
+        return 0;
 
     // Writes replace the root value. Later reads replay aliases on that version.
     const std::vector<Operator*> ops = graph.ops;
@@ -119,7 +132,9 @@ int functionize(Graph& graph)
     std::map<Operand*, Operand*> roots;
     std::map<Operand*, Operand*> storage;
     std::set<Operand*> uncertain_storage;
-    std::map<Operand*, std::vector<std::pair<Operand*, Operand*> > > observations;
+    // Keep the observed tensor identity as well as its live owner; views of
+    // one root can retain different metadata, including inside containers.
+    std::map<Operand*, std::vector<Observation> > observations;
     int index = 0;
 
     for (Operator* op : ops)
@@ -147,7 +162,7 @@ int functionize(Graph& graph)
                 observe(owner, item);
         }
         else
-            observations[storage_of(value)].push_back({owner, root_of(value)});
+            observations[storage_of(value)].push_back({owner, value});
     };
 
     std::function<Operand*(Operand*, Operator*)> resolve = [&](Operand* value, Operator* before) -> Operand* {
@@ -290,6 +305,37 @@ int functionize(Graph& graph)
             continue;
         }
 
+        const bool metadata = op->type == "aten::transpose_" || op->type == "aten::t_"
+                              || op->type == "aten::squeeze_" || op->type == "aten::unsqueeze_";
+        if (metadata && !inputs.empty() && op->outputs.size() == 1)
+        {
+            Operand* target = inputs[0];
+            while (aliases.count(target) && !aliases.at(target).op)
+                target = aliases.at(target).parent;
+            // Metadata belongs to the tensor object, not its shared storage.
+            // Replaying an existing view on a root with new metadata is unsafe.
+            const auto observed_storage = observations.find(storage_of(target));
+            bool unsafe = aliases.count(target) || storage_of(target) != target || observed_storage == observations.end();
+            if (observed_storage != observations.end())
+            {
+                for (const auto& observation : observed_storage->second)
+                {
+                    if (remaining[observation.owner] == 0)
+                        continue;
+                    Operand* observed = observation.value;
+                    while (aliases.count(observed) && !aliases.at(observed).op)
+                        observed = aliases.at(observed).parent;
+                    if (observed != target)
+                        unsafe = true;
+                }
+            }
+            if (unsafe)
+            {
+                fprintf(stderr, "functionize: %s changes tensor metadata or storage with an observable view\n", op->type.c_str());
+                return -1;
+            }
+        }
+
         const bool untracked = is_untracked_alias_op(op)
                                || ((op->type == "prim::ListUnpack" || op->type == "prim::TupleUnpack")
                                    && inputs.size() == 1 && storage.count(inputs[0]));
@@ -303,9 +349,7 @@ int functionize(Graph& graph)
         if (!is_inplace_op(op) || op->inputs.empty() || op->outputs.size() != 1)
             continue;
 
-        if (op->type == "aten::transpose_" || op->type == "aten::t_"
-                || op->type == "aten::squeeze_" || op->type == "aten::unsqueeze_"
-                || op->type == "aten::resize_" || op->type == "aten::resize_as_"
+        if (op->type == "aten::resize_" || op->type == "aten::resize_as_"
                 || op->type == "aten::set_" || op->type == "aten::as_strided_")
         {
             fprintf(stderr, "functionize: %s changes tensor metadata or storage\n", op->type.c_str());
@@ -319,7 +363,7 @@ int functionize(Graph& graph)
             // alias. It is safe as a local root only while no other view is live.
             for (const auto& observation : observations.at(storage_of(target)))
             {
-                if (remaining[observation.first] > 0 && observation.second != root_of(target))
+                if (remaining[observation.owner] > 0 && root_of(observation.value) != root_of(target))
                 {
                     fprintf(stderr, "functionize: %s has an unsupported observable alias\n", op->name.c_str());
                     return -1;
@@ -335,6 +379,13 @@ int functionize(Graph& graph)
                 view = aliases.at(view).parent;
             const bool slice = aliases.count(view) && (aliases.at(view).op->type == "aten::slice" || aliases.at(view).op->type == "aten::select");
             normalize_copy(graph, op, slice);
+        }
+        else if (metadata)
+        {
+            // The target is a root (possibly through identity aliases).
+            // Publish its new metadata through the same version/cache update
+            // as a data write, without recording another view to replay.
+            op->type.resize(op->type.size() - 1);
         }
         else
         {

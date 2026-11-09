@@ -125,7 +125,7 @@ def test():
         torch.export.save(torch.export.export(model.eval(), inputs), prefix + '.pt2')
         Path(prefix + '_pnnx.py').unlink(missing_ok=True)
         result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
-        if result.returncode and ('pt2 ncnn: unsupported' not in result.stderr or not Path(prefix + '_pnnx.py').is_file()):
+        if result.returncode != 0:
             print(result.stderr)
             return False
         expected = model(*[x.clone() for x in inputs])
@@ -152,7 +152,7 @@ def test():
         args = ['inputshape=[2,3],[1,3]', 'inputshape2=[3,3],[1,3]'] if broadcast else [
             'inputshape=[2,3],[2,2]', 'inputshape2=[3,3],[3,2]']
         result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0', 'optlevel=2', *args], capture_output=True, text=True)
-        if result.returncode not in (0, 2):
+        if result.returncode != 0:
             print(result.stderr)
             return False
         param = Path(prefix + '.pnnx.param').read_text()

@@ -99,7 +99,7 @@ def convert(name, model, x, options=(), dynamic=False):
     program = torch.export.export(model, (x,), dynamic_shapes=shapes)
     torch.export.save(program, prefix + '.pt2')
     result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0', *options], capture_output=True, text=True)
-    if result.returncode not in (0, 2):
+    if result.returncode != 0:
         raise RuntimeError(result.stderr)
     module = load(Path(prefix + '_pnnx.py'))
     if not equal(module.Model().eval()(x), model(x)):
@@ -159,7 +159,7 @@ def test():
     rewritten = 'test_pt2_constants_integer_spelling'
     rewrite_archive(prefix + '.pt2', rewritten + '.pt2', integer_spelling)
     result = subprocess.run(['../../src/pnnx', rewritten + '.pt2', 'fp16=0'], capture_output=True, text=True)
-    if result.returncode not in (0, 2) or not equal(load(Path(rewritten + '_pnnx.py')).Model().eval()(x), net(x)):
+    if result.returncode != 0 or not equal(load(Path(rewritten + '_pnnx.py')).Model().eval()(x), net(x)):
         return False
     net = DynamicIntegerFactory().eval()
     _, module = convert('dynamic_integer_factory', net, torch.ones(4, 3, dtype=torch.int64),
@@ -172,7 +172,7 @@ def test():
     net = Uninitialized().eval()
     torch.export.save(torch.export.export(net, (torch.rand(2, 3),)), 'test_pt2_constants_empty.pt2')
     result = subprocess.run(['../../src/pnnx', 'test_pt2_constants_empty.pt2', 'fp16=0'], capture_output=True, text=True)
-    return result.returncode in (0, 2) and 'torch.empty ' in Path('test_pt2_constants_empty.pnnx.param').read_text()
+    return result.returncode == 0 and 'torch.empty ' in Path('test_pt2_constants_empty.pnnx.param').read_text()
 
 
 if __name__ == '__main__':

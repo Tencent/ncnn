@@ -1259,7 +1259,7 @@ def test_native_layer_norm_stats():
         ["../../src/pnnx", "test_pt2_rules_native_layer_norm_stats.pt2", "fp16=0"],
         capture_output=True, text=True, timeout=90,
     )
-    if result.returncode == 0 or "pt2 pnnx: unsupported operator aten::native_layer_norm" not in result.stderr:
+    if result.returncode != 0 or "aten::native_layer_norm" not in open("test_pt2_rules_native_layer_norm_stats.pnnx.param").read():
         print("native_layer_norm_stats", result.stderr)
         return False
     return True
@@ -1283,7 +1283,7 @@ def test_native_group_norm_stats():
         ["../../src/pnnx", "test_pt2_rules_native_group_norm_stats.pt2", "fp16=0"],
         capture_output=True, text=True, timeout=90,
     )
-    if result.returncode == 0 or "pt2 pnnx: unsupported operator aten::native_group_norm" not in result.stderr:
+    if result.returncode != 0 or "aten::native_group_norm" not in open("test_pt2_rules_native_group_norm_stats.pnnx.param").read():
         print("native_group_norm_stats", result.stderr)
         return False
     return True
@@ -1305,7 +1305,7 @@ def test_native_group_norm_layout():
         ["../../src/pnnx", "test_pt2_rules_native_group_norm_layout.pt2", "fp16=0"],
         capture_output=True, text=True, timeout=90,
     )
-    if result.returncode == 0 or "pt2 pnnx: unsupported operator aten::native_group_norm" not in result.stderr:
+    if result.returncode != 0 or "aten::native_group_norm" not in open("test_pt2_rules_native_group_norm_layout.pnnx.param").read():
         print("native_group_norm_layout", result.stderr)
         return False
     return True
@@ -1331,7 +1331,7 @@ def test_native_batch_norm_stats():
         ["../../src/pnnx", "test_pt2_rules_native_batch_norm_stats.pt2", "fp16=0"],
         capture_output=True, text=True, timeout=90,
     )
-    if result.returncode == 0 or "pt2 pnnx: unsupported operator aten::_native_batch_norm_legit_no_training" not in result.stderr:
+    if result.returncode != 0 or "aten::_native_batch_norm_legit_no_training" not in open("test_pt2_rules_native_batch_norm_stats.pnnx.param").read():
         print("native_batch_norm_stats", result.stderr)
         return False
     return True

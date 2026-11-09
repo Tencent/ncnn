@@ -8,8 +8,6 @@
 
 namespace pnnx {
 
-int check_onnx(const Graph& g, std::string& error);
-
 int save_onnx(const Graph& g, const char* onnxpath, int fp16);
 
 } // namespace pnnx

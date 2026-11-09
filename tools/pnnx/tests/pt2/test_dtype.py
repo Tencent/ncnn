@@ -21,6 +21,15 @@ class IntegerScan(torch.nn.Module):
         return x.cumsum(1, dtype=torch.int32), x.cumprod(1, dtype=torch.int32)
 
 
+class BufferDtype(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.register_buffer('weight', torch.tensor([1.125, -2.25, 3.5], dtype=dtype))
+
+    def forward(self, x):
+        return x + self.weight
+
+
 class InplaceArithmetic(torch.nn.Module):
     def __init__(self, operation, view=False):
         super().__init__()
@@ -59,9 +68,7 @@ def check(name, model, inputs):
     if os.path.exists(generated):
         os.remove(generated)
     result = subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], capture_output=True, text=True, timeout=90)
-    # PNNX preserves these dtypes even when the ncnn backend cannot represent
-    # them. Only that explicit backend rejection may follow successful export.
-    if not os.path.isfile(generated) or (result.returncode != 0 and 'pt2 ncnn: unsupported' not in result.stderr):
+    if not os.path.isfile(generated) or result.returncode != 0:
         print(result.stderr)
         return False
     actual = importlib.import_module(prefix + '_pnnx').Model().eval()(*inputs)
@@ -77,6 +84,17 @@ def test():
         return True
 
     torch.set_num_threads(1)
+    for dtype in (torch.float16, torch.bfloat16):
+        model = BufferDtype(dtype).eval()
+        torch.manual_seed(0)
+        x = torch.rand(2, 3, dtype=dtype)
+        prefix = 'test_pt2_dtype_buffer_' + str(dtype).split('.')[-1]
+        torch.export.save(torch.export.export(model, (x,)), prefix + '.pt2')
+        subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], check=True)
+        actual = importlib.import_module(prefix + '_pnnx').test_inference()
+        expected = model(x)
+        if actual.dtype != expected.dtype or not torch.equal(actual, expected):
+            return False
     if not check('explicit', ExplicitDtype(), (torch.tensor([[1.25, 2.5, 3.75], [4.5, 5.25, 6.75]], dtype=torch.float16),)):
         return False
     if not check('integer_scan', IntegerScan(), (torch.tensor([[2147483647, 1], [65536, 65536]], dtype=torch.int64),)):

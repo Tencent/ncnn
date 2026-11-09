@@ -1595,22 +1595,6 @@ static std::string make_index_expression(const Operator* op)
     return r.empty() ? "..." : r;
 }
 
-int Graph::check_python(std::string& error) const
-{
-    for (const Operator* op : ops)
-    {
-        const std::string& type = op->type;
-        if (type == "pnnx.Input" || type == "pnnx.Output" || type == "pnnx.Attribute" || type == "pnnx.Expression" || type == "pnnx.SliceIndexes"
-                || type == "prim::ListConstruct" || type == "prim::ListUnpack" || type == "prim::TupleConstruct" || type == "prim::TupleUnpack"
-                || type.compare(0, 2, "F.") == 0 || type.compare(0, 3, "nn.") == 0 || type.compare(0, 6, "torch.") == 0 || type.compare(0, 7, "Tensor.") == 0)
-            continue;
-
-        error = "unsupported operator " + type + " (" + op->name + ")";
-        return -1;
-    }
-    return 0;
-}
-
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath, const std::vector<std::vector<int64_t> >& input_shapes, const ModelStat& model_stat)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");

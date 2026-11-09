@@ -11,13 +11,6 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             input_shapes2 = None, input_types2 = None, device = None, customop = None,
             moduleop = None, optlevel = None, pnnxparam = None, pnnxbin = None,
             pnnxpy = None, pnnxonnx = None, ncnnparam = None, ncnnbin = None, ncnnpy = None, fp16 = True):
-    """Convert a model and return its generated pnnx PyTorch module.
-
-    CLI status 2 means pnnx was saved successfully but an optional backend is
-    unsupported this run; existing backend files may be from an earlier run.
-    Its diagnostics remain on stderr. All other nonzero statuses,
-    including frontend and output-writing failures, raise CalledProcessError.
-    """
 
     check_type(ptpath, "modelname", [str], "str")
     check_type(inputs, "inputs", [torch.Tensor, tuple, list], "torch.Tensor or tuple/list of torch.Tensor")
@@ -151,13 +144,7 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
         if not (fp16 is True):
             command_list.append("fp16=0")
 
-    try:
-        subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=os.getcwd(), check=True)
-    except subprocess.CalledProcessError as error:
-        # This status is reserved for successfully saved pnnx artifacts. Never
-        # infer success from existing files, which may belong to an earlier run.
-        if error.returncode != 2:
-            raise
+    subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=os.getcwd())
 
     # return pnnx model
     if pnnxpy is None:

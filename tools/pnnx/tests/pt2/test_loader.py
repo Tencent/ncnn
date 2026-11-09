@@ -28,10 +28,7 @@ def convert(path, options=(), error=None):
         assert result.returncode != 0 and error in result.stderr, result.stderr
         assert 'pt2 load:' in result.stderr, result.stderr
         return result.stderr
-    # These tests exercise the loader's pnnx artifacts. Some valid front-end
-    # operators have no ncnn lowering.
-    assert result.returncode == 0 or ('pt2 ncnn:' in result.stderr and
-                                      'pnnx artifacts were saved' in result.stderr), result.stderr
+    assert result.returncode == 0, result.stderr
     prefix = str(Path(path).with_suffix(''))
     spec = importlib.util.spec_from_file_location(prefix + '_pnnx', prefix + '_pnnx.py')
     module = importlib.util.module_from_spec(spec)
