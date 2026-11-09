@@ -22,7 +22,8 @@ static at::ScalarType scalar_type(int type)
     static const at::ScalarType types[] = {
         at::ScalarType::Undefined, at::kFloat, at::kDouble, at::kHalf,
         at::kInt, at::kLong, at::kShort, at::kChar, at::kByte, at::kBool,
-        at::kComplexFloat, at::kComplexDouble, at::kComplexHalf, at::kBFloat16};
+        at::kComplexFloat, at::kComplexDouble, at::kComplexHalf, at::kBFloat16
+    };
     return type > 0 && type < 14 ? types[type] : at::ScalarType::Undefined;
 }
 
@@ -170,7 +171,8 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
         "aten::tril", "aten::triu", "aten::clone", "aten::_to_copy", "aten::to",
         "aten::reshape", "aten::view", "aten::unsqueeze", "aten::squeeze", "aten::transpose", "aten::permute", "aten::t",
         "aten::slice", "aten::select", "aten::expand", "aten::repeat", "aten::cat", "aten::stack",
-        "aten::matmul", "aten::mm", "aten::bmm", "aten::sum", "aten::prod", "aten::mean", "aten::cumsum", "aten::cumprod"};
+        "aten::matmul", "aten::mm", "aten::bmm", "aten::sum", "aten::prod", "aten::mean", "aten::cumsum", "aten::cumprod"
+    };
 
     // Keep alias-producing ancestors of mutations intact for functionize.
     std::set<const Operand*> mutable_inputs;
@@ -211,7 +213,7 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
             {
                 c10::IValue value;
                 if (i == 0 && (op->type == "aten::new_full" || op->type == "aten::new_ones" || op->type == "aten::new_zeros")
-                    && scalar_type(op->inputs[0]->type) != at::ScalarType::Undefined)
+                        && scalar_type(op->inputs[0]->type) != at::ScalarType::Undefined)
                 {
                     // These factories use only the source dtype and device.
                     value = at::empty({0}, at::TensorOptions().dtype(scalar_type(op->inputs[0]->type)));
@@ -228,7 +230,7 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
             at::Tensor tensor = stack[0].toTensor();
             Operand* output = op->outputs[0];
             if (!tensor.defined() || !tensor.device().is_cpu() || tensor.layout() != at::kStrided || tensor.scalar_type() != scalar_type(output->type)
-                || tensor.dim() != (int64_t)output->shape.size())
+                    || tensor.dim() != (int64_t)output->shape.size())
                 continue;
             bool compatible = true;
             for (size_t i = 0; i < output->shape.size(); i++)

@@ -1034,9 +1034,7 @@ public:
         // Python scalar comparisons use double precision even when item()
         // reads float32. Symbolic sizes in tensor factories do not make their
         // fill values scalar comparison thresholds.
-        const bool precise = shape_comparison || (bound.outputs.size() == 1 && bound.outputs[0].get("as_sym_bool")
-                             && (type == "aten::ge" || type == "aten::gt" || type == "aten::le"
-                                 || type == "aten::lt" || type == "aten::eq" || type == "aten::ne"));
+        const bool precise = shape_comparison || (bound.outputs.size() == 1 && bound.outputs[0].get("as_sym_bool") && (type == "aten::ge" || type == "aten::gt" || type == "aten::le" || type == "aten::lt" || type == "aten::eq" || type == "aten::ne"));
         for (const Pt2Argument& a : bound.inputs)
         {
             Operand* r = argument(a.value, type, a.name, precise);
