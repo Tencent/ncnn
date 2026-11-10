@@ -301,7 +301,29 @@ class RankDependentCast(torch.nn.Module):
         return base.float(), old.float(), converted.float()
 
 
+class FP32ModuleCast(torch.nn.Module):
+    __constants__ = ['cast_to_input']
+
+    def __init__(self, operation, type_as):
+        super().__init__()
+        self.op = operation
+        self.cast_to_input = type_as
+
+    def forward(self, x):
+        value = self.op(x)
+        converted = value.type_as(x) if self.cast_to_input else value.float()
+        converted.add_(1)
+        return value, converted
+
+
 def conditional_alias_cases():
+    for name, operation in [('batchnorm', torch.nn.BatchNorm2d(3)),
+                            ('layernorm', torch.nn.LayerNorm((3, 2, 2))),
+                            ('maxpool', torch.nn.MaxPool2d(1))]:
+        for type_as in (False, True):
+            inputs = (torch.arange(12).reshape(1, 3, 2, 2).float(),)
+            yield ('fp32_module_' + name + ('_type_as' if type_as else '_float'),
+                   FP32ModuleCast(operation, type_as), inputs, ())
     for operation in ('dropout', 'dropout2d', 'dropout3d', 'alpha_dropout',
                       'feature_alpha_dropout', 'type_as', 'type_as_half',
                       'to', 'to_copy', 'to_half', 'clone'):

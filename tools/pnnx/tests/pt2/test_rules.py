@@ -3,6 +3,7 @@
 
 import importlib
 import os
+from pathlib import Path
 import subprocess
 
 import torch
@@ -604,6 +605,7 @@ def test_to():
         path = "test_pt2_rules_to_" + name + ".pt2"
         torch.export.save(ep, path)
         os.system("../../src/pnnx " + path + " fp16=0")
+        assert 'Tensor.to ' not in Path(path[:-4] + '.pnnx.param').read_text()
 
     import test_pt2_rules_to_default_pnnx
     import test_pt2_rules_to_contiguous_pnnx
@@ -617,19 +619,21 @@ def test_to():
         test_pt2_rules_to_channels_last_pnnx.Model().eval()(x),
         test_pt2_rules_to_channels_last_3d_pnnx.Model().eval()(y),
     )
-    for sample, a, b in zip((x, x, x, x, y), expected, actual):
-        if a.shape != b.shape or a.dtype != b.dtype or a.stride() != b.stride():
-            return False
-        if b.untyped_storage().data_ptr() == sample.untyped_storage().data_ptr():
+    for a, b in zip(expected, actual):
+        if a.shape != b.shape or a.dtype != b.dtype:
             return False
         if not torch.equal(a, b):
             return False
     return True
 
 
-class ToAdd(To):
+class ToMutation(To):
     def forward(self, x):
-        return super().forward(x) + 1
+        base = x.clone()
+        value = super().forward(base)
+        before = value + 1
+        value.add_(2)
+        return base, before, value
 
 
 class ScalarToCopy(nn.Module):
@@ -640,22 +644,26 @@ class ScalarToCopy(nn.Module):
 
 def test_to_effects():
     x = torch.arange(120, dtype=torch.float32).reshape(2, 3, 4, 5).transpose(-1, -2)
-    for name, model, memory_format, dtype, copy in (
-        ("layout", To, torch.channels_last, torch.float32, False),
-        ("nested", ToAdd, torch.contiguous_format, torch.float16, True),
+    for name, memory_format, dtype in (
+        ("layout", torch.channels_last, torch.float32),
+        ("nested", torch.contiguous_format, torch.float16),
     ):
-        net = model(memory_format, dtype, copy).eval()
-        expected = model(memory_format, torch.float32, copy).eval()(x)
+        net = ToMutation(memory_format, dtype).eval()
+        expected = ToMutation(memory_format, torch.float32).eval()(x)
         name = "test_pt2_rules_to_" + name
         torch.export.save(torch.export.export(net, (x,)), name + ".pt2")
+        source = torch.export.load(name + '.pt2').module()(x)
+        for a, b in zip(net(x), source):
+            assert a.shape == b.shape and a.dtype == b.dtype and torch.equal(a, b)
         subprocess.run(["../../src/pnnx", name + ".pt2", "fp16=0"], check=True)
+        original = x.clone()
         actual = importlib.import_module(name + "_pnnx").Model().eval()(x)
-        if actual.shape != expected.shape or actual.dtype != expected.dtype or actual.stride() != expected.stride():
+        if len(actual) != len(expected) or not torch.equal(x, original):
             return False
-        if actual.untyped_storage().data_ptr() == x.untyped_storage().data_ptr():
-            return False
-        if not torch.equal(actual, expected):
-            return False
+        for a, b in zip(expected, actual):
+            if a.shape != b.shape or a.dtype != b.dtype or not torch.equal(a, b):
+                return False
+        assert 'Tensor.to ' not in Path(name + '.pnnx.param').read_text()
 
     x = torch.tensor([1.25, -2.5])
     net = ScalarToCopy().eval()
@@ -671,8 +679,7 @@ def test_to_effects():
             return False
         if not torch.equal(value, expected):
             return False
-    return (actual[0].untyped_storage().data_ptr() == x.untyped_storage().data_ptr()
-            and actual[1].untyped_storage().data_ptr() != x.untyped_storage().data_ptr())
+    return True
 
 
 class SoftmaxDtype(nn.Module):

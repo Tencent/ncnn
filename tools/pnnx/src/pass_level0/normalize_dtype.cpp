@@ -5,6 +5,7 @@
 
 #include "torch_alias.h"
 
+#include <torch/csrc/api/include/torch/version.h>
 #include <torch/csrc/jit/ir/alias_analysis.h>
 #include <torch/csrc/jit/passes/inliner.h>
 #include <torch/csrc/jit/passes/shape_analysis.h>
@@ -21,6 +22,64 @@ static c10::ScalarType normalized_scalar_type(c10::ScalarType type)
     if (c10::isComplexType(type))
         return c10::ScalarType::ComplexFloat;
     return type;
+}
+
+static bool inspect_dtype(torch::jit::Block* block, bool& needs_normalization, std::set<const torch::jit::Graph*>& inspected_graphs)
+{
+    for (auto n : block->nodes())
+    {
+        // The other view overload takes a shape list. Reinterpreting storage
+        // cannot preserve its meaning when tensor precision changes.
+        if (n->kind() == c10::aten::view && n->inputs().size() == 2 && n->input(1)->type()->kind() == c10::TypeKind::IntType)
+        {
+            fprintf(stderr, "aten::view.dtype: dtype reinterpretation is unsupported\n");
+            return false;
+        }
+        if (n->kind() == c10::prim::Constant && n->hasAttribute(c10::attr::value) && n->kindOf(c10::attr::value) == torch::jit::AttributeKind::t)
+        {
+            const c10::ScalarType type = n->t(c10::attr::value).scalar_type();
+            needs_normalization |= normalized_scalar_type(type) != type;
+        }
+        if (n->kind().is_aten() && n->hasNamedInput("dtype"))
+        {
+            auto dtype = torch::jit::toIValue(n->namedInput("dtype"));
+            if (!dtype)
+                needs_normalization = true;
+            else if (dtype->isInt())
+            {
+                const c10::ScalarType type = (c10::ScalarType)dtype->toInt();
+                needs_normalization |= normalized_scalar_type(type) != type;
+            }
+        }
+        for (auto b : n->blocks())
+            if (!inspect_dtype(b, needs_normalization, inspected_graphs))
+                return false;
+
+        torch::jit::Function* function = 0;
+        if (n->kind() == c10::prim::CallMethod)
+        {
+            auto type = n->input(0)->type()->cast<c10::ClassType>();
+            if (type)
+                function = &type->getMethod(n->s(c10::attr::name));
+        }
+        else if (n->kind() == c10::prim::CallFunction)
+        {
+            auto type = n->input(0)->type()->cast<c10::FunctionType>();
+            if (type)
+                function = type->function();
+        }
+        if (function && function->isGraphFunction())
+        {
+#if TORCH_VERSION_MAJOR >= 2 || (TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 11)
+            auto g = toGraphFunction(*function).graph();
+#else
+            auto g = function->graph();
+#endif
+            if (inspected_graphs.insert(g.get()).second && !inspect_dtype(g->block(), needs_normalization, inspected_graphs))
+                return false;
+        }
+    }
+    return true;
 }
 
 static c10::IValue original_attribute(const torch::jit::Value* v, const torch::jit::Module& mod)
@@ -264,6 +323,18 @@ static bool mutable_unknown_cast(const std::shared_ptr<torch::jit::Graph>& graph
 
 int normalize_dtype(std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod, const std::vector<at::Tensor>& input_tensors)
 {
+    bool needs_normalization = graph->inputs().size() != input_tensors.size() + 1;
+    for (const at::Tensor& t : input_tensors)
+        needs_normalization |= normalized_scalar_type(t.scalar_type()) != t.scalar_type();
+    for (const auto& attr : mod.named_attributes())
+        if (attr.value.isTensor())
+            needs_normalization |= normalized_scalar_type(attr.value.toTensor().scalar_type()) != attr.value.toTensor().scalar_type();
+    std::set<const torch::jit::Graph*> inspected_graphs = {graph.get()};
+    if (!inspect_dtype(graph->block(), needs_normalization, inspected_graphs))
+        return -1;
+    if (!needs_normalization)
+        return 0;
+
     std::map<const torch::jit::Value*, c10::ScalarType> types;
     for (size_t i = 0; i < input_tensors.size() && i + 1 < graph->inputs().size(); i++)
         types[graph->inputs()[i + 1]] = input_tensors[i].scalar_type();

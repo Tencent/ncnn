@@ -68,7 +68,7 @@ static void build_value_link_input_map(const torch::jit::Node* node, const std::
         }
     }
 
-    if (is_inplace_op(optype) || torch_alias_kind(node) != TorchAliasNone)
+    if (is_inplace_op(optype))
     {
         // infect input0 and its alias
         while (1)

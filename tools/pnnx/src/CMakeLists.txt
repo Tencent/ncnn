@@ -13,6 +13,7 @@ set(pnnx_pass_level0_SRCS
 
 set(pnnx_pass_level1_SRCS
     pass_level1/fuse_module_pass.cpp
+    pass_level1/torch_alias.cpp
 
     pass_level1/nn_AdaptiveAvgPool1d.cpp
     pass_level1/nn_AdaptiveAvgPool2d.cpp

@@ -140,6 +140,8 @@ Parameters:
 
 `moduleop` (Optional): list of modules to keep as one big operator, separated by ",". for example, `models.common.Focus,models.yolo.Detect`
 
+Both TorchScript and ExportedProgram conversion normalize floating-point inputs, weights and computations to FP32, including FP16, BF16 and FP64 models. Complex tensors use FP32 components (`complex64`); integer and bool operations retain their types. Floating-point weights in `pnnx.bin` are stored as FP32. The `fp16` option controls final ncnn and ONNX weight storage, not frontend computation precision. Dtype reinterpretation with `view(dtype)` is unsupported.
+
 # PyTorch ExportedProgram (.pt2)
 
 The converter also reads single-model `torch.export.save()` raw-storage archives produced by PyTorch 2.11 through 2.15. The frontend requires a build with LibTorch 2.11 or newer; older builds retain TorchScript conversion.
@@ -166,7 +168,7 @@ The frontend supports CPU dense-strided inference with parameters, buffers, lift
 
 Legacy archive layouts, compressed model payloads, pickle weights, custom objects/operators/PyTrees, sparse or quantized tensors, non-Tensor outputs, external state writes, training and random operations are not supported. Raw exported programs do not need `run_decompositions()` before conversion. Local in-place operations are supported when their storage and alias relationships can be preserved; unsupported mutations are diagnosed during conversion.
 
-Floating-point inputs, weights and computations are normalized to FP32, including models exported with FP16, BF16 or FP64 tensors. The `fp16` option controls final ncnn weight storage. Complex tensors likewise use FP32 components (`complex64`); integer and bool operations retain their types. Scalar comparisons require representable thresholds. Storage-dependent operations such as `as_strided` require a provably valid layout; dtype reinterpretation with `view(dtype)` is unsupported. Alias effects needed by in-place operations are preserved, but Python tensor identity, output storage aliases and gradients are not part of the converted model's interface.
+Scalar comparisons require representable thresholds under FP32 normalization. Storage-dependent operations such as `as_strided` require a provably valid layout. Alias effects needed by in-place operations are preserved, but Python tensor identity, output storage aliases and gradients are not part of the converted model's interface.
 
 The ncnn backend has narrower operator and dtype support than pnnx Python. Conversion uses the existing backend passes and diagnostics; successful pnnx Python inference does not imply that the generated ncnn model is supported.
 
