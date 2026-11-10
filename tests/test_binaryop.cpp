@@ -417,11 +417,100 @@ static int test_binaryop_packing_tails()
     return 0;
 }
 
+static float binaryop_float_from_bits(unsigned int bits)
+{
+    union
+    {
+        unsigned int i;
+        float f;
+    } u;
+    u.i = bits;
+    return u.f;
+}
+
+static unsigned int binaryop_float_bits(float value)
+{
+    union
+    {
+        float f;
+        unsigned int i;
+    } u;
+    u.f = value;
+    return u.i;
+}
+
+static int test_binaryop_logaddexp_nonfinite()
+{
+    const float inf = binaryop_float_from_bits(0x7f800000u);
+    const float nan = binaryop_float_from_bits(0x7fc00000u);
+    const float values[18] = {inf, -inf, 1.f, nan, inf, nan, -inf, nan, 0.f, 1.f, 1000.f, -1000.f, inf, -inf, 1.f, 1.f, 1000.f, -1000.f};
+    const float operands[18] = {inf, -inf, nan, 1.f, nan, inf, nan, -inf, 0.f, 2.f, -1000.f, 1000.f, -inf, inf, -inf, inf, 1000.f, -1000.f};
+    const float expected[18] = {inf, -inf, nan, nan, nan, nan, nan, nan, 0.69314718056f, 2.3132616875f, 1000.f, 1000.f, inf, inf, 1.f, inf, 1000.69314718056f, -999.30685281944f};
+
+    for (int scalar = 0; scalar < 2; scalar++)
+    {
+        for (int i = 0; i < 18; i++)
+        {
+            ncnn::Layer* op = ncnn::create_layer_naive(ncnn::LayerType::BinaryOp);
+            if (!op) return -1;
+            ncnn::ParamDict pd;
+            pd.set(0, 14); // LOGADDEXP
+            pd.set(1, scalar);
+            pd.set(2, operands[i]);
+            ncnn::Option opt;
+            opt.num_threads = 1;
+            int ret = op->load_param(pd);
+            if (ret == 0) ret = op->create_pipeline(opt);
+
+            ncnn::Mat a(1), b(1);
+            ((float*)a)[0] = values[i];
+            ((float*)b)[0] = operands[i];
+            float result = 0.f;
+            if (ret == 0 && scalar)
+            {
+                ret = op->forward_inplace(a, opt);
+                result = ((const float*)a)[0];
+            }
+            else if (ret == 0)
+            {
+                std::vector<ncnn::Mat> inputs(2), outputs(1);
+                inputs[0] = a;
+                inputs[1] = b;
+                ret = op->forward(inputs, outputs, opt);
+                if (ret == 0) result = ((const float*)outputs[0])[0];
+            }
+
+            const unsigned int actual_bits = binaryop_float_bits(result);
+            const unsigned int expected_bits = binaryop_float_bits(expected[i]);
+            bool correct;
+            if ((expected_bits & 0x7fffffffu) > 0x7f800000u)
+                correct = (actual_bits & 0x7fffffffu) > 0x7f800000u;
+            else if ((expected_bits & 0x7fffffffu) == 0x7f800000u)
+                correct = actual_bits == expected_bits;
+            else
+                correct = (actual_bits & 0x7fffffffu) < 0x7f800000u
+                          && result - expected[i] < 0.00001f && expected[i] - result < 0.00001f;
+            op->destroy_pipeline(opt);
+            delete op;
+            if (ret != 0 || !correct)
+            {
+                fprintf(stderr, "test_binaryop_logaddexp_nonfinite failed scalar=%d case=%d actual=%08x expected=%08x ret=%d\n", scalar, i, actual_bits, expected_bits, ret);
+                return -1;
+            }
+        }
+    }
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
 
-    int ret = test_binaryop_packing_tails();
+    int ret = test_binaryop_logaddexp_nonfinite();
+    if (ret != 0)
+        return ret;
+
+    ret = test_binaryop_packing_tails();
     if (ret != 0)
         return ret;
 

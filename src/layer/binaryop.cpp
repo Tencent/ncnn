@@ -3,6 +3,8 @@
 
 #include "binaryop.h"
 
+#include <string.h> // memcpy
+
 namespace ncnn {
 
 BinaryOp::BinaryOp()
@@ -243,6 +245,14 @@ struct binary_op_logaddexp
 {
     float operator()(const float& x, const float& y) const
     {
+        unsigned int xbits;
+        unsigned int ybits;
+        memcpy(&xbits, &x, sizeof(xbits));
+        memcpy(&ybits, &y, sizeof(ybits));
+        if ((xbits & 0x7fffffffu) > 0x7f800000u) return x;
+        if ((ybits & 0x7fffffffu) > 0x7f800000u) return y;
+        if (x == y) return x + 0.6931471805599453f; // log(2), including equal infinities
+
         float max_xy = std::max(x, y);
         float min_xy = std::min(x, y);
         return (float)(max_xy + log1pf(expf(min_xy - max_xy)));
