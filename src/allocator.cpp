@@ -1357,12 +1357,13 @@ private:
 
     std::string directory;
     TemporaryFile file;
+    bool open_failed;
     uint64_t file_size;
     std::vector<TemporaryFile::Mapping> mappings;
 };
 
 WeightFile::WeightFile()
-    : file_size(0)
+    : open_failed(false), file_size(0)
 {
 }
 
@@ -1376,13 +1377,25 @@ void WeightFile::set_directory(const char* path)
     directory.clear();
     if (path)
         directory = path;
+    open_failed = false;
 }
 
 int WeightFile::open()
 {
     if (file.is_open())
         return 0;
-    return file.open(directory.c_str());
+
+    // do not retry and log again for every weight
+    if (open_failed)
+        return -1;
+
+    int ret = file.open(directory.c_str());
+    if (ret != 0)
+    {
+        NCNN_LOGE("create weight file failed");
+        open_failed = true;
+    }
+    return ret;
 }
 
 void WeightFile::clear()
@@ -1391,6 +1404,7 @@ void WeightFile::clear()
         TemporaryFile::unmap(mappings[i]);
     mappings.clear();
     file.close();
+    open_failed = false;
     file_size = 0;
 }
 
@@ -1461,6 +1475,8 @@ public:
     uint64_t allocated_sizes[2];
     std::vector<VkBufferMemory*> resident_blocks[2];
     size_t resident_free[2];
+    // allocation failed, later weights go to the next tier
+    bool resident_exhausted[2];
     std::vector<VkBufferMemory*> cpu_memory_blocks;
     size_t cpu_memory_free;
 #if !defined(_WIN32)
@@ -1504,6 +1520,7 @@ VkWeightAllocator::VkWeightAllocator(const VulkanDevice* _vkdev, bool _prefer_ho
     d->memory_limits[0] = d->memory_limits[1] = 0;
     d->allocated_sizes[0] = d->allocated_sizes[1] = 0;
     d->resident_free[0] = d->resident_free[1] = 0;
+    d->resident_exhausted[0] = d->resident_exhausted[1] = false;
     d->cpu_memory_free = 0;
 }
 
@@ -1557,6 +1574,7 @@ void VkWeightAllocator::clear()
         }
         d->resident_blocks[type].clear();
         d->resident_free[type] = 0;
+        d->resident_exhausted[type] = false;
     }
 
     //     NCNN_LOGE("VkWeightAllocator %lu %lu", d->buffer_blocks.size(), d->dedicated_buffer_blocks.size());
@@ -1764,6 +1782,9 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
     std::vector<VkBufferMemory*>& blocks = d->resident_blocks[storage_type];
     if (aligned_size > free_size)
     {
+        if (d->resident_exhausted[storage_type])
+            return 0;
+
         const bool unified = unified_weight_memory(vkdev);
         const bool allow_cpu_memory = storage_type == 1 || unified;
         const size_t host_limit = unified ? d->memory_limits[0] - (size_t)d->allocated_sizes[0] : d->memory_limits[1];
@@ -1936,7 +1957,11 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             VkBufferMemory* memory = 0;
             int ret = allocate_resident(size, type, memory);
             if (ret != 0)
-                return 0;
+            {
+                NCNN_LOGE("weight allocator fallback from %s memory", type == 0 ? "device" : "host");
+                d->resident_exhausted[type] = true;
+                continue;
+            }
             if (memory)
                 return memory;
         }
@@ -1947,10 +1972,8 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
         if (ret != 0)
         {
             if (d->file.has_directory() || d->memory_limits[0] || d->memory_limits[1])
-            {
-                NCNN_LOGE("create weight file failed");
                 return 0;
-            }
+
             NCNN_LOGE("disk weights unavailable, using resident weights");
             d->use_weights_in_disk = false;
         }

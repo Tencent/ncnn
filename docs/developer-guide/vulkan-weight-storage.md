@@ -88,8 +88,10 @@ is enough, and the smaller value applies when both are positive.
 If unified Vulkan allocation fails, ordinary CPU blocks share that same total
 limit with the successful Vulkan allocations. They still require temporary
 Vulkan buffers during execution. Exhausting a resident limit places subsequent
-weights in the file; CPU fallback does not bypass the limit. Failure to allocate
-the CPU backing returns an empty weight.
+weights in the file; CPU fallback does not bypass the limit. If a resident tier
+fails to allocate, for example when free device memory is below its limit, it is
+treated as full: the weight and all later weights go to the next tier, and the
+fallback is logged once.
 
 These limits apply to model-owned resident allocations. They do not include
 activation buffers, temporary weights, staging, or allocator pool reserves.
@@ -115,7 +117,8 @@ If the default directory is unavailable and no memory limits were configured,
 loading can fall back to resident weights. With an explicit directory or
 explicit memory limits, file creation, reservation and mapping failures leave
 the affected weights empty without failing the load, like other weight
-allocation failures. Finalization failures fail loading.
+allocation failures. A failed file creation is logged once and not retried for
+later weights. Finalization failures fail loading.
 
 Disk storage requires `NCNN_STDIO` and a supported file mapping platform:
 Windows, Linux, Android API 21 or newer, OpenHarmony or Apple platforms. Other builds use the
