@@ -4,7 +4,6 @@
 #include "sdpa_vulkan.h"
 
 #include "layer_shader_type.h"
-#include "cooperative_matrix_vulkan.h"
 #include "layer_type.h"
 
 namespace ncnn {
@@ -60,6 +59,7 @@ int SDPA_vulkan::load_param(const ParamDict& pd)
 int SDPA_vulkan::create_pipeline(const Option& opt)
 {
     Option opt_cm = opt;
+    bool use_qcom_cooperative_matrix = false;
 
     use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
 
@@ -92,8 +92,22 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
         opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
+        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
+        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+        if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+            use_qcom_cooperative_matrix = false;
+        if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            use_qcom_cooperative_matrix = false;
+
+        // qcom conversion assigns a row or column to each subgroup invocation
+        if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                || coopmat_K != 16)
+            use_qcom_cooperative_matrix = false;
+
         if (coopmat_M == 0 || coopmat_N % 8 || coopmat_K % 8
-                || (vkdev->info.vendor_id() == 0x5143 && attn_mask && !use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size)))
+                || (vkdev->info.vendor_id() == 0x5143 && attn_mask && !use_qcom_cooperative_matrix))
         {
             // sdpa_cross_cm packs N and K in groups of eight
             use_cooperative_matrix = false;
@@ -178,8 +192,22 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
             }
 
+            bool use_qcom_flash_attention = vkdev->info.support_cooperative_matrix_conversion() && opt.use_subgroup_ops;
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_flash_attention = false;
+            if (opt.use_bf16_storage || opt.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+                use_qcom_flash_attention = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (FA_coopmat_M < 4 || (FA_coopmat_M & (FA_coopmat_M - 1)) || FA_coopmat_M > FA_coopmat_subgroup_size
+                    || (FA_coopmat_subgroup_size & (FA_coopmat_subgroup_size - 1)) || FA_coopmat_N < 8 || FA_coopmat_N > 64 || (FA_coopmat_N & (FA_coopmat_N - 1))
+                    || (FA_coopmat_N != FA_coopmat_subgroup_size && FA_coopmat_N * 2 != FA_coopmat_subgroup_size && FA_coopmat_N * 4 != FA_coopmat_subgroup_size)
+                    || FA_coopmat_K != 16)
+                use_qcom_flash_attention = false;
+
             if (FA_coopmat_M == 0 || FA_coopmat_N % 8 || FA_coopmat_K % 8 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N
-                    || (vkdev->info.vendor_id() == 0x5143 && !use_cooperative_matrix_conversion(vkdev->info, opt, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size)))
+                    || (vkdev->info.vendor_id() == 0x5143 && !use_qcom_flash_attention))
             {
                 // sdpa_fa_cm requires eight-element N/K tiles with N == K
                 use_flash_attention = false;
@@ -236,11 +264,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                     pipeline_sdpa_fa[i] = new Pipeline(vkdev);
                     pipeline_sdpa_fa[i]->set_subgroup_size(FA_coopmat_subgroup_size);
                     pipeline_sdpa_fa[i]->set_local_size_xyz(FA_coopmat_subgroup_size * FA_UNROLL_WG_M, 1, 1);
-                    pipeline_sdpa_fa[i]->create(use_cooperative_matrix_conversion(vkdev->info, opt, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K,
-                                                FA_coopmat_subgroup_size)
-                                                ? LayerShaderType::sdpa_fa_cm_qcom
-                                                : LayerShaderType::sdpa_fa_cm,
-                                                opt, specializations);
+                    if (use_qcom_flash_attention)
+                        pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa_cm_qcom, opt, specializations);
+                    else
+                        pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa_cm, opt, specializations);
                 }
             }
         }
@@ -311,11 +338,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             pipeline_sdpa_qk_cross = new Pipeline(vkdev);
             pipeline_sdpa_qk_cross->set_subgroup_size(coopmat_subgroup_size);
             pipeline_sdpa_qk_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_sdpa_qk_cross->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                           coopmat_subgroup_size)
-                                           ? LayerShaderType::sdpa_cross_cm_qcom
-                                           : LayerShaderType::sdpa_cross_cm,
-                                           opt_cm, specializations);
+            if (use_qcom_cooperative_matrix)
+                pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross_cm_qcom, opt_cm, specializations);
+            else
+                pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross_cm, opt_cm, specializations);
         }
 
         // qkv cross
@@ -348,11 +374,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             pipeline_sdpa_qkv_cross = new Pipeline(vkdev);
             pipeline_sdpa_qkv_cross->set_subgroup_size(coopmat_subgroup_size);
             pipeline_sdpa_qkv_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_sdpa_qkv_cross->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                            coopmat_subgroup_size)
-                                            ? LayerShaderType::sdpa_cross_cm_qcom
-                                            : LayerShaderType::sdpa_cross_cm,
-                                            opt_cm, specializations);
+            if (use_qcom_cooperative_matrix)
+                pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross_cm_qcom, opt_cm, specializations);
+            else
+                pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross_cm, opt_cm, specializations);
         }
     }
     else

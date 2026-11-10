@@ -4,7 +4,6 @@
 #include "convolution_vulkan.h"
 
 #include "layer_shader_type.h"
-#include "cooperative_matrix_vulkan.h"
 #include "layer_type.h"
 #include "modelbin.h"
 
@@ -79,6 +78,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 #endif
 
     Option opt_cm = opt;
+    bool use_qcom_cooperative_matrix = false;
 
     Mat shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     Mat out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
@@ -218,6 +218,20 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             VkComponentTypeKHR coopmat_acctype;
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
             opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
+            use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_cooperative_matrix = false;
+            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+                use_qcom_cooperative_matrix = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                    || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                    || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                    || coopmat_K != 16)
+                use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
             {
@@ -546,11 +560,10 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_gemm->set_subgroup_size(coopmat_subgroup_size);
                 pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                pipeline_convolution_3x3s1d1_winograd43_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                        coopmat_subgroup_size)
-                        ? LayerShaderType::convolution_winograd_gemm_cm_qcom
-                        : LayerShaderType::convolution_winograd_gemm_cm,
-                        opt_cm, specializations);
+                if (use_qcom_cooperative_matrix)
+                    pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_winograd_gemm_cm_qcom, opt_cm, specializations);
+                else
+                    pipeline_convolution_3x3s1d1_winograd43_gemm->create(LayerShaderType::convolution_winograd_gemm_cm, opt_cm, specializations);
             }
             else
             {
@@ -876,11 +889,10 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_gemm->set_subgroup_size(coopmat_subgroup_size);
                 pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                pipeline_convolution_3x3s1d1_winograd23_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                        coopmat_subgroup_size)
-                        ? LayerShaderType::convolution_winograd_gemm_cm_qcom
-                        : LayerShaderType::convolution_winograd_gemm_cm,
-                        opt_cm, specializations);
+                if (use_qcom_cooperative_matrix)
+                    pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_winograd_gemm_cm_qcom, opt_cm, specializations);
+                else
+                    pipeline_convolution_3x3s1d1_winograd23_gemm->create(LayerShaderType::convolution_winograd_gemm_cm, opt_cm, specializations);
             }
             else
             {
@@ -947,6 +959,20 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             VkComponentTypeKHR coopmat_acctype;
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
             opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
+            use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_cooperative_matrix = false;
+            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+                use_qcom_cooperative_matrix = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                    || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                    || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                    || coopmat_K != 16)
+                use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
             {
@@ -1186,6 +1212,20 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             VkComponentTypeKHR coopmat_acctype;
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
             opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
+            use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_cooperative_matrix = false;
+            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+                use_qcom_cooperative_matrix = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                    || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                    || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                    || coopmat_K != 16)
+                use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
             {
@@ -1467,11 +1507,10 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             pipeline_convolution_gemm = new Pipeline(vkdev);
             pipeline_convolution_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                              coopmat_subgroup_size)
-                                              ? LayerShaderType::convolution_gemm_cm_qcom
-                                              : LayerShaderType::convolution_gemm_cm,
-                                              opt_cm, specializations);
+            if (use_qcom_cooperative_matrix)
+                pipeline_convolution_gemm->create(LayerShaderType::convolution_gemm_cm_qcom, opt_cm, specializations);
+            else
+                pipeline_convolution_gemm->create(LayerShaderType::convolution_gemm_cm, opt_cm, specializations);
         }
         else
         {
@@ -1550,11 +1589,10 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
             pipeline_convolution_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution_1x1s1d1->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution_1x1s1d1->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                                 coopmat_subgroup_size)
-                                                 ? LayerShaderType::convolution_1x1s1d1_cm_qcom
-                                                 : LayerShaderType::convolution_1x1s1d1_cm,
-                                                 opt_cm, specializations);
+            if (use_qcom_cooperative_matrix)
+                pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm_qcom, opt_cm, specializations);
+            else
+                pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_cm, opt_cm, specializations);
         }
         else
         {
@@ -2336,6 +2374,7 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
     }
 
     Option opt_int8 = opt;
+    bool use_qcom_cooperative_matrix = false;
     opt_int8.use_fp16_arithmetic = false;
     opt_int8.use_int16_packed = false;
     opt_int8.use_int16_storage = false;
@@ -2736,6 +2775,18 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             }
         }
     }
+
+    use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_int8.use_subgroup_ops;
+    const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+    if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+        use_qcom_cooperative_matrix = false;
+
+    // qcom conversion assigns a row or column to each subgroup invocation
+    if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+            || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+            || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+            || coopmat_K != 32)
+        use_qcom_cooperative_matrix = false;
 
     if (is_conv1x1s1d1)
     {
@@ -3261,11 +3312,10 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->set_subgroup_size(coopmat_subgroup_size);
                 pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->create(use_cooperative_matrix_conversion(vkdev->info, opt_int8, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size,
-                        true)
-                        ? LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm_qcom
-                        : LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm,
-                        opt_int8, specializations_winograd_gemm);
+                if (use_qcom_cooperative_matrix)
+                    pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm_qcom, opt_int8, specializations_winograd_gemm);
+                else
+                    pipeline_convolution_3x3s1d1_winograd43_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm, opt_int8, specializations_winograd_gemm);
             }
             {
                 int block_x = 0;
@@ -3525,11 +3575,10 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                 pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm = new Pipeline(vkdev);
                 pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->set_subgroup_size(coopmat_subgroup_size);
                 pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-                pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->create(use_cooperative_matrix_conversion(vkdev->info, opt_int8, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size,
-                        true)
-                        ? LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm_qcom
-                        : LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm,
-                        opt_int8, specializations_winograd_gemm);
+                if (use_qcom_cooperative_matrix)
+                    pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm_qcom, opt_int8, specializations_winograd_gemm);
+                else
+                    pipeline_convolution_3x3s1d1_winograd23_gemm_int8_cm->create(LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm, opt_int8, specializations_winograd_gemm);
             }
             {
                 int block_x = 0;
@@ -3597,11 +3646,10 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
             pipeline_convolution_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution_1x1s1d1->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution_1x1s1d1->create(use_cooperative_matrix_conversion(vkdev->info, opt_int8, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size,
-                                                 true)
-                                                 ? LayerShaderType::convolution_1x1s1d1_int8_cm_qcom
-                                                 : LayerShaderType::convolution_1x1s1d1_int8_cm,
-                                                 opt_int8, specializations_1x1);
+            if (use_qcom_cooperative_matrix)
+                pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_int8_cm_qcom, opt_int8, specializations_1x1);
+            else
+                pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_1x1s1d1_int8_cm, opt_int8, specializations_1x1);
         }
         else
         {
@@ -3682,11 +3730,10 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
             pipeline_convolution_gemm = new Pipeline(vkdev);
             pipeline_convolution_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_int8, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size,
-                                              true)
-                                              ? LayerShaderType::convolution_gemm_int8_cm_qcom
-                                              : LayerShaderType::convolution_gemm_int8_cm,
-                                              opt_int8, specializations_gemm);
+            if (use_qcom_cooperative_matrix)
+                pipeline_convolution_gemm->create(LayerShaderType::convolution_gemm_int8_cm_qcom, opt_int8, specializations_gemm);
+            else
+                pipeline_convolution_gemm->create(LayerShaderType::convolution_gemm_int8_cm, opt_int8, specializations_gemm);
         }
         else
         {
