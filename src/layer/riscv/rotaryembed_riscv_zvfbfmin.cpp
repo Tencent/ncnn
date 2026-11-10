@@ -11,9 +11,9 @@ namespace ncnn {
 
 #include "rotaryembed_bf16s.h"
 
-int rotaryembed_bf16s_zvfbfmin(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt)
+void rotaryembed_bf16s_zvfbfmin(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
-    return rotaryembed_bf16s(bottom_blobs, top_blobs, interleaved, opt);
+    rotaryembed_bf16s(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
 }
 
 #endif // NCNN_BF16

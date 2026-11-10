@@ -2,31 +2,23 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
-int rotaryembed_bf16s_zvfbfmin(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt);
+void rotaryembed_bf16s_zvfbfmin(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt);
 #endif
 
-static int rotaryembed_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, int interleaved, const Option& opt)
+static void rotaryembed_bf16s(const Mat& bottom_blob, const Mat& cos_cache, const Mat& sin_cache, Mat& top_blob, int interleaved, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
     if (cpu_support_riscv_zvfbfmin())
     {
-        return rotaryembed_bf16s_zvfbfmin(bottom_blobs, top_blobs, interleaved, opt);
+        rotaryembed_bf16s_zvfbfmin(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+        return;
     }
 #endif
-
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& cos_cache = bottom_blobs[1];
-    const Mat& sin_cache = bottom_blobs[2];
 
     const int embed_dim = bottom_blob.w;
     const int seqlen = bottom_blob.h;
     const int num_heads = bottom_blob.c;
     const int half = embed_dim / 2;
-
-    Mat& top_blob = top_blobs[0];
-    top_blob.create_like(bottom_blob, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_heads; q++)
@@ -143,6 +135,4 @@ static int rotaryembed_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<M
         csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
     }
-
-    return 0;
 }

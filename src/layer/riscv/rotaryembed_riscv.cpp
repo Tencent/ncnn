@@ -44,7 +44,7 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
-        return rotaryembed_bf16s(bottom_blobs, top_blobs, interleaved, opt);
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];
@@ -169,5 +169,23 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
 
     return 0;
 }
+
+#if NCNN_BF16
+int RotaryEmbed_riscv::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create_like(bottom_blob, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    rotaryembed_bf16s(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
