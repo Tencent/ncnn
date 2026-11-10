@@ -66,6 +66,36 @@ class BufferDtype(torch.nn.Module):
         return x + self.weight
 
 
+class ComplexDtype(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.dtype = dtype
+        self.register_buffer('weight', torch.tensor([1.125 + 2.25j, -3.5 + 4.75j, 5.125 - 6.25j], dtype=dtype))
+
+    def forward(self, x, z, w):
+        value = x + z
+        return (w + self.weight, value, value.to(self.dtype), value.sum(1, dtype=self.dtype),
+                z.to(self.dtype), z.sum(1, dtype=self.dtype),
+                torch.complex(x, x), w.real, w.imag, torch.view_as_real(w))
+
+
+class ComplexMutation(torch.nn.Module):
+    def __init__(self, source, operation):
+        super().__init__()
+        self.source = source
+        self.operation = operation
+
+    def forward(self, x, z, w):
+        result = torch.complex(x, x) if self.source == 'construct' else x + z
+        target = result[:, 1:] if self.source == 'view' else result
+        before = target.clone()
+        if self.operation == 'add':
+            target.add_(w)
+        else:
+            target.copy_(w)
+        return before, target, result
+
+
 class InplaceArithmetic(torch.nn.Module):
     def __init__(self, operation, view=False):
         super().__init__()
@@ -89,17 +119,27 @@ class InplaceArithmetic(torch.nn.Module):
             target.div_(y, rounding_mode='floor')
         else:
             target.div_(y, rounding_mode='trunc')
-        # A subsequent operation must see the rounded destination, not the
-        # higher precision functional temporary. Also observe the base alias.
+        # A subsequent operation and the base alias must see the same value.
         return target, target.to(torch.float32) * 3, result
 
 
-def check(name, model, inputs):
+def check(name, model, inputs, reference=None):
     prefix = 'test_pt2_dtype_' + name
     model.eval()
-    expected = model(*inputs)
+    source = model(*inputs)
+    if isinstance(source, torch.Tensor):
+        source = (source,)
     program = torch.export.export(model, inputs)
+    program.validate()
     torch.export.save(program, prefix + '.pt2')
+    for exported in (program, torch.export.load(prefix + '.pt2')):
+        exported.validate()
+        outputs = exported.module()(*inputs)
+        if isinstance(outputs, torch.Tensor):
+            outputs = (outputs,)
+        if len(outputs) != len(source) or any(a.dtype != b.dtype or a.shape != b.shape or not torch.equal(a, b) for a, b in zip(outputs, source)):
+            print(name, 'exported source differs', outputs, source)
+            return False
     generated = prefix + '_pnnx.py'
     if os.path.exists(generated):
         os.remove(generated)
@@ -107,7 +147,11 @@ def check(name, model, inputs):
     if not os.path.isfile(generated) or result.returncode != 0:
         print(result.stderr)
         return False
-    actual = importlib.import_module(prefix + '_pnnx').Model().eval()(*inputs)
+    inputs = tuple(x.float() if x.is_floating_point() else x.to(torch.complex64) if x.is_complex() else x for x in inputs)
+    expected = (reference if reference is not None else model).float().eval()(*inputs)
+    actual = importlib.import_module(prefix + '_pnnx').Model().float().eval()(*inputs)
+    if isinstance(expected, torch.Tensor):
+        actual, expected = (actual,), (expected,)
     if len(actual) != len(expected):
         return False
     for a, b in zip(actual, expected):
@@ -122,16 +166,21 @@ def test():
         return True
 
     torch.set_num_threads(1)
-    for dtype in (torch.float16, torch.bfloat16):
+    for dtype in (torch.float16, torch.bfloat16, torch.float64):
         model = BufferDtype(dtype).eval()
         torch.manual_seed(0)
         x = torch.rand(2, 3, dtype=dtype)
         prefix = 'test_pt2_dtype_buffer_' + str(dtype).split('.')[-1]
         torch.export.save(torch.export.export(model, (x,)), prefix + '.pt2')
         subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], check=True)
-        actual = importlib.import_module(prefix + '_pnnx').test_inference()
-        expected = model(x)
+        module = importlib.import_module(prefix + '_pnnx')
+        actual = module.Model().float().eval()(x.float())
+        expected = model.float()(x.float())
         if actual.dtype != expected.dtype or not torch.equal(actual, expected):
+            return False
+        torch.manual_seed(0)
+        expected = model(torch.rand(2, 3))
+        if not torch.equal(module.test_inference(), expected):
             return False
     if not check('explicit', ExplicitDtype(), (torch.tensor([[1.25, 2.5, 3.75], [4.5, 5.25, 6.75]], dtype=torch.float16),)):
         return False
@@ -160,9 +209,19 @@ def test():
         return False
     if not check('float_integer_scan', IntegerScan(), (torch.tensor([[0.6, 0.6], [1.5, 1.5]], dtype=torch.float32),)):
         return False
-    if not check('half_add_rounding', InplaceArithmetic('add'),
+    if not check('half_add_float32', InplaceArithmetic('add'),
                  (torch.ones(2, 3, dtype=torch.float16), torch.full((1, 3), 0.0003, dtype=torch.float32))):
         return False
+    x = torch.tensor([[16777216., 1., -16777216.], [1.125, -2.25, 3.5]], dtype=torch.float64)
+    z = torch.tensor([[1j, 2j, 3j], [4j, 5j, 6j]], dtype=torch.complex64)
+    w = torch.tensor([[1 + 2**-30 + 2j, 2 + 3j, 4 + 5j]], dtype=torch.complex128)
+    if not check('complex', ComplexDtype(torch.complex128), (x, z, w), ComplexDtype(torch.complex64)):
+        return False
+    for source in ('mixed', 'construct', 'view'):
+        for operation in ('add', 'copy'):
+            rhs = w[:, 1:] if source == 'view' else w
+            if not check('complex_' + source + '_' + operation, ComplexMutation(source, operation), (x, z, rhs)):
+                return False
     for operation in ('add', 'sub', 'mul', 'div', 'clamp', 'floor', 'trunc'):
         for view in (False, True):
             destination_dtype = torch.float32 if operation == 'clamp' else torch.float16

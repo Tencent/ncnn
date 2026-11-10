@@ -6,26 +6,30 @@
 #include "pass_level0/constant_unpooling.h"
 #include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
+#include "pass_level0/normalize_dtype.h"
 #include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
 
 namespace pnnx {
 
-void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
+int pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2,
+                const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     inline_block(g, module_operators);
 
     constant_unpooling(g);
 
-    // Changing cast dtypes can turn independent storage into a mutable alias.
-    reset_device(g, device, has_mutable_tensor_cast(g));
-
     flatten_input(g);
+
+    if (normalize_dtype(g, mod, input_tensors) != 0)
+        return -1;
+    reset_device(g, device);
 
     if (!input_tensors.empty())
     {
-        shape_inference(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
+        return shape_inference(g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
     }
+    return 0;
 }
 
 } // namespace pnnx

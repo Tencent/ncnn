@@ -229,6 +229,78 @@ class CastPrecisionBoundary(torch.nn.Module):
         return base.float(), old.float(), converted.float()
 
 
+class UnaryCastSource(torch.nn.Module):
+    __constants__ = ['operation', 'source']
+
+    def __init__(self, operation, source):
+        super().__init__()
+        self.operation = operation
+        self.source = source
+
+    def forward(self, x):
+        base = x.exp() if self.operation == 'exp' else x.tanh()
+        old = base.transpose(0, 1)
+        converted = base.half()
+        converted.transpose_(0, 1)
+        if self.source:
+            base.add_(2)
+        else:
+            converted.add_(2)
+        return base.float(), old.float(), converted.float()
+
+
+class ModuleCastSource(torch.nn.Module):
+    def __init__(self, convolution):
+        super().__init__()
+        self.layer = (torch.nn.Conv2d(3, 3, 1) if convolution else torch.nn.Linear(3, 3)).double()
+        with torch.no_grad():
+            self.layer.weight.fill_(1)
+            self.layer.bias.zero_()
+
+    def forward(self, x):
+        # Double kernels also run on older producer versions. Integer-valued
+        # inputs exercise cast identity without requiring FP64 numerical parity.
+        base = self.layer(x.double())
+        old = base.transpose(0, 1)
+        converted = base.double()
+        converted.transpose_(0, 1)
+        converted.add_(2)
+        return base.float(), old.float(), converted.float()
+
+
+class ComplexCastBoundary(torch.nn.Module):
+    __constants__ = ['copy']
+
+    def __init__(self, copy):
+        super().__init__()
+        self.copy = copy
+
+    def forward(self, x):
+        base = x.clone()
+        old = base.transpose(0, 1)
+        converted = base.to(torch.complex64 if self.copy else torch.complex128)
+        converted.transpose_(0, 1)
+        converted.add_(2)
+        return base, old, converted
+
+    def reference(self, x):
+        base = x.clone()
+        old = base.transpose(0, 1)
+        converted = base.clone() if self.copy else base
+        converted.transpose_(0, 1)
+        converted.add_(2)
+        return base, old, converted
+
+
+class RankDependentCast(torch.nn.Module):
+    def forward(self, x, source):
+        base = x.clone().half() + source
+        old = base.transpose(0, 1)
+        converted = base.half()
+        converted.add_(2)
+        return base.float(), old.float(), converted.float()
+
+
 def conditional_alias_cases():
     for operation in ('dropout', 'dropout2d', 'dropout3d', 'alpha_dropout',
                       'feature_alpha_dropout', 'type_as', 'type_as_half',
@@ -250,6 +322,18 @@ def conditional_alias_cases():
     for mode in ('same', 'different', 'source', 'source_metadata'):
         metadata_ops = ('transpose',) if mode == 'source_metadata' else ()
         yield 'conditional_precision_' + mode, CastPrecisionBoundary(mode), None, metadata_ops
+    for operation in ('exp', 'tanh'):
+        for source in (False, True):
+            name = 'conditional_' + operation + ('_source_write' if source else '_result_write')
+            yield name, UnaryCastSource(operation, source), (torch.zeros(2, 3),), ('transpose',)
+    for convolution in (False, True):
+        shape = (2, 3, 2, 3) if convolution else (2, 3)
+        name = 'conditional_module_cast_' + ('conv' if convolution else 'linear')
+        yield name, ModuleCastSource(convolution), (torch.ones(shape),), ('transpose',)
+    for copy in (False, True):
+        inputs = (torch.arange(6).reshape(2, 3).to(torch.complex128) * (1 + 1j),)
+        name = 'conditional_complex_cast_' + ('copy' if copy else 'alias')
+        yield name, ComplexCastBoundary(copy), inputs, ('transpose',)
 
 
 class ModuleDropoutAlias(torch.nn.Module):
@@ -611,10 +695,16 @@ def metadata_cases():
                    inputs, (operation,), rejection)
         for view in ('slice', 'select', 'view', 'transpose', 't', 'permute',
                      'squeeze', 'unsqueeze', 'detach', 'alias'):
+            # Before 1.13, detached tensors forbid direct metadata changes.
+            # squeeze modifies a newly created unsqueeze view and remains valid.
+            if view == 'detach' and operation != 'squeeze' and version.parse(torch.__version__) < version.parse('1.13'):
+                continue
             yield ('metadata_' + operation + '_view_' + view, ViewMetadataMutation(operation, view),
                    (torch.arange(-12, 12).reshape(4, 6).float(),), (operation, operation), None)
     yield 'metadata_input_view', InputViewMetadata(), None, ('unsqueeze',), None
     for operation in ('detach', 'detach_', 'alias'):
+        if operation == 'detach' and version.parse(torch.__version__) < version.parse('1.13'):
+            continue
         yield 'metadata_identity_' + operation, DetachMetadata(operation), None, ('unsqueeze',), None
 
 
@@ -782,6 +872,14 @@ def flatten_outputs(values):
     return tuple(item for value in values for item in flatten_outputs(value))
 
 
+def float_outputs(values):
+    if isinstance(values, torch.Tensor):
+        if values.is_complex():
+            return values.to(torch.complex64)
+        return values.float() if values.is_floating_point() else values
+    return tuple(float_outputs(value) for value in values)
+
+
 def check_ncnn(name, model, value):
     # Opt-in because ncnn's Python module is not required for pnnx unit tests.
     import ncnn
@@ -819,7 +917,7 @@ def check_dynamic_copy(binary):
     spec = importlib.util.spec_from_file_location(name, name + '_pnnx.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    converted = module.Model().eval()
+    converted = module.Model().float().eval()
     # Both traced dimensions become -1, but valid runtime inputs may broadcast.
     for n, m in [(2, 2), (3, 3), (5, 1)]:
         x = torch.arange(n * 4).reshape(n, 4).float()
@@ -908,13 +1006,14 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
     spec = importlib.util.spec_from_file_location(name, name + '_pnnx.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    converted = module.Model().eval()
+    converted = module.Model().float().eval()
     for batch in ([2, 3, 5] if dynamic else [2]):
         value = torch.arange(-4, batch * 4 - 4).reshape(batch, 4).to(dtype)
         values = [item.clone() for item in samples] if inputs is not None else [value]
+        values = [float_outputs(item) for item in values]
         originals = [item.clone() for item in values]
-        reference = model.reference if isinstance(model, MixedMutation) else model
-        expected = reference(*[item.clone() for item in values])
+        reference = getattr(model, 'reference', model)
+        expected = float_outputs(reference(*[item.clone() for item in values]))
         actual = converted(*values)
         if frontend == 'pt2' and mode in ('containers', 'containers_unpack'):
             # Raw export serializes the output pytree as flat graph outputs.
@@ -963,12 +1062,24 @@ def test():
                 for mode, model, inputs, metadata_ops in conditional_alias_cases():
                     label = frontend + '/' + mode
                     try:
-                        run_case(binary, model, mode, frontend, inputs=inputs,
+                        # Old tracers can lose the old view of a type_as identity.
+                        case_frontend = ('torchscript_script' if frontend == 'torchscript' and
+                                         isinstance(model, ConditionalAlias) and model.operation == 'type_as' else frontend)
+                        run_case(binary, model, mode, case_frontend, inputs=inputs,
                                  metadata_ops=metadata_ops, check_source=True)
                         print('PASS', label)
                     except Exception as error:
                         failures.append(label)
                         print('FAIL', label, error)
+                if frontend == 'torchscript':
+                    # Legacy JIT inference cannot prove these original dtypes:
+                    # integer exp promotes to float, and mixed tensor promotion
+                    # depends on the rank of the half operand after its cast.
+                    for mode, model, inputs in [
+                            ('unknown_integer_exp', UnaryCastSource('exp', False), (torch.zeros(2, 3, dtype=torch.int32),)),
+                            ('unknown_rank_cast', RankDependentCast(), (torch.ones(2, 3), torch.tensor(0.5)))]:
+                        run_case(binary, model, mode, frontend, inputs=inputs, check_source=True,
+                                 rejection='cannot determine original dtype')
                 for mode in ('siblings', 'nonfirst', 'chained', 'select',
                              'view_slice', 'view_select', 'view_repeat', 'view_base',
                              'transpose', 'permute', 'unsqueeze', 'squeeze', 'multiinput',

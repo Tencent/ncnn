@@ -20,6 +20,15 @@
 
 namespace pnnx {
 
+static int fp32_scalar_type(int type)
+{
+    if (type == 5 || type == 7 || type == 15)
+        return 6;
+    if (type == 8 || type == 10)
+        return 9;
+    return type;
+}
+
 static bool ends_with(const std::string& s, const std::string& suffix)
 {
     return s.size() >= suffix.size() && s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0;
@@ -282,6 +291,13 @@ static bool contiguous_layout(const Pt2TensorMeta& meta)
 class Pt2Loader
 {
 public:
+    struct MetadataVersion
+    {
+        Operand* value;
+        Pt2TensorMeta metadata;
+        bool known_layout;
+    };
+
     Pt2Loader(Graph& graph)
         : g(graph), next_id(0), next_storage(0)
     {
@@ -521,7 +537,7 @@ public:
                 fail("unsupported scalar type");
                 return 0;
             }
-            p = pt2_scalar_type(pt2_tensor_type((int)v.i));
+            p = fp32_scalar_type(pt2_scalar_type(pt2_tensor_type((int)v.i)));
         }
         else if (tag == "as_memory_format" && v.type == JsonValue::Int)
         {
@@ -781,6 +797,14 @@ public:
         return true;
     }
 
+    const MetadataVersion* metadata_version(const Operand* value) const
+    {
+        if (tensor_objects.count(value))
+            value = tensor_objects.at(value);
+        const auto version = metadata_versions.find(value);
+        return version == metadata_versions.end() ? 0 : &version->second;
+    }
+
     bool load_nodes(const JsonValue& nodes, const JsonValue& outputs)
     {
         for (const JsonValue& n : nodes.a)
@@ -981,6 +1005,17 @@ public:
         // Copy's conversion and broadcasting require a Tensor source.
         if ((type == "aten::copy" || type == "aten::copy_") && inputs[1]->type == 0)
             inputs[1] = number_as_tensor(inputs[1], bound.inputs[1].value);
+        const Operand* object = inputs.empty() ? 0 : inputs[0];
+        if (tensor_objects.count(object))
+            object = tensor_objects.at(object);
+        const std::string source_name = bound.inputs.empty() ? std::string() : value_name(bound.inputs[0].value);
+        const MetadataVersion* version = metadata_version(object);
+        const bool layout_query = type == "aten::as_strided" || type == "aten::stride" || type == "aten::sym_stride"
+                                  || type == "aten::storage_offset" || type == "aten::sym_storage_offset";
+        // Queries consume the object's geometry at this point in the graph.
+        // Earlier operands and independent views keep their definition metadata.
+        if ((layout_query || type == "aten::size" || type == "aten::sym_size") && version)
+            inputs[0] = version->value;
         int output_type = 0;
         const auto output_meta = metadata.find(value_name(bound.outputs[0]));
         if (output_meta != metadata.end())
@@ -1047,18 +1082,28 @@ public:
         {
             if (bound.outputs.size() != 1)
                 return fail("invalid identity signature");
-            const std::string source = value_name(bound.inputs[0].value);
+            const std::string source = source_name;
             const std::string result = value_name(bound.outputs[0]);
             if (source.empty() || result.empty())
                 return fail("invalid identity reference");
-            if (!define(result, values.at(source), true))
+            if (!define(result, version ? version->value : values.at(source), true))
                 return false;
             set_provenance(result, provenance[source]);
-            if (known_layouts.count(source))
+            if (version ? version->known_layout : known_layouts.count(source) != 0)
                 known_layouts.insert(result);
             return true;
         }
         std::string normalized = type;
+        // Precision normalization must retain the storage allocated by a cast.
+        // Identity casts were removed above using the original tensor metadata.
+        if (type == "aten::to" && alias_kind == TorchAliasNone)
+            inputs[inputs.size() - 2] = constant(true);
+        if (type == "aten::type_as" && alias_kind == TorchAliasNone)
+        {
+            normalized = "aten::to";
+            const int dtype = fp32_scalar_type(pt2_scalar_type(output_type));
+            inputs = {inputs[0], constant(dtype), constant(false), constant(true), constant(Parameter())};
+        }
         if (type == "aten::sym_size")
             normalized = "aten::size";
         if (type == "aten::lift_fresh_copy")
@@ -1088,7 +1133,7 @@ public:
                     || type == "aten::as_strided" || type == "aten::detach" || type == "aten::alias"
                     || normalized == "aten::clone" || metadata_mutation
                     || type == "aten::pad" || type == "aten::constant_pad_nd")
-                known_layout = known_layouts.count(source) != 0;
+                known_layout = version ? version->known_layout : known_layouts.count(source) != 0;
             if (normalized == "aten::clone" && inputs.size() == 2 && inputs[1]->producer->type == "prim::Constant")
             {
                 const Parameter& format = inputs[1]->producer->params.at("value");
@@ -1105,7 +1150,7 @@ public:
             // Data mutations preserve the destination layout even when their
             // other inputs are unknown. Metadata changes need constant axes.
             if (inplace && !metadata_mutation)
-                known_layout = known_layouts.count(source) != 0;
+                known_layout = version ? version->known_layout : known_layouts.count(source) != 0;
         }
         Operator* op = new_op(normalized);
         targets[op] = target;
@@ -1177,6 +1222,12 @@ public:
                             && (!contiguous_allocation || contiguous_layout(meta)))
                         known_layouts.insert(name);
                 }
+                if (inplace)
+                {
+                    tensor_objects[values.at(name)] = object;
+                    if (metadata_mutation)
+                        metadata_versions[object] = {values.at(name), metadata.at(name), known_layouts.count(name) != 0};
+                }
                 if (!inplace && (alias_kind == TorchAliasUntracked || (!classified_alias && i < bound.aliases.size() && !bound.aliases[i].empty())))
                 {
                     unsupported_aliases.insert(values.at(name));
@@ -1185,15 +1236,13 @@ public:
                 }
             }
         }
-        if (type == "aten::as_strided" || type == "aten::stride" || type == "aten::sym_stride"
-                || type == "aten::storage_offset" || type == "aten::sym_storage_offset")
+        if (layout_query)
         {
-            const std::string source = value_name(bound.inputs[0].value);
-            if (!metadata.count(source))
+            if (!version && !metadata.count(source_name))
                 return fail("layout source metadata missing");
-            if (!known_layouts.count(source))
+            if (!(version ? version->known_layout : known_layouts.count(source_name) != 0))
                 return fail("layout query source is not statically known");
-            layout_sources[op] = metadata.at(source);
+            layout_sources[op] = version ? version->metadata : metadata.at(source_name);
         }
         return true;
     }
@@ -1239,6 +1288,8 @@ public:
         child.shape_bindings = shape_bindings;
         child.unsupported_aliases = unsupported_aliases;
         child.dense_aliases = dense_aliases;
+        child.tensor_objects = tensor_objects;
+        child.metadata_versions = metadata_versions;
         const JsonValue* tensor_values = field(*body, "tensor_values", JsonValue::Object);
         if (!tensor_values)
             return false;
@@ -1268,7 +1319,8 @@ public:
             const std::string name = value_name(inputs->a[i]);
             if (!arg->get("as_tensor") || !inputs->a[i].get("as_tensor") || !values.count(source) || !child.metadata.count(name))
                 return fail("invalid inference wrapper tensor input");
-            Operand* r = values.at(source);
+            const MetadataVersion* version = metadata_version(values.at(source));
+            Operand* r = version ? version->value : values.at(source);
             const Pt2TensorMeta& meta = child.metadata.at(name);
             if (r->type != meta.type || r->shape != meta.shape)
                 return fail("inference wrapper input metadata mismatch");
@@ -1278,7 +1330,7 @@ public:
                 return false;
             }
             child.set_provenance(name, provenance[source]);
-            if (known_layouts.count(source))
+            if (version ? version->known_layout : known_layouts.count(source) != 0)
                 child.known_layouts.insert(name);
             child.external.insert(provenance[source].begin(), provenance[source].end());
             consume_reference(source);
@@ -1297,19 +1349,22 @@ public:
             const std::string name = value_name(returns->a[i]);
             if (!returns->a[i].get("as_tensor") || !outputs->a[i].get("as_tensor") || !child.values.count(source) || !metadata.count(name))
                 return fail("invalid inference wrapper tensor output");
-            Operand* r = child.values.at(source);
+            const MetadataVersion* version = child.metadata_version(child.values.at(source));
+            Operand* r = version ? version->value : child.values.at(source);
             if (r->type != metadata.at(name).type || r->shape != metadata.at(name).shape)
                 return fail("inference wrapper output metadata mismatch");
             if (!define(name, r, true))
                 return false;
             set_provenance(name, child.provenance[source]);
-            if (child.known_layouts.count(source))
+            if (version ? version->known_layout : child.known_layouts.count(source) != 0)
                 known_layouts.insert(name);
         }
         next_id = child.next_id;
         next_storage = child.next_storage;
         unsupported_aliases.insert(child.unsupported_aliases.begin(), child.unsupported_aliases.end());
         dense_aliases.insert(child.dense_aliases.begin(), child.dense_aliases.end());
+        tensor_objects = child.tensor_objects;
+        metadata_versions = child.metadata_versions;
         layout_sources.insert(child.layout_sources.begin(), child.layout_sources.end());
         targets.insert(child.targets.begin(), child.targets.end());
         floating_constants.insert(child.floating_constants.begin(), child.floating_constants.end());
@@ -1616,6 +1671,8 @@ public:
     std::set<const Operand*> dense_aliases;
     std::set<int> external;
     std::map<std::string, int> remaining;
+    std::map<const Operand*, const Operand*> tensor_objects;
+    std::map<const Operand*, MetadataVersion> metadata_versions;
     std::map<Operator*, Pt2TensorMeta> layout_sources;
     std::map<Operator*, std::string> targets;
     std::map<const Operand*, double> floating_constants;
@@ -1643,6 +1700,40 @@ int load_pt2(const std::string& path, Graph& g, const std::vector<std::vector<in
     {
         fprintf(stderr, "pt2 load: %s\n", loader.error.c_str());
         return -1;
+    }
+    // Validate serialized storage and aliases in their original types first.
+    // Shared pnnx passes operate on float32; fp16 is an output storage option.
+    for (Operator* op : graph.ops)
+    {
+        for (auto& item : op->attrs)
+        {
+            Attribute& attr = item.second;
+            if (attr.type == 11)
+            {
+                // Complex values use FP32 real and imaginary components.
+                std::vector<float> data(attr.data.size() / sizeof(double));
+                const double* p = (const double*)attr.data.data();
+                for (size_t i = 0; i < data.size(); i++)
+                    data[i] = (float)p[i];
+                attr.type = 10;
+                attr.data.resize(data.size() * sizeof(float));
+                if (!data.empty())
+                    memcpy(attr.data.data(), data.data(), attr.data.size());
+                continue;
+            }
+            if (attr.type != 2 && attr.type != 3 && attr.type != 13)
+                continue;
+            const std::vector<float> data = attr.get_float32_data();
+            attr.type = 1;
+            attr.set_float32_data(data);
+        }
+    }
+    for (Operand* r : graph.operands)
+    {
+        if (r->type == 2 || r->type == 3 || r->type == 13)
+            r->type = 1;
+        if (r->type == 11)
+            r->type = 10;
     }
     if (fold_pt2_constants(graph, loader.targets, loader.floating_constants) != 0)
         return -1;

@@ -141,6 +141,32 @@ def test():
     if not check_reject('test_pt2_archive_compressed.pt2', 'unsupported zip entry'):
         return False
 
+    # Reject unsupported entries before exposing their declared allocation size.
+    # Keep the model JSON stored, so reading it cannot mask a tensor-entry error.
+    dest = pathlib.Path('test_pt2_archive_compressed_tensor.pt2')
+    torch.export.save(torch.export.export(torch.nn.Linear(3, 2).eval(), (x,)), dest)
+    with zipfile.ZipFile(dest) as archive:
+        weighted_entries = {info.filename: archive.read(info.filename) for info in archive.infolist()}
+    tensor_name = next(name for name in weighted_entries if '/data/weights/' in name)
+    with zipfile.ZipFile(dest, 'w') as archive:
+        for key, data in weighted_entries.items():
+            archive.writestr(key, data, compress_type=zipfile.ZIP_DEFLATED if key == tensor_name else zipfile.ZIP_STORED)
+    raw = bytearray(dest.read_bytes())
+    with zipfile.ZipFile(dest) as archive:
+        offset = archive.getinfo(tensor_name).header_offset
+    struct.pack_into('<I', raw, offset + 22, 0x80000000)
+    offset = 0
+    while True:
+        offset = raw.index(b'PK\x01\x02', offset)
+        name_length = struct.unpack_from('<H', raw, offset + 28)[0]
+        if raw[offset + 46:offset + 46 + name_length].decode() == tensor_name:
+            break
+        offset += 46
+    struct.pack_into('<I', raw, offset + 24, 0x80000000)
+    dest.write_bytes(raw)
+    if not check_reject(dest, 'unsupported zip entry ' + tensor_name):
+        return False
+
     raw = bytearray(path.read_bytes())
     with zipfile.ZipFile(path) as archive:
         offset = archive.getinfo(graph_name).header_offset

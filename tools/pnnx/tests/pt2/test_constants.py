@@ -112,14 +112,16 @@ def load(path):
     return module
 
 
-def equal(actual, expected):
+def equal(actual, expected, float32=False):
     if isinstance(expected, torch.Tensor):
+        if float32 and expected.is_floating_point():
+            expected = expected.float()
         if not isinstance(actual, torch.Tensor) or actual.shape != expected.shape or actual.dtype != expected.dtype:
             return False
         if expected.is_floating_point() or expected.is_complex():
             return torch.allclose(actual, expected, 2e-5, 2e-5)
         return torch.equal(actual, expected)
-    return len(actual) == len(expected) and all(equal(a, b) for a, b in zip(actual, expected))
+    return len(actual) == len(expected) and all(equal(a, b, float32) for a, b in zip(actual, expected))
 
 
 def convert(name, model, x, options=(), dynamic=False, check_source=False):
@@ -139,13 +141,13 @@ def convert(name, model, x, options=(), dynamic=False, check_source=False):
     if result.returncode != 0:
         raise RuntimeError(result.stderr)
     module = load(Path(prefix + '_pnnx.py'))
-    if not equal(module.Model().eval()(x), model(x)):
+    if not equal(module.Model().float().eval()(x), model(x), float32=True):
         raise RuntimeError(name + ': converted values differ')
     if check_source:
-        converted = module.Model().eval()
+        converted = module.Model().float().eval()
         for value in (x, x + 1, x):
             original = value.clone()
-            if not equal(converted(value), model(value.clone())) or not torch.equal(value, original):
+            if not equal(converted(value), model(value.clone()), float32=True) or not torch.equal(value, original):
                 raise RuntimeError(name + ': repeated converted values differ or input was modified')
     return prefix, module
 

@@ -172,7 +172,7 @@ std::string float_to_string(float f)
     if (std::isinf(f)) return f < 0 ? "-inf" : "inf";
 
     if (f == 0.f)
-        return "0.0";
+        return std::signbit(f) ? "-0.0" : "0.0";
 
     const float abs_f = std::abs(f);
     char buffer[64];
@@ -227,7 +227,7 @@ std::string double_to_string(double d)
     if (std::isinf(d)) return d < 0 ? "-inf" : "inf";
 
     if (d == 0.0)
-        return "0.0";
+        return std::signbit(d) ? "-0.0" : "0.0";
 
     const double abs_d = std::abs(d);
     char buffer[128];

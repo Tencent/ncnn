@@ -15,7 +15,7 @@ static bool is_dropout(const std::string& type)
 
 TorchAliasKind torch_alias_kind(const std::string& type)
 {
-    if (type == "aten::detach_" || type == "nn.Dropout" || type == "nn.Dropout2d" || type == "nn.AlphaDropout")
+    if (type == "aten::detach_" || type == "nn.Dropout" || type == "nn.AlphaDropout")
         return TorchAliasIdentity;
 
     if (type == "aten::slice" || type == "aten::select" || type == "aten::view"
@@ -30,7 +30,7 @@ TorchAliasKind torch_alias_kind(const std::string& type)
             || type == "aten::split" || type == "aten::split_with_sizes" || type == "aten::chunk" || type == "aten::unbind"
             || type == "aten::view_as_real" || type == "aten::view_as_complex" || type == "aten::real" || type == "aten::imag"
             || type == "aten::contiguous" || type == "aten::to" || type == "aten::type_as" || is_dropout(type)
-            || type == "nn.Dropout3d")
+            || type == "nn.Dropout2d" || type == "nn.Dropout3d")
         return TorchAliasUntracked;
 
     return TorchAliasNone;
@@ -49,15 +49,6 @@ TorchAliasKind torch_alias_kind(const std::string& type, const std::vector<Opera
     const TorchAliasKind kind = torch_alias_kind(type);
     if (kind != TorchAliasUntracked || inputs.empty())
         return kind;
-
-    if (type == "nn.Dropout3d")
-    {
-        // The unbatched wrapper adds and removes a dimension on a new view.
-        if (inputs[0]->shape.size() == 4)
-            return TorchAliasView;
-        if (inputs[0]->shape.size() == 5)
-            return TorchAliasIdentity;
-    }
 
     if (is_dropout(type) && inputs.size() == 3)
     {

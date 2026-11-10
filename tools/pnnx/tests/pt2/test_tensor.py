@@ -378,37 +378,27 @@ def test_views():
 
 
 def test_typed_floating():
-    for dtype in (torch.float16, torch.bfloat16):
+    for dtype in (torch.float16, torch.bfloat16, torch.float64):
         model = Typed(dtype).eval()
         x = torch.ones(2, 3, dtype=dtype)
         program = torch.export.export(model, (x,))
         prefix = 'test_pt2_tensor_typed_' + str(dtype).split('.')[1]
         torch.export.save(program, prefix + '.pt2')
-        os.system('../../src/pnnx ' + prefix + '.pt2 fp16=0')
-
-    import test_pt2_tensor_typed_float16_pnnx
-    import test_pt2_tensor_typed_bfloat16_pnnx
-    for dtype, module, tolerance in (
-        (torch.float16, test_pt2_tensor_typed_float16_pnnx, 3e-3),
-        (torch.bfloat16, test_pt2_tensor_typed_bfloat16_pnnx, 2e-2),
-    ):
-        model = Typed(dtype).eval()
-        x = torch.ones(2, 3, dtype=dtype)
+        subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], check=True)
+        module = importlib.import_module(prefix + '_pnnx')
+        model.float()
         torch.manual_seed(0)
-        sample = torch.rand(2, 3, dtype=dtype)
+        sample = torch.rand(2, 3)
         for actual, expected in (
-            (module.Model().eval()(x), model(x)),
+            (module.Model().float().eval()(x.float()), model(x.float())),
             (module.test_inference(), model(sample)),
         ):
             if len(actual) != len(expected):
                 print(dtype, 'typed output count mismatch')
                 return False
             for a, b in zip(expected, actual):
-                if a.dtype != b.dtype or a.shape != b.shape:
-                    print(dtype, 'typed output dtype or shape mismatch')
-                    return False
-                if not torch.allclose(a, b, rtol=tolerance, atol=tolerance):
-                    print(dtype, 'typed output values differ')
+                if a.dtype != b.dtype or a.shape != b.shape or not torch.equal(a, b):
+                    print(dtype, 'typed output differs')
                     return False
     return True
 
@@ -457,60 +447,19 @@ def test_typed_integer():
     return True
 
 
-def test_mixed_half():
-    model = ScalarTensor(0.25, torch.float32).eval()
-    x = torch.ones(2, 3, dtype=torch.float16)
-    expected = model(x)
-    program = torch.export.export(model, (x,))
-    torch.export.save(program, 'test_pt2_tensor_mixed_half.pt2')
-    os.system('../../src/pnnx test_pt2_tensor_mixed_half.pt2 fp16=0')
-
-    import test_pt2_tensor_mixed_half_pnnx
-    actual = test_pt2_tensor_mixed_half_pnnx.Model().eval()(x)
-    if actual.dtype != expected.dtype or actual.shape != expected.shape:
-        print('mixed_half output dtype or shape mismatch')
-        return False
-    if not torch.allclose(actual, expected, rtol=2e-5, atol=2e-5):
-        print('mixed_half output values differ')
-        return False
-    return True
-
-
-def test_scalar_half():
-    model = ScalarTensor(0.25, torch.float16).eval()
-    x = torch.ones(2, 3, dtype=torch.float16)
-    expected = model(x)
-    program = torch.export.export(model, (x,))
-    torch.export.save(program, 'test_pt2_tensor_scalar_half.pt2')
-    os.system('../../src/pnnx test_pt2_tensor_scalar_half.pt2 fp16=0')
-
-    import test_pt2_tensor_scalar_half_pnnx
-    actual = test_pt2_tensor_scalar_half_pnnx.Model().eval()(x)
-    if actual.dtype != expected.dtype or actual.shape != expected.shape:
-        print('scalar_half output dtype or shape mismatch')
-        return False
-    if not torch.allclose(actual, expected, rtol=3e-3, atol=3e-3):
-        print('scalar_half output values differ')
-        return False
-    return True
-
-
-def test_scalar_bfloat16():
-    model = ScalarTensor(0.25, torch.bfloat16).eval()
-    x = torch.ones(2, 3, dtype=torch.bfloat16)
-    expected = model(x)
-    program = torch.export.export(model, (x,))
-    torch.export.save(program, 'test_pt2_tensor_scalar_bfloat16.pt2')
-    os.system('../../src/pnnx test_pt2_tensor_scalar_bfloat16.pt2 fp16=0')
-
-    import test_pt2_tensor_scalar_bfloat16_pnnx
-    actual = test_pt2_tensor_scalar_bfloat16_pnnx.Model().eval()(x)
-    if actual.dtype != expected.dtype or actual.shape != expected.shape:
-        print('scalar_bfloat16 output dtype or shape mismatch')
-        return False
-    if not torch.allclose(actual, expected, rtol=2e-2, atol=2e-2):
-        print('scalar_bfloat16 output values differ')
-        return False
+def test_scalar_floating():
+    for dtype in (torch.float32, torch.float16, torch.bfloat16):
+        model = ScalarTensor(0.25, dtype).eval()
+        x = torch.ones(2, 3, dtype=torch.float16)
+        prefix = 'test_pt2_tensor_scalar_' + str(dtype).split('.')[-1]
+        torch.export.save(torch.export.export(model, (x,)), prefix + '.pt2')
+        subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], check=True)
+        module = importlib.import_module(prefix + '_pnnx')
+        actual = module.Model().float().eval()(x.float())
+        expected = model.float()(x.float())
+        if actual.dtype != expected.dtype or actual.shape != expected.shape or not torch.equal(actual, expected):
+            print(dtype, 'scalar output differs')
+            return False
     return True
 
 
@@ -613,47 +562,35 @@ def test_bfloat_conv_bias():
     torch.manual_seed(0)
     x = torch.rand(1, 2, 7, dtype=torch.bfloat16)
     w = torch.rand(2, 2, 3, dtype=torch.bfloat16)
-    expected = model(x, w)
     program = torch.export.export(model, (x, w))
     torch.export.save(program, 'test_pt2_tensor_bfloat_conv_bias.pt2')
-    os.system('../../src/pnnx test_pt2_tensor_bfloat_conv_bias.pt2 fp16=0')
+    subprocess.run(['../../src/pnnx', 'test_pt2_tensor_bfloat_conv_bias.pt2', 'fp16=0'], check=True)
 
     import test_pt2_tensor_bfloat_conv_bias_pnnx
-    actual = test_pt2_tensor_bfloat_conv_bias_pnnx.test_inference()
-    if actual.dtype != expected.dtype or actual.shape != expected.shape:
-        print('bfloat_conv_bias output dtype or shape mismatch')
-        return False
-    if not torch.allclose(actual, expected, rtol=2e-2, atol=2e-2):
-        print('bfloat_conv_bias output values differ')
+    expected = model.float()(x.float(), w.float())
+    actual = test_pt2_tensor_bfloat_conv_bias_pnnx.Model().float().eval()(x.float(), w.float())
+    if actual.dtype != expected.dtype or actual.shape != expected.shape or not torch.allclose(actual, expected, rtol=2e-5, atol=2e-5):
+        print('bfloat_conv_bias output differs')
         return False
     return True
 
 
 def test_linear():
-    expected = {}
-    for dtype in (torch.float16, torch.bfloat16):
+    for dtype in (torch.float16, torch.bfloat16, torch.float64):
         torch.manual_seed(0)
         model = torch.nn.Linear(4, 3).to(dtype).eval()
         torch.manual_seed(0)
         x = torch.rand(1, 4, dtype=dtype)
-        expected[dtype] = model(x)
         program = torch.export.export(model, (x,))
         prefix = 'test_pt2_tensor_linear_' + str(dtype).split('.')[1]
         torch.export.save(program, prefix + '.pt2')
-        os.system('../../src/pnnx ' + prefix + '.pt2 fp16=0')
-
-    import test_pt2_tensor_linear_float16_pnnx
-    import test_pt2_tensor_linear_bfloat16_pnnx
-    for dtype, module, tolerance in (
-        (torch.float16, test_pt2_tensor_linear_float16_pnnx, 3e-3),
-        (torch.bfloat16, test_pt2_tensor_linear_bfloat16_pnnx, 2e-2),
-    ):
+        subprocess.run(['../../src/pnnx', prefix + '.pt2', 'fp16=0'], check=True)
+        module = importlib.import_module(prefix + '_pnnx')
+        torch.manual_seed(0)
+        expected = model.float()(torch.rand(1, 4))
         actual = module.test_inference()
-        if actual.dtype != expected[dtype].dtype or actual.shape != expected[dtype].shape:
-            print(dtype, 'linear output dtype or shape mismatch')
-            return False
-        if not torch.allclose(actual, expected[dtype], rtol=tolerance, atol=tolerance):
-            print(dtype, 'linear output values differ')
+        if actual.dtype != expected.dtype or actual.shape != expected.shape or not torch.allclose(actual, expected, rtol=2e-5, atol=2e-5):
+            print(dtype, 'linear output differs')
             return False
     return True
 
@@ -698,9 +635,7 @@ def test():
         and test_typed_floating()
         and test_typed_integer()
         and test_scalar_indices()
-        and test_mixed_half()
-        and test_scalar_half()
-        and test_scalar_bfloat16()
+        and test_scalar_floating()
         and test_large_integer()
         and test_scalar_integer()
         and test_integer_bounds()

@@ -87,27 +87,18 @@ static Operator* normalize_inplace(Graph& graph, Operator* op)
         }
         if (input->type == 0 || input->type == destination->type)
             continue;
-        const bool floating = destination->type == 1 || destination->type == 2 || destination->type == 3 || destination->type == 13;
-        const bool complex = destination->type >= 10 && destination->type <= 12;
-        const bool real = input->type <= 9 || input->type == 13;
+        // Floating tensors are normalized to FP32 by the frontends.
+        const bool floating = destination->type == 1;
+        const bool complex = destination->type == 10;
+        const bool real = input->type <= 9;
         // Number constants in traced graphs can be zero-dimensional
         // tensors. They use scalar promotion, not Tensor promotion.
         if (((floating && real) || complex) && input->shape.empty() && !destination->shape.empty())
             continue;
         if ((floating || complex) && input->type >= 4 && input->type <= 9)
             continue;
-        if (destination->type == 2 && real)
-            continue;
-        if (destination->type == 1 && (input->type == 3 || input->type == 13))
-            continue;
-        // Real operands only promote a complex tensor when their
-        // component precision is higher. Avoid an unnecessary cast
-        // and an extra dependency on the old destination otherwise.
-        if (destination->type == 11)
-            continue;
-        if (destination->type == 10 && input->type != 2 && input->type != 11)
-            continue;
-        if (destination->type == 12 && input->type == 3)
+        // Complex tensors also have FP32 components after normalization.
+        if (complex)
             continue;
         if (destination->type >= 4 && destination->type <= 8 && input->type >= 4 && input->type <= 9
                 && input->shape.empty() && !destination->shape.empty())

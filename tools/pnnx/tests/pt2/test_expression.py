@@ -36,6 +36,16 @@ class Lifted(torch.nn.Module):
         return x * torch.tensor(2.)
 
 
+class NegativeZero(torch.nn.Module):
+    def __init__(self, divide):
+        super().__init__()
+        self.register_buffer('value', torch.tensor(-0.))
+        self.divide = divide
+
+    def forward(self, x):
+        return x / self.value if self.divide else x * self.value
+
+
 class IntegerAttributes(torch.nn.Module):
     def __init__(self, shape):
         super().__init__()
@@ -101,7 +111,8 @@ def check(name, model, inputs, *, torchscript=False, inline=False):
     spec = importlib.util.spec_from_file_location(prefix, generated)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    converted = module.Model().eval()
+    converted = module.Model().float().eval()
+    model.float()
     for samples in (inputs, tuple(x + 1 for x in inputs)):
         actual, expected = converted(*samples), model(*samples)
         if isinstance(expected, torch.Tensor):
@@ -112,6 +123,9 @@ def check(name, model, inputs, *, torchscript=False, inline=False):
         for a, b in zip(actual, expected):
             if not isinstance(a, torch.Tensor) or a.dtype != b.dtype or a.shape != b.shape or not torch.equal(a, b):
                 print(name, 'output type, dtype, shape or value differs', a, b)
+                return False
+            if a.is_floating_point() and not torch.equal(torch.signbit(a), torch.signbit(b)):
+                print(name, 'floating point sign differs', a, b)
                 return False
     return True
 
@@ -128,6 +142,8 @@ def test():
     for name, model, inputs in (
         ('zero_dim', Arithmetic(), f32),
         ('alpha', Arithmetic(shape=(1,), alpha=0.5), f32),
+        ('negative_zero_mul', NegativeZero(False), (torch.ones(2, 3),)),
+        ('negative_zero_div', NegativeZero(True), (torch.ones(2, 3),)),
     ):
         for ts in (False, True):
             if not check(name + ('_ts' if ts else ''), model, inputs, torchscript=ts, inline=True):

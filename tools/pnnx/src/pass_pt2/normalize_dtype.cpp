@@ -76,14 +76,12 @@ int normalize_pt2_dtype(Graph& graph)
             Parameter& eps = constant->params.at("value");
             if (eps.type == 0)
             {
-                const int type = op->inputs[0]->type;
-                if (type != 1 && type != 2 && type != 3 && type != 13)
+                if (op->inputs[0]->type != 1)
                 {
                     fprintf(stderr, "pt2 dtype: unsupported RMSNorm input type\n");
                     return -1;
                 }
-                // PyTorch promotes half and bfloat16 to float32 opmath.
-                eps = type == 2 ? (float)DBL_EPSILON : FLT_EPSILON;
+                eps = FLT_EPSILON;
             }
         }
         const bool softmax = op->type == "aten::softmax" || op->type == "aten::log_softmax";

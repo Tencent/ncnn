@@ -21,17 +21,15 @@ void convert_half_to_float(torch::jit::Module& mod)
         {
             auto t = attr.toTensor();
 
-            if (t.scalar_type() == c10::ScalarType::Half)
+            if (t.scalar_type() == c10::ScalarType::Half || t.scalar_type() == c10::ScalarType::BFloat16 || t.scalar_type() == c10::ScalarType::Double)
             {
                 at::Tensor t_fp32 = t.toType(c10::ScalarType::Float);
 
                 mod.setattr(name, t_fp32);
             }
-            if (t.scalar_type() == c10::ScalarType::BFloat16)
+            if (t.is_complex() && t.scalar_type() != c10::ScalarType::ComplexFloat)
             {
-                at::Tensor t_fp32 = t.toType(c10::ScalarType::Float);
-
-                mod.setattr(name, t_fp32);
+                mod.setattr(name, t.toType(c10::ScalarType::ComplexFloat));
             }
         }
     }

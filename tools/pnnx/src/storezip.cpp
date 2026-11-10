@@ -401,7 +401,15 @@ uint64_t StoreZipReader::get_file_size(const std::string& name) const
         return 0;
     }
 
-    return filemetas.at(name).size;
+    const StoreZipMeta& meta = filemetas.at(name);
+    // Callers allocate this many bytes before read_file. Unsupported entries
+    // must not expose an unchecked uncompressed size to those allocations.
+    if (meta.compression != 0 || (meta.flag & ~(uint16_t)0x808) != 0)
+    {
+        fprintf(stderr, "unsupported zip entry %s: compression %u flags 0x%x\n", name.c_str(), meta.compression, meta.flag);
+        return 0;
+    }
+    return meta.size;
 }
 
 int StoreZipReader::read_file(const std::string& name, char* data)
@@ -644,7 +652,7 @@ int main()
     using namespace pnnx;
 
     {
-        uint64_t len = 1*1024*1024*1024;
+        uint64_t len = 1 * 1024 * 1024 * 1024;
         // uint64_t len = 1*1024*1024;
         char* data1g = new char[len];
 

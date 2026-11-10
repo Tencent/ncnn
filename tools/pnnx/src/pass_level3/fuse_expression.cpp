@@ -180,6 +180,27 @@ static bool operand_maybe_tensor(const Operand* operand)
     return true;
 }
 
+static bool can_fuse_tensor_to(const Operator* op)
+{
+    // Expressions cannot represent Tensor.to's copy or layout semantics,
+    // including casts of scalar Tensors.
+    if (op->has_param("copy"))
+    {
+        const Parameter& copy = op->params.at("copy");
+        if (copy.type != 1 || copy.b)
+            return false;
+    }
+    if (op->has_param("memory_format"))
+    {
+        const Parameter& format = op->params.at("memory_format");
+        if (format.type != 0 && (format.type != 4 || format.s != "torch.preserve_format"))
+            return false;
+    }
+
+    const bool noop = op->outputs[0]->type != -1 && op->inputs[0]->type == op->outputs[0]->type;
+    return noop || !operand_maybe_tensor(op->outputs[0]);
+}
+
 static bool can_inline_tensor_scalar(const Operand* operand, int type)
 {
     // Expression evaluation uses float32 literals, so retain double Tensors.
@@ -217,7 +238,8 @@ static bool can_inline_tensor_scalar(const Operand* operand, int type)
     return !operand->consumers.empty();
 }
 
-static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, StoreZipReader& zip, bool checksubgraph = true)
+static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, StoreZipReader& zip,
+                            bool checksubgraph = true)
 {
     Operator* op = operand->producer;
 
@@ -634,6 +656,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
     else if (op->type == "Tensor.to")
     {
+        if (!can_fuse_tensor_to(op))
+            goto DEFAULT;
+
         bool noop_type_cast = (op->outputs[0]->type != -1) && (op->inputs[0]->type == op->outputs[0]->type);
         if (noop_type_cast)
         {
@@ -893,10 +918,7 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             }
             if (op->type == "Tensor.to")
             {
-                // fuse noop type cast only
-                bool noop_to = (op->outputs[0]->type != -1) && (op->inputs[0]->type == op->outputs[0]->type);
-                bool is_scalar = !operand_maybe_tensor(op->outputs[0]);
-                need_fuse = noop_to || is_scalar;
+                need_fuse = can_fuse_tensor_to(op);
             }
             if (op->type == "aten::detach" || op->type == "aten::alias" || op->type == "aten::ScalarImplicit")
             {

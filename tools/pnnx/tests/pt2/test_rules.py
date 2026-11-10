@@ -1,6 +1,7 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import importlib
 import os
 import subprocess
 
@@ -574,13 +575,15 @@ def test_clone():
     return True
 
 
-class ToFloat16(nn.Module):
-    def __init__(self, memory_format):
+class To(nn.Module):
+    def __init__(self, memory_format, dtype=torch.float16, copy=True):
         super().__init__()
         self.memory_format = memory_format
+        self.dtype = dtype
+        self.copy = copy
 
     def forward(self, x):
-        return x.to(dtype=torch.float16, copy=True, memory_format=self.memory_format)
+        return x.to(dtype=self.dtype, copy=self.copy, memory_format=self.memory_format)
 
 
 def test_to():
@@ -595,8 +598,8 @@ def test_to():
         ("channels_last", torch.channels_last, x),
         ("channels_last_3d", torch.channels_last_3d, y),
     ):
-        net = ToFloat16(memory_format).eval()
-        expected.append(net(sample))
+        net = To(memory_format).eval()
+        expected.append(sample.to(dtype=torch.float32, copy=True, memory_format=memory_format))
         ep = torch.export.export(net, (sample,))
         path = "test_pt2_rules_to_" + name + ".pt2"
         torch.export.save(ep, path)
@@ -614,12 +617,62 @@ def test_to():
         test_pt2_rules_to_channels_last_pnnx.Model().eval()(x),
         test_pt2_rules_to_channels_last_3d_pnnx.Model().eval()(y),
     )
-    for a, b in zip(expected, actual):
+    for sample, a, b in zip((x, x, x, x, y), expected, actual):
         if a.shape != b.shape or a.dtype != b.dtype or a.stride() != b.stride():
             return False
-        if not torch.allclose(a, b, rtol=2e-3, atol=2e-3):
+        if b.untyped_storage().data_ptr() == sample.untyped_storage().data_ptr():
+            return False
+        if not torch.equal(a, b):
             return False
     return True
+
+
+class ToAdd(To):
+    def forward(self, x):
+        return super().forward(x) + 1
+
+
+class ScalarToCopy(nn.Module):
+    def forward(self, x):
+        value = x.unbind()[0]
+        return value, value.to(dtype=torch.float16, copy=True)
+
+
+def test_to_effects():
+    x = torch.arange(120, dtype=torch.float32).reshape(2, 3, 4, 5).transpose(-1, -2)
+    for name, model, memory_format, dtype, copy in (
+        ("layout", To, torch.channels_last, torch.float32, False),
+        ("nested", ToAdd, torch.contiguous_format, torch.float16, True),
+    ):
+        net = model(memory_format, dtype, copy).eval()
+        expected = model(memory_format, torch.float32, copy).eval()(x)
+        name = "test_pt2_rules_to_" + name
+        torch.export.save(torch.export.export(net, (x,)), name + ".pt2")
+        subprocess.run(["../../src/pnnx", name + ".pt2", "fp16=0"], check=True)
+        actual = importlib.import_module(name + "_pnnx").Model().eval()(x)
+        if actual.shape != expected.shape or actual.dtype != expected.dtype or actual.stride() != expected.stride():
+            return False
+        if actual.untyped_storage().data_ptr() == x.untyped_storage().data_ptr():
+            return False
+        if not torch.equal(actual, expected):
+            return False
+
+    x = torch.tensor([1.25, -2.5])
+    net = ScalarToCopy().eval()
+    expected = x.unbind()[0]
+    name = "test_pt2_rules_to_scalar_copy"
+    torch.export.save(torch.export.export(net, (x,)), name + ".pt2")
+    subprocess.run(["../../src/pnnx", name + ".pt2", "fp16=0"], check=True)
+    actual = importlib.import_module(name + "_pnnx").Model().eval()(x)
+    if len(actual) != 2:
+        return False
+    for value in actual:
+        if not isinstance(value, torch.Tensor) or value.shape != expected.shape or value.dtype != expected.dtype:
+            return False
+        if not torch.equal(value, expected):
+            return False
+    return (actual[0].untyped_storage().data_ptr() == x.untyped_storage().data_ptr()
+            and actual[1].untyped_storage().data_ptr() != x.untyped_storage().data_ptr())
 
 
 class SoftmaxDtype(nn.Module):
@@ -632,14 +685,14 @@ def test_softmax_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_softmax_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_softmax_dtype.pt2 fp16=0")
 
     import test_pt2_rules_softmax_dtype_pnnx
-    actual = test_pt2_rules_softmax_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_softmax_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -656,14 +709,14 @@ def test_log_softmax_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_log_softmax_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_log_softmax_dtype.pt2 fp16=0")
 
     import test_pt2_rules_log_softmax_dtype_pnnx
-    actual = test_pt2_rules_log_softmax_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_log_softmax_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -680,14 +733,14 @@ def test_sum_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_sum_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_sum_dtype.pt2 fp16=0")
 
     import test_pt2_rules_sum_dtype_pnnx
-    actual = test_pt2_rules_sum_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_sum_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -704,14 +757,14 @@ def test_mean_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_mean_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_mean_dtype.pt2 fp16=0")
 
     import test_pt2_rules_mean_dtype_pnnx
-    actual = test_pt2_rules_mean_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_mean_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -728,14 +781,14 @@ def test_prod_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_prod_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_prod_dtype.pt2 fp16=0")
 
     import test_pt2_rules_prod_dtype_pnnx
-    actual = test_pt2_rules_prod_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_prod_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -752,14 +805,14 @@ def test_sum_all_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_sum_all_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_sum_all_dtype.pt2 fp16=0")
 
     import test_pt2_rules_sum_all_dtype_pnnx
-    actual = test_pt2_rules_sum_all_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_sum_all_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -776,14 +829,14 @@ def test_mean_all_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_mean_all_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_mean_all_dtype.pt2 fp16=0")
 
     import test_pt2_rules_mean_all_dtype_pnnx
-    actual = test_pt2_rules_mean_all_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_mean_all_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -800,14 +853,14 @@ def test_prod_all_dtype():
 
     torch.manual_seed(7767517)
     x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x)
+    expected = net(x.float())
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_prod_all_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_prod_all_dtype.pt2 fp16=0")
 
     import test_pt2_rules_prod_all_dtype_pnnx
-    actual = test_pt2_rules_prod_all_dtype_pnnx.Model().eval()(x)
+    actual = test_pt2_rules_prod_all_dtype_pnnx.Model().eval()(x.float())
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -850,7 +903,7 @@ def test_rms_norm_default():
     x_bf16 = torch.full((2, 4), 1e-3, dtype=torch.bfloat16)
     expected = []
     for name, x in (("float16", x_fp16), ("float32", x_fp32), ("bfloat16", x_bf16)):
-        expected.append(net(x))
+        expected.append(net(x.float()))
         ep = torch.export.export(net, (x,))
         path = "test_pt2_rules_rms_norm_default_" + name + ".pt2"
         torch.export.save(ep, path)
@@ -860,14 +913,14 @@ def test_rms_norm_default():
     import test_pt2_rules_rms_norm_default_float32_pnnx
     import test_pt2_rules_rms_norm_default_bfloat16_pnnx
     actual = (
-        test_pt2_rules_rms_norm_default_float16_pnnx.Model().eval()(x_fp16),
+        test_pt2_rules_rms_norm_default_float16_pnnx.Model().eval()(x_fp16.float()),
         test_pt2_rules_rms_norm_default_float32_pnnx.Model().eval()(x_fp32),
-        test_pt2_rules_rms_norm_default_bfloat16_pnnx.Model().eval()(x_bf16),
+        test_pt2_rules_rms_norm_default_bfloat16_pnnx.Model().eval()(x_bf16.float()),
     )
-    for a, b, tolerance in zip(expected, actual, (3e-3, 2e-5, 2e-2)):
+    for a, b in zip(expected, actual):
         if a.shape != b.shape or a.dtype != b.dtype:
             return False
-        if not torch.allclose(a, b, rtol=tolerance, atol=tolerance):
+        if not torch.allclose(a, b, rtol=2e-5, atol=2e-5):
             return False
     return True
 
@@ -884,7 +937,7 @@ def test_new_full_default():
     x_bf16 = torch.full((2, 4), 1e-3, dtype=torch.bfloat16)
     expected = []
     for name, x in (("float16", x_fp16), ("float32", x_fp32), ("bfloat16", x_bf16)):
-        expected.append(net(x))
+        expected.append(net(x.float()))
         ep = torch.export.export(net, (x,))
         path = "test_pt2_rules_new_full_default_" + name + ".pt2"
         torch.export.save(ep, path)
@@ -894,17 +947,17 @@ def test_new_full_default():
     import test_pt2_rules_new_full_default_float32_pnnx
     import test_pt2_rules_new_full_default_bfloat16_pnnx
     actual = (
-        test_pt2_rules_new_full_default_float16_pnnx.Model().eval()(x_fp16),
+        test_pt2_rules_new_full_default_float16_pnnx.Model().eval()(x_fp16.float()),
         test_pt2_rules_new_full_default_float32_pnnx.Model().eval()(x_fp32),
-        test_pt2_rules_new_full_default_bfloat16_pnnx.Model().eval()(x_bf16),
+        test_pt2_rules_new_full_default_bfloat16_pnnx.Model().eval()(x_bf16.float()),
     )
-    for a, b, tolerance in zip(expected, actual, (3e-3, 2e-5, 2e-2)):
+    for a, b in zip(expected, actual):
         if len(a) != len(b):
             return False
         for a0, b0 in zip(a, b):
             if a0.shape != b0.shape or a0.dtype != b0.dtype:
                 return False
-            if not torch.allclose(a0, b0, rtol=tolerance, atol=tolerance):
+            if not torch.allclose(a0, b0, rtol=2e-5, atol=2e-5):
                 return False
     return True
 
@@ -1064,11 +1117,11 @@ def test_native_layer_norm():
 
 
 class WeightNorm(nn.Module):
-    def __init__(self, dim, value):
+    def __init__(self, dim, value, shape=(2, 3, 4)):
         super().__init__()
         self.dim = dim
-        self.register_buffer("v", torch.full((2, 3, 4), value, dtype=torch.float32))
-        shape = [1, 1, 1]
+        self.register_buffer("v", torch.full(shape, value, dtype=torch.float32))
+        shape = [1] * len(shape)
         if dim != -1:
             shape[dim] = self.v.shape[dim]
         self.register_buffer("g", torch.ones(shape, dtype=torch.float32))
@@ -1079,40 +1132,59 @@ class WeightNorm(nn.Module):
 
 def test_weight_norm():
     x = torch.zeros(2, 3, 4)
-    expected = []
-    # FP32 squared norms overflow/underflow for these finite constants.
+    # Cover zero norms, overflow in squares and their sum, underflow, and Inf.
     for dim in (-1, 0, 1, 2):
         axis = "all" if dim == -1 else str(dim)
-        for name, value in (("large", 1e20), ("small", 1e-30)):
+        for name, value in (("zero", 0.0), ("large", 1e20), ("large_sum", 1e19),
+                            ("small", 1e-30), ("inf", float("inf"))):
             net = WeightNorm(dim, value).eval()
-            expected.append(net(x))
+            expected = net(x)
             ep = torch.export.export(net, (x,))
-            path = "test_pt2_rules_weight_norm_%s_dim_%s.pt2" % (name, axis)
-            torch.export.save(ep, path)
-            os.system("../../src/pnnx " + path + " fp16=0")
+            name = "test_pt2_rules_weight_norm_%s_dim_%s" % (name, axis)
+            torch.export.save(ep, name + ".pt2")
+            subprocess.run(["../../src/pnnx", name + ".pt2", "fp16=0"], check=True)
+            actual = importlib.import_module(name + "_pnnx").Model().eval()(x)
+            if expected.shape != actual.shape or expected.dtype != actual.dtype:
+                return False
+            if not torch.allclose(expected, actual, rtol=2e-5, atol=2e-5, equal_nan=True):
+                return False
+    return True
 
-    import test_pt2_rules_weight_norm_large_dim_all_pnnx
-    import test_pt2_rules_weight_norm_small_dim_all_pnnx
-    import test_pt2_rules_weight_norm_large_dim_0_pnnx
-    import test_pt2_rules_weight_norm_small_dim_0_pnnx
-    import test_pt2_rules_weight_norm_large_dim_1_pnnx
-    import test_pt2_rules_weight_norm_small_dim_1_pnnx
-    import test_pt2_rules_weight_norm_large_dim_2_pnnx
-    import test_pt2_rules_weight_norm_small_dim_2_pnnx
-    actual = (
-        test_pt2_rules_weight_norm_large_dim_all_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_small_dim_all_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_large_dim_0_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_small_dim_0_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_large_dim_1_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_small_dim_1_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_large_dim_2_pnnx.Model().eval()(x),
-        test_pt2_rules_weight_norm_small_dim_2_pnnx.Model().eval()(x),
-    )
-    for a, b in zip(expected, actual):
-        if a.shape != b.shape or a.dtype != b.dtype:
+
+def test_weight_norm_dynamic_range():
+    for dim, shape in ((-1, (100001,)), (0, (2, 100001)),
+                       (1, (5, 2, 20001)), (2, (100001, 1, 2))):
+        net = WeightNorm(dim, 1.0, shape).eval()
+        groups = 1 if dim == -1 else shape[dim]
+        for group in range(groups):
+            # Put the large term first in one group and last in the other.
+            index = [0 if group == 0 else size - 1 for size in shape]
+            if dim != -1:
+                index[dim] = group
+            net.v[tuple(index)] = 10000.0
+        net.g.copy_(torch.arange(1, groups + 1).reshape(net.g.shape))
+        x = torch.zeros_like(net.v)
+
+        # The exact squared norm is known, so the accuracy check does not
+        # inherit ATen's vector-width/thread-count dependent reduction error.
+        reduce_size = net.v.numel() // groups
+        norm = torch.tensor(10000.0 ** 2 + reduce_size - 1, dtype=torch.float32).sqrt()
+        expected = net.v * (net.g / norm)
+        reference = net(x)
+
+        axis = "all" if dim == -1 else str(dim)
+        name = "test_pt2_rules_weight_norm_dynamic_dim_%s" % axis
+        ep = torch.export.export(net, (x,))
+        torch.export.save(ep, name + ".pt2")
+        subprocess.run(["../../src/pnnx", name + ".pt2", "fp16=0"], check=True)
+        actual = importlib.import_module(name + "_pnnx").Model().eval()(x)
+        if actual.shape != expected.shape or actual.dtype != torch.float32:
             return False
-        if not torch.allclose(a, b, rtol=2e-5, atol=2e-5):
+        if not torch.allclose(expected, actual, rtol=2e-6, atol=1e-8):
+            return False
+        # ATen's serial last-axis reduction can itself lose all 100000 ones
+        # after 1e8, giving up to 5e-4 relative error on this input.
+        if not torch.allclose(reference, actual, rtol=6e-4, atol=1e-7):
             return False
     return True
 
@@ -1402,6 +1474,9 @@ def test():
     if not test_to():
         print("to failed")
         return False
+    if not test_to_effects():
+        print("to_effects failed")
+        return False
     if not test_softmax_dtype():
         print("softmax_dtype failed")
         return False
@@ -1455,6 +1530,9 @@ def test():
         return False
     if not test_weight_norm():
         print("weight_norm failed")
+        return False
+    if not test_weight_norm_dynamic_range():
+        print("weight_norm_dynamic_range failed")
         return False
     if not test_hann_window_periodic():
         print("hann_window_periodic failed")

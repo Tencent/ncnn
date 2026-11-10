@@ -5,6 +5,7 @@ set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
     pass_level0/convert_half_to_float.cpp
     pass_level0/inline_block.cpp
+    pass_level0/normalize_dtype.cpp
     pass_level0/reset_device.cpp
     pass_level0/flatten_input.cpp
     pass_level0/shape_inference.cpp
@@ -600,6 +601,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
+    pass_ncnn/Tensor_to.cpp
     pass_ncnn/Tensor_unflatten.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp

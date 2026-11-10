@@ -1,6 +1,7 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import copy
 import importlib.util
 import os
 from pathlib import Path
@@ -36,9 +37,30 @@ class FullSlice(torch.nn.Module):
 
 class HalfAllocationBoundary(torch.nn.Module):
     def forward(self, x):
-        y = torch.nn.functional.avg_pool2d(x.half(), 2)
-        y.relu_()
+        y = x.half() + 1
+        y.add_(2)
         return y.float()
+
+
+class FloatingModules(torch.nn.Module):
+    def __init__(self, dtype):
+        super().__init__()
+        self.linear = torch.nn.Linear(4, 3)
+        self.conv = torch.nn.Conv2d(2, 2, 1)
+        with torch.no_grad():
+            self.linear.weight.copy_(torch.tensor([[0.5, -0.25, 0.75, 1.], [-0.5, 0.25, -0.75, -1.], [0.25, 0.5, -0.5, 0.25]]))
+            self.linear.bias.copy_(torch.tensor([0.5, -0.5, 0.25]))
+            self.conv.weight.copy_(torch.tensor([0.5, -0.25, -0.5, 0.25]).reshape(2, 2, 1, 1))
+            self.conv.bias.copy_(torch.tensor([0.25, -0.25]))
+        self.to(dtype)
+
+    def forward(self, x, image):
+        # Keep computation in FP32 even when older CPU kernels cannot execute half Linear/Conv.
+        linear = torch.nn.functional.linear(x, self.linear.weight.float(), self.linear.bias.float())
+        conv = torch.nn.functional.conv2d(image.unsqueeze(0), self.conv.weight.float(), self.conv.bias.float())
+        linear.relu_()
+        conv.relu_()
+        return linear, conv.squeeze(0)
 
 
 class EvalDropout(torch.nn.Module):
@@ -60,6 +82,19 @@ class EvalDropoutModule(torch.nn.Module):
         old = base[..., 1:3]
         before = old.clone()
         result = self.dropout(base)
+        result.add_(2)
+        return before, base, old, result
+
+
+class DropoutModuleMetadata(EvalDropoutModule):
+    operation = 'transpose'
+
+    def forward(self, x):
+        base = x + 1
+        old = base[..., 1:3]
+        before = old.clone()
+        result = self.dropout(base)
+        result.transpose_(-2, -1)
         result.add_(2)
         return before, base, old, result
 
@@ -202,7 +237,7 @@ class InputViewMetadata(torch.nn.Module):
         return x, view, result, before
 
 
-def run(binary, frontend, model, inputs, copies, crops, second=None, extra=(), name=None):
+def run(binary, frontend, model, inputs, copies, crops, second=None, extra=(), name=None, fp16=0):
     name = 'test_functionize_%s_%s' % (name or type(model).__name__, frontend)
     model.eval()
     samples = tuple(x.clone() for x in inputs)
@@ -221,18 +256,21 @@ def run(binary, frontend, model, inputs, copies, crops, second=None, extra=(), n
         path = name + '.pt2'
         saved = torch.export.load(path).module()
     else:
-        torch.jit.trace(model, samples, check_trace=False).save(name + '.pt')
+        if frontend == 'torchscript_script':
+            torch.jit.script(model).save(name + '.pt')
+        else:
+            torch.jit.trace(model, samples, check_trace=False).save(name + '.pt')
         path = name + '.pt'
         saved = torch.jit.load(path)
     shape = lambda xs: ','.join('[' + ','.join(map(str, x.shape)) + ']' for x in xs)
     args = ['inputshape=' + shape(inputs)]
     if second is not None:
         args.append('inputshape2=' + shape(second))
-    assert os.system(' '.join(shlex.quote(arg) for arg in [binary, path, 'fp16=0', *args])) == 0, name
+    assert os.system(' '.join(shlex.quote(arg) for arg in [binary, path, 'fp16=%d' % fp16, *args])) == 0, name
     spec = importlib.util.spec_from_file_location(name + '_pnnx', name + '_pnnx.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    converted = module.Model().eval()
+    converted = module.Model().float().eval()
     param = Path(name + '.ncnn.param').read_text()
     assert 'Tensor.expand_as' not in param and 'Tensor.type_as' not in param
     for layer, expected in [('CopyTo', copies), ('Crop', crops)]:
@@ -294,6 +332,13 @@ def test():
                 for dropout in (torch.nn.Dropout(), torch.nn.Dropout2d(), torch.nn.AlphaDropout()):
                     run(binary, frontend, EvalDropoutModule(dropout), (x,), 0, 2, name='module_' + type(dropout).__name__)
 
+                if frontend == 'torchscript':
+                    for module_type, shape in ((torch.nn.Dropout2d, (2, 3, 6)), (torch.nn.Dropout3d, (2, 3, 3, 6))):
+                        for inplace in (False, True):
+                            x = torch.ones(shape).cumsum(-1) - 3
+                            run(binary, 'torchscript_script', DropoutModuleMetadata(module_type(inplace=inplace)), (x,), 0, 2,
+                                name='module_%s_metadata_%s' % (module_type.__name__, 'inplace' if inplace else 'view'))
+
                 for kind in ('dropout2d', 'dropout3d', 'alpha_dropout', 'feature_alpha_dropout', 'type_as', 'to', 'to_copy'):
                     for sliced in (False, True):
                         if 'dropout' in kind:
@@ -308,7 +353,9 @@ def test():
                         if sliced and kind in ('type_as', 'to_copy'):
                             second = (torch.arange(-6, 15).float().reshape(3, 7),)
                             extra = ((torch.arange(-6, 34).float().reshape(5, 8),),)
-                        run(binary, frontend, ConditionalAlias(kind, sliced), (x,), copies, crops, second, extra,
+                        # Older tracers can lose the old view after type_as and metadata mutation.
+                        case_frontend = 'torchscript_script' if frontend == 'torchscript' and kind == 'type_as' else frontend
+                        run(binary, case_frontend, ConditionalAlias(kind, sliced), (x,), copies, crops, second, extra,
                             name=kind + ('_slice' if sliced else '_root'))
 
                 torch.manual_seed(7767517)
@@ -332,6 +379,24 @@ def test():
                 run(binary, frontend, ViewMetadataReplay(), (x,), 4, 9)
                 x = torch.arange(-4, 4).float().reshape(2, 4)
                 run(binary, frontend, InputViewMetadata(), (x,), 0, 1)
+
+                inputs = (torch.arange(-2, 2).float(), torch.arange(-12, 12).float().reshape(2, 3, 4))
+                for dtype in (torch.float16, torch.bfloat16):
+                    model = FloatingModules(dtype).eval()
+                    reference = copy.deepcopy(model).float().eval()
+                    for actual, expected in zip(model(*inputs), reference(*inputs)):
+                        assert actual.dtype == expected.dtype == torch.float32
+                        assert torch.equal(actual, expected)
+                    params = []
+                    sizes = []
+                    for fp16 in (0, 1):
+                        name = 'floating_modules_%s_fp16_%d' % (str(dtype).split('.')[-1], fp16)
+                        run(binary, frontend, model, inputs, 0, 0, name=name, fp16=fp16)
+                        prefix = 'test_functionize_%s_%s' % (name, frontend)
+                        params.append((Path(prefix + '.pnnx.param').read_text(), Path(prefix + '.ncnn.param').read_text()))
+                        sizes.append(Path(prefix + '.ncnn.bin').stat().st_size)
+                    assert params[0] == params[1], (frontend, dtype, 'fp16 changed the graph')
+                    assert sizes[1] < sizes[0], (frontend, dtype, 'fp16 did not reduce weight storage', sizes)
 
                 if frontend == 'torchscript':
                     x = torch.arange(-24, 24).float().reshape(2, 4, 6)

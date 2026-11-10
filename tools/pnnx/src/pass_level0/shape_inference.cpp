@@ -10,6 +10,7 @@
 #include "pass_level0/convert_half_to_float.h"
 #include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
+#include "pass_level0/normalize_dtype.h"
 #include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
 
@@ -34,7 +35,8 @@ static bool is_static_shape_foldable(const std::string& optype)
            || optype == "aten::_shape_as_tensor";
 }
 
-static void build_value_link_input_map(const torch::jit::Node* node, const std::unordered_map<std::string, torch::jit::Value*>& value_alias_map, std::unordered_map<std::string, int>& value_link_input_map, bool ignore_aten_size)
+static void build_value_link_input_map(const torch::jit::Node* node, const std::unordered_map<std::string, torch::jit::Value*>& value_alias_map,
+                                       std::unordered_map<std::string, int>& value_link_input_map, bool ignore_aten_size)
 {
     std::string optype = node->kind().toDisplayString();
 
@@ -133,7 +135,8 @@ static bool value_link_output(const torch::jit::Value* v, const std::vector<torc
     return false;
 }
 
-void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
+int shape_inference(std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2,
+                    const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     // collect all intermediate output tensors
     std::vector<std::unordered_set<std::string> > more_value_names;
@@ -187,14 +190,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     for (size_t i = 0; i < input_tensors.size(); i++)
     {
         const at::Tensor& it = input_tensors[i];
-        inputs.push_back(it);
+        inputs.push_back(it.is_complex() ? it.toType(c10::ScalarType::ComplexFloat) : it.is_floating_point() ? it.toType(c10::ScalarType::Float) : it);
     }
 
     std::vector<torch::jit::IValue> inputs2;
     for (size_t i = 0; i < input_tensors2.size(); i++)
     {
         const at::Tensor& it = input_tensors2[i];
-        inputs2.push_back(it);
+        inputs2.push_back(it.is_complex() ? it.toType(c10::ScalarType::ComplexFloat) : it.is_floating_point() ? it.toType(c10::ScalarType::Float) : it);
     }
 
     // bookkeep foldable tensors
@@ -302,14 +305,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         inline_block(graph2, module_operators);
 
-        const bool preserve_dtype = has_mutable_tensor_cast(graph2);
-        if (!preserve_dtype)
-            convert_half_to_float(mod2);
-        reset_device(graph2, device, preserve_dtype);
+        constant_unpooling(graph2);
 
         flatten_input(graph2);
 
-        constant_unpooling(graph2);
+        if (normalize_dtype(graph2, mod2, input_tensors) != 0)
+            return -1;
+        reset_device(graph2, device);
+        convert_half_to_float(mod2);
 
         std::vector<torch::jit::Value*> values2;
         bool has_metadata_mutation = false;
@@ -451,7 +454,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     {
         for (size_t i = 0; i < input_tensors.size(); i++)
         {
-            auto type = c10::TensorType::create(input_tensors[i]);
+            auto type = c10::TensorType::create(inputs[i].toTensor());
 
             graph->inputs()[1 + i]->setType(type);
         }
@@ -460,8 +463,8 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     {
         for (size_t i = 0; i < input_tensors.size(); i++)
         {
-            auto type1 = c10::TensorType::create(input_tensors[i]);
-            auto type2 = c10::TensorType::create(input_tensors2[i]);
+            auto type1 = c10::TensorType::create(inputs[i].toTensor());
+            auto type2 = c10::TensorType::create(inputs2[i].toTensor());
 
             std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
             std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
@@ -479,6 +482,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             graph->inputs()[1 + i]->setType(finaltype);
         }
     }
+    return 0;
 }
 
 } // namespace pnnx

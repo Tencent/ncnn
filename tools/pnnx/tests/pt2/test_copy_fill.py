@@ -128,9 +128,10 @@ def test():
         if result.returncode != 0:
             print(result.stderr)
             return False
-        expected = model(*[x.clone() for x in inputs])
+        inputs = tuple(x.float() if x.is_floating_point() else x for x in inputs)
+        expected = model.float()(*[x.clone() for x in inputs])
         actual_inputs = [x.clone() for x in inputs]
-        actual = importlib.import_module(prefix + '_pnnx').Model().eval()(*actual_inputs)
+        actual = importlib.import_module(prefix + '_pnnx').Model().float().eval()(*actual_inputs)
         if isinstance(expected, torch.Tensor):
             expected, actual = (expected,), (actual,)
         if len(actual) != len(expected):
