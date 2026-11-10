@@ -1,15 +1,15 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include "convert_half_to_float.h"
+#include "normalize_module_dtype.h"
 
 namespace pnnx {
 
-void convert_half_to_float(torch::jit::Module& mod)
+void normalize_module_dtype(torch::jit::Module& mod)
 {
     for (auto submod : mod.children())
     {
-        convert_half_to_float(submod);
+        normalize_module_dtype(submod);
     }
 
     for (auto named_attr : mod.named_attributes(false))

@@ -215,7 +215,7 @@ pnnx.Output     output      1 0 2
 * output operands : name list of all the output blob names, separated by space
 * operator params : key=value pair list, separated by space, operator weights are prefixed by ```@``` symbol, tensor shapes are prefixed by ```#``` symbol, input parameter keys are prefixed by ```$```
 
-Parameter values preserve `None` separately from empty lists. Integer lists use `(1,2,3)` and an empty integer list uses `()` or `[]`. Typed empty float, string and complex lists use `[]f`, `[]s` and `[]c`, respectively, so their element types survive parsing and graph rewrites.
+Parameter values preserve `None` separately from empty lists. Integer lists use `(1,2,3)` and an empty integer list uses `()` or `[]`. Typed empty float, string and complex lists use `[]f`, `[]s` and `[]c`, respectively, so their element types survive parsing and graph rewrites. Floating-point values also accept `nan`, `inf` and `-inf`.
 
 # The pnnx.bin format
 

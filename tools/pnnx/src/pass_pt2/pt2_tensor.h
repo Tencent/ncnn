@@ -35,10 +35,10 @@ struct Pt2TensorStorage
 int pt2_tensor_type(int serde_type);
 int pt2_scalar_type(int type);
 
-int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allow_symbolic, std::string& error);
+int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allow_symbolic);
 
 int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const JsonValue& payload, Attribute& attr, Pt2TensorMeta& meta,
-                    std::map<std::string, Pt2TensorStorage>& storage_cache, std::string& error);
+                    std::map<std::string, Pt2TensorStorage>& storage_cache);
 
 } // namespace pnnx
 

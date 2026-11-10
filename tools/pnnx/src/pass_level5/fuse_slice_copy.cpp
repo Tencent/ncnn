@@ -51,7 +51,9 @@ static bool get_slice_indices(const Operator* op, std::vector<SliceIndex>& indic
         if (selects ? (selects->type != 5 || selects->ai.size() != dims.ai.size()) : op->has_input("selects"))
             return false;
         for (size_t i = 0; i < dims.ai.size(); i++)
+        {
             slices.push_back({dims.ai[i], starts.ai[i], ends.ai[i], steps.ai[i], selects ? selects->ai[i] : INT_MAX});
+        }
     }
     else
     {
@@ -90,8 +92,10 @@ static bool append_slice_indices(std::vector<SliceIndex>& outer, const std::vect
     {
         // Inner axes refer to the view after the outer selects removed axes.
         for (const SliceIndex& p : parent)
+        {
             if (p.step == 0 && s.dim >= p.dim)
                 s.dim++;
+        }
 
         // Repeated axes need offset/stride composition, not multi-axis indexing.
         if (!outer.empty() && s.dim <= outer.back().dim)
@@ -118,8 +122,10 @@ static bool is_slice_region(const Operand* view, const Operand* parent, const st
 
     std::vector<SliceIndex> indices;
     for (auto it = chain.rbegin(); it != chain.rend(); ++it)
+    {
         if (!append_slice_indices(indices, *it))
             return false;
+    }
     return indices == region;
 }
 
@@ -165,12 +171,16 @@ void fuse_slice_copy(Graph& graph)
         for (Operator* consumer : out->consumers)
         {
             for (Operand*& input : consumer->inputs)
+            {
                 if (input == out)
                     input = value;
+            }
             value->consumers.push_back(consumer);
         }
         for (Operand* input : op->inputs)
+        {
             input->remove_consumer(op);
+        }
         value->name = out->name;
         graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), out));
         delete out;
@@ -218,7 +228,9 @@ void fuse_slice_copy(Graph& graph)
             op->inputs[1] = inner->inputs[1];
             op->inputs[1]->consumers.push_back(op);
             for (Operand* input : inner->inputs)
+            {
                 input->remove_consumer(inner);
+            }
             graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), value));
             delete value;
             graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), inner));

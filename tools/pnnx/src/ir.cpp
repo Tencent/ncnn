@@ -579,10 +579,14 @@ Graph::Graph()
 Graph::~Graph()
 {
     for (auto x : ops)
+    {
         delete x;
+    }
 
     for (auto x : operands)
+    {
         delete x;
+    }
 
     ops.clear();
     operands.clear();
@@ -1245,18 +1249,12 @@ static std::string expand_expression(const Operator* op)
             if (t == "xor") binaryop = "^";
             if (t == "lshift") binaryop = "<<";
             if (t == "rshift") binaryop = ">>";
-            if (t == "eq")
-                binaryop = "==";
-            if (t == "ne")
-                binaryop = "!=";
-            if (t == "lt")
-                binaryop = "<";
-            if (t == "le")
-                binaryop = "<=";
-            if (t == "gt")
-                binaryop = ">";
-            if (t == "ge")
-                binaryop = ">=";
+            if (t == "eq") binaryop = "==";
+            if (t == "ne") binaryop = "!=";
+            if (t == "lt") binaryop = "<";
+            if (t == "le") binaryop = "<=";
+            if (t == "gt") binaryop = ">";
+            if (t == "ge") binaryop = ">=";
 
             std::string a = exprstack.top();
             exprstack.pop();

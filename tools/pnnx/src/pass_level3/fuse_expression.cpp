@@ -191,15 +191,16 @@ static std::set<const Operand*> collect_layout_observers(const Graph& graph)
                                || type == "aten::as_strided" || type == "aten::view_as_complex"
                                || type == "aten::stride" || type == "aten::storage_offset" || type == "aten::is_contiguous"
                                || type == "Tensor.stride" || type == "Tensor.storage_offset" || type == "Tensor.is_contiguous";
-        // Opaque modules may inspect storage. Standard value operators can
-        // propagate layout, so follow every dependency leading to an observer.
+        // opaque modules may inspect storage; follow layout dependencies through value ops
         if (type.compare(0, 3, "nn.") != 0 && type.compare(0, 2, "F.") != 0
                 && type.compare(0, 7, "Tensor.") != 0 && type.compare(0, 6, "torch.") != 0
                 && type.compare(0, 5, "pnnx.") != 0 && type.compare(0, 6, "aten::") != 0
                 && type.compare(0, 6, "prim::") != 0)
             observes_layout = true;
         for (const Operand* output : op->outputs)
+        {
             observes_layout |= operands.count(output) != 0;
+        }
         if (observes_layout)
             operands.insert(op->inputs.begin(), op->inputs.end());
     }
@@ -208,8 +209,7 @@ static std::set<const Operand*> collect_layout_observers(const Graph& graph)
 
 static bool can_fuse_tensor_to(const Operator* op, const std::set<const Operand*>& layout_observers)
 {
-    // Functionize has already resolved writes through aliases. Copies and
-    // layout changes now matter only when a later operation observes storage.
+    // after functionize, preserve copies and layouts only for storage observers
     if (layout_observers.count(op->outputs[0]))
     {
         if (op->has_param("copy"))
@@ -232,13 +232,12 @@ static bool can_fuse_tensor_to(const Operator* op, const std::set<const Operand*
 
 static bool can_inline_tensor_scalar(const Operand* operand, int type)
 {
-    // Expression evaluation uses float32 literals, so retain double Tensors.
+    // expression literals use FP32; retain double Tensors
     if (type == 2)
         return false;
 
-    // Only arithmetic that accepts Python scalars may lose a Tensor operand.
-    // Require a ranked Tensor of the same dtype to preserve promotion, shape,
-    // and Tensor returns, including when the constant itself is zero-dimensional.
+    // inline scalar Tensors only beside a ranked Tensor of the same dtype
+    // keep Tensor returns and scalar promotion intact
     for (const Operator* consumer : operand->consumers)
     {
         if (consumer->type != "aten::add" && consumer->type != "aten::sub" && consumer->type != "aten::rsub"
@@ -251,8 +250,7 @@ static bool can_inline_tensor_scalar(const Operand* operand, int type)
         {
             if (input == operand)
                 continue;
-            // TorchScript scalar constants (e.g. add alpha) may have type -1.
-            // Unknown Tensor dtypes must still fail the dtype check below.
+            // scalar constants may have type -1; unknown Tensor dtypes still need checking
             if (input->producer->type == "prim::Constant" && !operand_maybe_tensor(input))
                 continue;
             if (input->type != type)

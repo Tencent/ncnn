@@ -42,10 +42,7 @@ pnnx.Output             output      1 0 out
         }
         else
         {
-            if (dtype.i == 5) op->params["dtype"] = "torch.half";
-            if (dtype.i == 6) op->params["dtype"] = "torch.float";
-            if (dtype.i == 7) op->params["dtype"] = "torch.double";
-            if (dtype.i == 15) op->params["dtype"] = "torch.bfloat16";
+            op->params["dtype"] = "torch.float";
         }
     }
 };

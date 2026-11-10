@@ -233,35 +233,6 @@ static bool model_file_maybe_torchscript(const std::string& path)
     return signature == 0x04034b50;
 }
 
-#if BUILD_PT22PNNX
-static bool model_file_maybe_pt2(const std::string& path)
-{
-    if (!model_file_maybe_torchscript(path))
-        return false;
-
-    pnnx::StoreZipReader zip;
-    if (zip.open(path) != 0)
-        return path.size() >= 4 && path.compare(path.size() - 4, 4, ".pt2") == 0;
-
-    for (const std::string& name : zip.get_names())
-    {
-        if (name == "serialized_exported_program.json")
-            return true;
-        const size_t slash = name.find('/');
-        if (slash == std::string::npos || slash == 0)
-            continue;
-        const std::string tail = name.substr(slash + 1);
-        if (tail == "archive_format" || tail == "serialized_exported_program.json")
-            return true;
-        if (tail.compare(0, 7, "models/") == 0 && tail.find('/', 7) == std::string::npos
-                && tail.size() >= 5 && tail.compare(tail.size() - 5, 5, ".json") == 0)
-            return true;
-    }
-
-    return false;
-}
-#endif
-
 static bool model_file_maybe_tnnproto(const std::string& path)
 {
     FILE* fp = fopen(path.c_str(), "rb");
@@ -343,7 +314,7 @@ int main(int argc, char** argv)
 #if !BUILD_PT22PNNX
     if (ptpath.size() >= 4 && ptpath.compare(ptpath.size() - 4, 4, ".pt2") == 0)
     {
-        fprintf(stderr, "pt2 load: this build requires PyTorch >= 2.11 for .pt2 support\n");
+        fprintf(stderr, "pnnx: pt2 load: this build requires PyTorch >= 2.11 for .pt2 support\n");
         return -1;
     }
 #endif
@@ -493,11 +464,11 @@ int main(int argc, char** argv)
     // *INDENT-OFF*
 
 #if BUILD_PT22PNNX
-    if (model_file_maybe_pt2(ptpath))
+    if (model_file_maybe_torchscript(ptpath) && pnnx::model_file_maybe_pt2(ptpath))
     {
         if (device != "cpu")
         {
-            fprintf(stderr, "pt2 load: only CPU device is supported\n");
+            fprintf(stderr, "pnnx: pt2 load: only CPU device is supported\n");
             return -1;
         }
         int ret = pnnx::load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);

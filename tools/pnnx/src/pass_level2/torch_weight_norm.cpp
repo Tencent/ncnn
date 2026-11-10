@@ -9,8 +9,7 @@ namespace pnnx {
 
 static float weight_norm_sum_squares(const float* v, size_t begin, size_t end, size_t inner_size, int groups)
 {
-    // Pairwise FP32 reduction retains small terms without changing the
-    // overflow/underflow behavior of FP32 squares and squared norms.
+    // pairwise FP32 reduction retains small terms and FP32 overflow/underflow
     if (end - begin > 32)
     {
         const size_t mid = begin + (end - begin) / 2;
@@ -39,7 +38,9 @@ static void fold_weight_norm(Attribute& weight, const Attribute& weight_g, int d
     if (dim >= 0)
     {
         for (size_t i = dim + 1; i < weight.shape.size(); i++)
+        {
             inner_size *= weight.shape[i];
+        }
     }
 
     const int groups = dim == -1 ? 1 : weight.shape[dim];
@@ -126,7 +127,9 @@ pnnx.Output             output      1 0 out
 
         op->attrs["data"] = weight;
         for (Operand* input : op->inputs)
+        {
             input->remove_consumer(op);
+        }
         op->inputs.clear();
         op->inputnames.clear();
     }

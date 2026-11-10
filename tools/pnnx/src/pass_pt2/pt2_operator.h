@@ -27,7 +27,7 @@ struct Pt2Operator
     std::vector<std::vector<size_t> > aliases;
 };
 
-int bind_pt2_operator(const JsonValue& node, Pt2Operator& op, std::string& error);
+int bind_pt2_operator(const JsonValue& node, Pt2Operator& op);
 
 } // namespace pnnx
 

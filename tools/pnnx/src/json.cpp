@@ -3,6 +3,8 @@
 
 #include "json.h"
 
+#include <stdio.h>
+
 #include <cmath>
 #include <limits>
 #include <locale>
@@ -19,28 +21,31 @@ public:
     {
     }
 
-    bool fail(const char* message)
+    int fail(const char* message)
     {
-        if (error.empty())
-            error = "byte " + std::to_string(pos) + ": " + message;
-        return false;
+        fprintf(stderr, "pnnx: json: byte %zu: %s\n", pos, message);
+        return -1;
     }
 
     void whitespace()
     {
         while (pos < size && (data[pos] == ' ' || data[pos] == '\t' || data[pos] == '\r' || data[pos] == '\n'))
+        {
             pos++;
+        }
     }
 
-    bool literal(const char* text)
+    int literal(const char* text)
     {
         for (size_t i = 0; text[i]; i++)
+        {
             if (pos == size || data[pos++] != text[i])
                 return fail("invalid literal");
-        return true;
+        }
+        return 0;
     }
 
-    bool hex4(unsigned int& value)
+    int hex4(unsigned int& value)
     {
         value = 0;
         for (int i = 0; i < 4; i++)
@@ -59,7 +64,7 @@ public:
                 return fail("invalid Unicode escape");
             value = (value << 4) | n;
         }
-        return true;
+        return 0;
     }
 
     void utf8(unsigned int value, std::string& text)
@@ -86,7 +91,7 @@ public:
         }
     }
 
-    bool string(std::string& text)
+    int string(std::string& text)
     {
         if (pos == size || data[pos++] != '"')
             return fail("expected string");
@@ -94,7 +99,7 @@ public:
         {
             unsigned char c = data[pos++];
             if (c == '"')
-                return true;
+                return 0;
             if (c < 32)
                 return fail("unescaped control character");
             if (c == '\\')
@@ -117,16 +122,16 @@ public:
                 else if (c == 'u')
                 {
                     unsigned int value;
-                    if (!hex4(value))
-                        return false;
+                    if (hex4(value) != 0)
+                        return -1;
                     if (value >= 0xd800 && value <= 0xdbff)
                     {
                         if (size - pos < 2 || data[pos] != '\\' || data[pos + 1] != 'u')
                             return fail("missing low surrogate");
                         pos += 2;
                         unsigned int low;
-                        if (!hex4(low))
-                            return false;
+                        if (hex4(low) != 0)
+                            return -1;
                         if (low < 0xdc00 || low > 0xdfff)
                             return fail("invalid low surrogate");
                         value = 0x10000 + ((value - 0xd800) << 10) + low - 0xdc00;
@@ -187,7 +192,7 @@ public:
         return pos < size && data[pos] >= '0' && data[pos] <= '9';
     }
 
-    bool number(JsonValue& value)
+    int number(JsonValue& value)
     {
         const size_t start = pos;
         bool negative = false;
@@ -206,7 +211,9 @@ public:
         }
         else
             while (digit())
+            {
                 pos++;
+            }
         bool floating = false;
         if (pos < size && data[pos] == '.')
         {
@@ -215,7 +222,9 @@ public:
             if (!digit())
                 return fail("missing fractional digits");
             while (digit())
+            {
                 pos++;
+            }
         }
         if (pos < size && (data[pos] == 'e' || data[pos] == 'E'))
         {
@@ -226,7 +235,9 @@ public:
             if (!digit())
                 return fail("missing exponent digits");
             while (digit())
+            {
                 pos++;
+            }
         }
         if (floating)
         {
@@ -258,10 +269,10 @@ public:
                 result = -(int64_t)n;
             value = JsonValue(result);
         }
-        return true;
+        return 0;
     }
 
-    bool parse(JsonValue& value, unsigned int depth)
+    int parse(JsonValue& value, unsigned int depth)
     {
         if (depth > 128)
             return fail("nesting limit exceeded");
@@ -296,20 +307,21 @@ public:
             if (pos < size && data[pos] == ']')
             {
                 pos++;
-                return true;
+                return 0;
             }
             for (;;)
             {
                 JsonValue item;
-                if (!parse(item, depth + 1))
-                    return false;
-                value.a.push_back(std::move(item));
+                if (parse(item, depth + 1) != 0)
+                    return -1;
+                value.a.push_back(JsonValue());
+                std::swap(value.a.back(), item);
                 whitespace();
                 if (pos == size)
                     return fail("unterminated array");
                 char delimiter = data[pos++];
                 if (delimiter == ']')
-                    return true;
+                    return 0;
                 if (delimiter != ',')
                     return fail("expected array comma");
             }
@@ -322,29 +334,29 @@ public:
             if (pos < size && data[pos] == '}')
             {
                 pos++;
-                return true;
+                return 0;
             }
             for (;;)
             {
                 whitespace();
                 std::string key;
-                if (!string(key))
-                    return false;
+                if (string(key) != 0)
+                    return -1;
                 if (value.o.count(key))
                     return fail("duplicate object key");
                 whitespace();
                 if (pos == size || data[pos++] != ':')
                     return fail("expected object colon");
                 JsonValue item;
-                if (!parse(item, depth + 1))
-                    return false;
-                value.o.insert(std::make_pair(key, std::move(item)));
+                if (parse(item, depth + 1) != 0)
+                    return -1;
+                std::swap(value.o[key], item);
                 whitespace();
                 if (pos == size)
                     return fail("unterminated object");
                 char delimiter = data[pos++];
                 if (delimiter == '}')
-                    return true;
+                    return 0;
                 if (delimiter != ',')
                     return fail("expected object comma");
             }
@@ -355,28 +367,22 @@ public:
     const char* data;
     size_t size;
     size_t pos;
-    std::string error;
 };
 
-int parse_json(const char* data, size_t size, JsonValue& value, std::string& error)
+int parse_json(const char* data, size_t size, JsonValue& value)
 {
     value = JsonValue();
     JsonParser parser(data, size);
     JsonValue result;
-    if (!parser.parse(result, 0))
-    {
-        error = parser.error;
+    if (parser.parse(result, 0) != 0)
         return -1;
-    }
     parser.whitespace();
     if (parser.pos != size)
     {
         parser.fail("trailing data");
-        error = parser.error;
         return -1;
     }
-    value = std::move(result);
-    error.clear();
+    std::swap(value, result);
     return 0;
 }
 

@@ -22,10 +22,9 @@ int pass_pt2(Graph& graph, const std::map<Operator*, Pt2TensorMeta>& layout_sour
         const auto source = layout_sources.find(op);
         if (source == layout_sources.end() || op->type == "aten::as_strided")
             continue;
-        std::string error;
-        if (!normalize_pt2_layout_query(op, source->second, error))
+        if (normalize_pt2_layout_query(op, source->second) != 0)
         {
-            fprintf(stderr, "pt2 layout: %s at %s\n", error.c_str(), op->name.c_str());
+            fprintf(stderr, "pnnx: pt2 layout: invalid layout at %s\n", op->name.c_str());
             return -1;
         }
     }
@@ -34,10 +33,9 @@ int pass_pt2(Graph& graph, const std::map<Operator*, Pt2TensorMeta>& layout_sour
         const auto source = layout_sources.find(op);
         if (source == layout_sources.end() || op->type != "aten::as_strided")
             continue;
-        std::string error;
-        if (!normalize_pt2_as_strided(graph, op, source->second, error))
+        if (normalize_pt2_as_strided(graph, op, source->second) != 0)
         {
-            fprintf(stderr, "pt2 layout: %s at %s\n", error.c_str(), op->name.c_str());
+            fprintf(stderr, "pnnx: pt2 layout: invalid layout at %s\n", op->name.c_str());
             return -1;
         }
     }

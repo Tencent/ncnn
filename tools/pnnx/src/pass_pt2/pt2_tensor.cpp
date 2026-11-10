@@ -8,10 +8,13 @@
 #include <string.h>
 #include <utility>
 
+#include <stdio.h>
+
 namespace pnnx {
 
 int pt2_scalar_type(int type)
 {
+    // pnnx null/f32/f64/f16/i32/i64/i16/i8/u8/bool/c64/c128/c32/bf16 -> c10 ScalarType
     static const int types[] = {-1, 6, 7, 5, 3, 4, 2, 1, 0, 11, 9, 10, 8, 15};
     return type >= 1 && type <= 13 ? types[type] : -1;
 }
@@ -51,11 +54,11 @@ int pt2_tensor_type(int serde_type)
     }
 }
 
-static int parse_symint(const JsonValue& value, int64_t& n, std::string& symbol, bool allow_symbolic, std::string& error)
+static int parse_symint(const JsonValue& value, int64_t& n, std::string& symbol, bool allow_symbolic)
 {
     if (value.type != JsonValue::Object || value.o.size() != 1)
     {
-        error = "expected a SymInt union";
+        fprintf(stderr, "pnnx: pt2 tensor: expected a SymInt union\n");
         return -1;
     }
 
@@ -64,7 +67,7 @@ static int parse_symint(const JsonValue& value, int64_t& n, std::string& symbol,
     {
         if (as_int->type != JsonValue::Int || as_int->i < 0)
         {
-            error = "expected a nonnegative integer";
+            fprintf(stderr, "pnnx: pt2 tensor: expected a nonnegative integer\n");
             return -1;
         }
 
@@ -76,19 +79,19 @@ static int parse_symint(const JsonValue& value, int64_t& n, std::string& symbol,
     const JsonValue* as_expr = value.get("as_expr");
     if (!as_expr || as_expr->type != JsonValue::Object)
     {
-        error = "unsupported SymInt union";
+        fprintf(stderr, "pnnx: pt2 tensor: unsupported SymInt union\n");
         return -1;
     }
     if (!allow_symbolic)
     {
-        error = "symbolic tensor storage is unsupported";
+        fprintf(stderr, "pnnx: pt2 tensor: symbolic tensor storage is unsupported\n");
         return -1;
     }
 
     const JsonValue* expr_str = as_expr->get("expr_str");
     if (!expr_str || expr_str->type != JsonValue::String || expr_str->s.empty())
     {
-        error = "missing symbolic expression";
+        fprintf(stderr, "pnnx: pt2 tensor: missing symbolic expression\n");
         return -1;
     }
 
@@ -98,7 +101,7 @@ static int parse_symint(const JsonValue& value, int64_t& n, std::string& symbol,
         const JsonValue* hint_int = hint->get("as_int");
         if (hint->type != JsonValue::Object || hint->o.size() != 1 || !hint_int || hint_int->type != JsonValue::Int || hint_int->i < 0)
         {
-            error = "invalid SymInt hint";
+            fprintf(stderr, "pnnx: pt2 tensor: invalid SymInt hint\n");
             return -1;
         }
     }
@@ -109,9 +112,8 @@ static int parse_symint(const JsonValue& value, int64_t& n, std::string& symbol,
     return 0;
 }
 
-int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allow_symbolic, std::string& error)
+int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allow_symbolic)
 {
-    error.clear();
     const JsonValue* dtype = value.get("dtype");
     const JsonValue* sizes = value.get("sizes");
     const JsonValue* strides = value.get("strides");
@@ -121,19 +123,19 @@ int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allo
     const JsonValue* requires_grad = value.get("requires_grad");
     if (!dtype || !sizes || !strides || !storage_offset || !device || !layout || !requires_grad)
     {
-        error = "incomplete tensor metadata";
+        fprintf(stderr, "pnnx: pt2 tensor: incomplete tensor metadata\n");
         return -1;
     }
 
     Pt2TensorMeta m;
     if (dtype->type != JsonValue::Int || dtype->i < 0 || dtype->i > INT_MAX || (m.type = pt2_tensor_type((int)dtype->i)) == 0)
     {
-        error = "unsupported tensor dtype";
+        fprintf(stderr, "pnnx: pt2 tensor: unsupported tensor dtype\n");
         return -1;
     }
     if (layout->type != JsonValue::Int || layout->i != 7)
     {
-        error = "only strided tensor layout is supported";
+        fprintf(stderr, "pnnx: pt2 tensor: only strided tensor layout is supported\n");
         return -1;
     }
     m.layout = 7;
@@ -143,19 +145,19 @@ int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allo
     if (!device_type || device_type->type != JsonValue::String || device_type->s != "cpu"
             || (device_index && device_index->type != JsonValue::Null && (device_index->type != JsonValue::Int || device_index->i < 0 || device_index->i > INT_MAX)))
     {
-        error = "only CPU tensor metadata is supported";
+        fprintf(stderr, "pnnx: pt2 tensor: only CPU tensor metadata is supported\n");
         return -1;
     }
     m.device = "cpu";
     if (requires_grad->type != JsonValue::Bool)
     {
-        error = "invalid requires_grad";
+        fprintf(stderr, "pnnx: pt2 tensor: invalid requires_grad\n");
         return -1;
     }
 
     if (sizes->type != JsonValue::Array || strides->type != JsonValue::Array || sizes->a.size() != strides->a.size())
     {
-        error = "tensor sizes and strides must have the same rank";
+        fprintf(stderr, "pnnx: pt2 tensor: tensor sizes and strides must have the same rank\n");
         return -1;
     }
 
@@ -163,35 +165,32 @@ int parse_pt2_tensor_meta(const JsonValue& value, Pt2TensorMeta& meta, bool allo
     {
         int64_t n;
         std::string symbol;
-        if (parse_symint(sizes->a[i], n, symbol, allow_symbolic, error) != 0)
+        if (parse_symint(sizes->a[i], n, symbol, allow_symbolic) != 0)
         {
-            error = "sizes: " + error;
             return -1;
         }
         if (n > INT_MAX)
         {
-            error = "tensor dimension exceeds pnnx int32 shape range";
+            fprintf(stderr, "pnnx: pt2 tensor: tensor dimension exceeds pnnx int32 shape range\n");
             return -1;
         }
         m.shape.push_back((int)n);
         m.shape_symbols.push_back(symbol);
 
-        if (parse_symint(strides->a[i], n, symbol, allow_symbolic, error) != 0)
+        if (parse_symint(strides->a[i], n, symbol, allow_symbolic) != 0)
         {
-            error = "strides: " + error;
             return -1;
         }
         m.strides.push_back(n);
     }
 
     std::string symbol;
-    if (parse_symint(*storage_offset, m.storage_offset, symbol, allow_symbolic, error) != 0)
+    if (parse_symint(*storage_offset, m.storage_offset, symbol, allow_symbolic) != 0)
     {
-        error = "storage_offset: " + error;
         return -1;
     }
 
-    meta = std::move(m);
+    std::swap(meta, m);
     return 0;
 }
 
@@ -221,9 +220,8 @@ static size_t tensor_elemsize(int type)
 }
 
 int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const JsonValue& payload, Attribute& attr, Pt2TensorMeta& meta,
-                    std::map<std::string, Pt2TensorStorage>& storage_cache, std::string& error)
+                    std::map<std::string, Pt2TensorStorage>& storage_cache)
 {
-    error.clear();
     const JsonValue* path_name = payload.get("path_name");
     const JsonValue* is_param = payload.get("is_param");
     const JsonValue* use_pickle = payload.get("use_pickle");
@@ -231,24 +229,24 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
     if (!path_name || path_name->type != JsonValue::String || !valid_storage_name(path_name->s)
             || !is_param || is_param->type != JsonValue::Bool || !use_pickle || use_pickle->type != JsonValue::Bool || !tensor_meta)
     {
-        error = "invalid tensor payload metadata or storage path";
+        fprintf(stderr, "pnnx: pt2 tensor: invalid tensor payload metadata or storage path\n");
         return -1;
     }
     if (use_pickle->b)
     {
-        error = "pickle tensor payload is unsupported";
+        fprintf(stderr, "pnnx: pt2 tensor: pickle tensor payload is unsupported\n");
         return -1;
     }
 
     const uint16_t endian = 1;
     if (*(const unsigned char*)&endian != 1)
     {
-        error = "only little-endian tensor storage is supported";
+        fprintf(stderr, "pnnx: pt2 tensor: only little-endian tensor storage is supported\n");
         return -1;
     }
 
     Pt2TensorMeta m;
-    if (parse_pt2_tensor_meta(*tensor_meta, m, false, error) != 0)
+    if (parse_pt2_tensor_meta(*tensor_meta, m, false) != 0)
         return -1;
 
     size_t numel = 1;
@@ -268,7 +266,7 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
         {
             if (numel > (size_t)INT_MAX / (size_t)m.shape[i])
             {
-                error = "tensor element count exceeds pnnx int32 range";
+                fprintf(stderr, "pnnx: pt2 tensor: tensor element count exceeds pnnx int32 range\n");
                 return -1;
             }
             numel *= (size_t)m.shape[i];
@@ -277,21 +275,21 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
     const size_t elemsize = tensor_elemsize(m.type);
     if (numel > SIZE_MAX / elemsize)
     {
-        error = "tensor byte size overflow";
+        fprintf(stderr, "pnnx: pt2 tensor: tensor byte size overflow\n");
         return -1;
     }
 
     const std::string path = directory + (directory.empty() || directory[directory.size() - 1] == '/' ? "" : "/") + path_name->s;
     if (!zip.has_file(path))
     {
-        error = "missing tensor storage " + path;
+        fprintf(stderr, "pnnx: pt2 tensor: missing tensor storage %s\n", path.c_str());
         return -1;
     }
 
     const uint64_t size = zip.get_file_size(path);
     if (size > SIZE_MAX || size > std::vector<char>().max_size() || size % elemsize != 0)
     {
-        error = "invalid tensor storage byte size " + path;
+        fprintf(stderr, "pnnx: pt2 tensor: invalid tensor storage byte size %s\n", path.c_str());
         return -1;
     }
 
@@ -304,14 +302,14 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
             const uint64_t stride = (uint64_t)m.strides[i];
             if (extent != 0 && stride > (UINT64_MAX - last) / extent)
             {
-                error = "tensor storage address overflow " + path;
+                fprintf(stderr, "pnnx: pt2 tensor: tensor storage address overflow %s\n", path.c_str());
                 return -1;
             }
             last += extent * stride;
         }
         if (last >= size / elemsize)
         {
-            error = "tensor view exceeds storage " + path;
+            fprintf(stderr, "pnnx: pt2 tensor: tensor view exceeds storage %s\n", path.c_str());
             return -1;
         }
     }
@@ -323,14 +321,14 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
         char empty_data;
         if (zip.read_file(path, data.empty() ? &empty_data : data.data()) != 0)
         {
-            error = "failed to read tensor storage " + path;
+            fprintf(stderr, "pnnx: pt2 tensor: failed to read tensor storage %s\n", path.c_str());
             return -1;
         }
         storage.data.swap(data);
     }
     if (storage.data.size() != size)
     {
-        error = "inconsistent cached tensor storage " + path;
+        fprintf(stderr, "pnnx: pt2 tensor: inconsistent cached tensor storage %s\n", path.c_str());
         return -1;
     }
 
@@ -340,8 +338,7 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
     const bool last_use = storage.remaining <= 1;
     if (numel != 0)
     {
-        // Coalesce the contiguous suffix, including size-one axes whose
-        // strides do not affect addresses. Walk outer axes without division.
+        // coalesce contiguous and size-one suffix axes before walking outer axes
         size_t block = 1;
         size_t outer_rank = m.shape.size();
         while (outer_rank > 0)
@@ -354,7 +351,7 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
         }
         if (outer_rank == 0 && m.storage_offset == 0 && numel * elemsize == storage.data.size() && last_use)
         {
-            r.data = std::move(storage.data);
+            std::swap(r.data, storage.data);
         }
         else
         {
@@ -384,8 +381,8 @@ int load_pt2_tensor(StoreZipReader& zip, const std::string& directory, const Jso
         storage_cache.erase(path);
     else
         storage.remaining--;
-    attr = std::move(r);
-    meta = std::move(m);
+    std::swap(attr, r);
+    std::swap(meta, m);
     return 0;
 }
 

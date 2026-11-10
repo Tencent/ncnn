@@ -97,7 +97,9 @@ static bool constant_value(const Operand* operand, const c10::TypePtr& type, con
 static void replace_constant(Operator* op, const Parameter& value)
 {
     for (Operand* input : op->inputs)
+    {
         input->remove_consumer(op);
+    }
     op->inputs.clear();
     op->inputnames.clear();
     op->params.clear();
@@ -180,7 +182,9 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
         bool mutable_value = torch_mutation_kind(op->type) != TorchMutationNone;
         if (torch_alias_kind(op) != TorchAliasNone)
             for (const Operand* output : op->outputs)
+            {
                 mutable_value |= mutable_inputs.count(output) != 0;
+            }
         if (mutable_value && !op->inputs.empty())
             mutable_inputs.insert(op->inputs[0]);
     }
@@ -233,8 +237,10 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
                 continue;
             bool compatible = true;
             for (size_t i = 0; i < output->shape.size(); i++)
+            {
                 if (tensor.size(i) > INT_MAX || (output->shape[i] >= 0 && tensor.size(i) != output->shape[i]))
                     compatible = false;
+            }
             if (!compatible)
                 continue;
             tensor = tensor.contiguous();
@@ -245,13 +251,15 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
             if (!attr.data.empty())
                 memcpy(attr.data.data(), tensor.const_data_ptr(), attr.data.size());
             for (Operand* input : op->inputs)
+            {
                 input->remove_consumer(op);
+            }
             op->inputs.clear();
             op->inputnames.clear();
             op->params.clear();
             op->type = "pnnx.Attribute";
             output->shape = attr.shape;
-            op->attrs["data"] = std::move(attr);
+            std::swap(op->attrs["data"], attr);
         }
         catch (const c10::Error&)
         {
@@ -298,7 +306,7 @@ int fold_pt2_constants(Graph& graph, const std::map<Operator*, std::string>& tar
                 if (integer == std::trunc((double)p.f))
                     continue;
             }
-            fprintf(stderr, "pt2 constants: integer factory scalar cannot be represented at %s (%s)\n", op->type.c_str(), op->name.c_str());
+            fprintf(stderr, "pnnx: pt2 constants: integer factory scalar cannot be represented at %s (%s)\n", op->type.c_str(), op->name.c_str());
             return -1;
         }
     }

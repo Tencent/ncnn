@@ -11,6 +11,8 @@
 #include <exception>
 #include <utility>
 
+#include <stdio.h>
+
 namespace pnnx {
 
 static bool is_identifier(const std::string& s)
@@ -396,18 +398,18 @@ static bool default_argument(const c10::IValue& value, const c10::TypePtr& type,
     return matches_type(arg, type, false, false, 0);
 }
 
-static int bind_operator(const JsonValue& node, const c10::FunctionSchema& schema, Pt2Operator& op, std::string& error)
+static int bind_operator(const JsonValue& node, const c10::FunctionSchema& schema, Pt2Operator& op)
 {
     const JsonValue* inputs = node.get("inputs");
     const JsonValue* outputs = node.get("outputs");
     if (!inputs || inputs->type != JsonValue::Array || !outputs || outputs->type != JsonValue::Array)
     {
-        error = "inputs and outputs must be arrays";
+        fprintf(stderr, "pnnx: pt2 operator: inputs and outputs must be arrays\n");
         return -1;
     }
     if (schema.is_vararg() || schema.is_varret())
     {
-        error = "variadic schema is unsupported";
+        fprintf(stderr, "pnnx: pt2 operator: variadic schema is unsupported\n");
         return -1;
     }
 
@@ -423,22 +425,24 @@ static int bind_operator(const JsonValue& node, const c10::FunctionSchema& schem
         const JsonValue* kind = input.get("kind");
         if (!name || name->type != JsonValue::String || !arg || !kind || kind->type != JsonValue::Int || (kind->i != 1 && kind->i != 2))
         {
-            error = "input must have name, arg and positional/keyword kind";
+            fprintf(stderr, "pnnx: pt2 operator: input must have name, arg and positional/keyword kind\n");
             return -1;
         }
         size_t index = 0;
         while (index < arguments.size() && arguments[index].name() != name->s)
+        {
             index++;
+        }
         if (index == arguments.size() || bound[index])
         {
-            error = "unknown or duplicate argument " + name->s;
+            fprintf(stderr, "pnnx: pt2 operator: unknown or duplicate argument %s\n", name->s.c_str());
             return -1;
         }
         if (kind->i == 1)
         {
             if (saw_keyword || arguments[index].kwarg_only() || index != positional_index)
             {
-                error = "invalid positional argument " + name->s;
+                fprintf(stderr, "pnnx: pt2 operator: invalid positional argument %s\n", name->s.c_str());
                 return -1;
             }
             positional_index++;
@@ -459,18 +463,18 @@ static int bind_operator(const JsonValue& node, const c10::FunctionSchema& schem
         {
             if (!arguments[i].default_value())
             {
-                error = "missing required argument " + input.name;
+                fprintf(stderr, "pnnx: pt2 operator: missing required argument %s\n", input.name.c_str());
                 return -1;
             }
             if (!default_argument(*arguments[i].default_value(), arguments[i].real_type(), input.value, 0))
             {
-                error = "unsupported default for argument " + input.name;
+                fprintf(stderr, "pnnx: pt2 operator: unsupported default for argument %s\n", input.name.c_str());
                 return -1;
             }
         }
         if (!matches_type(input.value, arguments[i].real_type(), allow_number, false, 0))
         {
-            error = "argument " + input.name + " is incompatible with " + arguments[i].real_type()->str();
+            fprintf(stderr, "pnnx: pt2 operator: argument %s is incompatible with %s\n", input.name.c_str(), arguments[i].real_type()->str().c_str());
             return -1;
         }
         op.inputs.push_back(input);
@@ -480,14 +484,14 @@ static int bind_operator(const JsonValue& node, const c10::FunctionSchema& schem
 
     if (outputs->a.size() != returns.size())
     {
-        error = "return count does not match schema";
+        fprintf(stderr, "pnnx: pt2 operator: return count does not match schema\n");
         return -1;
     }
     for (size_t i = 0; i < returns.size(); i++)
     {
         if (!matches_type(outputs->a[i], returns[i].real_type(), false, true, 0))
         {
-            error = "return " + std::to_string(i) + " is incompatible with " + returns[i].real_type()->str();
+            fprintf(stderr, "pnnx: pt2 operator: return %zu is incompatible with %s\n", i, returns[i].real_type()->str().c_str());
             return -1;
         }
     }
@@ -507,14 +511,13 @@ static int bind_operator(const JsonValue& node, const c10::FunctionSchema& schem
     return 0;
 }
 
-int bind_pt2_operator(const JsonValue& node, Pt2Operator& op, std::string& error)
+int bind_pt2_operator(const JsonValue& node, Pt2Operator& op)
 {
     op = Pt2Operator();
-    error.clear();
     const JsonValue* target = node.get("target");
     if (!target || target->type != JsonValue::String)
     {
-        error = "pt2 node target must be a string";
+        fprintf(stderr, "pnnx: pt2 operator: pt2 node target must be a string\n");
         return -1;
     }
     const std::string prefix = "torch.ops.aten.";
@@ -522,7 +525,7 @@ int bind_pt2_operator(const JsonValue& node, Pt2Operator& op, std::string& error
     if (target->s.compare(0, prefix.size(), prefix) != 0 || dot < prefix.size()
             || !is_identifier(target->s.substr(prefix.size(), dot - prefix.size())) || !is_identifier(target->s.substr(dot + 1)))
     {
-        error = "unsupported pt2 target " + target->s;
+        fprintf(stderr, "pnnx: pt2 operator: unsupported pt2 target %s\n", target->s.c_str());
         return -1;
     }
 
@@ -532,7 +535,7 @@ int bind_pt2_operator(const JsonValue& node, Pt2Operator& op, std::string& error
     if (result.type == "aten::view" && overload == "dtype")
     {
         // The shared aten::view rewrite expects a shape, not a dtype.
-        error = target->s + ": dtype reinterpretation is unsupported";
+        fprintf(stderr, "pnnx: pt2 operator: %s: dtype reinterpretation is unsupported\n", target->s.c_str());
         return -1;
     }
     if (overload == "default")
@@ -540,21 +543,20 @@ int bind_pt2_operator(const JsonValue& node, Pt2Operator& op, std::string& error
     try
     {
         const c10::OperatorHandle handle = c10::Dispatcher::singleton().findSchemaOrThrow(result.type.c_str(), overload.c_str());
-        if (bind_operator(node, handle.schema(), result, error) == 0)
+        if (bind_operator(node, handle.schema(), result) == 0)
         {
-            op = std::move(result);
+            std::swap(op, result);
             return 0;
         }
     }
     catch (const c10::Error& e)
     {
-        error = e.what_without_backtrace();
+        fprintf(stderr, "pnnx: pt2 operator: %s\n", e.what_without_backtrace());
     }
     catch (const std::exception& e)
     {
-        error = e.what();
+        fprintf(stderr, "pnnx: pt2 operator: %s\n", e.what());
     }
-    error = target->s + ": " + error;
     return -1;
 }
 

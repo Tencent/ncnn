@@ -20,7 +20,9 @@ static Operand* tensor_like(Graph& graph, Operator* op, const Operand* meta)
     out->params = meta->params;
     op->outputs.push_back(out);
     for (Operand* input : op->inputs)
+    {
         input->consumers.push_back(op);
+    }
     return out;
 }
 
@@ -50,14 +52,15 @@ static void normalize_copy(Graph& graph, Operator* op, bool slice)
     }
     else if (!static_shape && source != destination && (!slice || source->shape != destination->shape))
     {
-        // Dynamic slice writeback only skips expansion when the recorded
-        // shapes match. Other writes need the runtime destination shape.
+        // skip dynamic slice expansion only for matching recorded shapes
         Operator* expand = graph.new_operator_before("aten::expand_as", op->name + "_broadcast", op);
         expand->inputs = {source, destination};
         source = tensor_like(graph, expand, destination);
     }
     for (Operand* input : op->inputs)
+    {
         input->remove_consumer(op);
+    }
     op->type = "aten::clone";
     op->inputs = {source};
     source->consumers.push_back(op);
@@ -72,8 +75,7 @@ static Operator* normalize_inplace(Graph& graph, Operator* op)
 {
     Operand* value = op->outputs[0];
     op->type.resize(op->type.size() - 1);
-    // Functional arithmetic may promote mixed Tensor operands, whereas
-    // an in-place operation stores the result in the destination dtype.
+    // cast promoted arithmetic back to the in-place destination dtype
     bool mixed_dtype = false;
     const Operand* destination = op->inputs[0];
     for (size_t i = 1; i < op->inputs.size(); i++)
@@ -87,18 +89,15 @@ static Operator* normalize_inplace(Graph& graph, Operator* op)
         }
         if (input->type == 0 || input->type == destination->type)
             continue;
-        // Floating tensors are normalized to FP32 by the frontends.
+        // frontends normalize floating tensors to FP32
         const bool floating = destination->type == 1;
-        const bool complex = destination->type == 10;
-        const bool real = input->type <= 9;
-        // Number constants in traced graphs can be zero-dimensional
-        // tensors. They use scalar promotion, not Tensor promotion.
-        if (((floating && real) || complex) && input->shape.empty() && !destination->shape.empty())
+        if (destination->type == 10)
             continue;
-        if ((floating || complex) && input->type >= 4 && input->type <= 9)
+        const bool real = input->type > 0 && input->type <= 9;
+        // zero-dimensional traced constants follow scalar promotion
+        if (floating && real && input->shape.empty() && !destination->shape.empty())
             continue;
-        // Complex tensors also have FP32 components after normalization.
-        if (complex)
+        if (floating && input->type >= 4 && input->type <= 9)
             continue;
         if (destination->type >= 4 && destination->type <= 8 && input->type >= 4 && input->type <= 9
                 && input->shape.empty() && !destination->shape.empty())
@@ -110,9 +109,8 @@ static Operator* normalize_inplace(Graph& graph, Operator* op)
         Operator* cast = graph.new_operator_after("aten::type_as", op->name + "_cast", op);
         cast->inputs = {value, op->inputs[0]};
         tensor_like(graph, cast, value);
-        // The original metadata describes the in-place result, not
-        // the promoted functional intermediate.
-        value->type = 0;
+        // the promoted intermediate has unknown dtype until the final cast
+        value->type = -1;
         return cast;
     }
     return op;
@@ -122,7 +120,7 @@ struct View
 {
     Operand* parent;
     Operator* op;
-    // Parent geometry and view arguments are fixed at creation time.
+    // keep parent geometry and view arguments fixed at creation
     std::vector<Operand*> args;
 };
 
@@ -134,19 +132,36 @@ struct Observation
 
 struct TensorState
 {
-    Operand* identity = 0;
-    Operand* view = 0;
-    Operand* root = 0;
-    Operand* storage = 0;
-    Operand* value = 0;
-    Operand* replayed = 0;
-    int generation = -1;
-    int remaining = 0;
+    TensorState()
+    {
+        identity = 0;
+        view = 0;
+        root = 0;
+        storage = 0;
+        value = 0;
+        replayed = 0;
+        generation = -1;
+        remaining = 0;
+    }
+
+    Operand* identity;
+    Operand* view;
+    Operand* root;
+    Operand* storage;
+    Operand* value;
+    Operand* replayed;
+    int generation;
+    int remaining;
 };
 
 struct StorageState
 {
-    bool uncertain = false;
+    StorageState()
+    {
+        uncertain = false;
+    }
+
+    bool uncertain;
     std::vector<Observation> observations;
 };
 
@@ -166,7 +181,9 @@ struct FunctionizeState
     Operand* identity_of(Operand* value)
     {
         while (tensors[value].identity)
+        {
             value = tensors[value].identity;
+        }
         return value;
     }
 
@@ -201,7 +218,9 @@ struct FunctionizeState
         if (containers.count(value))
         {
             for (Operand* item : containers.at(value).args)
+            {
                 observe(owner, item);
+            }
         }
         else
             storages[storage_of(value)].observations.push_back({owner, value});
@@ -247,7 +266,9 @@ struct FunctionizeState
         const Container& container = containers.at(value);
         std::vector<Operand*> args;
         for (Operand* input : container.args)
+        {
             args.push_back(resolve(input, before));
+        }
         Operand* previous = state.replayed;
         if (args == previous->producer->inputs)
             return previous;
@@ -264,6 +285,115 @@ struct FunctionizeState
     int generation;
     int index;
 };
+
+static Operand* append_writeback(FunctionizeState& state, const Operator* op, Operator*& after, const std::string& type, const std::vector<Operand*>& args, const Operand* meta)
+{
+    Operator* inverse = state.graph.new_operator_after(type, op->name + "_writeback_" + std::to_string(state.index++), after);
+    inverse->inputs = args;
+    after = inverse;
+    return tensor_like(state.graph, inverse, meta);
+}
+
+static int writeback_views(FunctionizeState& state, Operator* op, Operator*& after, Operand*& root, Operand*& value)
+{
+    Graph& graph = state.graph;
+    while (state.views.count(root))
+    {
+        const View& alias = state.views.at(root);
+        const std::string& type = alias.op->type;
+        if (type == "aten::slice" || type == "aten::select")
+        {
+            const Operator* dim = alias.args.empty() ? 0 : alias.args[0]->producer;
+            if (!dim || dim->type != "prim::Constant" || !dim->has_param("value") || dim->params.at("value").type != 2)
+            {
+                fprintf(stderr, "pnnx: functionize: %s requires a constant dimension for mutation writeback\n", alias.op->name.c_str());
+                return -1;
+            }
+            std::vector<Operand*> args = {state.resolve_view(alias.parent, op), value};
+            args.insert(args.end(), alias.args.begin(), alias.args.end());
+            root = alias.parent;
+            // keep writeback geometry independent of later view rewrites
+            value = append_writeback(state, op, after, "pnnx.SliceCopy", args, root);
+            if (type == "aten::slice")
+            {
+                after->inputnames = {"self", "src", "dim", "start", "end", "step"};
+            }
+            else
+            {
+                after->inputnames = {"self", "src", "dim", "select"};
+                after->params["start"] = 0;
+                after->params["end"] = 0;
+                after->params["step"] = 0;
+            }
+            continue;
+        }
+        Operand* parent = state.resolve_view(alias.parent, op);
+        if (type == "aten::view" || type == "aten::squeeze" || type == "aten::unsqueeze")
+        {
+            value = append_writeback(state, op, after, "aten::reshape_as", {value, parent}, alias.parent);
+        }
+        else if (type == "aten::transpose" || type == "aten::t")
+        {
+            std::vector<Operand*> args = {value};
+            args.insert(args.end(), alias.args.begin(), alias.args.end());
+            value = append_writeback(state, op, after, type, args, alias.parent);
+            after->params = alias.op->params;
+            after->inputnames = alias.op->inputnames;
+        }
+        else if (type == "aten::permute")
+        {
+            std::vector<int> dims;
+            bool known = alias.args.size() == 1;
+            if (known)
+            {
+                const Operator* order = alias.args[0]->producer;
+                if (order->type == "prim::Constant" && order->has_param("value") && order->params.at("value").type == 5)
+                    dims = order->params.at("value").ai;
+                else if (order->type == "prim::ListConstruct")
+                {
+                    for (Operand* dim : order->inputs)
+                    {
+                        const Operator* producer = dim->producer;
+                        if (producer->type != "prim::Constant" || !producer->has_param("value") || producer->params.at("value").type != 2)
+                        {
+                            known = false;
+                            break;
+                        }
+                        dims.push_back(producer->params.at("value").i);
+                    }
+                }
+                else
+                    known = false;
+            }
+            const int rank = (int)dims.size();
+            std::vector<int> inverse(rank, -1);
+            for (int i = 0; known && i < rank; i++)
+            {
+                const int dim = dims[i] < 0 ? dims[i] + rank : dims[i];
+                if (dim < 0 || dim >= rank || inverse[dim] != -1)
+                    known = false;
+                else
+                    inverse[dim] = i;
+            }
+            if (!known || (!parent->shape.empty() && parent->shape.size() != dims.size()))
+            {
+                fprintf(stderr, "pnnx: functionize: %s requires a constant valid permutation for mutation writeback\n", alias.op->name.c_str());
+                return -1;
+            }
+            Operator* constant = graph.new_operator_after("prim::Constant", op->name + "_inverse_dims_" + std::to_string(state.index++), after);
+            constant->params["value"] = inverse;
+            Operand* dims_value = graph.new_operand(constant->name);
+            dims_value->producer = constant;
+            constant->outputs.push_back(dims_value);
+            after = constant;
+            value = append_writeback(state, op, after, type, {value, dims_value}, alias.parent);
+        }
+        // other views have an identity inverse
+        root = alias.parent;
+    }
+
+    return 0;
+}
 
 int functionize(Graph& graph)
 {
@@ -283,14 +413,20 @@ int functionize(Graph& graph)
     const std::vector<Operator*> ops = graph.ops;
     FunctionizeState state(graph);
     for (Operator* op : ops)
+    {
         for (Operand* input : op->inputs)
+        {
             state.tensors[input].remaining++;
+        }
+    }
 
     for (Operator* op : ops)
     {
         const std::vector<Operand*> inputs = op->inputs;
         for (Operand* input : inputs)
+        {
             state.tensors[input].remaining--;
+        }
         for (size_t i = 0; i < inputs.size(); i++)
         {
             Operand* value = state.resolve(inputs[i], op);
@@ -301,7 +437,7 @@ int functionize(Graph& graph)
             value->consumers.push_back(op);
         }
 
-        // Containers retain aliases across writes, including nested containers.
+        // retain nested container aliases across writes
         if (op->type == "prim::ListConstruct" || op->type == "prim::TupleConstruct")
         {
             Container container;
@@ -400,7 +536,7 @@ int functionize(Graph& graph)
 
         if (mutation_kind == TorchMutationStorage)
         {
-            fprintf(stderr, "functionize: %s changes tensor metadata or storage\n", op->type.c_str());
+            fprintf(stderr, "pnnx: functionize: %s changes tensor metadata or storage\n", op->type.c_str());
             return -1;
         }
 
@@ -413,7 +549,7 @@ int functionize(Graph& graph)
             {
                 if (state.tensors[observation.owner].remaining > 0 && state.root_of(observation.value) != state.root_of(target))
                 {
-                    fprintf(stderr, "functionize: %s has an unsupported observable alias\n", op->name.c_str());
+                    fprintf(stderr, "pnnx: functionize: %s has an unsupported observable alias\n", op->name.c_str());
                     return -1;
                 }
             }
@@ -427,8 +563,7 @@ int functionize(Graph& graph)
         }
         else if (mutation_kind == TorchMutationMetadata)
         {
-            // Change only this tensor object's view. Existing views keep their
-            // parent geometry, while identity aliases follow the new metadata.
+            // update this object and its identities; existing views keep their geometry
             op->type.resize(op->type.size() - 1);
             View alias;
             alias.parent = target;
@@ -447,108 +582,9 @@ int functionize(Graph& graph)
             value = after->outputs[0];
         }
 
-        auto append = [&](const std::string& type, const std::vector<Operand*>& args, const Operand* meta) {
-            Operator* inverse = graph.new_operator_after(type, op->name + "_writeback_" + std::to_string(state.index++), after);
-            inverse->inputs = args;
-            after = inverse;
-            return tensor_like(graph, inverse, meta);
-        };
-
         Operand* root = target;
-        while (state.views.count(root))
-        {
-            const View& alias = state.views.at(root);
-            const std::string& type = alias.op->type;
-            if (type == "aten::slice" || type == "aten::select")
-            {
-                const Operator* dim = alias.args.empty() ? 0 : alias.args[0]->producer;
-                if (!dim || dim->type != "prim::Constant" || !dim->has_param("value") || dim->params.at("value").type != 2)
-                {
-                    fprintf(stderr, "functionize: %s requires a constant dimension for mutation writeback\n", alias.op->name.c_str());
-                    return -1;
-                }
-                std::vector<Operand*> args = {state.resolve_view(alias.parent, op), value};
-                args.insert(args.end(), alias.args.begin(), alias.args.end());
-                root = alias.parent;
-                // Keep the writeback region independent of subsequent view rewrites.
-                value = append("pnnx.SliceCopy", args, root);
-                if (type == "aten::slice")
-                {
-                    after->inputnames = {"self", "src", "dim", "start", "end", "step"};
-                }
-                else
-                {
-                    after->inputnames = {"self", "src", "dim", "select"};
-                    after->params["start"] = 0;
-                    after->params["end"] = 0;
-                    after->params["step"] = 0;
-                }
-                continue;
-            }
-            Operand* parent = state.resolve_view(alias.parent, op);
-            if (type == "aten::view" || type == "aten::squeeze" || type == "aten::unsqueeze")
-            {
-                value = append("aten::reshape_as", {value, parent}, alias.parent);
-            }
-            else if (type == "aten::transpose" || type == "aten::t")
-            {
-                std::vector<Operand*> args = {value};
-                args.insert(args.end(), alias.args.begin(), alias.args.end());
-                value = append(type, args, alias.parent);
-                after->params = alias.op->params;
-                after->inputnames = alias.op->inputnames;
-            }
-            else if (type == "aten::permute")
-            {
-                std::vector<int> dims;
-                bool known = alias.args.size() == 1;
-                if (known)
-                {
-                    const Operator* order = alias.args[0]->producer;
-                    if (order->type == "prim::Constant" && order->has_param("value") && order->params.at("value").type == 5)
-                        dims = order->params.at("value").ai;
-                    else if (order->type == "prim::ListConstruct")
-                    {
-                        for (Operand* dim : order->inputs)
-                        {
-                            const Operator* producer = dim->producer;
-                            if (producer->type != "prim::Constant" || !producer->has_param("value") || producer->params.at("value").type != 2)
-                            {
-                                known = false;
-                                break;
-                            }
-                            dims.push_back(producer->params.at("value").i);
-                        }
-                    }
-                    else
-                        known = false;
-                }
-                const int rank = (int)dims.size();
-                std::vector<int> inverse(rank, -1);
-                for (int i = 0; known && i < rank; i++)
-                {
-                    const int dim = dims[i] < 0 ? dims[i] + rank : dims[i];
-                    if (dim < 0 || dim >= rank || inverse[dim] != -1)
-                        known = false;
-                    else
-                        inverse[dim] = i;
-                }
-                if (!known || (!parent->shape.empty() && parent->shape.size() != dims.size()))
-                {
-                    fprintf(stderr, "functionize: %s requires a constant valid permutation for mutation writeback\n", alias.op->name.c_str());
-                    return -1;
-                }
-                Operator* constant = graph.new_operator_after("prim::Constant", op->name + "_inverse_dims_" + std::to_string(state.index++), after);
-                constant->params["value"] = inverse;
-                Operand* dims_value = graph.new_operand(constant->name);
-                dims_value->producer = constant;
-                constant->outputs.push_back(dims_value);
-                after = constant;
-                value = append(type, {value, dims_value}, alias.parent);
-            }
-            // The remaining views have the identity inverse.
-            root = alias.parent;
-        }
+        if (writeback_views(state, op, after, root, value) != 0)
+            return -1;
 
         state.tensors[root].value = value;
         state.generation++;

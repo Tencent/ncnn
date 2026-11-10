@@ -21,7 +21,7 @@ int64_t cuda_version();
 #endif
 
 #include "pass_level0.h"
-#include "pass_level0/convert_half_to_float.h"
+#include "pass_level0/normalize_module_dtype.h"
 #include "pass_level1.h"
 #include "pass_level1/fuse_module_pass.h"
 
@@ -864,7 +864,7 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
     if (pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath) != 0)
         return -1;
 
-    convert_half_to_float(mod);
+    normalize_module_dtype(mod);
 
     // g->dump();
 

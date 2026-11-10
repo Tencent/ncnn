@@ -31,7 +31,7 @@ public:
     int close();
 
 private:
-    int read_directory(uint64_t size, std::string& error);
+    int read_directory(uint64_t size);
 
     FILE* fp;
 

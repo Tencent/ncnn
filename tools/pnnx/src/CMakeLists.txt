@@ -3,7 +3,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
-    pass_level0/convert_half_to_float.cpp
+    pass_level0/normalize_module_dtype.cpp
     pass_level0/inline_block.cpp
     pass_level0/normalize_dtype.cpp
     pass_level0/reset_device.cpp
@@ -13,7 +13,6 @@ set(pnnx_pass_level0_SRCS
 
 set(pnnx_pass_level1_SRCS
     pass_level1/fuse_module_pass.cpp
-    pass_level1/torch_alias.cpp
 
     pass_level1/nn_AdaptiveAvgPool1d.cpp
     pass_level1/nn_AdaptiveAvgPool2d.cpp
@@ -816,7 +815,7 @@ if(NOT WIN32)
     target_compile_definitions(pnnx PRIVATE _FILE_OFFSET_BITS=64)
 endif()
 
-set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
+set_property(SOURCE main.cpp utils.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
 target_link_libraries(pnnx PRIVATE torch2pnnx)
 
 if(TorchVision_FOUND)

@@ -64,7 +64,7 @@ public:
     std::map<std::string, JsonValue> o;
 };
 
-int parse_json(const char* data, size_t size, JsonValue& value, std::string& error);
+int parse_json(const char* data, size_t size, JsonValue& value);
 
 } // namespace pnnx
 

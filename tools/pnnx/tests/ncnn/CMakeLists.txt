@@ -5,8 +5,6 @@ macro(pnnx_ncnn_add_test name)
     add_test(NAME test_ncnn_${name} COMMAND ${CMAKE_COMMAND} -DPYTHON_EXECUTABLE=${Python3_EXECUTABLE} -DPYTHON_SCRIPT=${CMAKE_CURRENT_SOURCE_DIR}/test_${name}.py -P ${CMAKE_CURRENT_SOURCE_DIR}/../run_test.cmake)
 endmacro()
 
-pnnx_ncnn_add_test(functionize)
-
 pnnx_ncnn_add_test(F_adaptive_avg_pool1d)
 pnnx_ncnn_add_test(F_adaptive_avg_pool2d)
 pnnx_ncnn_add_test(F_adaptive_avg_pool3d)
@@ -242,6 +240,7 @@ pnnx_ncnn_add_test(shufflenet_v2_x1_0)
 pnnx_ncnn_add_test(squeezenet1_1)
 pnnx_ncnn_add_test(vit_b_32)
 
+pnnx_ncnn_add_test(functionize)
 pnnx_ncnn_add_test(ncnn_fuse_transpose_matmul)
 pnnx_ncnn_add_test(ncnn_fuse_shufflechannel_slice)
 pnnx_ncnn_add_test(ncnn_fuse_binaryop_eltwise)

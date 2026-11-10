@@ -115,7 +115,9 @@ static void specialize_dropout(torch::jit::Block* block, const torch::jit::Value
     {
         torch::jit::Node* node = *it++;
         for (auto child : node->blocks())
+        {
             specialize_dropout(child, self, input, rank, mod);
+        }
 
         if (node->kind() == c10::prim::GetAttr && node->input(0) == self)
         {

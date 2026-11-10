@@ -107,11 +107,13 @@ static void CRC32_TABLE_INIT()
                 CRC32_TABLE[0][i] = c;
             }
             for (int j = 1; j < 8; j++)
+            {
                 for (int i = 0; i < 256; i++)
                 {
                     const uint32_t c = CRC32_TABLE[j - 1][i];
                     CRC32_TABLE[j][i] = (c >> 8) ^ CRC32_TABLE[0][c & 0xff];
                 }
+            }
         }
     };
     static const Initializer initializer;
@@ -136,7 +138,9 @@ static uint32_t CRC32_buffer(const unsigned char* data, uint64_t len)
         len -= 8;
     }
     while (len-- != 0)
+    {
         x = CRC32(x, *data++);
+    }
 
     return x ^ 0xffffffff;
 }
@@ -185,12 +189,6 @@ static bool zip_read(FILE* fp, uint64_t offset, void* data, size_t size, uint64_
            && (size == 0 || fread(data, 1, size, fp) == size);
 }
 
-static int zip_error(std::string& error, const char* message)
-{
-    error = message;
-    return -1;
-}
-
 static bool zip64_extra(const std::vector<unsigned char>& extra, uint64_t& size, uint64_t& compressed_size, uint64_t& offset, uint32_t& disk)
 {
     bool found = false;
@@ -233,14 +231,20 @@ static bool zip64_extra(const std::vector<unsigned char>& extra, uint64_t& size,
     return found || (size != 0xffffffff && compressed_size != 0xffffffff && offset != 0xffffffff && disk != 0xffff);
 }
 
-int StoreZipReader::read_directory(uint64_t size, std::string& error)
+int StoreZipReader::read_directory(uint64_t size)
 {
     if (size < 22)
-        return zip_error(error, "missing end of central directory");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: missing end of central directory\n");
+        return -1;
+    }
     const size_t tail_size = size < 65557 ? (size_t)size : 65557;
     std::vector<unsigned char> tail(tail_size);
     if (!zip_read(fp, size - tail_size, tail.data(), tail.size(), size))
-        return zip_error(error, "cannot read end of central directory");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: cannot read end of central directory\n");
+        return -1;
+    }
     int64_t pos = (int64_t)tail_size - 22;
     for (; pos >= 0; pos--)
     {
@@ -248,73 +252,115 @@ int StoreZipReader::read_directory(uint64_t size, std::string& error)
             break;
     }
     if (pos < 0)
-        return zip_error(error, "missing or truncated end of central directory");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: missing or truncated end of central directory\n");
+        return -1;
+    }
     const unsigned char* eocd = &tail[(size_t)pos];
     const uint64_t eocd_offset = size - tail_size + (size_t)pos;
     uint64_t count = zip_u16(eocd + 10);
     uint64_t cd_size = zip_u32(eocd + 12);
     uint64_t cd_offset = zip_u32(eocd + 16);
-    // Entry counts can be exactly 65535 without ZIP64.
+    // 65535 entries do not necessarily require ZIP64
     const bool needs_zip64 = zip_u16(eocd + 4) == 0xffff || zip_u16(eocd + 6) == 0xffff
                              || cd_size == 0xffffffff || cd_offset == 0xffffffff;
     uint64_t directory_limit = eocd_offset;
     unsigned char locator[20];
     const bool has_zip64 = eocd_offset >= 20 && zip_read(fp, eocd_offset - 20, locator, sizeof(locator), size) && zip_u32(locator) == 0x07064b50;
     if (needs_zip64 && !has_zip64)
-        return zip_error(error, "missing ZIP64 locator");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: missing ZIP64 locator\n");
+        return -1;
+    }
     if (has_zip64)
     {
         if (zip_u32(locator + 4) != 0 || zip_u32(locator + 16) != 1)
-            return zip_error(error, "multi-volume ZIP64 is unsupported");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: multi-volume ZIP64 is unsupported\n");
+            return -1;
+        }
         const uint64_t offset = zip_u64(locator + 8);
         unsigned char record[56];
         if (!zip_read(fp, offset, record, sizeof(record), eocd_offset - 20) || zip_u32(record) != 0x06064b50)
-            return zip_error(error, "invalid ZIP64 end of central directory");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid ZIP64 end of central directory\n");
+            return -1;
+        }
         const uint64_t record_size = zip_u64(record + 4);
         if (record_size < 44 || record_size != eocd_offset - 20 - offset - 12)
-            return zip_error(error, "invalid ZIP64 record size");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid ZIP64 record size\n");
+            return -1;
+        }
         if (zip_u32(record + 16) != 0 || zip_u32(record + 20) != 0 || zip_u64(record + 24) != zip_u64(record + 32))
-            return zip_error(error, "multi-volume ZIP64 is unsupported");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: multi-volume ZIP64 is unsupported\n");
+            return -1;
+        }
         count = zip_u64(record + 32);
         cd_size = zip_u64(record + 40);
         cd_offset = zip_u64(record + 48);
         directory_limit = offset;
     }
     else if (zip_u16(eocd + 4) != 0 || zip_u16(eocd + 6) != 0 || zip_u16(eocd + 8) != count)
-        return zip_error(error, "multi-volume zip is unsupported");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: multi-volume zip is unsupported\n");
+        return -1;
+    }
 
     if (cd_offset > directory_limit || cd_size > directory_limit - cd_offset || count > cd_size / 46)
-        return zip_error(error, "central directory outside file");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: central directory outside file\n");
+        return -1;
+    }
     const uint64_t cd_end = cd_offset + cd_size;
     uint64_t cursor = cd_offset;
     for (uint64_t i = 0; i < count; i++)
     {
         unsigned char header[46];
         if (!zip_read(fp, cursor, header, sizeof(header), cd_end) || zip_u32(header) != 0x02014b50)
-            return zip_error(error, "invalid central directory entry");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid central directory entry\n");
+            return -1;
+        }
         cursor += sizeof(header);
         const uint16_t name_size = zip_u16(header + 28);
         const uint16_t extra_size = zip_u16(header + 30);
         const uint16_t comment_size = zip_u16(header + 32);
         const uint64_t variable_size = (uint64_t)name_size + extra_size + comment_size;
         if (variable_size > cd_end - cursor || name_size == 0)
-            return zip_error(error, "invalid central directory entry lengths");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid central directory entry lengths\n");
+            return -1;
+        }
         std::string name(name_size, '\0');
         std::vector<unsigned char> extra(extra_size);
         if (!zip_read(fp, cursor, &name[0], name_size, cd_end) || !zip_read(fp, cursor + name_size, extra.data(), extra.size(), cd_end))
-            return zip_error(error, "truncated central directory entry");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: truncated central directory entry\n");
+            return -1;
+        }
         cursor += variable_size;
         if (name.find('\0') != std::string::npos || filemetas.find(name) != filemetas.end())
-            return zip_error(error, "invalid or duplicate entry name");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid or duplicate entry name\n");
+            return -1;
+        }
 
         uint64_t compressed_size = zip_u32(header + 20);
         uint64_t entry_size = zip_u32(header + 24);
         uint64_t local_offset = zip_u32(header + 42);
         uint32_t disk = zip_u16(header + 34);
         if (!zip64_extra(extra, entry_size, compressed_size, local_offset, disk))
-            return zip_error(error, "invalid ZIP64 entry extra field");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid ZIP64 entry extra field\n");
+            return -1;
+        }
         if (disk != 0)
-            return zip_error(error, "multi-volume entry is unsupported");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: multi-volume entry is unsupported\n");
+            return -1;
+        }
 
         StoreZipMeta meta;
         meta.size = entry_size;
@@ -322,29 +368,46 @@ int StoreZipReader::read_directory(uint64_t size, std::string& error)
         meta.compression = zip_u16(header + 10);
         meta.crc32 = zip_u32(header + 16);
         if (meta.compression == 0 && compressed_size != entry_size)
-            return zip_error(error, "inconsistent stored entry sizes");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: inconsistent stored entry sizes\n");
+            return -1;
+        }
 
         unsigned char local[30];
         if (!zip_read(fp, local_offset, local, sizeof(local), cd_offset) || zip_u32(local) != 0x04034b50)
-            return zip_error(error, "invalid local file header");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: invalid local file header\n");
+            return -1;
+        }
         const uint16_t local_name_size = zip_u16(local + 26);
         const uint16_t local_extra_size = zip_u16(local + 28);
         const uint64_t local_start = local_offset + sizeof(local);
         if ((uint64_t)local_name_size + local_extra_size > cd_offset - local_start
                 || local_name_size != name_size || zip_u16(local + 6) != meta.flag || zip_u16(local + 8) != meta.compression)
-            return zip_error(error, "inconsistent local file header");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: inconsistent local file header\n");
+            return -1;
+        }
         std::string local_name(local_name_size, '\0');
         if (!zip_read(fp, local_start, &local_name[0], local_name_size, cd_offset) || local_name != name)
-            return zip_error(error, "inconsistent local entry name");
-        // Sizes and CRC come from the central directory, including entries
-        // whose local header leaves these fields for a data descriptor.
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: inconsistent local entry name\n");
+            return -1;
+        }
+        // use central-directory sizes and CRC, including data-descriptor entries
         meta.offset = local_start + local_name_size + local_extra_size;
         if (compressed_size > cd_offset - meta.offset)
-            return zip_error(error, "entry data outside file");
+        {
+            fprintf(stderr, "pnnx: zip: invalid zip: entry data outside file\n");
+            return -1;
+        }
         filemetas[name] = meta;
     }
     if (cursor != cd_end)
-        return zip_error(error, "central directory size or entry count mismatch");
+    {
+        fprintf(stderr, "pnnx: zip: invalid zip: central directory size or entry count mismatch\n");
+        return -1;
+    }
     return 0;
 }
 
@@ -355,11 +418,10 @@ int StoreZipReader::open(const std::string& path)
     fp = fopen(path.c_str(), "rb");
     if (!fp)
     {
-        fprintf(stderr, "open failed\n");
+        fprintf(stderr, "pnnx: zip: open failed\n");
         return -1;
     }
 
-    std::string error;
 #ifdef _WIN32
     const int seek_ret = _fseeki64(fp, 0, SEEK_END);
     const int64_t size = seek_ret == 0 ? _ftelli64(fp) : -1;
@@ -367,9 +429,9 @@ int StoreZipReader::open(const std::string& path)
     const int seek_ret = fseeko(fp, 0, SEEK_END);
     const int64_t size = seek_ret == 0 ? ftello(fp) : -1;
 #endif
-    if (size < 0 || read_directory((uint64_t)size, error) != 0)
+    if (size < 0 || read_directory((uint64_t)size) != 0)
     {
-        fprintf(stderr, "invalid zip %s: %s\n", path.c_str(), size < 0 ? "cannot determine file size" : error.c_str());
+        fprintf(stderr, "pnnx: zip: invalid zip %s\n", path.c_str());
         close();
         return -1;
     }
@@ -397,16 +459,15 @@ uint64_t StoreZipReader::get_file_size(const std::string& name) const
 {
     if (filemetas.find(name) == filemetas.end())
     {
-        fprintf(stderr, "no such file %s\n", name.c_str());
+        fprintf(stderr, "pnnx: zip: no such file %s\n", name.c_str());
         return 0;
     }
 
     const StoreZipMeta& meta = filemetas.at(name);
-    // Callers allocate this many bytes before read_file. Unsupported entries
-    // must not expose an unchecked uncompressed size to those allocations.
+    // reject unsupported entries before callers allocate their uncompressed size
     if (meta.compression != 0 || (meta.flag & ~(uint16_t)0x808) != 0)
     {
-        fprintf(stderr, "unsupported zip entry %s: compression %u flags 0x%x\n", name.c_str(), meta.compression, meta.flag);
+        fprintf(stderr, "pnnx: zip: unsupported zip entry %s: compression %u flags 0x%x\n", name.c_str(), meta.compression, meta.flag);
         return 0;
     }
     return meta.size;
@@ -417,32 +478,32 @@ int StoreZipReader::read_file(const std::string& name, char* data)
     const std::map<std::string, StoreZipMeta>::const_iterator it = filemetas.find(name);
     if (!fp || it == filemetas.end())
     {
-        fprintf(stderr, "no such file %s\n", name.c_str());
+        fprintf(stderr, "pnnx: zip: no such file %s\n", name.c_str());
         return -1;
     }
 
     const StoreZipMeta meta = it->second;
     if (meta.compression != 0 || (meta.flag & ~(uint16_t)0x808) != 0)
     {
-        fprintf(stderr, "unsupported zip entry %s: compression %u flags 0x%x\n", name.c_str(), meta.compression, meta.flag);
+        fprintf(stderr, "pnnx: zip: unsupported zip entry %s: compression %u flags 0x%x\n", name.c_str(), meta.compression, meta.flag);
         return -1;
     }
     if (meta.size > std::numeric_limits<size_t>::max() || (meta.size != 0 && !data) || !zip_seek(fp, meta.offset))
     {
-        fprintf(stderr, "cannot read zip entry %s\n", name.c_str());
+        fprintf(stderr, "pnnx: zip: cannot read zip entry %s\n", name.c_str());
         return -1;
     }
 
     if (meta.size != 0 && fread(data, 1, (size_t)meta.size, fp) != meta.size)
     {
-        fprintf(stderr, "short read in zip entry %s\n", name.c_str());
+        fprintf(stderr, "pnnx: zip: short read in zip entry %s\n", name.c_str());
         return -1;
     }
 
     CRC32_TABLE_INIT();
     if (CRC32_buffer((const unsigned char*)data, meta.size) != meta.crc32)
     {
-        fprintf(stderr, "CRC mismatch in zip entry %s\n", name.c_str());
+        fprintf(stderr, "pnnx: zip: CRC mismatch in zip entry %s\n", name.c_str());
         return -1;
     }
 

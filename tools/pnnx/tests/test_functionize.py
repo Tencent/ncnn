@@ -1230,5 +1230,8 @@ def test():
     return not failures
 
 
-if __name__ == '__main__':
-    assert test()
+if __name__ == "__main__":
+    if test():
+        exit(0)
+    else:
+        exit(1)

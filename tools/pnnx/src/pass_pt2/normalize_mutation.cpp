@@ -20,7 +20,9 @@ static Operand* tensor_before(Graph& graph, Operator* before, const char* type, 
     Operator* op = graph.new_operator_before(type, before->name + suffix, before);
     op->inputs = inputs;
     for (Operand* input : inputs)
+    {
         input->consumers.push_back(op);
+    }
     Operand* r = graph.new_operand(op->name);
     r->producer = op;
     r->type = meta->type;
@@ -49,7 +51,9 @@ int normalize_pt2_mutation(Graph& graph)
             std::vector<Operand*> inputs = op->inputs;
             const char* suffixes[] = {"_dtype", "_layout", "_device", "_pin_memory", "_memory_format"};
             for (const char* suffix : suffixes)
+            {
                 inputs.push_back(constant_before(graph, op, suffix, Parameter()));
+            }
             if (inplace)
             {
                 Operand* filled = tensor_before(graph, op, "aten::full_like", "_filled", inputs, op->inputs[0]);
@@ -61,7 +65,9 @@ int normalize_pt2_mutation(Graph& graph)
             else
             {
                 for (size_t i = op->inputs.size(); i < inputs.size(); i++)
+                {
                     inputs[i]->consumers.push_back(op);
+                }
                 op->inputs = inputs;
                 op->type = "aten::full_like";
             }

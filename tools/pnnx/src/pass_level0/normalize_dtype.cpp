@@ -3,12 +3,14 @@
 
 #include "normalize_dtype.h"
 
-#include "torch_alias.h"
+#include "utils.h"
 
 #include <torch/csrc/api/include/torch/version.h>
 #include <torch/csrc/jit/ir/alias_analysis.h>
 #include <torch/csrc/jit/passes/inliner.h>
 #include <torch/csrc/jit/passes/shape_analysis.h>
+
+#include <stdio.h>
 
 #include <map>
 #include <set>
@@ -32,7 +34,7 @@ static bool inspect_dtype(torch::jit::Block* block, bool& needs_normalization, s
         // cannot preserve its meaning when tensor precision changes.
         if (n->kind() == c10::aten::view && n->inputs().size() == 2 && n->input(1)->type()->kind() == c10::TypeKind::IntType)
         {
-            fprintf(stderr, "aten::view.dtype: dtype reinterpretation is unsupported\n");
+            fprintf(stderr, "pnnx: aten::view.dtype: dtype reinterpretation is unsupported\n");
             return false;
         }
         if (n->kind() == c10::prim::Constant && n->hasAttribute(c10::attr::value) && n->kindOf(c10::attr::value) == torch::jit::AttributeKind::t)
@@ -52,8 +54,10 @@ static bool inspect_dtype(torch::jit::Block* block, bool& needs_normalization, s
             }
         }
         for (auto b : n->blocks())
+        {
             if (!inspect_dtype(b, needs_normalization, inspected_graphs))
                 return false;
+        }
 
         torch::jit::Function* function = 0;
         if (n->kind() == c10::prim::CallMethod)
@@ -146,7 +150,9 @@ static c10::ScalarType original_scalar_type(const torch::jit::Value* v, const to
                 auto g = method->graph();
                 std::map<const torch::jit::Value*, c10::ScalarType> argument_types;
                 for (size_t i = 1; i < n->inputs().size() && i < g->inputs().size(); i++)
+                {
                     argument_types[g->inputs()[i]] = original_scalar_type(n->input(i), mod, types);
+                }
                 type = original_scalar_type(g->outputs()[0], submod, argument_types);
             }
         }
@@ -179,14 +185,18 @@ static void infer_original_scalar_types(const std::shared_ptr<torch::jit::Graph>
     // Analyze a copy, so shape propagation cannot insert expands into the model.
     auto g = graph->copy();
     for (size_t i = 0; i < input_tensors.size() && i + 1 < g->inputs().size(); i++)
+    {
         g->inputs()[i + 1]->setType(c10::TensorType::create(input_tensors[i]));
+    }
 
     std::map<const torch::jit::Value*, const torch::jit::Value*> originals;
     auto original_node = graph->nodes().begin();
     for (auto n : g->nodes())
     {
         for (size_t i = 0; i < n->outputs().size(); i++)
+        {
             originals[n->output(i)] = (*original_node)->output(i);
+        }
         ++original_node;
     }
 
@@ -200,11 +210,15 @@ static void infer_original_scalar_types(const std::shared_ptr<torch::jit::Graph>
             tail.push_back(n);
     }
     while (!g->outputs().empty())
+    {
         g->eraseOutput(0);
+    }
     for (auto it = tail.rbegin(); it != tail.rend(); ++it)
     {
         for (auto v : (*it)->outputs())
+        {
             originals.erase(v);
+        }
         (*it)->destroy();
     }
 
@@ -311,7 +325,7 @@ static bool mutable_unknown_cast(const std::shared_ptr<torch::jit::Graph>& graph
         {
             if (aliases.writesToAlias(n, {cast->input(0), cast->output()}))
             {
-                fprintf(stderr, "cannot determine original dtype of %s before observable mutation\n", cast->kind().toDisplayString());
+                fprintf(stderr, "pnnx: cannot determine original dtype of %s before observable mutation\n", cast->kind().toDisplayString());
                 return true;
             }
         }
@@ -325,10 +339,14 @@ int normalize_dtype(std::shared_ptr<torch::jit::Graph>& graph, const torch::jit:
 {
     bool needs_normalization = graph->inputs().size() != input_tensors.size() + 1;
     for (const at::Tensor& t : input_tensors)
+    {
         needs_normalization |= normalized_scalar_type(t.scalar_type()) != t.scalar_type();
+    }
     for (const auto& attr : mod.named_attributes())
+    {
         if (attr.value.isTensor())
             needs_normalization |= normalized_scalar_type(attr.value.toTensor().scalar_type()) != attr.value.toTensor().scalar_type();
+    }
     std::set<const torch::jit::Graph*> inspected_graphs = {graph.get()};
     if (!inspect_dtype(graph->block(), needs_normalization, inspected_graphs))
         return -1;
@@ -337,7 +355,9 @@ int normalize_dtype(std::shared_ptr<torch::jit::Graph>& graph, const torch::jit:
 
     std::map<const torch::jit::Value*, c10::ScalarType> types;
     for (size_t i = 0; i < input_tensors.size() && i + 1 < graph->inputs().size(); i++)
+    {
         types[graph->inputs()[i + 1]] = input_tensors[i].scalar_type();
+    }
 
     bool infer_types = false;
     for (auto n : graph->nodes())

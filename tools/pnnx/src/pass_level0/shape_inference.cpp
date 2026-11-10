@@ -5,9 +5,9 @@
 #include <unordered_set>
 
 #include "storezip.h"
-#include "torch_alias.h"
+#include "utils.h"
 #include "pass_level0/constant_unpooling.h"
-#include "pass_level0/convert_half_to_float.h"
+#include "pass_level0/normalize_module_dtype.h"
 #include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
 #include "pass_level0/normalize_dtype.h"
@@ -312,7 +312,7 @@ int shape_inference(std::shared_ptr<torch::jit::Graph>& graph, const std::vector
         if (normalize_dtype(graph2, mod2, input_tensors) != 0)
             return -1;
         reset_device(graph2, device);
-        convert_half_to_float(mod2);
+        normalize_module_dtype(mod2);
 
         std::vector<torch::jit::Value*> values2;
         bool has_metadata_mutation = false;

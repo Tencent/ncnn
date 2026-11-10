@@ -3,18 +3,20 @@
 
 #include "normalize_as_strided.h"
 
+#include <stdio.h>
+
 #include <algorithm>
 #include <limits.h>
 
 namespace pnnx {
 
-bool normalize_pt2_layout_query(Operator* op, const Pt2TensorMeta& source, std::string& error)
+int normalize_pt2_layout_query(Operator* op, const Pt2TensorMeta& source)
 {
     const bool stride = op->type == "aten::stride" || op->type == "aten::sym_stride";
     if (op->outputs.size() != 1 || op->inputs.size() != (stride ? 2u : 1u))
     {
-        error = "unsupported layout query signature";
-        return false;
+        fprintf(stderr, "pnnx: pt2 layout: unsupported layout query signature\n");
+        return -1;
     }
     int64_t value = source.storage_offset;
     if (stride)
@@ -22,31 +24,33 @@ bool normalize_pt2_layout_query(Operator* op, const Pt2TensorMeta& source, std::
         const Operator* dim = op->inputs[1]->producer;
         if (dim->type != "prim::Constant" || !dim->has_param("value") || dim->params.at("value").type != 2)
         {
-            error = "stride query requires a static dimension";
-            return false;
+            fprintf(stderr, "pnnx: pt2 layout: stride query requires a static dimension\n");
+            return -1;
         }
         int64_t axis = dim->params.at("value").i;
         if (axis < 0)
             axis += (int64_t)source.strides.size();
         if (axis < 0 || axis >= (int64_t)source.strides.size())
         {
-            error = "stride query dimension out of range";
-            return false;
+            fprintf(stderr, "pnnx: pt2 layout: stride query dimension out of range\n");
+            return -1;
         }
         value = source.strides[axis];
     }
     if (value < 0 || value > INT_MAX)
     {
-        error = "layout query requires a static value in pnnx parameter range";
-        return false;
+        fprintf(stderr, "pnnx: pt2 layout: layout query requires a static value in pnnx parameter range\n");
+        return -1;
     }
     for (Operand* r : op->inputs)
+    {
         r->remove_consumer(op);
+    }
     op->inputs.clear();
     op->inputnames.clear();
     op->type = "prim::Constant";
     op->params["value"] = (int)value;
-    return true;
+    return 0;
 }
 
 static Operand* constant_before(Graph& graph, Operator* before, const char* suffix, const Parameter& value)
@@ -59,27 +63,32 @@ static Operand* constant_before(Graph& graph, Operator* before, const char* suff
     return r;
 }
 
-bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& source, std::string& error)
+int normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& source)
 {
     if (op->inputs.size() != 4 || op->outputs.size() != 1 || source.shape.size() != source.strides.size())
     {
-        error = "invalid as_strided signature or source layout";
-        return false;
+        fprintf(stderr, "pnnx: pt2 layout: invalid as_strided signature or source layout\n");
+        return -1;
     }
-    std::vector<int> axes;
+    std::vector<std::pair<int64_t, int> > order;
     for (size_t i = 0; i < source.shape.size(); i++)
-        axes.push_back((int)i);
-    std::stable_sort(axes.begin(), axes.end(), [&](int a, int b) {
-        return source.strides[a] > source.strides[b];
-    });
+    {
+        order.push_back(std::make_pair(-source.strides[i], (int)i));
+    }
+    std::sort(order.begin(), order.end());
+    std::vector<int> axes;
+    for (const auto& axis : order)
+    {
+        axes.push_back(axis.second);
+    }
     int64_t count = 1;
     for (auto i = axes.rbegin(); i != axes.rend(); ++i)
     {
         const int size = source.shape[*i];
         if (size <= 0 || (size > 1 && source.strides[*i] != count) || count > INT_MAX / size)
         {
-            error = "as_strided requires a static non-overlapping dense source";
-            return false;
+            fprintf(stderr, "pnnx: pt2 layout: as_strided requires a static non-overlapping dense source\n");
+            return -1;
         }
         count *= size;
     }
@@ -87,8 +96,7 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     for (size_t i = 1; i < 4; i++)
     {
         const Operator* constant = op->inputs[i]->producer;
-        // Stride queries in a SymInt list have just become integer constants.
-        // Read that list without deleting constants shared with other users.
+        // read constant stride lists without deleting shared elements
         if (i < 3 && constant->type == "prim::ListConstruct")
         {
             args[i - 1].type = 5;
@@ -97,8 +105,8 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
                 const Operator* item = r->producer;
                 if (item->type != "prim::Constant" || !item->has_param("value") || item->params.at("value").type != 2)
                 {
-                    error = "as_strided requires static size, stride and offset";
-                    return false;
+                    fprintf(stderr, "pnnx: pt2 layout: as_strided requires static size, stride and offset\n");
+                    return -1;
                 }
                 args[i - 1].ai.push_back(item->params.at("value").i);
             }
@@ -106,28 +114,28 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
         }
         if (constant->type != "prim::Constant" || !constant->has_param("value"))
         {
-            error = "as_strided requires static size, stride and offset";
-            return false;
+            fprintf(stderr, "pnnx: pt2 layout: as_strided requires static size, stride and offset\n");
+            return -1;
         }
         args[i - 1] = constant->params.at("value");
     }
     if (args[0].type != 5 || args[1].type != 5 || args[0].ai.size() != args[1].ai.size()
             || (args[2].type != 0 && args[2].type != 2))
     {
-        error = "invalid as_strided size, stride or offset";
-        return false;
+        fprintf(stderr, "pnnx: pt2 layout: invalid as_strided size, stride or offset\n");
+        return -1;
     }
     if (args[2].type == 2 && (args[2].i < 0 || source.storage_offset < 0 || args[2].i < source.storage_offset))
     {
-        error = "as_strided cannot prove an explicit offset inside its source tensor";
-        return false;
+        fprintf(stderr, "pnnx: pt2 layout: as_strided cannot prove an explicit offset inside its source tensor\n");
+        return -1;
     }
     const int64_t offset = args[2].type == 0 ? 0 : (int64_t)args[2].i - source.storage_offset;
     int64_t last = offset;
     if (offset < 0 || offset >= count)
     {
-        error = "as_strided accesses storage outside its source tensor";
-        return false;
+        fprintf(stderr, "pnnx: pt2 layout: as_strided accesses storage outside its source tensor\n");
+        return -1;
     }
     for (size_t i = 0; i < args[0].ai.size(); i++)
     {
@@ -135,15 +143,13 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
         const int stride = args[1].ai[i];
         if (size <= 0 || stride < 0 || (size > 1 && stride > (count - 1 - last) / (size - 1)))
         {
-            error = "as_strided accesses storage outside its source tensor";
-            return false;
+            fprintf(stderr, "pnnx: pt2 layout: as_strided accesses storage outside its source tensor\n");
+            return -1;
         }
         last += (int64_t)(size - 1) * stride;
     }
 
-    // Public optimizations may change physical layouts while preserving values.
-    // Reconstruct the original dense storage order from logical tensor axes,
-    // then flatten it before applying the explicitly bounded strided view.
+    // reconstruct the original dense storage order before applying as_strided
     for (size_t i = 1; i < 3; i++)
     {
         if (op->inputs[i]->producer->type == "prim::Constant")
@@ -162,7 +168,9 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     physical->producer = permute;
     physical->type = input->type;
     for (int axis : axes)
+    {
         physical->shape.push_back(source.shape[axis]);
+    }
     permute->outputs.push_back(physical);
 
     Operand* size = constant_before(graph, op, "_flat_size", Parameter(std::vector<int> {(int)count}));
@@ -175,8 +183,7 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     flat->type = input->type;
     flat->shape = {(int)count};
     reshape->outputs.push_back(flat);
-    // A reshape may still share a nonzero storage offset. Materialize this
-    // one-dimensional sequence so literal offsets address its own storage.
+    // materialize storage so literal offsets start at zero
     Operand* format = constant_before(graph, op, "_format", Parameter(0));
     Operator* clone = graph.new_operator_before("aten::clone", op->name + "_storage", op);
     clone->inputs = {flat, format};
@@ -193,7 +200,7 @@ bool normalize_pt2_as_strided(Graph& graph, Operator* op, const Pt2TensorMeta& s
     op->inputs[3]->remove_consumer(op);
     op->inputs[3] = constant_before(graph, op, "_offset", Parameter((int)offset));
     op->inputs[3]->consumers.push_back(op);
-    return true;
+    return 0;
 }
 
 } // namespace pnnx
