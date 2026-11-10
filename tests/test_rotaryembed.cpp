@@ -41,7 +41,11 @@ static int test_rotaryembed_0()
            || test_rotaryembed(RandomMat(44, 28, 64), 0)
            || test_rotaryembed(RandomMat(12, 27, 64), 1)
            || test_rotaryembed(RandomMat(28, 17, 15), 0)
-           || test_rotaryembed(RandomMat(28, 17, 15), 1);
+           || test_rotaryembed(RandomMat(28, 17, 15), 1)
+           || test_rotaryembed(RandomMat(128, 1, 16), 0)
+           || test_rotaryembed(RandomMat(128, 1, 16), 1)
+           || test_rotaryembed(RandomMat(196, 5, 3), 0)
+           || test_rotaryembed(RandomMat(196, 5, 3), 1);
 }
 
 // FULL-WIDTH (embed_dim) cos/sin cache. This is the shape pnnx always emits, because the
@@ -86,11 +90,15 @@ static int test_rotaryembed_1()
            || test_rotaryembed_fullcos(RandomMat(64, 28, 12), 0)
            || test_rotaryembed_fullcos(RandomMat(44, 28, 64), 0)
            || test_rotaryembed_fullcos(RandomMat(28, 17, 15), 0)
+           || test_rotaryembed_fullcos(RandomMat(128, 1, 16), 0)
+           || test_rotaryembed_fullcos(RandomMat(196, 5, 3), 0)
            || test_rotaryembed_fullcos(RandomMat(32, 66, 8), 1)
            || test_rotaryembed_fullcos(RandomMat(26, 64, 8), 1)
            || test_rotaryembed_fullcos(RandomMat(48, 22, 12), 1)
            || test_rotaryembed_fullcos(RandomMat(12, 27, 64), 1)
-           || test_rotaryembed_fullcos(RandomMat(28, 17, 15), 1);
+           || test_rotaryembed_fullcos(RandomMat(28, 17, 15), 1)
+           || test_rotaryembed_fullcos(RandomMat(128, 1, 16), 1)
+           || test_rotaryembed_fullcos(RandomMat(196, 5, 3), 1);
 }
 
 int main()
