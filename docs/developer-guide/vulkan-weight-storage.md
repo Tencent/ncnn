@@ -152,16 +152,16 @@ Model backing must remain valid and immutable until execution completes and the
 recording is reset. Clearing a Net invalidates its weights and existing
 Extractors. Use `clear()`, `load_param()` and `load_model()` to replace a model.
 
-The private `record_resolve()` uses `create_like()` to create a temporary `VkMat`
-from the private pool with the source shape and packing. It copies from the
-source view's offset into the new tensor, whose view offset is zero and whose
-strides follow the ordinary tensor layout. It returns `void`; a failed resolve
-leaves `dst` empty, so the caller stops recording that operation. Ordinary buffers
-pass through. `record_pipeline()` first scans for weight bindings that need
-resolving. If present, it submits the preceding compute batch, resolves each
-weight independently in a second pass, then begins the next compute batch after
-waiting for command buffer reuse. Weight-consuming clones use the same batch
-transition. Final submission closes the last batch
+The private `resolve_weights()` uses `create_like()` to create a temporary `VkMat`
+from the private pool for each deferred weight of an operation, with the source
+shape and packing. It copies from the source view's offset into the new tensor,
+whose view offset is zero and whose strides follow the ordinary tensor layout.
+Ordinary buffers pass through. `record_pipeline()` first scans for weight
+bindings that need resolving. If present, the whole group is allocated before
+the preceding compute batch is submitted; then the weights are copied and
+uploaded, and the next compute batch begins after waiting for command buffer
+reuse. Weight-consuming clones use the same batch transition. Final submission
+closes the last batch
 without opening another. Later operations upload the source again; there is no
 persistent weight identity cache. `MemoryData` continues to use `record_clone()`
 and owns its independent output.
@@ -215,11 +215,11 @@ fills a separate command-owned staging buffer for each file weight. This uses
 the same two-generation lifetime rule and does not depend on device type or
 queue-family selection.
 Each weight is copied in full, and all GPU uploads for one operation are recorded
-in the same upload command buffer and submitted together. The caller waits for
-upload command buffer reuse, resets it, releases the preceding staging buffers,
-and begins recording before resolving the group. It ends recording afterward
-and, once every resolve succeeds, submits only if the private allocator is not
-mappable. Mapped writes prepare the command buffer but do not submit an empty
+in the same upload command buffer and submitted together. The group waits for
+upload command buffer reuse, resets it and releases the preceding staging buffers
+before allocating its temporary weights and staging. It records the copies after
+the preceding compute batch is submitted and submits them only if the private
+allocator is not mappable. Mapped writes prepare the command buffer but do not submit an empty
 upload. Staging allocations
 remain live until the upload completes; the preceding group's staging is released
 before recording the next upload group. Temporary staging memory therefore grows
@@ -259,11 +259,13 @@ Reset and destruction wait for already submitted work before releasing its
 resources; reset discards any unsubmitted recording. An interrupted stream may
 require replacing semaphores whose signals have not been consumed.
 
-Recording failures return from the current operation, following the ordinary
-`void record_*()` convention. This includes failures from submissions made while
-recording. They are not saved as a command-wide error for a later
-`submit_and_wait()` call. Reset an incomplete recording before using the command
-again. Output allocation failures retain the empty-output convention.
+Recording failures log and return from the current operation, following the
+ordinary `void record_*()` convention, and the command keeps recording. A weight
+group that cannot be allocated fails before the preceding batch is submitted.
+`record_pipeline()` then skips the dispatch, as for a descriptor pool failure,
+and weight clones leave their output empty. Errors from submissions made while
+recording discard the unsubmitted batch and begin recording again. They are not
+saved as a command-wide error for a later `submit_and_wait()` call.
 Begin/end command-buffer helpers log native errors; their callers follow the
 ordinary command path without propagating those return values.
 `submit_and_wait()` checks submission, fence reset, waiting and download
