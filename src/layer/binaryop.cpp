@@ -9,6 +9,7 @@ BinaryOp::BinaryOp()
 {
     one_blob_only = false;
     support_inplace = false;
+    floor_remainder = false;
 }
 
 int BinaryOp::load_param(const ParamDict& pd)
@@ -265,6 +266,25 @@ struct binary_op_remainder
     }
 };
 
+struct binary_op_floor_remainder
+{
+    float operator()(const float& x, const float& y) const
+    {
+        float r = fmodf(x, y);
+        if (r != 0.f && (r < 0.f) != (y < 0.f))
+            r += y;
+        return r;
+    }
+};
+
+struct binary_op_rfloor_remainder
+{
+    float operator()(const float& x, const float& y) const
+    {
+        return binary_op_floor_remainder()(y, x);
+    }
+};
+
 struct binary_op_rfmod
 {
     float operator()(const float& x, const float& y) const
@@ -289,7 +309,7 @@ struct binary_op_rremainder
     }
 };
 
-static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, const Option& opt)
+static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type, bool floor_remainder, const Option& opt)
 {
     if (op_type == BinaryOp::Operation_ADD) return binary_op_broadcast<binary_op_add>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_SUB) return binary_op_broadcast<binary_op_sub>(a, b, c, opt);
@@ -308,13 +328,15 @@ static void binary_op_broadcast(const Mat& a, const Mat& b, Mat& c, int op_type,
     if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_broadcast<binary_op_logaddexp>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_broadcast<binary_op_floor_divide>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_broadcast<binary_op_floor_divide>(b, a, c, opt);
+    if (op_type == BinaryOp::Operation_REMAINDER && floor_remainder) return binary_op_broadcast<binary_op_floor_remainder>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_broadcast<binary_op_remainder>(a, b, c, opt);
+    if (op_type == BinaryOp::Operation_RREMAINDER && floor_remainder) return binary_op_broadcast<binary_op_rfloor_remainder>(a, b, c, opt);
     if (op_type == BinaryOp::Operation_RREMAINDER) return binary_op_broadcast<binary_op_remainder>(b, a, c, opt);
 
     // should never reach here
 }
 
-static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type, const Option& opt)
+static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type, bool floor_remainder, const Option& opt)
 {
     if (op_type == BinaryOp::Operation_ADD) return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_SUB) return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
@@ -333,7 +355,9 @@ static void binary_op_scalar_inplace(Mat& bottom_top_blob, float b, int op_type,
     if (op_type == BinaryOp::Operation_LOGADDEXP) return binary_op_scalar_inplace<binary_op_logaddexp>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_FLOOR_DIVIDE) return binary_op_scalar_inplace<binary_op_floor_divide>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_RFLOOR_DIVIDE) return binary_op_scalar_inplace<binary_op_rfloor_divide>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_REMAINDER && floor_remainder) return binary_op_scalar_inplace<binary_op_floor_remainder>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_REMAINDER) return binary_op_scalar_inplace<binary_op_remainder>(bottom_top_blob, b, opt);
+    if (op_type == BinaryOp::Operation_RREMAINDER && floor_remainder) return binary_op_scalar_inplace<binary_op_rfloor_remainder>(bottom_top_blob, b, opt);
     if (op_type == BinaryOp::Operation_RREMAINDER) return binary_op_scalar_inplace<binary_op_rremainder>(bottom_top_blob, b, opt);
 
     // should never reach here
@@ -435,14 +459,14 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     if (top_blob.empty())
         return -100;
 
-    binary_op_broadcast(A2, B2, top_blob, op_type, opt);
+    binary_op_broadcast(A2, B2, top_blob, op_type, floor_remainder, opt);
 
     return 0;
 }
 
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    binary_op_scalar_inplace(bottom_top_blob, b, op_type, opt);
+    binary_op_scalar_inplace(bottom_top_blob, b, op_type, floor_remainder, opt);
 
     return 0;
 }

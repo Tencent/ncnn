@@ -1307,7 +1307,7 @@ static void solve_batch_index_backward(Operand* operand)
             if (r->params.find("__batch_index") != r->params.end())
                 continue;
 
-            if (op->type == "BinaryOp" && batch_index >= 0 && batch_index < output_rank0 && (int)r->shape.size() <= output_rank0 - 1)
+            if ((op->type == "BinaryOp" || op->type == "FloorMod") && batch_index >= 0 && batch_index < output_rank0 && (int)r->shape.size() <= output_rank0 - 1)
             {
                 bool broadcast_without_batch = true;
                 int j = (int)r->shape.size() - 1;
