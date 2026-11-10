@@ -270,7 +270,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution1d_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution1d_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_convolution1d_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                                                                  coopmat_subgroup_size)
+                                                coopmat_subgroup_size)
                                                 ? LayerShaderType::convolution1d_gemm_cm_qcom
                                                 : LayerShaderType::convolution1d_gemm_cm,
                                                 opt_cm, specializations);
@@ -503,7 +503,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution1d_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution1d_1x1s1d1->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_convolution1d_1x1s1d1->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                                                                     coopmat_subgroup_size)
+                                                   coopmat_subgroup_size)
                                                    ? LayerShaderType::convolution1d_1x1s1d1_cm_qcom
                                                    : LayerShaderType::convolution1d_1x1s1d1_cm,
                                                    opt_cm, specializations);

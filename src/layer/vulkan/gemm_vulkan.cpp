@@ -138,7 +138,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
 
         const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
         if (coopmat_M == 0 || (use_khr_cooperative_matrix && ((coopmat_M != 4 && coopmat_M % 8) || coopmat_N % 8 || coopmat_K % 8))
-            || (vkdev->info.vendor_id() == 0x5143 && !use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size)))
+                || (vkdev->info.vendor_id() == 0x5143 && !use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size)))
         {
             // allow four-row tiles while retaining eight-element N/K tiles
             use_cooperative_matrix = false;
@@ -1566,7 +1566,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         pipeline_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_int8, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size,
-                                                                true)
+                              true)
                               ? LayerShaderType::gemm_int8_cm_qcom
                               : LayerShaderType::gemm_int8_cm,
                               opt_int8, specializations);
@@ -1579,7 +1579,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
             pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
             pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_gemm_pack4->create(use_cooperative_matrix_conversion(vkdev->info, opt_int8, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size,
-                                                                          true)
+                                        true)
                                         ? LayerShaderType::gemm_int8_cm_qcom
                                         : LayerShaderType::gemm_int8_cm,
                                         opt_int8, specializations);

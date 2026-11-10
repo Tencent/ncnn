@@ -71,9 +71,9 @@ static int test_cooperative_matrix_conversion_features()
         const bool expected = info.queryCooperativeMatrixFeatures().cooperativeMatrix && features.cooperativeMatrixConversion;
 
         if (features.sType != VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM
-            || (!info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion)
-            || (info.support_VK_QCOM_cooperative_matrix_conversion() && !info.support_VK_KHR_cooperative_matrix())
-            || info.support_cooperative_matrix_conversion() != expected)
+                || (!info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion)
+                || (info.support_VK_QCOM_cooperative_matrix_conversion() && !info.support_VK_KHR_cooperative_matrix())
+                || info.support_cooperative_matrix_conversion() != expected)
         {
             fprintf(stderr, "test_cooperative_matrix_conversion_features failed gpu=%d\n", i);
             return -1;
@@ -91,8 +91,7 @@ static int test_compile_spirv_module_cooperative_matrix_conversion()
         const char* name;
         bool int8;
     };
-    const Shader shaders[] =
-    {
+    const Shader shaders[] = {
         {-1, "", false},
 #if NCNN_TEST_LAYER_convolution
         {ncnn::LayerShaderType::convolution_1x1s1d1_cm_qcom, "convolution_1x1s1d1_cm_qcom", false},

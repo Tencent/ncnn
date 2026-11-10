@@ -346,7 +346,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             pipeline_deconvolution_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_deconvolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             pipeline_deconvolution_gemm->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
-                                                                                  coopmat_subgroup_size)
+                                                coopmat_subgroup_size)
                                                 ? LayerShaderType::deconvolution_gemm_cm_qcom
                                                 : LayerShaderType::deconvolution_gemm_cm,
                                                 opt_cm, specializations);
