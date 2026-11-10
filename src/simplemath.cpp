@@ -128,8 +128,70 @@ float frac(float x)
 
 float fmodf(float x, float y)
 {
-    float m = frac(fabsf(x / y)) * fabsf(y);
-    return (x < 0) ? -m : m;
+    union
+    {
+        float f;
+        unsigned int i;
+    } ux, uy;
+    ux.f = x;
+    uy.f = y;
+
+    const unsigned int sign = ux.i & 0x80000000u;
+    const unsigned int ax = ux.i & 0x7fffffffu;
+    const unsigned int ay = uy.i & 0x7fffffffu;
+    if (ay == 0 || ax >= 0x7f800000u || ay > 0x7f800000u)
+        return uint32_as_float(0x7fc00000u);
+    if (ax <= ay)
+        return ax == ay ? uint32_as_float(sign) : x;
+
+    int ex = (int)(ax >> 23);
+    int ey = (int)(ay >> 23);
+    unsigned int mx = ax & 0x007fffffu;
+    unsigned int my = ay & 0x007fffffu;
+    if (ex == 0)
+    {
+        ex = 1;
+        while ((mx & 0x00800000u) == 0)
+        {
+            mx <<= 1;
+            ex--;
+        }
+    }
+    else
+        mx |= 0x00800000u;
+    if (ey == 0)
+    {
+        ey = 1;
+        while ((my & 0x00800000u) == 0)
+        {
+            my <<= 1;
+            ey--;
+        }
+    }
+    else
+        my |= 0x00800000u;
+
+    // Reduce the significands without first rounding the floating-point quotient.
+    while (ex > ey)
+    {
+        if (mx >= my)
+            mx -= my;
+        mx <<= 1;
+        ex--;
+    }
+    if (mx >= my)
+        mx -= my;
+    if (mx == 0)
+        return uint32_as_float(sign);
+
+    while ((mx & 0x00800000u) == 0)
+    {
+        mx <<= 1;
+        ex--;
+    }
+    if (ex > 0)
+        return uint32_as_float(sign | ((unsigned int)ex << 23) | (mx & 0x007fffffu));
+    return uint32_as_float(sign | (mx >> (1 - ex)));
 }
 
 float remainderf(float x, float y)

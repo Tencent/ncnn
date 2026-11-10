@@ -240,7 +240,7 @@ static bool is_recurrent_op(const Operator* op)
 
 static bool is_binary_eltwise_op(const Operator* op)
 {
-    return op->type == "BinaryOp" || op->type == "Eltwise";
+    return op->type == "BinaryOp" || op->type == "FloorMod" || op->type == "Eltwise";
 }
 
 static bool is_layout_transparent_op(const Operator* op)

@@ -953,6 +953,16 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", with_scalar)
             fprintf_param_value(" 2=%e", b)
         }
+        else if (layer->type == "FloorMod")
+        {
+            ncnn::BinaryOp* op = (ncnn::BinaryOp*)layer;
+            ncnn::BinaryOp* op_default = (ncnn::BinaryOp*)layer_default;
+
+            if (op->op_type != op_default->op_type)
+                fprintf(pp, " 0=%d", op->op_type == ncnn::BinaryOp::Operation_RREMAINDER ? 1 : 0);
+            fprintf_param_value(" 1=%d", with_scalar)
+            fprintf_param_value(" 2=%e", b)
+        }
         else if (layer->type == "CELU")
         {
             ncnn::CELU* op = (ncnn::CELU*)layer;

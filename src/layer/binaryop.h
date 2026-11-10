@@ -49,6 +49,10 @@ public:
     int op_type;
     int with_scalar;
     float b;
+
+protected:
+    // Generic-only FloorMod reuses the BinaryOp broadcast paths.
+    bool floor_remainder;
 };
 
 } // namespace ncnn
