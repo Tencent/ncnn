@@ -41,14 +41,20 @@ static int test_floormod_roundtrip(int reverse, int scalar)
 
     const ncnn::BinaryOp* op = (const ncnn::BinaryOp*)net.layers().back();
     if (op->op_type != (reverse ? ncnn::BinaryOp::Operation_RREMAINDER : ncnn::BinaryOp::Operation_REMAINDER)
-        || op->with_scalar != scalar || (scalar && op->b != -2.f))
+            || op->with_scalar != scalar || (scalar && op->b != -2.f))
         return -1;
 
     ncnn::Mat x(4), y(4);
     float* xp = x;
     float* yp = y;
-    xp[0] = -1.f; xp[1] = -3.f; xp[2] = 1.f; xp[3] = 3.f;
-    yp[0] = -2.f; yp[1] = 2.f; yp[2] = -2.f; yp[3] = 2.f;
+    xp[0] = -1.f;
+    xp[1] = -3.f;
+    xp[2] = 1.f;
+    xp[3] = 3.f;
+    yp[0] = -2.f;
+    yp[1] = 2.f;
+    yp[2] = -2.f;
+    yp[3] = 2.f;
     const float expected[2][2][4] = {
         {{-1.f, 1.f, -1.f, 1.f}, {-1.f, -1.f, -1.f, -1.f}},
         {{-0.f, -1.f, -0.f, 2.f}, {-0.f, -2.f, -0.f, 1.f}}

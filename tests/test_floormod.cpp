@@ -20,8 +20,14 @@ static int test_floormod(int reverse, int scalar)
     ncnn::Mat x(4), y(4), output;
     float* xp = x;
     float* yp = y;
-    xp[0] = -1.f; xp[1] = -3.f; xp[2] = 1.f; xp[3] = 3.f;
-    yp[0] = -2.f; yp[1] = 2.f; yp[2] = -2.f; yp[3] = 2.f;
+    xp[0] = -1.f;
+    xp[1] = -3.f;
+    xp[2] = 1.f;
+    xp[3] = 3.f;
+    yp[0] = -2.f;
+    yp[1] = 2.f;
+    yp[2] = -2.f;
+    yp[3] = 2.f;
     if (ret == 0 && scalar)
     {
         output = x.clone();
