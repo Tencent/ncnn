@@ -6,6 +6,7 @@
 #include "torch_alias.h"
 
 #include <torch/csrc/jit/ir/alias_analysis.h>
+#include <torch/csrc/jit/passes/inliner.h>
 #include <torch/csrc/jit/passes/shape_analysis.h>
 
 #include <map>
@@ -92,8 +93,10 @@ static c10::ScalarType original_scalar_type(const torch::jit::Value* v, const to
         }
     }
     else if ((op == "aten::linear" || op == "aten::_convolution" || op == "aten::convolution"
-              || op == "aten::conv1d" || op == "aten::conv2d" || op == "aten::conv3d")
-             && n->inputs().size() >= 3)
+              || op == "aten::conv1d" || op == "aten::conv2d" || op == "aten::conv3d"
+              || op == "aten::mm" || op == "aten::bmm" || op == "aten::matmul"
+              || op == "aten::addmm" || op == "aten::baddbmm")
+             && n->inputs().size() >= 2)
     {
         const c10::ScalarType input = original_scalar_type(n->input(0), mod, types);
         const c10::ScalarType weight = original_scalar_type(n->input(1), mod, types);
@@ -154,8 +157,9 @@ static void infer_original_scalar_types(const std::shared_ptr<torch::jit::Graph>
             c10::IValue attr = original_attribute(n->output(), mod);
             if (attr.isTensor())
             {
-                torch::jit::WithInsertPoint guard(n);
-                n->output()->replaceAllUsesWith(g->insertConstant(attr.toTensor().detach()));
+                auto v = g->addInput();
+                v->setType(c10::TensorType::create(attr.toTensor()));
+                n->output()->replaceAllUsesWith(v);
                 originals.erase(n->output());
                 n->destroy();
             }
@@ -228,9 +232,21 @@ static void infer_original_scalar_types(const std::shared_ptr<torch::jit::Graph>
 
 static bool mutable_unknown_cast(const std::shared_ptr<torch::jit::Graph>& graph, const std::set<const torch::jit::Node*>& unknown_casts)
 {
-    torch::jit::AliasDb aliases(graph);
+    // Opaque module calls may write any alias. Inspect their actual bodies on
+    // a copy while retaining the module boundaries used by later fusion.
+    auto g = graph->copy();
+    std::set<const torch::jit::Node*> copied_casts;
+    auto original_node = graph->nodes().begin();
+    for (auto n : g->nodes())
+    {
+        if (unknown_casts.count(*original_node))
+            copied_casts.insert(n);
+        ++original_node;
+    }
+    torch::jit::Inline(*g);
+    torch::jit::AliasDb aliases(g);
     std::vector<const torch::jit::Node*> casts;
-    for (torch::jit::Node* n : graph->nodes())
+    for (torch::jit::Node* n : g->nodes())
     {
         for (const torch::jit::Node* cast : casts)
         {
@@ -240,7 +256,7 @@ static bool mutable_unknown_cast(const std::shared_ptr<torch::jit::Graph>& graph
                 return true;
             }
         }
-        if (unknown_casts.count(n))
+        if (copied_casts.count(n))
             casts.push_back(n);
     }
     return false;

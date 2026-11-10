@@ -978,7 +978,10 @@ def run_case(binary, model, mode, frontend, dtype=torch.float32, dynamic=False,
             values = [item.clone() for item in samples]
             expected = model(*[item.clone() for item in samples])
             try:
-                check_outputs(expected, source(*values))
+                # Legacy JIT execution optimizations can lose type_as aliases.
+                # Validate the serialized graph before those runtime rewrites.
+                with torch.jit.optimized_execution(False):
+                    check_outputs(expected, source(*values))
                 check_outputs(samples, values)
             except AssertionError as error:
                 raise AssertionError('serialized source differs from eager: ' + name) from error

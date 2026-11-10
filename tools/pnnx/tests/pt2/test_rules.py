@@ -684,15 +684,15 @@ def test_softmax_dtype():
     net = SoftmaxDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_softmax_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_softmax_dtype.pt2 fp16=0")
 
     import test_pt2_rules_softmax_dtype_pnnx
-    actual = test_pt2_rules_softmax_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_softmax_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -708,15 +708,15 @@ def test_log_softmax_dtype():
     net = LogSoftmaxDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_log_softmax_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_log_softmax_dtype.pt2 fp16=0")
 
     import test_pt2_rules_log_softmax_dtype_pnnx
-    actual = test_pt2_rules_log_softmax_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_log_softmax_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -732,15 +732,15 @@ def test_sum_dtype():
     net = SumDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_sum_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_sum_dtype.pt2 fp16=0")
 
     import test_pt2_rules_sum_dtype_pnnx
-    actual = test_pt2_rules_sum_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_sum_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -756,15 +756,15 @@ def test_mean_dtype():
     net = MeanDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_mean_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_mean_dtype.pt2 fp16=0")
 
     import test_pt2_rules_mean_dtype_pnnx
-    actual = test_pt2_rules_mean_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_mean_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -780,15 +780,15 @@ def test_prod_dtype():
     net = ProdDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_prod_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_prod_dtype.pt2 fp16=0")
 
     import test_pt2_rules_prod_dtype_pnnx
-    actual = test_pt2_rules_prod_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_prod_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -804,15 +804,15 @@ def test_sum_all_dtype():
     net = SumAllDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_sum_all_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_sum_all_dtype.pt2 fp16=0")
 
     import test_pt2_rules_sum_all_dtype_pnnx
-    actual = test_pt2_rules_sum_all_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_sum_all_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -828,15 +828,15 @@ def test_mean_all_dtype():
     net = MeanAllDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_mean_all_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_mean_all_dtype.pt2 fp16=0")
 
     import test_pt2_rules_mean_all_dtype_pnnx
-    actual = test_pt2_rules_mean_all_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_mean_all_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
@@ -852,15 +852,15 @@ def test_prod_all_dtype():
     net = ProdAllDtype().eval()
 
     torch.manual_seed(7767517)
-    x = torch.randn(2, 4, dtype=torch.float16)
-    expected = net(x.float())
+    x = torch.randn(2, 4)
+    expected = net(x)
 
     ep = torch.export.export(net, (x,))
     torch.export.save(ep, "test_pt2_rules_prod_all_dtype.pt2")
     os.system("../../src/pnnx test_pt2_rules_prod_all_dtype.pt2 fp16=0")
 
     import test_pt2_rules_prod_all_dtype_pnnx
-    actual = test_pt2_rules_prod_all_dtype_pnnx.Model().eval()(x.float())
+    actual = test_pt2_rules_prod_all_dtype_pnnx.Model().eval()(x)
 
     if expected.shape != actual.shape or expected.dtype != actual.dtype:
         return False
