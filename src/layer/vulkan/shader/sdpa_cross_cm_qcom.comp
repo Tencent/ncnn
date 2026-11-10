@@ -1,0 +1,160 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 460
+
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_KHR_cooperative_matrix : require
+#extension GL_QCOM_cooperative_matrix_conversion : require
+
+layout(constant_id = 0) const int attn_mask = 0;
+layout(constant_id = 1) const float scale = 0.f;
+layout(constant_id = 2) const int GM = 0;
+layout(constant_id = 3) const int GN = 0;
+layout(constant_id = 4) const int GK = 0;
+layout(constant_id = 5) const int GB = 0;
+layout(constant_id = 6) const int transB = 0;
+layout(constant_id = 7) const int attn_mask_dims = 0;
+layout(constant_id = 8) const int num_heads_per_group = 0;
+layout(constant_id = 9) const int A_cstep = 0;
+layout(constant_id = 10) const int B_cstep = 0;
+layout(constant_id = 11) const int out_cstep = 0;
+layout(constant_id = 12) const int mask_cstep = 0;
+
+layout(constant_id = 13 + 0) const uint M = 1;
+layout(constant_id = 13 + 1) const uint N = 1;
+layout(constant_id = 13 + 2) const uint K = 1;
+layout(constant_id = 13 + 3) const uint subgroup_size = 32;
+layout(constant_id = 13 + 4) const uint UNROLL_SG_M = 2;
+layout(constant_id = 13 + 5) const uint UNROLL_SG_N = 2;
+layout(constant_id = 13 + 6) const uint UNROLL_SG_K = 2;
+layout(constant_id = 13 + 7) const uint UNROLL_WG_M = 2;
+layout(constant_id = 13 + 8) const uint UNROLL_WG_N = 2;
+
+layout(binding = 0) readonly buffer A_blob { uvec4 A_blob_data[]; };
+layout(binding = 1) readonly buffer B_blob { uvec4 B_blob_data[]; };
+layout(binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    float scale;
+    int GM;
+    int GN;
+    int GK;
+    int GB;
+    int attn_mask_dims;
+    int num_heads_per_group;
+    int A_cstep;
+    int B_cstep;
+    int out_cstep;
+    int mask_cstep;
+} p;
+
+float16_t load_a(uint i)
+{
+    return float16_t(unpackHalf2x16(A_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+}
+
+float16_t load_b(uint i)
+{
+    return float16_t(unpackHalf2x16(B_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+}
+
+void main()
+{
+    const uint gz = gl_GlobalInvocationID.z;
+    if (gz >= uint(psc(GB)))
+        return;
+#if ncnn_vendorID == 0x5143
+    // retain the adreno cooperative matrix lane index workaround
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
+    const uint si = gl_SubgroupInvocationID;
+    const uint sgi = gl_SubgroupID;
+#endif
+    const uint sgmi = sgi / UNROLL_WG_N;
+    const uint sgni = sgi % UNROLL_WG_N;
+    const uint wgnn = (uint(psc(GN)) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
+    const uint wgmi = gl_WorkGroupID.x / wgnn;
+    const uint wgni = gl_WorkGroupID.x % wgnn;
+    const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
+    const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
+    const uint kk = (uint(psc(GK)) + K - 1) / K;
+    coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_SG_N][UNROLL_SG_M];
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        [[unroll]]
+        for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            sum[zn][zm] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+
+    for (uint kt = 0; kt < kk; kt++)
+    {
+        coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+            const uint gm = (mi + zm) * M + si;
+            float16_t row[K];
+            [[unroll]] for (uint r = 0; r < K; r++)
+            {
+                const uint gk = kt * K + r;
+                row[r] = float16_t(0.f);
+                if (si < M && gm < uint(psc(GM)) && gk < uint(psc(GK)))
+                    row[r] = load_a(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk);
+            }
+            vectorToCoopmatQCOM(row, A[zm]);
+        }
+        [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        {
+            const uint gn = (ni + zn) * N + si;
+            float16_t column[K];
+            [[unroll]] for (uint r = 0; r < K; r++)
+            {
+                const uint gk = kt * K + r;
+                column[r] = float16_t(0.f);
+                if (si < N && gn < uint(psc(GN)) && gk < uint(psc(GK)))
+                {
+                    const uint bi = gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + (transB == 0 ? gk * uint(psc(GN)) + gn : gn * uint(psc(GK)) + gk);
+                    column[r] = load_b(bi);
+                }
+            }
+            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
+            vectorToCoopmatQCOM(column, B);
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                sum[zn][zm] = coopMatMulAdd(A[zm], B, sum[zn][zm]);
+        }
+    }
+
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+    {
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+            sum[zn][zm] = sum[zn][zm] * afp(psc(scale));
+            afp row[N];
+            coopmatToVectorQCOM(sum[zn][zm], row);
+            const uint gm = (mi + zm) * M + si;
+            if (si < M && gm < uint(psc(GM)))
+            {
+                [[unroll]] for (uint j = 0; j < N; j++)
+                {
+                    const uint gn = (ni + zn) * N + j;
+                    if (gn < uint(psc(GN)))
+                    {
+                        afp value = row[j];
+                        if (attn_mask == 1)
+                        {
+                            const uint mask_head = psc(attn_mask_dims) == 3 ? gz : 0;
+                            value += afp(float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn)));
+                        }
+                        buffer_st1(top_blob_data, gz * uint(psc(out_cstep)) + gm * uint(psc(GN)) + gn, float16_t(value));
+                    }
+                }
+            }
+        }
+    }
+}

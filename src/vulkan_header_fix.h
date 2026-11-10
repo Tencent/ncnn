@@ -1670,6 +1670,17 @@ typedef VkResult(VKAPI_PTR* PFN_vkConvertCooperativeVectorMatrixNV)(VkDevice dev
 typedef void(VKAPI_PTR* PFN_vkCmdConvertCooperativeVectorMatrixNV)(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkConvertCooperativeVectorMatrixInfoNV* pInfos);
 #endif // VK_NV_cooperative_vector
 
+#ifndef VK_QCOM_cooperative_matrix_conversion
+#define VK_QCOM_cooperative_matrix_conversion                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM (VkStructureType)1000172000
+typedef struct VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrixConversion;
+} VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM;
+#endif // VK_QCOM_cooperative_matrix_conversion
+
 #ifndef VK_NV_cooperative_matrix2
 #define VK_NV_cooperative_matrix2                                              1
 #define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_2_FEATURES_NV     (VkStructureType)1000593000

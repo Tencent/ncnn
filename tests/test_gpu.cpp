@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gpu.h"
+#include "layer_shader_type.h"
 #include "testutil.h"
 
 #include <stdio.h>
@@ -61,6 +62,117 @@ static int test_compile_spirv_module_1()
            || test_compile_spirv_module("#version 450\n#error test\n", -1);
 }
 
+static int test_cooperative_matrix_conversion_features()
+{
+    for (int i = 0; i < ncnn::get_gpu_count(); i++)
+    {
+        const ncnn::GpuInfo& info = ncnn::get_gpu_info(i);
+        const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM& features = info.queryCooperativeMatrixConversionFeaturesQCOM();
+        const bool expected = info.queryCooperativeMatrixFeatures().cooperativeMatrix && features.cooperativeMatrixConversion;
+
+        if (features.sType != VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM
+            || (!info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion)
+            || (info.support_VK_QCOM_cooperative_matrix_conversion() && !info.support_VK_KHR_cooperative_matrix())
+            || info.support_cooperative_matrix_conversion() != expected)
+        {
+            fprintf(stderr, "test_cooperative_matrix_conversion_features failed gpu=%d\n", i);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_compile_spirv_module_cooperative_matrix_conversion()
+{
+    struct Shader
+    {
+        int type;
+        const char* name;
+        bool int8;
+    };
+    const Shader shaders[] =
+    {
+        {-1, "", false},
+#if NCNN_TEST_LAYER_convolution
+        {ncnn::LayerShaderType::convolution_1x1s1d1_cm_qcom, "convolution_1x1s1d1_cm_qcom", false},
+        {ncnn::LayerShaderType::convolution_gemm_cm_qcom, "convolution_gemm_cm_qcom", false},
+        {ncnn::LayerShaderType::convolution_winograd_gemm_cm_qcom, "convolution_winograd_gemm_cm_qcom", false},
+#if NCNN_INT8
+        {ncnn::LayerShaderType::convolution_1x1s1d1_int8_cm_qcom, "convolution_1x1s1d1_int8_cm_qcom", true},
+#endif
+#if NCNN_INT8
+        {ncnn::LayerShaderType::convolution_gemm_int8_cm_qcom, "convolution_gemm_int8_cm_qcom", true},
+#endif
+#if NCNN_INT8
+        {ncnn::LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm_qcom, "convolution_3x3s1d1_winograd_gemm_int8_cm_qcom", true},
+#endif
+#endif
+#if NCNN_TEST_LAYER_convolution1d
+        {ncnn::LayerShaderType::convolution1d_1x1s1d1_cm_qcom, "convolution1d_1x1s1d1_cm_qcom", false},
+        {ncnn::LayerShaderType::convolution1d_gemm_cm_qcom, "convolution1d_gemm_cm_qcom", false},
+#endif
+#if NCNN_TEST_LAYER_deconvolution
+        {ncnn::LayerShaderType::deconvolution_gemm_cm_qcom, "deconvolution_gemm_cm_qcom", false},
+#endif
+#if NCNN_TEST_LAYER_gemm
+        {ncnn::LayerShaderType::gemm_cm_qcom, "gemm_cm_qcom", false},
+#if NCNN_INT8
+        {ncnn::LayerShaderType::gemm_int8_cm_qcom, "gemm_int8_cm_qcom", true},
+#endif
+#endif
+#if NCNN_TEST_LAYER_sdpa
+        {ncnn::LayerShaderType::sdpa_cross_cm_qcom, "sdpa_cross_cm_qcom", false},
+        {ncnn::LayerShaderType::sdpa_fa_cm_qcom, "sdpa_fa_cm_qcom", false},
+#endif
+    };
+
+    for (int device_index = 0; device_index < ncnn::get_gpu_count(); device_index++)
+    {
+        const ncnn::GpuInfo& info = ncnn::get_gpu_info(device_index);
+        if (!info.support_cooperative_matrix_conversion())
+            continue;
+
+        // compile only, matrix dimensions are supplied by pipeline specialization
+        for (size_t i = 1; i < sizeof(shaders) / sizeof(shaders[0]); i++)
+        {
+            for (int fp16_storage = 0; fp16_storage < 2; fp16_storage++)
+            {
+                for (int fp16_arithmetic = 0; fp16_arithmetic < 2; fp16_arithmetic++)
+                {
+                    for (int int8_storage = 0; int8_storage < (shaders[i].int8 ? 2 : 1); int8_storage++)
+                    {
+                        ncnn::Option opt;
+                        opt.vulkan_device_index = device_index;
+                        opt.use_cooperative_matrix = true;
+                        opt.use_subgroup_ops = true;
+                        opt.use_bf16_storage = false;
+                        opt.use_fp16_packed = !fp16_storage;
+                        opt.use_fp16_storage = fp16_storage;
+                        opt.use_fp16_arithmetic = fp16_arithmetic;
+                        opt.use_fp16_uniform = false;
+                        opt.use_int8_packed = shaders[i].int8 && !int8_storage;
+                        opt.use_int8_storage = int8_storage;
+                        opt.use_int8_arithmetic = shaders[i].int8;
+                        opt.use_int8_uniform = false;
+
+                        std::vector<uint32_t> spirv;
+                        int ret = ncnn::compile_spirv_module(shaders[i].type, opt, spirv);
+                        if (ret != 0 || spirv.empty())
+                        {
+                            fprintf(stderr, "test_compile_spirv_module_cooperative_matrix_conversion failed gpu=%d shader=%s fp16_storage=%d fp16_arithmetic=%d int8_storage=%d ret=%d\n", device_index, shaders[i].name,
+                                    fp16_storage, fp16_arithmetic, int8_storage, ret);
+                            return -1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -70,5 +182,7 @@ int main()
 
     return 0
            || test_compile_spirv_module_0()
-           || test_compile_spirv_module_1();
+           || test_compile_spirv_module_1()
+           || test_cooperative_matrix_conversion_features()
+           || test_compile_spirv_module_cooperative_matrix_conversion();
 }

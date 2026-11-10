@@ -4,6 +4,7 @@
 #include "sdpa_vulkan.h"
 
 #include "layer_shader_type.h"
+#include "cooperative_matrix_vulkan.h"
 #include "layer_type.h"
 
 namespace ncnn {
@@ -70,7 +71,7 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
     }
 
     // adreno produces incorrect cooperative matrix attention scores with masks
-    if (vkdev->info.vendor_id() == 0x5143 && attn_mask)
+    if (vkdev->info.vendor_id() == 0x5143 && attn_mask && !vkdev->info.support_cooperative_matrix_conversion())
         use_cooperative_matrix = false;
 
     if (use_cooperative_matrix)
@@ -91,7 +92,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
         opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
-        if (coopmat_M == 0 || coopmat_N % 8 || coopmat_K % 8)
+        if (coopmat_M == 0 || coopmat_N % 8 || coopmat_K % 8
+            || (vkdev->info.vendor_id() == 0x5143 && attn_mask && !use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size)))
         {
             // sdpa_cross_cm packs N and K in groups of eight
             use_cooperative_matrix = false;
@@ -155,8 +157,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_flash_attention = ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
     }
 
-    // adreno flash attention cm shaders have not been validated; retain the cross-attention cm path
-    if (vkdev->info.vendor_id() == 0x5143 && use_cooperative_matrix)
+    // retain the shared-memory flash attention blacklist on adreno
+    if (vkdev->info.vendor_id() == 0x5143 && use_cooperative_matrix && !vkdev->info.support_cooperative_matrix_conversion())
         use_flash_attention = false;
 
     if (use_flash_attention)
@@ -176,7 +178,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
             }
 
-            if (FA_coopmat_M == 0 || FA_coopmat_N % 8 || FA_coopmat_K % 8 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N)
+            if (FA_coopmat_M == 0 || FA_coopmat_N % 8 || FA_coopmat_K % 8 || FA_coopmat_N != FA_coopmat_K || FA_coopmat_subgroup_size < FA_coopmat_N
+                || (vkdev->info.vendor_id() == 0x5143 && !use_cooperative_matrix_conversion(vkdev->info, opt, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size)))
             {
                 // sdpa_fa_cm requires eight-element N/K tiles with N == K
                 use_flash_attention = false;
@@ -233,7 +236,11 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                     pipeline_sdpa_fa[i] = new Pipeline(vkdev);
                     pipeline_sdpa_fa[i]->set_subgroup_size(FA_coopmat_subgroup_size);
                     pipeline_sdpa_fa[i]->set_local_size_xyz(FA_coopmat_subgroup_size * FA_UNROLL_WG_M, 1, 1);
-                    pipeline_sdpa_fa[i]->create(LayerShaderType::sdpa_fa_cm, opt, specializations);
+                    pipeline_sdpa_fa[i]->create(use_cooperative_matrix_conversion(vkdev->info, opt, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K,
+                                                                                  FA_coopmat_subgroup_size)
+                                                ? LayerShaderType::sdpa_fa_cm_qcom
+                                                : LayerShaderType::sdpa_fa_cm,
+                                                opt, specializations);
                 }
             }
         }
@@ -304,7 +311,11 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             pipeline_sdpa_qk_cross = new Pipeline(vkdev);
             pipeline_sdpa_qk_cross->set_subgroup_size(coopmat_subgroup_size);
             pipeline_sdpa_qk_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_sdpa_qk_cross->create(LayerShaderType::sdpa_cross_cm, opt_cm, specializations);
+            pipeline_sdpa_qk_cross->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
+                                                                             coopmat_subgroup_size)
+                                           ? LayerShaderType::sdpa_cross_cm_qcom
+                                           : LayerShaderType::sdpa_cross_cm,
+                                           opt_cm, specializations);
         }
 
         // qkv cross
@@ -337,7 +348,11 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
             pipeline_sdpa_qkv_cross = new Pipeline(vkdev);
             pipeline_sdpa_qkv_cross->set_subgroup_size(coopmat_subgroup_size);
             pipeline_sdpa_qkv_cross->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_sdpa_qkv_cross->create(LayerShaderType::sdpa_cross_cm, opt_cm, specializations);
+            pipeline_sdpa_qkv_cross->create(use_cooperative_matrix_conversion(vkdev->info, opt_cm, coopmat_M, coopmat_N, coopmat_K,
+                                                                              coopmat_subgroup_size)
+                                            ? LayerShaderType::sdpa_cross_cm_qcom
+                                            : LayerShaderType::sdpa_cross_cm,
+                                            opt_cm, specializations);
         }
     }
     else
