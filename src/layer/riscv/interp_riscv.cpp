@@ -20,6 +20,13 @@ namespace ncnn {
 #include "interp_bilinear_packn.h"
 #endif
 
+#if NCNN_BF16
+#include "interp_bilinear_bf16s.h"
+#include "interp_bilinear_packn_bf16s.h"
+#include "interp_bicubic_bf16s.h"
+#include "interp_bicubic_packn_bf16s.h"
+#endif
+
 Interp_riscv::Interp_riscv()
 {
 #if __riscv_vector
@@ -32,6 +39,9 @@ Interp_riscv::Interp_riscv()
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -40,9 +50,11 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     const Mat& reference_blob = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
 
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_blob.elembits();
+#endif
 
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -50,6 +62,11 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         else
             return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
 #if __riscv_vector
@@ -504,5 +521,501 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     return 0;
 }
+
+#if NCNN_BF16
+int Interp_riscv::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& reference_blob = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    int h = bottom_blob.h;
+    int w = bottom_blob.w;
+    int dims = bottom_blob.dims;
+
+    int outw = reference_blob.w;
+    int outh = reference_blob.h;
+
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
+    if ((dims == 2 || dims == 3)
+            && ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+                || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4)))))
+        return forward_small_input(bottom_blob, top_blob, outw, outh, opt);
+
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+#endif
+
+    if (dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __riscv_vector
+        if (elempack == packn)
+        {
+            const size_t vl = __riscv_vsetvl_e16m2(packn);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < w; q++)
+            {
+                Mat top_blob_c = top_blob.channel(q);
+                unsigned short* outptr = top_blob_c;
+                const unsigned short* ptr = (const unsigned short*)bottom_blob.data + q * packn;
+
+                vuint16m2_t _v = __riscv_vle16_v_u16m2(ptr, vl);
+
+                int size = top_blob_c.w * top_blob_c.h;
+                for (int i = 0; i < size; i++)
+                {
+                    __riscv_vse16_v_u16m2(outptr + i * packn, _v, vl);
+                }
+            }
+
+            return 0;
+        }
+#endif // __riscv_vector
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < w; q++)
+        {
+            Mat top_blob_c = top_blob.channel(q);
+            unsigned short* outptr = top_blob_c;
+            const unsigned short* ptr = bottom_blob;
+
+            unsigned short v = ptr[q * elempack];
+
+            int size = top_blob_c.w * top_blob_c.h * elempack;
+            for (int i = 0; i < size; i++)
+            {
+                outptr[i] = v;
+            }
+        }
+
+        return 0;
+    }
+
+    if (dims == 2)
+    {
+        if (is_identity_resize(w, h, outw, outh, dims))
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __riscv_vector
+        if (elempack == packn)
+        {
+            const size_t vl = __riscv_vsetvl_e16m2(packn);
+
+            if (resize_type == 1) // nearest
+            {
+                const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int in_x = std::min((int)(x * ws), (w - 1));
+
+                        vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr + in_x * packn, vl);
+                        __riscv_vse16_v_u16m2(outptr, _p, vl);
+
+                        outptr += packn;
+                    }
+                }
+
+                return 0;
+            }
+
+            if (resize_type == 2) // bilinear
+            {
+                int* buf = new int[outw + outw * 2];
+
+                int* xofs = buf;
+                float* alpha = (float*)(buf + outw);
+
+                const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+                linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+                    unsigned long old_fxcr = csrr_fxcr();
+                    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * packn;
+                        const unsigned short* Sp = ptr + sx;
+
+                        vfloat32m4_t _S0 = bfloat2float_rvv(__riscv_vle16_v_u16m2(Sp, vl), vl);
+                        vfloat32m4_t _S1 = bfloat2float_rvv(__riscv_vle16_v_u16m2(Sp + packn, vl), vl);
+                        vfloat32m4_t _p = __riscv_vfmacc_vf_f32m4(__riscv_vfmul_vf_f32m4(_S0, alphap[0], vl), alphap[1], _S1, vl);
+
+                        __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv(_p, vl), vl);
+
+                        alphap += 2;
+                        outptr += packn;
+                    }
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+                    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+                }
+
+                delete[] buf;
+
+                return 0;
+            }
+
+            if (resize_type == 3) // bicubic
+            {
+                int* buf = new int[outw + outw * 4];
+
+                int* xofs = buf;
+                float* alpha = (float*)(buf + outw);
+
+                const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+                cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+                    unsigned long old_fxcr = csrr_fxcr();
+                    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
+                    const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                    unsigned short* outptr = top_blob.row<unsigned short>(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * packn;
+                        const unsigned short* Sp = ptr + sx;
+
+                        vfloat32m4_t _S0 = bfloat2float_rvv(__riscv_vle16_v_u16m2(Sp - packn, vl), vl);
+                        vfloat32m4_t _S1 = bfloat2float_rvv(__riscv_vle16_v_u16m2(Sp, vl), vl);
+                        vfloat32m4_t _S2 = bfloat2float_rvv(__riscv_vle16_v_u16m2(Sp + packn, vl), vl);
+                        vfloat32m4_t _S3 = bfloat2float_rvv(__riscv_vle16_v_u16m2(Sp + packn * 2, vl), vl);
+                        vfloat32m4_t _p = __riscv_vfmacc_vf_f32m4(__riscv_vfmacc_vf_f32m4(__riscv_vfmacc_vf_f32m4(__riscv_vfmul_vf_f32m4(_S0, alphap[0], vl), alphap[1], _S1, vl), alphap[2], _S2, vl), alphap[3], _S3, vl);
+
+                        __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv(_p, vl), vl);
+
+                        alphap += 4;
+                        outptr += packn;
+                    }
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+                    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+                }
+
+                delete[] buf;
+
+                return 0;
+            }
+        }
+#endif // __riscv_vector
+
+        if (resize_type == 1) // nearest
+        {
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < h; y++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                unsigned short* outptr = top_blob.row<unsigned short>(y);
+                for (int x = 0; x < outw; x++)
+                {
+                    int in_x = std::min((int)(x * ws), (w - 1));
+                    *outptr++ = ptr[in_x];
+                }
+            }
+        }
+
+        if (resize_type == 2) // bilinear
+        {
+            int* buf = new int[outw + outw * 2];
+
+            int* xofs = buf;
+            float* alpha = (float*)(buf + outw);
+
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < h; y++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                unsigned short* outptr = top_blob.row<unsigned short>(y);
+                const float* alphap = alpha;
+
+                for (int x = 0; x < outw; x++)
+                {
+                    int sx = xofs[x];
+                    const unsigned short* Sp = ptr + sx;
+                    float a0 = alphap[0];
+                    float a1 = alphap[1];
+                    *outptr++ = float32_to_bfloat16(bfloat16_to_float32(Sp[0]) * a0 + bfloat16_to_float32(Sp[1]) * a1);
+                    alphap += 2;
+                }
+            }
+
+            delete[] buf;
+        }
+
+        if (resize_type == 3) // bicubic
+        {
+            int* buf = new int[outw + outw * 4];
+
+            int* xofs = buf;
+            float* alpha = (float*)(buf + outw);
+
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < h; y++)
+            {
+                const unsigned short* ptr = bottom_blob.row<const unsigned short>(y);
+                unsigned short* outptr = top_blob.row<unsigned short>(y);
+                const float* alphap = alpha;
+
+                for (int x = 0; x < outw; x++)
+                {
+                    int sx = xofs[x];
+                    const unsigned short* Sp = ptr + sx;
+                    float a0 = alphap[0];
+                    float a1 = alphap[1];
+                    float a2 = alphap[2];
+                    float a3 = alphap[3];
+                    *outptr++ = float32_to_bfloat16(bfloat16_to_float32(Sp[-1]) * a0 + bfloat16_to_float32(Sp[0]) * a1 + bfloat16_to_float32(Sp[1]) * a2 + bfloat16_to_float32(Sp[2]) * a3);
+                    alphap += 4;
+                }
+            }
+
+            delete[] buf;
+        }
+
+        return 0;
+    }
+
+    if (is_identity_resize(w, h, outw, outh, dims))
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+#if __riscv_vector
+    if (elempack == packn)
+    {
+        if (resize_type == 1) // nearest
+        {
+            const size_t vl = __riscv_vsetvl_e16m2(packn);
+
+            const float hs = (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+            const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat src = bottom_blob.channel(q);
+                Mat dst = top_blob.channel(q);
+
+                for (int y = 0; y < outh; y++)
+                {
+                    int in_y = std::min((int)(y * hs), (h - 1));
+
+                    const unsigned short* ptr = src.row<const unsigned short>(in_y);
+                    unsigned short* outptr = dst.row<unsigned short>(y);
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int in_x = std::min((int)(x * ws), (w - 1));
+
+                        vuint16m2_t _p = __riscv_vle16_v_u16m2(ptr + in_x * packn, vl);
+                        __riscv_vse16_v_u16m2(outptr, _p, vl);
+
+                        outptr += packn;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        if (resize_type == 2) // bilinear
+        {
+            int* buf = new int[outw + outh + outw * 2 + outh * 2];
+
+            int* xofs = buf;        //new int[outw];
+            int* yofs = buf + outw; //new int[outh];
+
+            float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
+            float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
+
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            linear_coeffs(h, outh, hs, yofs, beta, align_corner);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat src = bottom_blob.channel(q);
+                Mat dst = top_blob.channel(q);
+
+                resize_bilinear_image_packn_bf16s(src, dst, alpha, xofs, beta, yofs);
+            }
+
+            delete[] buf;
+
+            return 0;
+        }
+
+        if (resize_type == 3) // bicubic
+        {
+            int* buf = new int[outw + outh + outw * 4 + outh * 4];
+
+            int* xofs = buf;        //new int[outw];
+            int* yofs = buf + outw; //new int[outh];
+
+            float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
+            float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
+
+            const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+            const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+            cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const Mat src = bottom_blob.channel(q);
+                Mat dst = top_blob.channel(q);
+
+                resize_bicubic_image_packn_bf16s(src, dst, alpha, xofs, beta, yofs);
+            }
+
+            delete[] buf;
+
+            return 0;
+        }
+    }
+#endif // __riscv_vector
+
+    if (resize_type == 1) // nearest
+    {
+        const float hs = (output_height || dynamic_target_size || !size_expr.empty()) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || dynamic_target_size || !size_expr.empty()) ? w / (float)outw : 1.f / width_scale;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat src = bottom_blob.channel(q);
+            Mat dst = top_blob.channel(q);
+
+            for (int y = 0; y < outh; y++)
+            {
+                int in_y = std::min((int)(y * hs), (h - 1));
+
+                const unsigned short* ptr = src.row<const unsigned short>(in_y);
+                unsigned short* outptr = dst.row<unsigned short>(y);
+                for (int x = 0; x < outw; x++)
+                {
+                    int in_x = std::min((int)(x * ws), (w - 1));
+                    *outptr++ = ptr[in_x];
+                }
+            }
+        }
+    }
+
+    if (resize_type == 2) // bilinear
+    {
+        int* buf = new int[outw + outh + outw * 2 + outh * 2];
+
+        int* xofs = buf;        //new int[outw];
+        int* yofs = buf + outw; //new int[outh];
+
+        float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
+        float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
+
+        const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+        linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+        const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+        linear_coeffs(h, outh, hs, yofs, beta, align_corner);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat src = bottom_blob.channel(q);
+            Mat dst = top_blob.channel(q);
+
+            resize_bilinear_image_bf16s(src, dst, alpha, xofs, beta, yofs);
+        }
+
+        delete[] buf;
+    }
+
+    if (resize_type == 3) // bicubic
+    {
+        int* buf = new int[outw + outh + outw * 4 + outh * 4];
+
+        int* xofs = buf;        //new int[outw];
+        int* yofs = buf + outw; //new int[outh];
+
+        float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
+        float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
+
+        const double ws = (output_width || dynamic_target_size || !size_expr.empty()) ? (double)w / outw : 1.0 / width_scale;
+        cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+        const double hs = (output_height || dynamic_target_size || !size_expr.empty()) ? (double)h / outh : 1.0 / height_scale;
+        cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat src = bottom_blob.channel(q);
+            Mat dst = top_blob.channel(q);
+
+            resize_bicubic_image_bf16s(src, dst, alpha, xofs, beta, yofs);
+        }
+
+        delete[] buf;
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
