@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -68,6 +69,8 @@ def test():
 
     a = net(a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1)
 
+    inputs = (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1)
+
     # export torchscript
     mod = torch.jit.trace(net, (a0, a1, b0, b1, c0, c1, d0, d1, e0, e1, f0, f1, g0, g1, h0, h1, i0, i1, j0, j1, k0, k1, l0, l1, m0, m1, n0, n1, o0, o1, p0, p1))
     mod.save("test_torch_matmul.pt")
@@ -82,6 +85,26 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, inputs)
+    torch.export.save(ep, "test_torch_matmul_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_torch_matmul_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_torch_matmul_export_pnnx
+    b = test_torch_matmul_export_pnnx.test_inference()
+
+    if len(a) != len(b):
+        return False
+    for a0, b0 in zip(a, b):
+        if a0.shape != b0.shape or a0.dtype != b0.dtype or not torch.equal(a0, b0):
             return False
     return True
 

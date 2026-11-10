@@ -5,10 +5,12 @@
 #include <unordered_set>
 
 #include "storezip.h"
+#include "utils.h"
 #include "pass_level0/constant_unpooling.h"
-#include "pass_level0/convert_half_to_float.h"
+#include "pass_level0/normalize_module_dtype.h"
 #include "pass_level0/flatten_input.h"
 #include "pass_level0/inline_block.h"
+#include "pass_level0/normalize_dtype.h"
 #include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
 
@@ -16,12 +18,7 @@ namespace pnnx {
 
 static bool is_inplace_op(const std::string& optype)
 {
-    return optype.size() > 2 && optype[optype.size() - 2] != '_' && optype[optype.size() - 1] == '_';
-}
-
-static bool is_alias_op(const std::string& optype)
-{
-    return optype == "aten::slice" || optype == "aten::select" || optype == "aten::view";
+    return torch_mutation_kind(optype) != TorchMutationNone;
 }
 
 static bool is_static_shape_foldable(const std::string& optype)
@@ -38,7 +35,8 @@ static bool is_static_shape_foldable(const std::string& optype)
            || optype == "aten::_shape_as_tensor";
 }
 
-static void build_value_link_input_map(const torch::jit::Node* node, const std::unordered_map<std::string, torch::jit::Value*>& value_alias_map, std::unordered_map<std::string, int>& value_link_input_map, bool ignore_aten_size)
+static void build_value_link_input_map(const torch::jit::Node* node, const std::unordered_map<std::string, torch::jit::Value*>& value_alias_map,
+                                       std::unordered_map<std::string, int>& value_link_input_map, bool ignore_aten_size)
 {
     std::string optype = node->kind().toDisplayString();
 
@@ -70,12 +68,12 @@ static void build_value_link_input_map(const torch::jit::Node* node, const std::
         }
     }
 
-    if (is_inplace_op(optype) || is_alias_op(optype))
+    if (is_inplace_op(optype))
     {
         // infect input0 and its alias
         while (1)
         {
-            auto in2 = node->inputs()[0];
+            auto in2 = torch_alias_input(node);
 
             std::string is = in2->debugName();
 
@@ -137,7 +135,8 @@ static bool value_link_output(const torch::jit::Value* v, const std::vector<torc
     return false;
 }
 
-void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
+int shape_inference(std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2,
+                    const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     // collect all intermediate output tensors
     std::vector<std::unordered_set<std::string> > more_value_names;
@@ -191,14 +190,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     for (size_t i = 0; i < input_tensors.size(); i++)
     {
         const at::Tensor& it = input_tensors[i];
-        inputs.push_back(it);
+        inputs.push_back(it.is_complex() ? it.toType(c10::ScalarType::ComplexFloat) : it.is_floating_point() ? it.toType(c10::ScalarType::Float) : it);
     }
 
     std::vector<torch::jit::IValue> inputs2;
     for (size_t i = 0; i < input_tensors2.size(); i++)
     {
         const at::Tensor& it = input_tensors2[i];
-        inputs2.push_back(it);
+        inputs2.push_back(it.is_complex() ? it.toType(c10::ScalarType::ComplexFloat) : it.is_floating_point() ? it.toType(c10::ScalarType::Float) : it);
     }
 
     // bookkeep foldable tensors
@@ -215,14 +214,11 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             if (n->kind() == c10::prim::Constant)
                 continue;
 
-            if (n->kind() == c10::prim::CallMethod)
-                continue;
-
             std::string optype = n->kind().toDisplayString();
 
             // fprintf(stderr, "optype = %s\n", optype.c_str());
 
-            if (!is_inplace_op(optype) && !is_alias_op(optype))
+            if (!is_inplace_op(optype) && torch_alias_kind(n) == TorchAliasNone)
                 continue;
 
             if (n->inputs().size() == 0)
@@ -231,7 +227,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             if (n->outputs().size() == 0)
                 continue;
 
-            std::string is = n->input(0)->debugName();
+            std::string is = torch_alias_input(n)->debugName();
 
             if (is.empty())
                 continue;
@@ -251,7 +247,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
                 if (value_alias_map.find(is) == value_alias_map.end())
                 {
-                    value_alias_map[os] = n->input(0);
+                    value_alias_map[os] = torch_alias_input(n);
                 }
                 else
                 {
@@ -299,8 +295,6 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         torch::jit::Module mod2 = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
         mod2.eval();
 
-        convert_half_to_float(mod2);
-
         auto method = mod2.find_method("forward");
         if (!method)
         {
@@ -311,15 +305,23 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         inline_block(graph2, module_operators);
 
-        reset_device(graph2, device);
+        constant_unpooling(graph2);
 
         flatten_input(graph2);
 
-        constant_unpooling(graph2);
+        if (normalize_dtype(graph2, mod2, input_tensors) != 0)
+            return -1;
+        reset_device(graph2, device);
+        normalize_module_dtype(mod2);
 
         std::vector<torch::jit::Value*> values2;
+        bool has_metadata_mutation = false;
         for (auto n : graph2->nodes())
         {
+            const std::string type = n->kind().toDisplayString();
+            if (torch_mutation_kind(type) == TorchMutationMetadata)
+                has_metadata_mutation = true;
+
             for (const auto& v : n->outputs())
             {
                 auto tensor_type = v->type()->cast<torch::jit::TensorType>();
@@ -331,6 +333,18 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                     values2.push_back(v);
                     // fprintf(stderr, "%s  ", v->debugName().c_str());
                 }
+            }
+        }
+        if (has_metadata_mutation)
+        {
+            // Keep each value's metadata at its definition, before subsequent
+            // in-place shape changes. alias shares data without copying it.
+            for (auto& v : values2)
+            {
+                auto snapshot = graph2->create(c10::Symbol::fromQualString("aten::alias"), {v});
+                snapshot->output()->setType(v->type());
+                snapshot->insertAfter(v->node());
+                v = snapshot->output();
             }
         }
         fprintf(stderr, "\n----------------\n\n");
@@ -440,7 +454,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     {
         for (size_t i = 0; i < input_tensors.size(); i++)
         {
-            auto type = c10::TensorType::create(input_tensors[i]);
+            auto type = c10::TensorType::create(inputs[i].toTensor());
 
             graph->inputs()[1 + i]->setType(type);
         }
@@ -449,8 +463,8 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     {
         for (size_t i = 0; i < input_tensors.size(); i++)
         {
-            auto type1 = c10::TensorType::create(input_tensors[i]);
-            auto type2 = c10::TensorType::create(input_tensors2[i]);
+            auto type1 = c10::TensorType::create(inputs[i].toTensor());
+            auto type2 = c10::TensorType::create(inputs2[i].toTensor());
 
             std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
             std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
@@ -468,6 +482,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             graph->inputs()[1 + i]->setType(finaltype);
         }
     }
+    return 0;
 }
 
 } // namespace pnnx

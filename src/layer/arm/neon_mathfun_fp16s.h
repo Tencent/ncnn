@@ -844,7 +844,7 @@ static inline float16x4_t gelu_ps_f16(float16x4_t x)
     float16x4_t _half = vdup_n_f16(0.5f);
     float16x4_t _blob = vmul_f16(vdup_n_f16(-0.70710678f), x);
     _blob = erfc_ps_f16(_blob);
-    return vmul_f16(_half, vmul_f16(_blob, x));
+    return vmul_f16(vmul_f16(_half, _blob), x);
 }
 
 static inline float16x8_t gelu_ps_f16(float16x8_t x)
@@ -852,7 +852,7 @@ static inline float16x8_t gelu_ps_f16(float16x8_t x)
     float16x8_t _half = vdupq_n_f16(0.5f);
     float16x8_t _blob = vmulq_f16(vdupq_n_f16(-0.70710678f), x);
     _blob = erfc_ps_f16(_blob);
-    return vmulq_f16(_half, vmulq_f16(_blob, x));
+    return vmulq_f16(vmulq_f16(_half, _blob), x);
 }
 
 static inline float16x4_t fast_gelu_ps_f16(float16x4_t x)
@@ -865,7 +865,7 @@ static inline float16x4_t fast_gelu_ps_f16(float16x4_t x)
     _blob = vfma_f16(_blob, vdup_n_f16(0.79788452f), x);
     _blob = tanh_ps_f16(_blob);
     _blob = vadd_f16(_one, _blob);
-    return vmul_f16(_half, vmul_f16(_blob, x));
+    return vmul_f16(vmul_f16(_half, _blob), x);
 }
 
 static inline float16x8_t fast_gelu_ps_f16(float16x8_t x)
@@ -878,7 +878,7 @@ static inline float16x8_t fast_gelu_ps_f16(float16x8_t x)
     _blob = vfmaq_f16(_blob, vdupq_n_f16(0.79788452f), x);
     _blob = tanh_ps_f16(_blob);
     _blob = vaddq_f16(_one, _blob);
-    return vmulq_f16(_half, vmulq_f16(_blob, x));
+    return vmulq_f16(vmulq_f16(_half, _blob), x);
 }
 
 static inline float16x4_t selu_ps_f16(float16x4_t x, float16x4_t alphaxlambda, float16x4_t lambda)

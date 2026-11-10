@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_level2.h"
+#include "pooling.h"
 
 namespace pnnx {
 
@@ -13,8 +14,8 @@ public:
         return R"PNNXIR(7767517
 8 7
 pnnx.Input              input       0 1 input
+pnnx.Input              input_1     0 1 stride
 prim::Constant          op_0        0 1 kernel_size value=%kernel_size
-prim::Constant          op_1        0 1 stride value=%stride
 prim::Constant          op_2        0 1 padding value=%padding
 prim::Constant          op_3        0 1 ceil_mode value=%ceil_mode
 prim::Constant          op_4        0 1 count_include_pad value=%count_include_pad
@@ -26,6 +27,18 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.avg_pool1d";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        return match_pooling_stride(matched_operators.at("op_5")->inputs[2]->producer);
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        write_pooling_stride(op);
     }
 };
 

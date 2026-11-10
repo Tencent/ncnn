@@ -151,11 +151,46 @@ static int test_cpu_powersave()
 
 #endif
 
+static int test_cpu_omp_nested()
+{
+    int ret[4] = {0};
+    const int num_threads = ncnn::get_cpu_count() > 1 ? 2 : 1;
+
+    #pragma omp parallel for num_threads(num_threads)
+    for (int i = 0; i < num_threads * 2; i++)
+    {
+        const int thread_num = ncnn::get_omp_thread_num();
+        const int team_size = ncnn::get_omp_num_threads();
+
+        #pragma omp parallel for num_threads(1)
+        for (int j = 0; j < 1; j++)
+        {
+            if (ncnn::get_omp_thread_num() != 0 || ncnn::get_omp_num_threads() != 1)
+                ret[i] = 1;
+        }
+
+        if (ncnn::get_omp_thread_num() != thread_num || ncnn::get_omp_num_threads() != team_size)
+            ret[i] = 1;
+    }
+
+    for (int i = 0; i < 4; i++)
+    {
+        if (ret[i] != 0)
+        {
+            fprintf(stderr, "The OMP thread state is incorrect in or after a nested single-thread region\n");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     return 0
            || test_cpu_set()
            || test_cpu_info()
            || test_cpu_omp()
+           || test_cpu_omp_nested()
            || test_cpu_powersave();
 }

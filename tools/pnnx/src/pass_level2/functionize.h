@@ -5,6 +5,6 @@
 
 namespace pnnx {
 
-void functionize(Graph& graph);
+int functionize(Graph& graph);
 
 }

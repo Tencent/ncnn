@@ -46,7 +46,7 @@ static int test_convolution_0()
 }
 
 #if NCNN_INT8
-static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false)
+static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, bool requant = false, bool test_winograd23 = false)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -103,6 +103,30 @@ static int test_convolution_oom_int8(int w, int h, int c, int outch, int kernel,
         return ret;
     }
 
+    if (test_winograd23)
+    {
+        ncnn::Option opt;
+        opt.num_threads = 1;
+        opt.use_packing_layout = false;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
+        opt.use_sgemm_convolution = false;
+        opt.use_winograd_convolution = true;
+        opt.use_winograd23_convolution = true;
+        opt.use_winograd43_convolution = false;
+        opt.use_winograd63_convolution = false;
+
+        ret = test_layer_oom_opt("Convolution", pd, weights, opt, a, flag);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolution_oom_int8 failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d requant=%d winograd=23 act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, requant, activation_type, activation_params[0], activation_params[1]);
+            return ret;
+        }
+    }
+
     return ret;
 }
 
@@ -110,9 +134,10 @@ static int test_convolution_1()
 {
     return 0
            || test_convolution_oom_int8(9, 7, 31, 32, 1, 1, 1, 0, 1)
-           || test_convolution_oom_int8(9, 7, 31, 32, 3, 1, 1, 1, 1)
+           || test_convolution_oom_int8(9, 7, 31, 32, 3, 1, 1, 1, 1, false, true)
            || test_convolution_oom_int8(9, 7, 31, 63, 1, 1, 1, 0, 1)
-           || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1);
+           || test_convolution_oom_int8(9, 7, 31, 63, 3, 1, 1, 1, 1)
+           || test_convolution_oom_int8(3, 1, 32769, 3, 1, 1, 1, 0, 1);
 }
 
 static int test_convolution_2()

@@ -153,7 +153,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                pack_C_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -205,7 +205,7 @@ static int gemm_riscv_fp16s(const Mat& A, const Mat& B, const Mat& C, Mat& top_b
                 const int max_jj = std::min((N - j), TILE_N);
                 if (broadcast_type_C == 3)
                 {
-                    pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                    pack_C_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
                 }
 
                 const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -321,7 +321,7 @@ static int gemm_AT_riscv_fp16s(const Mat& AT, const Mat& B, const Mat& C, Mat& t
 
         if (broadcast_type_C == 3)
         {
-            pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
+            pack_C_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
         }
 
         const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -431,7 +431,7 @@ static int gemm_BT_riscv_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& t
 
             if (broadcast_type_C == 3)
             {
-                pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                pack_C_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
             }
 
             const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -485,7 +485,7 @@ static int gemm_BT_riscv_fp16s(const Mat& A, const Mat& BT, const Mat& C, Mat& t
 
                 if (broadcast_type_C == 3)
                 {
-                    pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
+                    pack_C_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
                 }
 
                 const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;
@@ -568,7 +568,7 @@ static int gemm_AT_BT_riscv_fp16s(const Mat& AT, const Mat& BT, const Mat& C, Ma
 
         if (broadcast_type_C == 3)
         {
-            pack_A_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
+            pack_C_tile_fp32(C, topT_tile, i, max_ii, j, max_jj);
         }
 
         const Mat& CT_tile = broadcast_type_C == 3 ? topT_tile : C;

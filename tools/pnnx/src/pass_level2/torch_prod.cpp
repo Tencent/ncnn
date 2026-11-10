@@ -29,6 +29,24 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_prod, 50)
 
+class torch_prod_1 : public torch_prod
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        // Explicit dtype must be normalized before this rule can discard it.
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+prim::Constant          dtype       0 1 dtype value=None
+aten::prod              op          2 1 input dtype out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_prod_1, 50)
+
 class torch_prod_onnx : public GraphRewriterPass
 {
 public:

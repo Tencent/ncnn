@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+from packaging import version
 import torch.nn.functional as F
 
 class Model(nn.Module):
@@ -36,7 +37,24 @@ def test():
     import test_torch_bitwise_not_pnnx
     b = test_torch_bitwise_not_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    if not (torch.equal(a, b)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y))
+    torch.export.save(ep, "test_torch_bitwise_not_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_torch_bitwise_not_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_torch_bitwise_not_export_pnnx
+    c = test_torch_bitwise_not_export_pnnx.test_inference()
+
+    return a.dtype == c.dtype and torch.equal(a, c)
 
 if __name__ == "__main__":
     if test():
