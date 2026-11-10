@@ -87,6 +87,12 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+    if (vkdev->info.vendor_id() == 0x5143)
+    {
+        // adreno produces incorrect results even for complete cooperative matrix tiles
+        use_cooperative_matrix = false;
+    }
+
     const int subgroup_size = vkdev->info.subgroup_size();
     const uint32_t support_subgroup_ops = vkdev->info.support_subgroup_ops();
     const uint32_t required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
@@ -112,21 +118,27 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     const int N = constantN ? constantN : 1024;
     const int K = constantK ? constantK : 1024;
 
+    Option opt_cm = opt;
+
     if (use_cooperative_matrix)
     {
+        VkComponentTypeKHR coopmat_acctype;
         if (use_bf16_cooperative_matrix)
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_BFLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
         }
         else
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
         }
 
+        // the selected tile may use fp32 accumulation even when fp16 arithmetic was requested
+        opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
         const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
-        if (coopmat_M == 0 || (use_khr_cooperative_matrix && (coopmat_M % 8 || coopmat_N % 8 || coopmat_K % 8)))
+        if (coopmat_M == 0 || (use_khr_cooperative_matrix && ((coopmat_M != 4 && coopmat_M % 8) || coopmat_N % 8 || coopmat_K % 8)))
         {
-            // fall back when an unpadded KHR row stride would violate the alignment requirement
+            // allow four-row tiles while retaining eight-element N/K tiles
             use_cooperative_matrix = false;
         }
         else
@@ -560,7 +572,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         pipeline_gemm = new Pipeline(vkdev);
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-        pipeline_gemm->create(LayerShaderType::gemm_cm, opt, specializations);
+        pipeline_gemm->create(LayerShaderType::gemm_cm, opt_cm, specializations);
 
         if (use_output_pack_variants)
         {
@@ -569,7 +581,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             pipeline_gemm_pack4 = new Pipeline(vkdev);
             pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
             pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt, specializations);
+            pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt_cm, specializations);
         }
     }
     else if (opt.use_shader_local_memory)

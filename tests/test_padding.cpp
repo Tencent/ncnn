@@ -291,6 +291,9 @@ static int test_padding_int8_4d()
            || test_padding_int8(b, 2, 2, 2, 2, 1, 1, 0, 2.f, 0)
            || test_padding_int8(c, 2, 2, 2, 2, 1, 1, 0, -3.f, 0)
 
+           // negative constant other than -1 on packed channels
+           || test_padding_int8(a, 2, 2, 2, 2, 1, 1, 0, -3.f, 0)
+
            // per-channel constant border
            || test_padding_int8(a, 2, 1, 2, 1, 2, 1, 0, 0.f, a.c)
            || test_padding_int8(b, 2, 1, 2, 1, 2, 1, 0, 0.f, b.c)
@@ -336,6 +339,10 @@ static int test_padding_int8_3d()
            || test_padding_int8(a, 2, 2, 2, 2, 0, 0, 0, 1.f, 0)
            || test_padding_int8(b, 2, 2, 2, 2, 0, 0, 0, 2.f, 0)
            || test_padding_int8(c, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
+
+           // negative constant other than -1 on packed channels
+           || test_padding_int8(a, 2, 2, 2, 2, 0, 0, 0, -3.f, 0)
+           || test_padding_int8(a, 1, 1, 1, 1, 8, 8, 0, -3.f, 0)
 
            // per-channel spatial border
            || test_padding_int8(a, 2, 1, 2, 1, 0, 0, 0, 0.f, a.c)
@@ -427,6 +434,7 @@ static int test_padding_int8_2d()
            || test_padding_int8(a, 8, 8, 2, 5, 0, 0, 0, -1.f, 0)
            || test_padding_int8(b, 8, 8, 2, 5, 0, 0, 0, -2.f, 0)
            || test_padding_int8(c, 8, 8, 2, 5, 0, 0, 0, 3.f, 0)
+           || test_padding_int8(a, 8, 8, 2, 5, 0, 0, 0, -3.f, 0)
 
            // unaligned row offset with scalar and packed replicate output
            || test_padding_int8(a, 3, 1, 3, 1, 0, 0, 1, 0.f, 0)
@@ -466,6 +474,7 @@ static int test_padding_int8_1d()
            || test_padding_int8(a, 0, 0, 16, 8, 0, 0, 0, -1.f, 0)
            || test_padding_int8(b, 0, 0, 16, 8, 0, 0, 0, -2.f, 0)
            || test_padding_int8(c, 0, 0, 16, 8, 0, 0, 0, 3.f, 0)
+           || test_padding_int8(a, 0, 0, 16, 8, 0, 0, 0, -3.f, 0)
 
            // one-sided replicate output packing
            || test_padding_int8(a, 0, 0, 0, 1, 0, 0, 1, 0.f, 0)

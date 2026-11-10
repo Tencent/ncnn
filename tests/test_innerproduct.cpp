@@ -345,6 +345,40 @@ static int test_innerproduct_7()
 }
 #endif // NCNN_INT8
 
+static int test_innerproduct_mish_large(const ncnn::Mat& a)
+{
+    // fused mish on large outputs, where exp(x) overflows in the gpu shader (#7191)
+    // an identity weight passes the inputs through to the activation
+    // odd num_output selects pack1 outputs, which take the scalar activation path
+    const int num_input = a.w;
+
+    ncnn::ParamDict pd;
+    pd.set(0, num_input);
+    pd.set(2, num_input * num_input);
+    pd.set(9, 5);
+
+    std::vector<ncnn::Mat> weights(1);
+    weights[0] = ncnn::Mat(num_input * num_input);
+    weights[0].fill(0.f);
+    for (int i = 0; i < num_input; i++)
+        weights[0][i * num_input + i] = 1.f;
+
+    int ret = test_layer("InnerProduct", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_innerproduct_mish_large failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+    }
+
+    return ret;
+}
+
+static int test_innerproduct_8()
+{
+    return 0
+           || test_innerproduct_mish_large(RandomMat(127, -100.f, 100.f))
+           || test_innerproduct_mish_large(RandomMat(15, 16, -100.f, 100.f));
+}
+
 static int test_innerproduct_activation_params(const ncnn::ParamDict& pd, float value, float expected)
 {
     std::vector<ncnn::Mat> weights(1);
@@ -569,6 +603,7 @@ int main()
 #endif // NCNN_INT8
            || test_innerproduct_activation_params_text()
            || test_innerproduct_activation_params_binary()
+           || test_innerproduct_8()
 #if NCNN_VALIDATION
            || test_innerproduct_load_param()
            || test_innerproduct_load_param_text()

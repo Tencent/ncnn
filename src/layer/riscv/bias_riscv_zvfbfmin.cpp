@@ -5,19 +5,15 @@
 #include "mat.h"
 #include "riscv_usability.h"
 
-#if __riscv_vector
-#include "rvv_mathfun.h"
-#endif
-
 namespace ncnn {
 
 #if NCNN_BF16
 
-#include "absval_bf16s.h"
+#include "bias_bf16s.h"
 
-void absval_bf16s_zvfbfmin(Mat& bottom_top_blob, const Option& opt)
+void bias_bf16s_zvfbfmin(Mat& bottom_top_blob, const float* bias_data, const Option& opt)
 {
-    absval_bf16s(bottom_top_blob, opt);
+    bias_bf16s(bottom_top_blob, bias_data, opt);
 }
 
 #endif // NCNN_BF16
