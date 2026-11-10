@@ -3,6 +3,7 @@
 
 import torch
 import torch.nn as nn
+from packaging import version
 import torch.nn.functional as F
 
 class Model(nn.Module):
@@ -45,8 +46,30 @@ def test():
     import test_torch_addmm_pnnx
     b = test_torch_addmm_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+    if len(a) != len(b):
+        return False
+    for a_out, b_out in zip(a, b):
+        if not torch.equal(a_out, b_out):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (a0, a1, a2, b0, b1, b2, c1))
+    torch.export.save(ep, "test_torch_addmm_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_torch_addmm_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_torch_addmm_export_pnnx
+    c = test_torch_addmm_export_pnnx.test_inference()
+
+    if len(a) != len(c):
+        return False
+    for a_out, c_out in zip(a, c):
+        if not torch.equal(a_out, c_out):
             return False
     return True
 

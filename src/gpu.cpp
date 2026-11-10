@@ -2653,10 +2653,17 @@ const std::vector<VkCooperativeVectorPropertiesNV>& GpuInfo::queryCooperativeVec
 
 void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const
 {
+    VkComponentTypeKHR coopmat_acctype;
+    get_optimal_cooperative_matrix_mnk(M, N, K, type, acctype, scope, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
+}
+
+void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size, VkComponentTypeKHR& coopmat_acctype) const
+{
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
     coopmat_subgroup_size = d->querySubgroupProperties.subgroupSize;
+    coopmat_acctype = acctype;
 
     // collect mnk and subgroup size candidates
     std::vector<VkCooperativeMatrixPropertiesKHR> mnk_properties;
@@ -2723,7 +2730,7 @@ void GpuInfo::get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponen
     if (mnk_properties.empty() && (acctype == VK_COMPONENT_TYPE_FLOAT16_KHR || acctype == VK_COMPONENT_TYPE_BFLOAT16_KHR))
     {
         // try acctype fp32
-        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+        return get_optimal_cooperative_matrix_mnk(M, N, K, type, VK_COMPONENT_TYPE_FLOAT32_KHR, scope, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
     }
 
     if (mnk_properties.empty())
@@ -4745,7 +4752,7 @@ int VulkanDevice::create_pipeline(VkShaderModule shader_module, VkPipelineLayout
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT;
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = 0;
     pipelineShaderStageRequiredSubgroupSizeCreateInfo.requiredSubgroupSize = subgroup_size;
-    if (info.support_subgroup_size_control())
+    if (info.support_subgroup_size_control() && (info.querySubgroupSizeControlProperties().requiredSubgroupSizeStages & VK_SHADER_STAGE_COMPUTE_BIT))
     {
         // pipelineShaderStageCreateInfo.flags |= VK_PIPELINE_SHADER_STAGE_CREATE_ALLOW_VARYING_SUBGROUP_SIZE_BIT;
         pipelineShaderStageRequiredSubgroupSizeCreateInfo.pNext = enabledExtensionFeatures;
@@ -6263,6 +6270,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     if (opt.use_int8_storage)
     {
         custom_exts += "#extension GL_EXT_shader_8bit_storage: require\n";
+        custom_exts += "#pragma use_storage_buffer\n";
     }
     if (opt.use_int8_arithmetic)
     {

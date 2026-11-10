@@ -286,10 +286,15 @@ static int test_convolutiondepthwise_1()
         {15, 15, 15, 1},
         {16, 8, 2, 0},
         {16, 16, 16, 1},
+        {31, 31, 31, 0},
+        {32, 32, 32, 0},
+        {32, 32, 32, 1},
+        {33, 33, 33, 1},
+        {64, 64, 64, 0},
     };
     for (int requant = 0; requant < 2; requant++)
     {
-        for (int i = 0; i < 13; i++)
+        for (size_t i = 0; i < sizeof(packing) / sizeof(packing[0]); i++)
         {
             for (int stride = 1; stride <= 2; stride++)
             {
@@ -300,13 +305,14 @@ static int test_convolutiondepthwise_1()
         }
     }
 
-    // both post-kernel activation branches in scalar int8 specializations
+    // post-kernel activation covers scalar and packed int8 paths
     for (int requant = 0; requant < 2; requant++)
     {
         int ret = 0
                   || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 1, 1, 1, 3, requant != 0, 0, false, 1)
                   || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 2, 1, 0, 3, requant != 0, 0, false, 0)
-                  || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 2, 1, 0, 3, requant != 0, 0, false, 1);
+                  || test_convolutiondepthwise_int8(15, 7, 3, 3, 3, 1, 2, 1, 0, 3, requant != 0, 0, false, 1)
+                  || test_convolutiondepthwise_int8(9, 7, 64, 64, 3, 1, 1, 1, 1, 64, requant != 0, 0, false, 1);
         if (ret != 0)
             return -1;
     }
@@ -516,7 +522,9 @@ static int test_convolutiondepthwise_1_int8_input()
            || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, false, 1, true)
            || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, false, 2, true)
            || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 8, true, 101, true)
-           || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, true, 102, true);
+           || test_convolutiondepthwise_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 2, true, 102, true)
+           || test_convolutiondepthwise_int8(11, 9, 32, 32, 3, 1, 1, 0, 1, 32, false, 2, true, 1)
+           || test_convolutiondepthwise_int8(8, 7, 64, 64, 3, 1, 2, -233, 0, 64, true, 102, true, 1);
 }
 static int test_convolutiondepthwise_int8_input_tile_boundaries()
 {
