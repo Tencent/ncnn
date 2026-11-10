@@ -123,20 +123,10 @@ resident fallback when no explicit directory or memory limits are configured.
 
 ## external commands
 
-Normal `Mat` extraction selects online weight upload from the Net's
-`use_weights_in_host_memory` and `use_weights_in_disk` options. For external
-commands, select the mode before recording:
-
-```cpp
-ncnn::VkCompute cmd(net.vulkan_device());
-cmd.set_use_weight_upload_online(net.opt.use_weights_in_host_memory || net.opt.use_weights_in_disk);
-```
-
-The setting defaults to `false` and survives `submit_and_wait()` and `reset()`.
-It stays fixed while commands are recorded. Enable it for an external command
-that uses deferred host or disk weights, including when several Nets share the
-command. Recording a deferred weight assumes this mode is already enabled;
-the resolve path does not check or change the setting.
+External commands need no extra setup. Recording a deferred host or disk
+weight starts online upload in that command, including when several Nets with
+different weight storage share the command. `submit_and_wait()` waits for any
+pending uploads; a command without deferred weights submits as before.
 
 `init()` creates the private weight allocator, prepares the compute and upload
 command pools and starts the initial compute command buffer. Both command pools

@@ -197,7 +197,6 @@ static int test_weight_storage(const ncnn::Option& opt, float epsilon)
 
     {
         ncnn::VkCompute cmd(net.vulkan_device());
-        cmd.set_use_weight_upload_online(opt.use_weights_in_host_memory || opt.use_weights_in_disk);
 
         for (int i = 0; i < 2; i++)
         {
@@ -336,7 +335,6 @@ static int test_weight_storage_chain(const ncnn::Option& opt0, const ncnn::Optio
     {
         // two nets with different weight storage share one command
         ncnn::VkCompute cmd(vkdev);
-        cmd.set_use_weight_upload_online(true);
 
         ncnn::Extractor ex0 = net0.create_extractor();
         ex0.set_blob_vkallocator(blob_vkallocator);
@@ -469,7 +467,6 @@ static int test_weight_storage_allocator(size_t device_memory_limit, size_t host
     int ret = 0;
     {
         ncnn::VkCompute cmd(vkdev);
-        cmd.set_use_weight_upload_online(true);
 
         for (int i = 0; i < 4; i++)
         {

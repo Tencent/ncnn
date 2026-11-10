@@ -1107,7 +1107,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         // forward
         ncnn::VkCompute cmd(vkdev);
-        cmd.set_use_weight_upload_online(opt.use_weights_in_disk);
 
         {
             std::vector<ncnn::VkMat> a_gpu(a.size());
@@ -1708,7 +1707,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     {
         // forward
         ncnn::VkCompute cmd(vkdev);
-        cmd.set_use_weight_upload_online(opt.use_weights_in_disk);
 
         {
             ncnn::VkMat a_gpu;
