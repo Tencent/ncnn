@@ -9,6 +9,10 @@
 #include <string>
 #include <vector>
 
+#if BUILD_TORCH2PNNX
+#include "torch_alias.h"
+#endif // BUILD_TORCH2PNNX
+
 namespace pnnx {
 
 unsigned short float32_to_float16(float value);
@@ -28,6 +32,11 @@ struct NumpyArray
 };
 
 bool load_numpy_file(const char* path, NumpyArray& array, bool load_data = true);
+
+#if BUILD_TORCH2PNNX
+TorchAliasKind torch_alias_kind(const torch::jit::Node* node);
+torch::jit::Value* torch_alias_input(const torch::jit::Node* node);
+#endif // BUILD_TORCH2PNNX
 
 } // namespace pnnx
 

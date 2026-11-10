@@ -424,6 +424,7 @@ public:
 
     // some utility functions
     void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
+    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size, VkComponentTypeKHR& coopmat_acctype) const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -472,6 +473,7 @@ public:
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
     bool is_coherent(uint32_t memory_type_index) const;
+    bool is_cached(uint32_t memory_type_index) const;
     bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;

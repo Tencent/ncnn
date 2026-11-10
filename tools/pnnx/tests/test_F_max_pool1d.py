@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -52,6 +53,28 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y))
+    torch.export.save(ep, "test_F_max_pool1d_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_F_max_pool1d_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_F_max_pool1d_export_pnnx
+    c = test_F_max_pool1d_export_pnnx.test_inference()
+
+    if len(a) != len(c):
+        return False
+    for a0, c0 in zip(a, c):
+        if a0.dtype != c0.dtype or a0.shape != c0.shape:
+            return False
+        if not torch.equal(a0, c0):
             return False
     return True
 

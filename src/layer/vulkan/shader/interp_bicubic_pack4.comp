@@ -47,6 +47,30 @@ void main()
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
+    if (psc(w) < 4 || (psc(dims) == 3 && psc(h) < 4))
+    {
+        int sx = xofs_blob_data[gx];
+        int sy = psc(dims) == 2 ? gy : yofs_blob_data[gy];
+        afpvec4 alpha = buffer_ld4(alpha_blob_data, gx);
+        afpvec4 beta = psc(dims) == 2 ? afpvec4(0.f, 1.f, 0.f, 0.f) : buffer_ld4(beta_blob_data, gy);
+        afpvec4 v = afpvec4(0.f);
+        for (int i = 0; i < 4; i++)
+        {
+            int iy = psc(dims) == 2 ? gy : clamp(sy + i - 1, 0, psc(h) - 1);
+            afpvec4 row = afpvec4(0.f);
+            for (int j = 0; j < 4; j++)
+            {
+                int ix = clamp(sx + j - 1, 0, psc(w) - 1);
+                int si = gz * psc(cstep) + iy * psc(w) + ix;
+                row += buffer_ld4(bottom_blob_data, si) * alpha[j];
+            }
+            v += row * beta[i];
+        }
+        int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+        buffer_st4(top_blob_data, gi, v);
+        return;
+    }
+
     if (psc(dims) == 2)
     {
         int sx = xofs_blob_data[gx];

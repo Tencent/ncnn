@@ -18,12 +18,33 @@ static int test_count_expression_blobs(const std::string& expr, int true_count)
     return 0;
 }
 
+static int test_analyze_list_expression(const char* expr, int expected_size, int expected_blobs, bool expected_batch, int expected_ret = 0)
+{
+    int list_size;
+    int blob_count;
+    bool has_batch;
+    int ret = ncnn::analyze_list_expression(expr, list_size, blob_count, has_batch);
+    if (ret != expected_ret || (ret == 0 && (list_size != expected_size || blob_count != expected_blobs || has_batch != expected_batch)))
+    {
+        fprintf(stderr, "test_analyze_list_expression failed expr=%s ret=%d size=%d blobs=%d batch=%d\n", expr, ret, list_size, blob_count, has_batch);
+        return -1;
+    }
+    return 0;
+}
+
 static int test_expression_0()
 {
     return 0
            || test_count_expression_blobs("1,2,3,4,5,6", 0)
            || test_count_expression_blobs("-1,1h,2w", 3)
-           || test_count_expression_blobs("2,9d,2c,-1", 10);
+           || test_count_expression_blobs("2,9d,2c,-1", 10)
+           || test_analyze_list_expression("//(0w,1n),*(2n,3n),9d", 3, 10, true)
+           || test_analyze_list_expression("1w,-1", 2, 2, false)
+           || test_analyze_list_expression("100,2,3", 3, 0, false)
+           || test_analyze_list_expression("9n", 1, 10, true)
+           || test_analyze_list_expression("", 0, 0, false)
+           || test_analyze_list_expression("*(0w,1h", 0, 0, false, -1)
+           || test_analyze_list_expression("0w)", 0, 0, false, -1);
 }
 
 static int test_eval_list_expression(const std::string& expr, std::vector<ncnn::Mat>& blobs, int ndim, ...)

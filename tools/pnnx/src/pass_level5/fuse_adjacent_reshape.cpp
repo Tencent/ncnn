@@ -22,7 +22,9 @@ void fuse_adjacent_reshape(Graph& graph)
             if (op->type != "Tensor.reshape" && op->type != "torch.squeeze" && op->type != "torch.unsqueeze")
                 continue;
 
-            if ((op->type == "torch.squeeze" || op->type == "torch.unsqueeze") && op->outputs[0]->shape.empty())
+            // only one unknown extent can be inferred from the element count
+            const auto& target_shape = op->outputs[0]->shape;
+            if (target_shape.empty() || std::count(target_shape.begin(), target_shape.end(), -1) > 1)
                 continue;
 
             std::vector<Operator*> reshapes_to_delete;

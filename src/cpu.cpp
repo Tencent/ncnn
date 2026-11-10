@@ -270,6 +270,8 @@ static int g_cpu_support_x86_avx512_fp16;
 #if __riscv
 static int g_cpu_support_riscv_zfh;
 static int g_cpu_support_riscv_zvfh;
+static int g_cpu_support_riscv_zvfbfmin;
+static int g_cpu_support_riscv_zvfbfwma;
 static int g_cpu_support_riscv_xtheadvector;
 #endif // __riscv
 #endif // defined __ANDROID__ || defined __linux__
@@ -2303,8 +2305,10 @@ static void initialize_global_cpu_info()
      * false negative drops all layers to the fp32 path and disables the IME2 fast path.
      * Fall back to ruapu when the syscall is unavailable (< 6.4 or non-Linux). */
     int hwprobe_ok = 0;
-    unsigned long long hwprobe_ima_ext0 = 0;
+    int hw_zfh = 0;
+    int hw_zvfh = 0;
 #if defined __linux__ && defined RISCV_HWPROBE_KEY_IMA_EXT_0 && defined RISCV_HWPROBE_EXT_ZFH && defined RISCV_HWPROBE_EXT_ZVFH
+    unsigned long long hwprobe_ima_ext0 = 0;
     /* Guarded on the macros as well: older kernel headers do not define them and
      * the build would fail instead of falling back to ruapu. */
     {
@@ -2317,11 +2321,13 @@ static void initialize_global_cpu_info()
             hwprobe_ok = 1;
         }
     }
+    hw_zfh = hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZFH;
+    hw_zvfh = hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZVFH;
 #endif
-    const int hw_zfh = hwprobe_ok && (hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZFH);
-    const int hw_zvfh = hwprobe_ok && (hwprobe_ima_ext0 & RISCV_HWPROBE_EXT_ZVFH);
     g_cpu_support_riscv_zfh = (hwprobe_ok ? hw_zfh : ruapu_supports("zfh")) || ruapu_supports("xtheadvector");    // xtheadvector implies zfh
     g_cpu_support_riscv_zvfh = (hwprobe_ok ? hw_zvfh : ruapu_supports("zvfh")) || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
+    g_cpu_support_riscv_zvfbfmin = ruapu_supports("zvfbfmin");
+    g_cpu_support_riscv_zvfbfwma = ruapu_supports("zvfbfwma");
     g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
 #endif // __riscv
 #endif // defined __ANDROID__ || defined __linux__
@@ -2982,6 +2988,34 @@ int cpu_support_riscv_zvfh()
 #endif
 }
 
+int cpu_support_riscv_zvfbfmin()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_cpu_support_riscv_zvfbfmin;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_zvfbfwma()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_cpu_support_riscv_zvfbfwma;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_riscv_xtheadvector()
 {
     try_initialize_global_cpu_info();
@@ -3004,7 +3038,7 @@ int cpu_riscv_vlenb()
 #endif
     try_initialize_global_cpu_info();
 #if __riscv
-    if (!cpu_support_riscv_v())
+    if (!cpu_support_riscv_v() && !cpu_support_riscv_xtheadvector())
         return 0;
 
     int a = 0;

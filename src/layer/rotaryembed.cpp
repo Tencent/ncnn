@@ -62,21 +62,27 @@ int RotaryEmbed::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             }
             else
             {
+                const int half = embed_dim / 2;
+                // A full-width (embed_dim) cache carries independent cos/sin for the two halves
+                // (2D / vision rope where the halves differ); a half-width (embed_dim/2) cache is
+                // the standard-rope form whose halves are identical, so the second half reuses the
+                // first. This keeps existing half-width callers bit-identical.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
                 const float* ptr0 = head.row(i);
-                const float* ptr1 = ptr0 + embed_dim / 2;
-                const float* sin_ptr = sin_cache.row(i);
-                const float* cos_ptr = cos_cache.row(i);
+                const float* ptr1 = ptr0 + half;
+                const float* cos_ptr0 = cos_cache.row(i);
+                const float* sin_ptr0 = sin_cache.row(i);
+                const float* cos_ptr1 = cos_ptr0 + cw;
+                const float* sin_ptr1 = sin_ptr0 + cw;
                 float* outptr0 = out_head.row(i);
-                float* outptr1 = outptr0 + embed_dim / 2;
+                float* outptr1 = outptr0 + half;
 
-                for (int j = 0; j < embed_dim / 2; j++)
+                for (int j = 0; j < half; j++)
                 {
-                    const float x0 = *ptr0++;
-                    const float x1 = *ptr1++;
-                    const float cos_val = *cos_ptr++;
-                    const float sin_val = *sin_ptr++;
-                    *outptr0++ = x0 * cos_val - x1 * sin_val;
-                    *outptr1++ = x0 * sin_val + x1 * cos_val;
+                    const float x0 = ptr0[j];
+                    const float x1 = ptr1[j];
+                    outptr0[j] = x0 * cos_ptr0[j] - x1 * sin_ptr0[j];
+                    outptr1[j] = x0 * sin_ptr1[j] + x1 * cos_ptr1[j];
                 }
             }
         }

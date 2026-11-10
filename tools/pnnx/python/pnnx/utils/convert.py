@@ -68,7 +68,7 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             input_shapes2 = get_shape_from_inputs(inputs2)
             input_types2 = get_type_from_inputs(inputs2)
 
-        input_arg1 = generate_inputs_arg(input_shapes, input_types)
+        input_arg1 = generate_inputs_arg(input_shapes, input_types) if input_shapes else ""
 
         command_list = [EXEC_PATH, ptpath, "inputshape=" + input_arg1,
                         "device=" + device,
@@ -97,10 +97,11 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             command_list.append("ncnnpy=" + ncnnpy)
         if not (fp16 is True):
             command_list.append("fp16=0")
-        current_dir = os.getcwd()
-        subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
 
     else: # use input_shapes and input_types
+        if input_shapes is None and input_types is None and ptpath.endswith('.pt2'):
+            input_shapes = []
+            input_types = []
         if (input_shapes is None) or (input_types is None):
             raise Exception("input_shapes and input_types should be specified together.")
 
@@ -114,7 +115,7 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             except: # model without parameters
                 device = "cpu"
 
-        input_arg1 = generate_inputs_arg(input_shapes, input_types)
+        input_arg1 = generate_inputs_arg(input_shapes, input_types) if input_shapes else ""
 
         command_list = [EXEC_PATH, ptpath, "inputshape=" + input_arg1,
                         "device=" + device,
@@ -140,8 +141,10 @@ def convert(ptpath, inputs = None, inputs2 = None, input_shapes = None, input_ty
             command_list.append("ncnnbin=" + ncnnbin)
         if not (ncnnpy is None):
             command_list.append("ncnnpy=" + ncnnpy)
-        current_dir = os.getcwd()
-        subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=current_dir)
+        if not (fp16 is True):
+            command_list.append("fp16=0")
+
+    subprocess.run(command_list, stdout=subprocess.PIPE, text=True, cwd=os.getcwd())
 
     # return pnnx model
     if pnnxpy is None:

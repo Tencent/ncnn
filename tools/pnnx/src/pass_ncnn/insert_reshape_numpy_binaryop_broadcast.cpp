@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "insert_reshape_numpy_binaryop_broadcast.h"
-#include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -96,13 +96,43 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
 
             // fprintf(stderr, "insert_reshape_numpy_binaryop_broadcast %d %d\n", input_rank0, input_rank1);
 
-            matched = true;
-
             const int binaryop_lower_rank_in_index = input_rank0 < input_rank1 ? 0 : 1;
 
             Operand* binaryop_lower_rank_in = op->inputs[binaryop_lower_rank_in_index];
 
-            Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
+            const int lower_batch_index = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
+            const int lower_ncnn_batch_axis = input_rank0 < input_rank1 ? ncnn_batch_axis0 : ncnn_batch_axis1;
+
+            // insert explicit broadcast index for missing ranks
+            std::vector<int> reshape0_shape = input_rank0 < input_rank1 ? new_shape0 : new_shape1;
+            for (int j = 0; j < std::abs(input_rank0 - input_rank1); j++)
+            {
+                reshape0_shape.insert(reshape0_shape.begin(), 1);
+            }
+
+            if (lower_ncnn_batch_axis != 233)
+            {
+                reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
+            }
+
+            const auto input_shape = get_logical_shape_expr(binaryop_lower_rank_in, 0);
+            auto target = input_shape;
+            std::string batch;
+            if (lower_ncnn_batch_axis != 233)
+            {
+                batch = target[lower_ncnn_batch_axis];
+                target.erase(target.begin() + lower_ncnn_batch_axis);
+            }
+            target.insert(target.begin(), std::abs(input_rank0 - input_rank1), "1");
+            if (lower_ncnn_batch_axis != 233)
+                target.insert(target.begin() + lower_ncnn_batch_axis, batch);
+            std::map<std::string, Parameter> params;
+            if (!resolve_reshape_params(input_shape, get_ncnn_batch_axis(binaryop_lower_rank_in), target, lower_ncnn_batch_axis, 1, params))
+                continue;
+
+            matched = true;
+
+            Operator* reshape0 = graph.new_operator_before("Reshape", op->name + "_ncnnreshape0", op);
 
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
 
@@ -123,25 +153,11 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
             reshape0_out->producer = reshape0;
             reshape0_out->consumers.push_back(op);
 
-            const int lower_batch_index = input_rank0 < input_rank1 ? batch_index0 : batch_index1;
-            const int lower_ncnn_batch_axis = input_rank0 < input_rank1 ? ncnn_batch_axis0 : ncnn_batch_axis1;
-
             reshape0_out->params["__batch_index"] = lower_batch_index;
             reshape0_out->params["__ncnn_batch_axis"] = lower_ncnn_batch_axis;
-
-            // insert explicit broadcast index for missing ranks
-            std::vector<int> reshape0_shape = input_rank0 < input_rank1 ? new_shape0 : new_shape1;
-            for (int j = 0; j < std::abs(input_rank0 - input_rank1); j++)
-            {
-                reshape0_shape.insert(reshape0_shape.begin(), 1);
-            }
-
-            if (lower_ncnn_batch_axis != 233)
-            {
-                reshape0_shape.insert(reshape0_shape.begin() + lower_ncnn_batch_axis, binaryop_lower_rank_in->shape[lower_ncnn_batch_axis]);
-            }
-
-            reshape0->params["shape"] = reshape0_shape;
+            reshape0_out->shape = reshape0_shape;
+            reshape0_out->type = binaryop_lower_rank_in->type;
+            write_reshape_params(reshape0, params);
 
             break;
         }

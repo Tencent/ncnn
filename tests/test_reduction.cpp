@@ -5,6 +5,11 @@
 
 #include "layer_type.h"
 
+#if NCNN_VULKAN
+#include "command.h"
+#include "gpu.h"
+#endif
+
 #include <limits.h>
 
 #define OP_TYPE_MAX 11
@@ -39,10 +44,15 @@ static void print_int_array(const std::vector<int>& a)
 static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 {
     ncnn::Mat a = _a;
-    if (op_type == 9 || op_type == 10)
+    if (op_type == 9)
     {
-        // value must be positive for logsum and logsumexp
+        // value must be positive for logsum
         Randomize(a, 0.001f, 2.f);
+    }
+    if (op_type == 10)
+    {
+        // exp overflows above 88 unless the max is subtracted
+        Randomize(a, -100.f, 100.f);
     }
 
     ncnn::ParamDict pd;
@@ -65,10 +75,15 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const std::vector<int>& axes_array)
 {
     ncnn::Mat a = _a;
-    if (op_type == 9 || op_type == 10)
+    if (op_type == 9)
     {
-        // value must be positive for logsum and logsumexp
+        // value must be positive for logsum
         Randomize(a, 0.001f, 2.f);
+    }
+    if (op_type == 10)
+    {
+        // exp overflows above 88 unless the max is subtracted
+        Randomize(a, -100.f, 100.f);
     }
 
     ncnn::Mat axes(axes_array.size());
@@ -198,6 +213,46 @@ static int test_reduction_numeric_boundaries()
     return 0;
 }
 
+static int test_reduction_logsumexp_shift()
+{
+    // exp overflows at 1000 and underflows at -1000 unless the max is subtracted
+    const float offsets[2] = {1000.f, -1000.f};
+    for (int i = 0; i < 2; i++)
+    {
+        ncnn::Mat a(7, 5);
+        float sum = 0.f;
+        for (int j = 0; j < 35; j++)
+        {
+            a[j] = offsets[i] - j * 0.25f;
+            sum += expf(-j * 0.25f);
+        }
+
+        const float expected = offsets[i] + logf(sum);
+
+        ncnn::ParamDict pd;
+        pd.set(0, 10);
+        pd.set(1, 1); // reduce_all
+
+        std::vector<ncnn::Mat> weights(0);
+        ncnn::Mat b;
+
+        int ret = test_layer_naive(ncnn::LayerType::Reduction, pd, weights, a, b, 0);
+        if (ret == 0 && (b.empty() || !NearlyEqual(b[0], expected, 0.001)))
+            ret = -1;
+
+        if (ret == 0)
+            ret = test_layer("Reduction", pd, weights, a, 0.001);
+
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_reduction_logsumexp_shift failed offset=%f expected=%f\n", offsets[i], expected);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 static ncnn::Mat param_int_array(int size, int value)
 {
     ncnn::Mat m(size);
@@ -292,6 +347,154 @@ static int test_reduction_depth_padding_boundaries()
            || test_reduction(b, 1.f, 1, IntArray(-4, -2));
 }
 
+#if NCNN_VULKAN
+static int test_reduction_gpu_fp16a(const ncnn::Mat& a, float coeff, const std::vector<int>& axes_array, bool use_subgroup_ops)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, op_type);
+    pd.set(2, coeff);
+    pd.set(4, 0); // keepdims
+    if (axes_array.empty())
+    {
+        pd.set(1, 1); // reduce_all
+    }
+    else
+    {
+        ncnn::Mat axes((int)axes_array.size());
+        int* p = axes;
+        for (size_t i = 0; i < axes_array.size(); i++)
+        {
+            p[i] = axes_array[i];
+        }
+
+        pd.set(1, 0); // reduce_all
+        pd.set(3, axes);
+        pd.set(5, 1); // fixbug0
+    }
+
+    std::vector<ncnn::Mat> weights(0);
+
+    ncnn::Mat expected;
+    int ret = test_layer_naive(ncnn::LayerType::Reduction, pd, weights, a, expected, 0);
+    if (ret != 0)
+        return ret;
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_vulkan_compute = true;
+    opt.use_subgroup_ops = use_subgroup_ops;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_bf16_packed = false;
+    opt.use_bf16_storage = false;
+    opt.use_int8_storage = false;
+    opt.use_int8_arithmetic = false;
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    if (!vkdev->info.support_subgroup_ops()) opt.use_subgroup_ops = false;
+
+    ncnn::VkAllocator* blob_vkallocator = vkdev->acquire_blob_allocator();
+    ncnn::VkAllocator* staging_vkallocator = vkdev->acquire_staging_allocator();
+    opt.blob_vkallocator = blob_vkallocator;
+    opt.workspace_vkallocator = blob_vkallocator;
+    opt.staging_vkallocator = staging_vkallocator;
+
+    ncnn::Layer* op = ncnn::create_layer_vulkan("Reduction");
+    op->vkdev = vkdev;
+    op->load_param(pd);
+
+    ncnn::ModelBinFromMatArray mb(weights.data());
+    op->load_model(mb);
+    ret = op->create_pipeline(opt);
+
+    ncnn::Mat b;
+    if (ret == 0)
+    {
+        // exercise fp16 arithmetic directly because test_layer_gpu disables it
+        ncnn::VkCompute cmd(vkdev);
+        ncnn::VkMat a_gpu;
+        cmd.record_upload(a, a_gpu, opt);
+
+        // Reduction_vulkan takes elempack 1
+        ncnn::VkMat a_gpu_unpacked;
+        vkdev->convert_packing(a_gpu, a_gpu_unpacked, 1, cmd, opt);
+
+        ncnn::VkMat b_gpu;
+        ret = op->forward(a_gpu_unpacked, b_gpu, cmd, opt);
+        if (ret == 0)
+        {
+            cmd.record_download(b_gpu, b, opt);
+            ret = cmd.submit_and_wait();
+        }
+    }
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    vkdev->reclaim_blob_allocator(blob_vkallocator);
+    vkdev->reclaim_staging_allocator(staging_vkallocator);
+
+    if (ret != 0 || CompareMat(expected, b, 0.001f) != 0)
+    {
+        fprintf(stderr, "test_reduction_gpu_fp16a failed a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f subgroup=%d ret=%d", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, use_subgroup_ops, ret);
+        fprintf(stderr, " axes=");
+        print_int_array(axes_array);
+        fprintf(stderr, "\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_reduction_gpu_fp16a()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    const ncnn::GpuInfo& info = ncnn::get_gpu_info();
+    if (!info.support_fp16_storage() || !info.support_fp16_arithmetic())
+        return 0;
+
+    // the sums exceed the fp16 max 65504 while every result fits in fp16
+    ncnn::Mat a(20000);
+    for (int i = 0; i < a.w; i++)
+    {
+        a[i] = 3.5f + (i % 4) * 0.5f;
+    }
+
+    ncnn::Mat b(128, 128, 4);
+    for (int q = 0; q < b.c; q++)
+    {
+        float* ptr = b.channel(q);
+        for (int i = 0; i < b.w * b.h; i++)
+        {
+            ptr[i] = 3.5f + ((i + q) % 4) * 0.5f;
+        }
+    }
+
+    // sum asum sumsq mean l1 l2 logsum
+    static const int op_types[7] = {0, 1, 2, 3, 7, 8, 9};
+    static const float coeffs[7] = {1 / 256.f, 1 / 256.f, 1 / 256.f, 1.f, 1 / 256.f, 1.f, 1.f};
+
+    for (int i = 0; i < 7; i++)
+    {
+        op_type = op_types[i];
+
+        int ret = 0
+                  || test_reduction_gpu_fp16a(a, coeffs[i], std::vector<int>(), false)
+                  || test_reduction_gpu_fp16a(a, coeffs[i], std::vector<int>(), true)
+                  || test_reduction_gpu_fp16a(b, coeffs[i], IntArray(1, 2), false)
+                  || test_reduction_gpu_fp16a(b, coeffs[i], IntArray(1, 2), true);
+
+        if (ret != 0)
+            return ret;
+    }
+
+    return 0;
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
     SRAND(7767517);
@@ -309,10 +512,14 @@ int main()
     op_type = 0;
     return test_reduction_geometry()
            || test_reduction_numeric_boundaries()
+           || test_reduction_logsumexp_shift()
 #if NCNN_VALIDATION
            || test_reduction_load_param()
            || test_reduction_load_param_type()
            || test_reduction_load_param_text()
 #endif // NCNN_VALIDATION
+#if NCNN_VULKAN
+           || test_reduction_gpu_fp16a()
+#endif // NCNN_VULKAN
            || test_reduction_depth_padding_boundaries();
 }

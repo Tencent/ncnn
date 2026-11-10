@@ -3,8 +3,9 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
-    pass_level0/convert_half_to_float.cpp
+    pass_level0/normalize_module_dtype.cpp
     pass_level0/inline_block.cpp
+    pass_level0/normalize_dtype.cpp
     pass_level0/reset_device.cpp
     pass_level0/flatten_input.cpp
     pass_level0/shape_inference.cpp
@@ -244,6 +245,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_gather.cpp
     pass_level2/torch_ge.cpp
     pass_level2/torch_gt.cpp
+    pass_level2/torch_hamming_window.cpp
+    pass_level2/torch_hann_window.cpp
     pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
@@ -287,11 +290,13 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_tile.cpp
     pass_level2/torch_topk.cpp
     pass_level2/torch_transpose.cpp
+    pass_level2/torch_tril.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_view_as_complex.cpp
     pass_level2/torch_view_as_real.cpp
+    pass_level2/torch_weight_norm.cpp
     pass_level2/torch_where.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
@@ -321,6 +326,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torchaudio_F_inverse_spectrogram.cpp
     pass_level2/torchaudio_F_spectrogram.cpp
 
+    pass_level2/nn_ChannelShuffle.cpp
     pass_level2/nn_GRU.cpp
     pass_level2/nn_LSTM.cpp
     pass_level2/nn_RNN.cpp
@@ -436,6 +442,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_convert_rotaryembed.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
+    pass_ncnn/reshape_shape.cpp
     pass_ncnn/solve_batch_index.cpp
 
     pass_ncnn/eliminate_noop.cpp
@@ -594,6 +601,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_reshape_as.cpp
     pass_ncnn/Tensor_repeat.cpp
+    pass_ncnn/Tensor_to.cpp
     pass_ncnn/Tensor_unflatten.cpp
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
@@ -672,6 +680,27 @@ set(torch2pnnx_SRCS
 
     load_torchscript.cpp
 )
+
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
+    set(pnnx_pass_pt2_SRCS
+        pass_pt2/fold_constants.cpp
+        pass_pt2/normalize_arguments.cpp
+        pass_pt2/normalize_as_strided.cpp
+        pass_pt2/normalize_scalar.cpp
+        pass_pt2/normalize_mutation.cpp
+        pass_pt2/normalize_dtype.cpp
+        pass_pt2/pt2_operator.cpp
+        pass_pt2/pt2_tensor.cpp
+    )
+
+    list(APPEND torch2pnnx_SRCS
+        load_pt2.cpp
+        json.cpp
+        pass_pt2.cpp
+        ${pnnx_pass_pt2_SRCS}
+    )
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_PT22PNNX)
+endif()
 
 add_library(torch2pnnx OBJECT ${torch2pnnx_SRCS})
 target_compile_definitions(torch2pnnx PRIVATE BUILD_TORCH2PNNX)
@@ -762,6 +791,7 @@ set(pnnx_SRCS
     ir.cpp
     model_stat.cpp
     storezip.cpp
+    torch_alias.cpp
     utils.cpp
 
     pass_level2.cpp
@@ -781,7 +811,11 @@ set(pnnx_SRCS
 
 add_executable(pnnx ${pnnx_SRCS})
 
-set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
+if(NOT WIN32)
+    target_compile_definitions(pnnx PRIVATE _FILE_OFFSET_BITS=64)
+endif()
+
+set_property(SOURCE main.cpp utils.cpp APPEND PROPERTY COMPILE_DEFINITIONS BUILD_TORCH2PNNX)
 target_link_libraries(pnnx PRIVATE torch2pnnx)
 
 if(TorchVision_FOUND)

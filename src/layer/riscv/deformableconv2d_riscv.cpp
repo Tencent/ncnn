@@ -153,7 +153,13 @@ int DeformableConv2D_riscv::create_pipeline(const Option& opt)
             gemm->load_model(ModelBinFromMatArray(weights));
         }
 
-        gemm->create_pipeline(opt);
+        Option opt_gemm = opt;
+        opt_gemm.use_fp16_packed = false;
+        opt_gemm.use_fp16_storage = false;
+        opt_gemm.use_fp16_arithmetic = false;
+        opt_gemm.use_bf16_packed = false;
+        opt_gemm.use_bf16_storage = false;
+        gemm->create_pipeline(opt_gemm);
     }
     else if (elempack == 1 && out_elempack == 1)
     {
@@ -405,6 +411,11 @@ int DeformableConv2D_riscv::forward(const std::vector<Mat>& bottom_blobs, std::v
             top_blob.h = 1;
         }
         Option opt_b = opt;
+        opt_b.use_fp16_packed = false;
+        opt_b.use_fp16_storage = false;
+        opt_b.use_fp16_arithmetic = false;
+        opt_b.use_bf16_packed = false;
+        opt_b.use_bf16_storage = false;
         opt_b.blob_allocator = opt.workspace_allocator;
         gemm->forward(bottom_im2col, top_blob, opt_b);
         {

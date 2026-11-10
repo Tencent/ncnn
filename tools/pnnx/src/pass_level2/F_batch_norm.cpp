@@ -58,15 +58,46 @@ pnnx.Output             output      3 0 out save_mean save_invstd
         return "F.batch_norm";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_2");
+        return op->outputs[1]->consumers.empty() && op->outputs[2]->consumers.empty();
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         GraphRewriterPass::write(op, captured_params, captured_attrs);
 
+        op->outputs[1]->producer = 0;
+        op->outputs[2]->producer = 0;
         op->outputs.resize(1);
     }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_1, 130)
+
+class F_batch_norm_native : public F_batch_norm_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 11
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 running_mean
+pnnx.Input              input_2     0 1 running_var
+pnnx.Input              input_3     0 1 weight
+pnnx.Input              input_4     0 1 bias
+prim::Constant          op_3        0 1 training value=False
+prim::Constant          op_0        0 1 momentum value=*
+prim::Constant          op_1        0 1 eps value=%eps
+aten::native_batch_norm op_2        8 3 input weight bias running_mean running_var training momentum eps out save_mean save_invstd
+pnnx.Output             output      3 0 out save_mean save_invstd
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_batch_norm_native, 130)
 
 class F_batch_norm_onnx : public GraphRewriterPass
 {
