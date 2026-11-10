@@ -83,6 +83,7 @@ static int test_rmsnorm_2()
            || test_rmsnorm(RandomMat(8, 32), 8, 0.001f, 1)
            || test_rmsnorm(RandomMat(79, 16), 79, 0.001f, 1)
            || test_rmsnorm(RandomMat(31, 32), 31, 0.001f, 0)
+           || test_rmsnorm(RandomMat(31, 32), 31, 0.001f, 1)
            || test_rmsnorm(RandomMat(33, 32), 33, 0.001f, 1);
 }
 

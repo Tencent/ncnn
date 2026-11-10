@@ -104,12 +104,11 @@ static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps
         {
             vfloat32m8_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m4(ptr, vlm4), vlm4);
             _p = __riscv_vfmul_vv_f32m8(_p, _a, vlm4);
-            vfloat32m1_t _gamma0 = __riscv_vfmv_v_f_f32m1(gamma_ptr[0], vlm1);
-            vfloat32m1_t _gamma1 = __riscv_vfmv_v_f_f32m1(gamma_ptr[1], vlm1);
-            vfloat32m1_t _gamma2 = __riscv_vfmv_v_f_f32m1(gamma_ptr[2], vlm1);
-            vfloat32m1_t _gamma3 = __riscv_vfmv_v_f_f32m1(gamma_ptr[3], vlm1);
-            vfloat32m8_t _gamma = __riscv_vcreate_v_f32m1_f32m8(_gamma0, _gamma0, _gamma1, _gamma1, _gamma2, _gamma2, _gamma3, _gamma3);
-            _p = __riscv_vfmul_vv_f32m8(_p, _gamma, vlm4);
+            vfloat32m2_t _p0 = __riscv_vfmul_vf_f32m2(__riscv_vget_v_f32m8_f32m2(_p, 0), gamma_ptr[0], vlm1);
+            vfloat32m2_t _p1 = __riscv_vfmul_vf_f32m2(__riscv_vget_v_f32m8_f32m2(_p, 1), gamma_ptr[1], vlm1);
+            vfloat32m2_t _p2 = __riscv_vfmul_vf_f32m2(__riscv_vget_v_f32m8_f32m2(_p, 2), gamma_ptr[2], vlm1);
+            vfloat32m2_t _p3 = __riscv_vfmul_vf_f32m2(__riscv_vget_v_f32m8_f32m2(_p, 3), gamma_ptr[3], vlm1);
+            _p = __riscv_vcreate_v_f32m2_f32m8(_p0, _p1, _p2, _p3);
             __riscv_vse16_v_u16m4(ptr, float2bfloat_rvv(_p, vlm4), vlm4);
             ptr += vlm4;
             gamma_ptr += 4;
@@ -118,10 +117,9 @@ static void rmsnorm_bf16s(unsigned short* ptr, const float* gamma_ptr, float eps
         {
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vlm2), vlm2);
             _p = __riscv_vfmul_vv_f32m4(_p, __riscv_vget_v_f32m8_f32m4(_a, 0), vlm2);
-            vfloat32m1_t _gamma0 = __riscv_vfmv_v_f_f32m1(gamma_ptr[0], vlm1);
-            vfloat32m1_t _gamma1 = __riscv_vfmv_v_f_f32m1(gamma_ptr[1], vlm1);
-            vfloat32m4_t _gamma = __riscv_vcreate_v_f32m1_f32m4(_gamma0, _gamma0, _gamma1, _gamma1);
-            _p = __riscv_vfmul_vv_f32m4(_p, _gamma, vlm2);
+            vfloat32m2_t _p0 = __riscv_vfmul_vf_f32m2(__riscv_vget_v_f32m4_f32m2(_p, 0), gamma_ptr[0], vlm1);
+            vfloat32m2_t _p1 = __riscv_vfmul_vf_f32m2(__riscv_vget_v_f32m4_f32m2(_p, 1), gamma_ptr[1], vlm1);
+            _p = __riscv_vcreate_v_f32m2_f32m4(_p0, _p1);
             __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vlm2), vlm2);
             ptr += vlm2;
             gamma_ptr += 2;
