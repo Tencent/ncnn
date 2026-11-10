@@ -3,7 +3,7 @@
 
 #version 450
 
-#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic
+#if NCNN_subgroup_ops && ncnn_subgroup_basic && ncnn_subgroup_arithmetic
 #extension GL_KHR_shader_subgroup_basic : enable
 #extension GL_KHR_shader_subgroup_arithmetic : enable
 #endif
@@ -75,7 +75,7 @@ float combine_accum(float a, float b)
     return a + b;
 }
 
-#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic
+#if NCNN_subgroup_ops && ncnn_subgroup_basic && ncnn_subgroup_arithmetic
 float subgroup_reduce_acc(float v)
 {
     if (op == 4) return subgroupMax(v);
@@ -210,7 +210,7 @@ void main()
             max_value = max(max_value, v);
         }
 
-#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic
+#if NCNN_subgroup_ops && ncnn_subgroup_basic && ncnn_subgroup_arithmetic
         const int num_sg = int(gl_NumSubgroups);
 
         max_value = subgroupMax(max_value);
@@ -249,7 +249,7 @@ void main()
         // every invocation reads max_shift before sdata_logsumexp is reused
         barrier();
 
-#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic
+#if NCNN_subgroup_ops && ncnn_subgroup_basic && ncnn_subgroup_arithmetic
         sum = subgroupAdd(sum);
 
         if (subgroupElect())
@@ -288,7 +288,7 @@ void main()
         acc = element_accum(acc, v);
     }
 
-#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic
+#if NCNN_subgroup_ops && ncnn_subgroup_basic && ncnn_subgroup_arithmetic
     float sg = subgroup_reduce_acc(acc);
 
     if (subgroupElect())
