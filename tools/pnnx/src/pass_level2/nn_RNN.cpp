@@ -5,6 +5,169 @@
 
 namespace pnnx {
 
+class nn_RNN_aten : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+12 11
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 hx
+pnnx.Input              input_2     0 1 weights
+prim::Constant          op_0        0 1 has_biases value=%has_biases
+prim::Constant          op_1        0 1 num_layers value=%num_layers
+prim::Constant          op_2        0 1 dropout value=%dropout
+prim::Constant          op_3        0 1 train value=False
+prim::Constant          op_4        0 1 bidirectional value=%bidirectional
+prim::Constant          op_5        0 1 batch_first value=%batch_first
+aten::rnn_tanh          rnn         9 2 input hx weights has_biases num_layers dropout train bidirectional batch_first out outh
+pnnx.Output             output_0    1 0 out
+pnnx.Output             output_1    1 0 outh
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "nn.RNN";
+    }
+
+    const char* name_str() const
+    {
+        return "rnn";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* rnn = matched_operators.at("rnn");
+        const Operator* weights = rnn->inputs[2]->producer;
+        if (weights->type != "prim::ListConstruct" || weights->inputs.empty())
+            return false;
+
+        const int num_layers = captured_params.at("num_layers").i;
+        const int num_directions = captured_params.at("bidirectional").b ? 2 : 1;
+        const bool bias = captured_params.at("has_biases").b;
+        if (num_layers <= 0)
+            return false;
+
+        for (const Operand* weight : weights->inputs)
+        {
+            if (weight->producer->type != "pnnx.Attribute" || !weight->producer->has_attr("data"))
+                return false;
+        }
+
+        const Attribute& weight_ih = weights->inputs[0]->producer->attrs.at("data");
+        if (weight_ih.shape.size() != 2 || weight_ih.shape[0] <= 0 || weight_ih.shape[1] <= 0)
+            return false;
+
+        const int hidden_size = weight_ih.shape[0];
+        const int weights_per_layer = bias ? 4 : 2;
+        if (weights->inputs.size() != (size_t)(num_layers * num_directions * weights_per_layer))
+            return false;
+
+        for (int layer = 0; layer < num_layers; layer++)
+        {
+            const int input_size = layer == 0 ? weight_ih.shape[1] : hidden_size * num_directions;
+            for (int direction = 0; direction < num_directions; direction++)
+            {
+                const int offset = (layer * num_directions + direction) * weights_per_layer;
+                for (int j = 0; j < weights_per_layer; j++)
+                {
+                    const Attribute& weight = weights->inputs[offset + j]->producer->attrs.at("data");
+                    if (weight.type != weight_ih.type)
+                        return false;
+
+                    std::vector<int> shape = {hidden_size};
+                    if (j == 0)
+                        shape.push_back(input_size);
+                    if (j == 1)
+                        shape.push_back(hidden_size);
+                    if (weight.shape != shape)
+                        return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const Operator* weights = op->inputs[2]->producer;
+        const Attribute& weight_ih = weights->inputs[0]->producer->attrs.at("data");
+        const int hidden_size = weight_ih.shape[0];
+        const int num_layers = captured_params.at("num_layers").i;
+        const int num_directions = captured_params.at("bidirectional").b ? 2 : 1;
+        const bool bias = captured_params.at("has_biases").b;
+        const int weights_per_layer = bias ? 4 : 2;
+
+        op->params["input_size"] = weight_ih.shape[1];
+        op->params["hidden_size"] = hidden_size;
+        op->params["num_layers"] = num_layers;
+        op->params["bias"] = bias;
+        op->params["batch_first"] = captured_params.at("batch_first");
+        op->params["bidirectional"] = captured_params.at("bidirectional");
+        op->params["dropout"] = captured_params.at("dropout");
+        op->params["nonlinearity"] = "tanh";
+
+        // ATen uses layer-major, then forward/reverse order. Its gate order
+        // already matches the nn module, so the tensor payloads stay unchanged.
+        for (int layer = 0; layer < num_layers; layer++)
+        {
+            for (int direction = 0; direction < num_directions; direction++)
+            {
+                const int offset = (layer * num_directions + direction) * weights_per_layer;
+                const std::string suffix = "_l" + std::to_string(layer) + (direction ? "_reverse" : "");
+                op->attrs["weight_ih" + suffix] = weights->inputs[offset]->producer->attrs.at("data");
+                op->attrs["weight_hh" + suffix] = weights->inputs[offset + 1]->producer->attrs.at("data");
+                if (bias)
+                {
+                    op->attrs["bias_ih" + suffix] = weights->inputs[offset + 2]->producer->attrs.at("data");
+                    op->attrs["bias_hh" + suffix] = weights->inputs[offset + 3]->producer->attrs.at("data");
+                }
+            }
+        }
+
+        op->inputs[2]->remove_consumer(op);
+        op->inputs.resize(2);
+        op->inputnames.clear();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_aten, 110)
+
+class nn_RNN_relu_aten : public nn_RNN_aten
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+12 11
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 hx
+pnnx.Input              input_2     0 1 weights
+prim::Constant          op_0        0 1 has_biases value=%has_biases
+prim::Constant          op_1        0 1 num_layers value=%num_layers
+prim::Constant          op_2        0 1 dropout value=%dropout
+prim::Constant          op_3        0 1 train value=False
+prim::Constant          op_4        0 1 bidirectional value=%bidirectional
+prim::Constant          op_5        0 1 batch_first value=%batch_first
+aten::rnn_relu          rnn         9 2 input hx weights has_biases num_layers dropout train bidirectional batch_first out outh
+pnnx.Output             output_0    1 0 out
+pnnx.Output             output_1    1 0 outh
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        nn_RNN_aten::write(op, captured_params);
+
+        op->params["nonlinearity"] = "relu";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(nn_RNN_relu_aten, 110)
+
 class nn_RNN_onnx : public GraphRewriterPass
 {
 public:

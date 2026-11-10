@@ -10,9 +10,14 @@
 #include <string.h>
 
 #include <algorithm>
-#include <limits>
 #include <math.h>
+#include <limits>
 #include <string>
+
+#if BUILD_TORCH2PNNX
+#include "pass_level1/fuse_module_pass.h"
+#include <torch/csrc/jit/passes/quantization/helper.h>
+#endif // BUILD_TORCH2PNNX
 
 namespace pnnx {
 
@@ -168,8 +173,11 @@ float float16_to_float32(unsigned short value)
 
 std::string float_to_string(float f)
 {
+    if (std::isnan(f)) return "nan";
+    if (std::isinf(f)) return f < 0 ? "-inf" : "inf";
+
     if (f == 0.f)
-        return "0.0";
+        return std::signbit(f) ? "-0.0" : "0.0";
 
     const float abs_f = std::abs(f);
     char buffer[64];
@@ -220,8 +228,11 @@ std::string float_to_string(float f)
 
 std::string double_to_string(double d)
 {
+    if (std::isnan(d)) return "nan";
+    if (std::isinf(d)) return d < 0 ? "-inf" : "inf";
+
     if (d == 0.0)
-        return "0.0";
+        return std::signbit(d) ? "-0.0" : "0.0";
 
     const double abs_d = std::abs(d);
     char buffer[128];
@@ -830,5 +841,29 @@ bool load_numpy_file(const char* path, NumpyArray& array, bool load_data)
     fclose(fp);
     return ok;
 }
+
+#if BUILD_TORCH2PNNX
+TorchAliasKind torch_alias_kind(const torch::jit::Node* node)
+{
+    if (node->kind() != c10::prim::CallMethod)
+        return torch_alias_kind(node->kind().toDisplayString());
+
+    const auto class_type = node->input(0)->type()->cast<torch::jit::ClassType>();
+    if (!class_type)
+        return TorchAliasNone;
+    const std::string type = torch::jit::removeTorchMangle(class_type->str());
+    for (const auto& pass : get_global_pnnx_fuse_module_passes())
+    {
+        if (type == pass->match_type_str())
+            return torch_alias_kind(std::string(pass->type_str()));
+    }
+    return TorchAliasNone;
+}
+
+torch::jit::Value* torch_alias_input(const torch::jit::Node* node)
+{
+    return node->input(node->kind() == c10::prim::CallMethod ? 1 : 0);
+}
+#endif // BUILD_TORCH2PNNX
 
 } // namespace pnnx

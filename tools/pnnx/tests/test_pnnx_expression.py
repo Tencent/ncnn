@@ -5,6 +5,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from packaging import version
+import importlib
+from pathlib import Path
+import subprocess
 
 class Model(nn.Module):
     def __init__(self):
@@ -34,7 +37,37 @@ class Model(nn.Module):
         y = x.int()
         return x, y & 3, y | 3, y ^ 3, y << 3, y >> 3
 
+class ConstantView(nn.Module):
+    def __init__(self, cast):
+        super().__init__()
+        self.register_buffer('mean', torch.arange(3, dtype=torch.float32))
+        self.cast = cast
+
+    def forward(self, x):
+        mean = self.mean.view(1, 3, 1, 1)
+        if self.cast:
+            mean = mean.type_as(x)
+        return x + mean
+
+
+def test_constant_view():
+    x = torch.arange(12, dtype=torch.float32).reshape(1, 3, 2, 2)
+    for cast in (False, True):
+        name = 'test_pnnx_expression_constant_' + str(cast)
+        net = ConstantView(cast).eval()
+        torch.jit.trace(net, x).save(name + '.pt')
+        expected = net(x)
+        assert torch.equal(torch.jit.load(name + '.pt')(x), expected)
+        subprocess.run(['../src/pnnx', name + '.pt', 'inputshape=[1,3,2,2]', 'fp16=0'], check=True)
+        actual = importlib.import_module(name + '_pnnx').Model().eval()(x)
+        assert actual.shape == expected.shape and actual.dtype == expected.dtype
+        assert torch.equal(actual, expected)
+        param = Path(name + '.pnnx.param').read_text()
+        assert 'Tensor.reshape ' not in param and 'Tensor.view ' not in param
+
+
 def test():
+    test_constant_view()
     net = Model()
     net.eval()
 
@@ -57,6 +90,26 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_pnnx_expression_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_expression_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_pnnx_expression_export_pnnx
+    b = test_pnnx_expression_export_pnnx.test_inference()
+
+    if len(a) != len(b):
+        return False
+    for a0, b0 in zip(a, b):
+        if a0.dtype != b0.dtype or a0.shape != b0.shape or not torch.equal(a0, b0):
             return False
     return True
 

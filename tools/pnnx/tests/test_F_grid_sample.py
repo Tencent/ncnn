@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -76,7 +77,24 @@ def test():
     import test_F_grid_sample_pnnx
     b0, b1 = test_F_grid_sample_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1)
+    if not (torch.equal(a0, b0) and torch.equal(a1, b1)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, xg1, xg2, y, yg1, yg2))
+    torch.export.save(ep, "test_F_grid_sample_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_F_grid_sample_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_F_grid_sample_export_pnnx
+    c0, c1 = test_F_grid_sample_export_pnnx.test_inference()
+
+    return torch.equal(a0, c0) and torch.equal(a1, c1)
 
 if __name__ == "__main__":
     if test():
