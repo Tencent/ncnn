@@ -995,6 +995,20 @@ int GpuInfoPrivate::query_extensions()
         support_VK_NV_cooperative_matrix2 = 0;
         support_VK_QCOM_cooperative_matrix_conversion = 0;
     }
+#if defined __ANDROID__
+    if (physicalDeviceProperties.vendorID == 0x5143 && support_VK_KHR_cooperative_matrix && !support_VK_QCOM_cooperative_matrix_conversion)
+    {
+        // force qcom conversion alongside khr cooperative matrix on android adreno
+        support_VK_QCOM_cooperative_matrix_conversion = 1;
+
+        VkExtensionProperties exp;
+        memset(&exp, 0, sizeof(exp));
+        strcpy(exp.extensionName, "VK_QCOM_cooperative_matrix_conversion");
+        exp.specVersion = 1;
+        deviceExtensionProperties.push_back(exp);
+    }
+#endif // __ANDROID__
+
     if (!support_VK_KHR_surface)
         support_VK_KHR_swapchain = 0;
 
@@ -1270,6 +1284,14 @@ void GpuInfoPrivate::query_extension_features()
 
         vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
     }
+
+#if defined __ANDROID__
+    if (physicalDeviceProperties.vendorID == 0x5143 && support_VK_KHR_cooperative_matrix)
+    {
+        // retain the forced capability even when the driver does not report it
+        queryCooperativeMatrixConversionFeaturesQCOM.cooperativeMatrixConversion = VK_TRUE;
+    }
+#endif // __ANDROID__
 
     // apply known blacklist
     if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 82))

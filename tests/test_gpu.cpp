@@ -70,6 +70,15 @@ static int test_cooperative_matrix_conversion_features()
         const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM& features = info.queryCooperativeMatrixConversionFeaturesQCOM();
         const bool expected = info.queryCooperativeMatrixFeatures().cooperativeMatrix && features.cooperativeMatrixConversion;
 
+#if defined __ANDROID__
+        if (info.vendor_id() == 0x5143 && info.support_VK_KHR_cooperative_matrix()
+                && (!info.support_VK_QCOM_cooperative_matrix_conversion() || !features.cooperativeMatrixConversion))
+        {
+            fprintf(stderr, "test_cooperative_matrix_conversion_features failed forced android qcom capability gpu=%d\n", i);
+            return -1;
+        }
+#endif // __ANDROID__
+
         if (features.sType != VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM
                 || (!info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion)
                 || (info.support_VK_QCOM_cooperative_matrix_conversion() && !info.support_VK_KHR_cooperative_matrix())
