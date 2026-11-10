@@ -8,8 +8,13 @@
 #endif // __riscv_vector
 
 #include "cpu.h"
+#include "riscv_usability.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "rotaryembed_bf16s.h"
+#endif
 
 RotaryEmbed_riscv::RotaryEmbed_riscv()
 {
@@ -19,6 +24,9 @@ RotaryEmbed_riscv::RotaryEmbed_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 }
 
@@ -32,6 +40,11 @@ int RotaryEmbed_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
         else
             return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_blobs[0].elembits() == 16)
+        return rotaryembed_bf16s(bottom_blobs, top_blobs, interleaved, opt);
 #endif
 
     const Mat& bottom_blob = bottom_blobs[0];
