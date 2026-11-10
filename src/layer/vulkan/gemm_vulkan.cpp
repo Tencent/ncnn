@@ -147,7 +147,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
                 || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
                 || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
-                || coopmat_K != 16)
+                || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
             use_qcom_cooperative_matrix = false;
 
         const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
@@ -589,7 +589,11 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         if (use_qcom_cooperative_matrix)
+        {
+            specializations.resize(28);
+            specializations[27].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
             pipeline_gemm->create(LayerShaderType::gemm_cm_qcom, opt_cm, specializations);
+        }
         else
             pipeline_gemm->create(LayerShaderType::gemm_cm, opt_cm, specializations);
 
@@ -601,7 +605,11 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
             pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             if (use_qcom_cooperative_matrix)
+            {
+                specializations.resize(28);
+                specializations[27].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
                 pipeline_gemm_pack4->create(LayerShaderType::gemm_cm_qcom, opt_cm, specializations);
+            }
             else
                 pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt_cm, specializations);
         }

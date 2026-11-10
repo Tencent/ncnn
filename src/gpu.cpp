@@ -1000,12 +1000,6 @@ int GpuInfoPrivate::query_extensions()
     {
         // force qcom conversion alongside khr cooperative matrix on android adreno
         support_VK_QCOM_cooperative_matrix_conversion = 1;
-
-        VkExtensionProperties exp;
-        memset(&exp, 0, sizeof(exp));
-        strcpy(exp.extensionName, "VK_QCOM_cooperative_matrix_conversion");
-        exp.specVersion = 1;
-        deviceExtensionProperties.push_back(exp);
     }
 #endif // __ANDROID__
 
@@ -4234,7 +4228,19 @@ VulkanDevice::VulkanDevice(int device_index)
     if (info.support_VK_NV_cooperative_vector())
         enabledExtensions.push_back("VK_NV_cooperative_vector");
     if (info.support_VK_QCOM_cooperative_matrix_conversion())
-        enabledExtensions.push_back("VK_QCOM_cooperative_matrix_conversion");
+    {
+        // Android's loader rejects unadvertised extension names even when the
+        // Adreno shader compiler supports the conversion instructions.
+        const std::vector<VkExtensionProperties>& properties = info.deviceExtensionProperties();
+        for (size_t i = 0; i < properties.size(); i++)
+        {
+            if (strcmp(properties[i].extensionName, "VK_QCOM_cooperative_matrix_conversion") == 0)
+            {
+                enabledExtensions.push_back("VK_QCOM_cooperative_matrix_conversion");
+                break;
+            }
+        }
+    }
 
     const void* enabledExtensionFeatures = info.queryExtensionFeatures();
 
@@ -5730,8 +5736,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             for (size_t i = 0; i < properties.size(); i++)
             {
                 const VkExtensionProperties& exp = properties[i];
+                if (strcmp(exp.extensionName, "VK_QCOM_cooperative_matrix_conversion") == 0)
+                    continue;
                 device_defines.append(exp.extensionName, exp.specVersion);
             }
+            if (info.support_VK_QCOM_cooperative_matrix_conversion())
+                device_defines.append("VK_QCOM_cooperative_matrix_conversion", info.support_VK_QCOM_cooperative_matrix_conversion());
         }
 
 #define DD_APPEND_FEATURE(X) device_defines.append(#X, features.X ? 1 : 0);

@@ -36,8 +36,8 @@ layout(constant_id = 13 + 6) const uint UNROLL_SG_K = 2;
 layout(constant_id = 13 + 7) const uint UNROLL_WG_M = 2;
 layout(constant_id = 13 + 8) const uint UNROLL_WG_N = 2;
 
-layout(binding = 0) readonly buffer A_blob { uvec4 A_blob_data[]; };
-layout(binding = 1) readonly buffer B_blob { uvec4 B_blob_data[]; };
+layout(binding = 0) readonly buffer A_blob { uvec2 A_blob_data[]; };
+layout(binding = 1) readonly buffer B_blob { uvec2 B_blob_data[]; };
 layout(binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
 
@@ -56,15 +56,23 @@ layout(push_constant) uniform parameter
     int mask_cstep;
 } p;
 
-float16_t load_a(uint i)
+uint load_a_bits(uint i)
 {
-    return float16_t(unpackHalf2x16(A_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+    return (A_blob_data[i / 4][(i % 4) / 2] >> ((i % 2) * 16)) & 65535u;
 }
 
-float16_t load_b(uint i)
+uint load_b_bits(uint i)
 {
-    return float16_t(unpackHalf2x16(B_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+    return (B_blob_data[i / 4][(i % 4) / 2] >> ((i % 2) * 16)) & 65535u;
 }
+
+// Adreno requires a direct specialization constant for packed array lengths.
+layout(constant_id = 22) const uint qcom_accumulator_words = 32;
+#if NCNN_fp16_arithmetic
+#define qcom_accumulator_value(words, index) unpackHalf2x16(words[(index) / 2])[(index) % 2]
+#else
+#define qcom_accumulator_value(words, index) uintBitsToFloat(words[index])
+#endif
 
 void main()
 {
@@ -99,29 +107,52 @@ void main()
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             const uint gm = (mi + zm) * M + si;
-            float16_t row[K];
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint row[8];
+            [[unroll]] for (uint pair = 0; pair < 4; pair++)
             {
-                const uint gk = kt * K + r;
-                row[r] = float16_t(0.f);
-                if (si < M && gm < uint(psc(GM)) && gk < uint(psc(GK)))
-                    row[r] = load_a(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk);
+                const uint gk = kt * K + pair * 4;
+                uvec2 packed = uvec2(0u);
+                if (si < M && gm < uint(psc(GM)))
+                {
+                    if (uint(psc(GK)) % 4 == 0 && gk + 3 < uint(psc(GK)))
+                        packed = A_blob_data[(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk) / 4];
+                    else
+                    {
+                        [[unroll]] for (uint component = 0; component < 4; component++)
+                        {
+                            if (gk + component < uint(psc(GK)))
+                                packed[component / 2] |= load_a_bits(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk + component) << ((component % 2) * 16);
+                        }
+                    }
+                }
+                row[pair * 2] = packed.x;
+                row[pair * 2 + 1] = packed.y;
             }
             vectorToCoopmatQCOM(row, A[zm]);
         }
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
             const uint gn = (ni + zn) * N + si;
-            float16_t column[K];
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint column[8];
+            [[unroll]] for (uint pair = 0; pair < 4; pair++)
             {
-                const uint gk = kt * K + r;
-                column[r] = float16_t(0.f);
-                if (si < N && gn < uint(psc(GN)) && gk < uint(psc(GK)))
+                const uint gk = kt * K + pair * 4;
+                uvec2 packed = uvec2(0u);
+                if (si < N && gn < uint(psc(GN)))
                 {
-                    const uint bi = gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + (transB == 0 ? gk * uint(psc(GN)) + gn : gn * uint(psc(GK)) + gk);
-                    column[r] = load_b(bi);
+                    if (transB == 1 && uint(psc(GK)) % 4 == 0 && gk + 3 < uint(psc(GK)))
+                        packed = B_blob_data[(gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + gn * uint(psc(GK)) + gk) / 4];
+                    else
+                    {
+                        [[unroll]] for (uint component = 0; component < 4; component++)
+                        {
+                            if (gk + component < uint(psc(GK)))
+                                packed[component / 2] |= load_b_bits(gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + (transB == 0 ? (gk + component) * uint(psc(GN)) + gn : gn * uint(psc(GK)) + gk + component)) << ((component % 2) * 16);
+                        }
+                    }
                 }
+                column[pair * 2] = packed.x;
+                column[pair * 2 + 1] = packed.y;
             }
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
             vectorToCoopmatQCOM(column, B);
@@ -134,8 +165,9 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            sum[zn][zm] = sum[zn][zm] * afp(psc(scale));
-            afp row[N];
+            // Adreno rejects runtime matrix scaling followed by packed extraction.
+            // Apply the scale to the invocation values below instead.
+            uint row[qcom_accumulator_words];
             coopmatToVectorQCOM(sum[zn][zm], row);
             const uint gm = (mi + zm) * M + si;
             if (si < M && gm < uint(psc(GM)))
@@ -145,7 +177,7 @@ void main()
                     const uint gn = (ni + zn) * N + j;
                     if (gn < uint(psc(GN)))
                     {
-                        afp value = row[j];
+                        afp value = afp(qcom_accumulator_value(row, j)) * afp(psc(scale));
                         if (attn_mask == 1)
                         {
                             const uint mask_head = psc(attn_mask_dims) == 3 ? gz : 0;

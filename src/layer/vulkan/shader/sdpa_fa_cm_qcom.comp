@@ -46,19 +46,19 @@ layout(push_constant) uniform parameter
     int mask_cstep;
 } p;
 
-float16_t load_q(uint i)
+uint load_q_bits(uint i)
 {
-    return float16_t(unpackHalf2x16(Q_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+    return (Q_blob_data[i / 8][(i % 8) / 2] >> ((i % 2) * 16)) & 65535u;
 }
 
-float16_t load_k(uint i)
+uint load_k_bits(uint i)
 {
-    return float16_t(unpackHalf2x16(K_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+    return (K_blob_data[i / 8][(i % 8) / 2] >> ((i % 2) * 16)) & 65535u;
 }
 
-float16_t load_v(uint i)
+uint load_v_bits(uint i)
 {
-    return float16_t(unpackHalf2x16(V_blob_data[i / 8][(i % 8) / 2])[i % 2]);
+    return (V_blob_data[i / 8][(i % 8) / 2] >> ((i % 2) * 16)) & 65535u;
 }
 
 void main()
@@ -83,7 +83,7 @@ void main()
     // each lane owns one query row, including its online softmax statistics
     float row_max[UNROLL_SG_M];
     float row_sum[UNROLL_SG_M];
-    float output_rows[MAX_OUT_CHUNKS][UNROLL_SG_M][N];
+    uint output_rows[MAX_OUT_CHUNKS][UNROLL_SG_M][N];
     [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
     {
         row_max[zm] = -3.402823e+38f;
@@ -91,7 +91,7 @@ void main()
         [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
             [[unroll]]
             for (uint r = 0; r < N; r++)
-                output_rows[c][zm][r] = 0.f;
+                output_rows[c][zm][r] = 0u;
     }
 
     for (uint jt = 0; jt < nn; jt++)
@@ -102,27 +102,45 @@ void main()
 
         for (uint kt = 0; kt < kk; kt++)
         {
-            float16_t key_column[K];
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint key_column[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                const uint gn = jt * N + si;
-                const uint gk = kt * K + r;
-                key_column[r] = float16_t(0.f);
-                if (si < N && gn < uint(p.dst_seqlen) && gk < uint(p.embed_dim))
-                    key_column[r] = load_k(kv_head * uint(p.K_cstep) + gn * uint(p.embed_dim) + gk);
+                uint packed_word = 0u;
+                [[unroll]] for (uint component = 0; component < 2; component++)
+                {
+                    const uint r = word * 2 + component;
+                    uint bits = 0u;
+                    const uint gn = jt * N + si;
+                    const uint gk = kt * K + r;
+                    bits = 0u;
+                    if (si < N && gn < uint(p.dst_seqlen) && gk < uint(p.embed_dim))
+                        bits = load_k_bits(kv_head * uint(p.K_cstep) + gn * uint(p.embed_dim) + gk);
+
+                    packed_word |= (bits & 65535u) << (component * 16);
+                }
+                key_column[word] = packed_word;
             }
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> key;
             vectorToCoopmatQCOM(key_column, key);
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
                 const uint gm = (mi + zm) * M + si;
-                float16_t query_row[K];
-                [[unroll]] for (uint r = 0; r < K; r++)
+                uint query_row[8];
+                [[unroll]] for (uint word = 0; word < 8; word++)
                 {
-                    const uint gk = kt * K + r;
-                    query_row[r] = float16_t(0.f);
-                    if (si < M && gm < uint(p.src_seqlen) && gk < uint(p.embed_dim))
-                        query_row[r] = load_q(gz * uint(p.Q_cstep) + gm * uint(p.embed_dim) + gk);
+                    uint packed_word = 0u;
+                    [[unroll]] for (uint component = 0; component < 2; component++)
+                    {
+                        const uint r = word * 2 + component;
+                        uint bits = 0u;
+                        const uint gk = kt * K + r;
+                        bits = 0u;
+                        if (si < M && gm < uint(p.src_seqlen) && gk < uint(p.embed_dim))
+                            bits = load_q_bits(gz * uint(p.Q_cstep) + gm * uint(p.embed_dim) + gk);
+
+                        packed_word |= (bits & 65535u) << (component * 16);
+                    }
+                    query_row[word] = packed_word;
                 }
                 coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> query;
                 vectorToCoopmatQCOM(query_row, query);
@@ -135,7 +153,7 @@ void main()
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             const uint gm = (mi + zm) * M + si;
-            float values[N];
+            uint values[N];
             coopmatToVectorQCOM(scores[zm], values);
             float maximum = row_max[zm];
             [[unroll]] for (uint r = 0; r < N; r++)
@@ -143,29 +161,36 @@ void main()
                 const uint gn = jt * N + r;
                 if (si < M && gm < uint(p.src_seqlen) && gn < uint(p.dst_seqlen))
                 {
-                    values[r] *= p.scale;
+                    float score = uintBitsToFloat(values[r]) * p.scale;
                     if (attn_mask == 1)
                     {
                         const uint mask_head = p.attn_mask_dims == 3 ? gz : 0;
-                        values[r] += float(buffer_ld1(mask_blob_data, mask_head * uint(p.mask_cstep) + gm * uint(p.dst_seqlen) + gn));
+                        score += float(buffer_ld1(mask_blob_data, mask_head * uint(p.mask_cstep) + gm * uint(p.dst_seqlen) + gn));
                     }
-                    maximum = max(maximum, values[r]);
+                    maximum = max(maximum, score);
+                    values[r] = floatBitsToUint(score);
                 }
                 else
-                    values[r] = -3.402823e+38f;
+                    values[r] = floatBitsToUint(-3.402823e+38f);
             }
             correction[zm] = exp(row_max[zm] - maximum);
             row_max[zm] = maximum;
             float total = 0.f;
-            float16_t probability_row[K];
-            // the flash attention pipeline requires N == K
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint probability_row[8];
+            // The flash attention pipeline requires N == K == 16.
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                float value = 0.f;
-                if (si < M && gm < uint(p.src_seqlen) && jt * N + r < uint(p.dst_seqlen))
-                    value = exp(values[r] - maximum);
-                total += value;
-                probability_row[r] = float16_t(value);
+                vec2 values_pair = vec2(0.f);
+                [[unroll]] for (uint component = 0; component < 2; component++)
+                {
+                    const uint r = word * 2 + component;
+                    float value = 0.f;
+                    if (si < M && gm < uint(p.src_seqlen) && jt * N + r < uint(p.dst_seqlen))
+                        value = exp(uintBitsToFloat(values[r]) - maximum);
+                    total += value;
+                    values_pair[component] = value;
+                }
+                probability_row[word] = packHalf2x16(values_pair);
             }
             row_sum[zm] = row_sum[zm] * correction[zm] + total;
             vectorToCoopmatQCOM(probability_row, probabilities[zm]);
@@ -173,22 +198,31 @@ void main()
 
         for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
-            float16_t value_column[K];
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint value_column[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                const uint gn = jt * N + r;
-                const uint gc = c * N + si;
-                value_column[r] = float16_t(0.f);
-                if (si < N && gn < uint(p.dst_seqlen) && gc < uint(p.out_embed_dim))
-                    value_column[r] = load_v(kv_head * uint(p.V_cstep) + gn * uint(p.out_embed_dim) + gc);
+                uint packed_word = 0u;
+                [[unroll]] for (uint component = 0; component < 2; component++)
+                {
+                    const uint r = word * 2 + component;
+                    uint bits = 0u;
+                    const uint gn = jt * N + r;
+                    const uint gc = c * N + si;
+                    bits = 0u;
+                    if (si < N && gn < uint(p.dst_seqlen) && gc < uint(p.out_embed_dim))
+                        bits = load_v_bits(kv_head * uint(p.V_cstep) + gn * uint(p.out_embed_dim) + gc);
+
+                    packed_word |= (bits & 65535u) << (component * 16);
+                }
+                value_column[word] = packed_word;
             }
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> value;
             vectorToCoopmatQCOM(value_column, value);
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
-                float output_row[N];
+                uint output_row[N];
                 [[unroll]] for (uint r = 0; r < N; r++)
-                    output_row[r] = output_rows[c][zm][r] * correction[zm];
+                    output_row[r] = floatBitsToUint(uintBitsToFloat(output_rows[c][zm][r]) * correction[zm]);
                 coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> output_matrix;
                 vectorToCoopmatQCOM(output_row, output_matrix);
                 output_matrix = coopMatMulAdd(probabilities[zm], value, output_matrix);
@@ -213,7 +247,7 @@ void main()
                     {
                         uvec4 packed;
                         [[unroll]] for (uint t = 0; t < 4; t++)
-                            packed[t] = packHalf2x16(vec2(output_rows[c][zm][r + t * 2], output_rows[c][zm][r + t * 2 + 1]) * inv_sum);
+                            packed[t] = packHalf2x16(vec2(uintBitsToFloat(output_rows[c][zm][r + t * 2]), uintBitsToFloat(output_rows[c][zm][r + t * 2 + 1])) * inv_sum);
                         top_blob_data[(gz * uint(p.out_cstep) + gm * uint(p.out_embed_dim) + c * N + r) / 8] = packed;
                     }
                 }

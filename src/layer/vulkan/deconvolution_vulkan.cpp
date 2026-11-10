@@ -141,7 +141,7 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
                     || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
                     || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
-                    || coopmat_K != 16)
+                    || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
                 use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
@@ -360,7 +360,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             pipeline_deconvolution_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_deconvolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             if (use_qcom_cooperative_matrix)
+            {
+                specializations.resize(17);
+                specializations[16].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
                 pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_cm_qcom, opt_cm, specializations);
+            }
             else
                 pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_cm, opt_cm, specializations);
         }

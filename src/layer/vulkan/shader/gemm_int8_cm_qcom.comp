@@ -84,31 +84,34 @@ void main()
         coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            int8_t row[K];
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint row[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                row[r] = int8_t(0);
+                row[word] = 0u;
                 if (si < M)
                 {
-                    const uint ai = ((wgmi * kkg + kg) * UNROLL_WG_M + sgmi) * UNROLL_SG_K * UNROLL_SG_M * M * Kd4p + ((zk * UNROLL_SG_M + zm) * M + si) * Kd4p + r / 4;
-                    const int word = i8buffer_sm4(A_int8_data, ai);
-                    row[r] = int8_t(bitfieldExtract(word, int(r % 4) * 8, 8));
+                    const uint ai = ((wgmi * kkg + kg) * UNROLL_WG_M + sgmi) * UNROLL_SG_K * UNROLL_SG_M * M * Kd4p + ((zk * UNROLL_SG_M + zm) * M + si) * Kd4p + word;
+                    row[word] = uint(i8buffer_sm4(A_int8_data, ai));
                 }
             }
             vectorToCoopmatQCOM(row, A[zm]);
         }
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
-            int8_t column[K];
-            [[unroll]] for (uint r = 0; r < K; r++)
+            uint column[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                column[r] = int8_t(0);
+                uint packed_word = 0u;
                 if (si < N)
                 {
-                    const uint bi = ((wgni * kkg + kg) * UNROLL_WG_N + sgni) * UNROLL_SG_K * UNROLL_SG_N * K * Nd4p + ((zk * UNROLL_SG_N + zn) * K + r) * Nd4p + si / 4;
-                    const int word = i8buffer_sm4(B_int8_data, bi);
-                    column[r] = int8_t(bitfieldExtract(word, int(si % 4) * 8, 8));
+                    [[unroll]] for (uint component = 0; component < 4; component++)
+                    {
+                        const uint r = word * 4 + component;
+                        const uint bi = ((wgni * kkg + kg) * UNROLL_WG_N + sgni) * UNROLL_SG_K * UNROLL_SG_N * K * Nd4p + ((zk * UNROLL_SG_N + zn) * K + r) * Nd4p + si / 4;
+                        packed_word |= ((uint(i8buffer_sm4(B_int8_data, bi)) >> ((si % 4) * 8)) & 255u) << (component * 8);
+                    }
                 }
+                column[word] = packed_word;
             }
             coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
             vectorToCoopmatQCOM(column, B);
@@ -122,7 +125,7 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            int row[N];
+            uint row[N];
             coopmatToVectorQCOM(sum[zn][zm], row);
             const uint gm = (mi + zm) * M + si;
             if (si < M && gm < psc(GM))
@@ -132,7 +135,7 @@ void main()
                     const uint gn = (ni + zn) * N + j;
                     if (gn < psc(GN))
                     {
-                        float value = float(row[j]) * A_descales_data[gm / 4][gm % 4] * B_descale_data[0];
+                        float value = float(int(row[j])) * A_descales_data[gm / 4][gm % 4] * B_descale_data[0];
                         if (broadcast_type_C == 0) value += float(buffer_ld1(C_blob_data, 0)) * beta;
                         if (broadcast_type_C == 1 || broadcast_type_C == 2) value += float(buffer_ld1(C_blob_data, gm)) * beta;
                         if (broadcast_type_C == 3) value += float(buffer_ld1(C_blob_data, gm * psc(GN) + gn)) * beta;

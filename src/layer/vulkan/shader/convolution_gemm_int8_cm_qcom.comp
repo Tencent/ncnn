@@ -111,23 +111,36 @@ void main()
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             const uint gm = (mi + zm) * M + si;
-            int8_t row[K];
-            [[unroll]] for (uint j = 0; j < K; j++)
+            uint row[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                const uint gk = kt * K + j;
-                int v = 0;
-                const uint maxk = kernel_w * kernel_h;
-                const uint channel = elempack == 1 ? gk / maxk : (gk / 4) / maxk;
-                const uint kernel = elempack == 1 ? gk % maxk : (gk / 4) % maxk;
-                const uint spatial = (gm / psc(outw) * stride_h + kernel / kernel_w * dilation_h) * psc(w)
-                                     + gm % psc(outw) * stride_w + kernel % kernel_w * dilation_w;
-                const uint load_mask = -uint(si < M && gm < psc(outw) * psc(outh) && gk < psc(num_input) * maxk);
-                const uint gi = (channel * psc(cstep) + spatial) & load_mask;
-                if (elempack == 1)
-                    v = i8buffer_ld4(bottom_blob_int8_data, gi / 4)[gi % 4] & int(load_mask);
+                const uint gk = kt * K + word * 4;
+                uint packed_word = 0u;
+                if (elempack == 4)
+                {
+                    const uint load_mask = -uint(si < M && gm < psc(outw) * psc(outh) && gk < psc(num_input) * kernel_w * kernel_h);
+                    const uint maxk = kernel_w * kernel_h;
+                    const uint channel = (gk / 4) / maxk;
+                    const uint kernel = (gk / 4) % maxk;
+                    const uint spatial = (gm / psc(outw) * stride_h + kernel / kernel_w * dilation_h) * psc(w) + gm % psc(outw) * stride_w + kernel % kernel_w * dilation_w;
+                    const uint gi = (channel * psc(cstep) + spatial) & load_mask;
+                    packed_word = uint(i8buffer_sm4(bottom_blob_int8_data, gi)) & load_mask;
+                }
                 else
-                    v = i8buffer_ld4(bottom_blob_int8_data, gi)[gk % 4] & int(load_mask);
-                row[j] = int8_t(v);
+                {
+                    [[unroll]] for (uint component = 0; component < 4; component++)
+                    {
+                        const uint load_mask = -uint(si < M && gm < psc(outw) * psc(outh) && gk + component < psc(num_input) * kernel_w * kernel_h);
+                        const uint maxk = kernel_w * kernel_h;
+                        const uint channel = (gk + component) / maxk;
+                        const uint kernel = (gk + component) % maxk;
+                        const uint spatial = (gm / psc(outw) * stride_h + kernel / kernel_w * dilation_h) * psc(w) + gm % psc(outw) * stride_w + kernel % kernel_w * dilation_w;
+                        const uint gi = (channel * psc(cstep) + spatial) & load_mask;
+                        const uint bits = (uint(i8buffer_sm4(bottom_blob_int8_data, gi / 4)) >> ((gi % 4) * 8)) & load_mask;
+                        packed_word |= (bits & 255u) << (component * 8);
+                    }
+                }
+                row[word] = packed_word;
             }
             vectorToCoopmatQCOM(row, A[zm]);
         }
@@ -136,13 +149,20 @@ void main()
             const uint w_offset = wgni * kk_padded * UNROLL_WG_N * K * Nd4p * UNROLL_SG_N
                                   + ((kt / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K * Nd4p * UNROLL_SG_N * UNROLL_SG_K
                                   + ((kt % UNROLL_SG_K) * UNROLL_SG_N + zn) * K * Nd4p;
-            int8_t col[K];
-            [[unroll]] for (uint j = 0; j < K; j++)
+            uint col[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                int v = 0;
+                uint packed_word = 0u;
                 if (si < N)
-                    v = i8buffer_ld4(weight_data, w_offset + j * Nd4p + si / 4)[si % 4];
-                col[j] = int8_t(v);
+                {
+                    [[unroll]] for (uint component = 0; component < 4; component++)
+                    {
+                        const uint j = word * 4 + component;
+                        const uint bits = uint(i8buffer_sm4(weight_data, w_offset + j * Nd4p + si / 4)) >> ((si % 4) * 8);
+                        packed_word |= (bits & 255u) << (component * 8);
+                    }
+                }
+                col[word] = packed_word;
             }
             vectorToCoopmatQCOM(col, B[zn]);
         }
@@ -156,7 +176,7 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            int row[N];
+            uint row[N];
             coopmatToVectorQCOM(sum[zn][zm], row);
             const uint gm = (mi + zm) * M + si;
             if (out_elempack == 1)
@@ -166,8 +186,8 @@ void main()
                     const uint gn = (ni + zn) * N + j;
                     // all lanes participate before the packed-store predicate
                     const uint lane = si & ~3u;
-                    const ivec4 sumi = ivec4(subgroupShuffle(row[j], lane), subgroupShuffle(row[j], lane + 1),
-                                             subgroupShuffle(row[j], lane + 2), subgroupShuffle(row[j], lane + 3));
+                    const ivec4 sumi = ivec4(subgroupShuffle(int(row[j]), lane), subgroupShuffle(int(row[j]), lane + 1),
+                                             subgroupShuffle(int(row[j]), lane + 2), subgroupShuffle(int(row[j]), lane + 3));
                     if (si < M && si % 4 == 0 && gm < psc(outw) * psc(outh) && gn < psc(num_output))
                     {
                         vec4 sumfp = vec4(sumi) * weight_descales_data[gn / 4][gn % 4];
@@ -193,7 +213,7 @@ void main()
                     const uint gn = (ni + zn) * N + j;
                     if (si < M && gm < psc(outw) * psc(outh) && gn < psc(num_output))
                     {
-                        vec4 sumfp = vec4(row[j], row[j + 1], row[j + 2], row[j + 3]) * weight_descales_data[gn / 4];
+                        vec4 sumfp = vec4(int(row[j]), int(row[j + 1]), int(row[j + 2]), int(row[j + 3])) * weight_descales_data[gn / 4];
                         if (bias_term == 1)
                             sumfp += bias_data[gn / 4];
                         sumfp = vec4(activation_afpvec4(afpvec4(sumfp), activation_type, activation_param_0, activation_param_1));

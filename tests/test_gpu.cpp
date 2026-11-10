@@ -79,6 +79,16 @@ static int test_cooperative_matrix_conversion_features()
         }
 #endif // __ANDROID__
 
+        if (info.support_cooperative_matrix_conversion())
+        {
+            const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device(i);
+            if (!vkdev || !vkdev->is_valid())
+            {
+                fprintf(stderr, "test_cooperative_matrix_conversion_features failed device creation gpu=%d\n", i);
+                return -1;
+            }
+        }
+
         if (features.sType != VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM
                 || (!info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion)
                 || (info.support_VK_QCOM_cooperative_matrix_conversion() && !info.support_VK_KHR_cooperative_matrix())

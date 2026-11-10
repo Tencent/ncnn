@@ -47,12 +47,26 @@ layout(push_constant) uniform parameter
     uint outcstep;
 } p;
 
-float16_t unpack_scalar(uvec2 v, uint i)
+float unpack_scalar(uvec2 v, uint i)
 {
-    return float16_t(unpackHalf2x16(v[i / 2])[i % 2]);
+    return unpackHalf2x16(v[i / 2])[i % 2];
 }
 
 // each invocation supplies one row of a and one column of b
+// Adreno requires a direct specialization constant for packed array lengths.
+layout(constant_id = 18) const uint qcom_accumulator_words = 32;
+
+uint qcom_half_bits(uvec2 value, uint index)
+{
+    return (value[index / 2] >> ((index % 2) * 16)) & 65535u;
+}
+
+#if NCNN_fp16_arithmetic
+#define qcom_accumulator_value(words, index) unpackHalf2x16(words[(index) / 2])[(index) % 2]
+#else
+#define qcom_accumulator_value(words, index) uintBitsToFloat(words[index])
+#endif
+
 void main()
 {
 #if ncnn_vendorID == 0x5143
@@ -81,16 +95,9 @@ void main()
     const uint kk = (inch * maxk + K - 1) / K;
     coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_SG_N][UNROLL_SG_M];
     [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
-    {
-        afp values[N];
-        [[unroll]] for (uint j = 0; j < N; j++)
-        {
-            const uint gn = (ni + zn) * N + j;
-            values[j] = afp(0);
-        }
-        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-            vectorToCoopmatQCOM(values, sum[zn][zm]);
-    }
+        [[unroll]]
+        for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            sum[zn][zm] = coopmat<afp, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(afp(0.f));
 
     for (uint k = 0; k < kk; k++)
     {
@@ -99,26 +106,53 @@ void main()
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             const uint gm = (mi + zm) * M + si;
-            float16_t row[K];
-            [[unroll]] for (uint j = 0; j < K; j++)
+            uint row[8];
+            if (elempack == 4)
             {
-                const uint gk = k * K + j;
-                const uint channel = elempack == 1 ? gk / maxk : (gk / 4 / maxk) * 4 + gk % 4;
-                const uint kernel = elempack == 1 ? gk % maxk : (gk / 4) % maxk;
-                const uint pos = gm;
-                row[j] = float16_t(0);
-                if (si < M && gm < output_size && channel < inch && pos < psc(cstep))
+                [[unroll]] for (uint pair = 0; pair < 4; pair++)
                 {
-                    if (elempack == 1)
+                    const uint gk = k * K + pair * 4;
+                    const uint channel = (gk / 4 / maxk) * 4;
+                    const uint kernel = (gk / 4) % maxk;
+                    const uint pos = gm;
+                    uvec2 packed = uvec2(0u);
+                    if (si < M && gm < output_size && channel < inch && pos < psc(cstep))
+                        packed = bottom_tm_blob_data[(gz * (inch / 4) + channel / 4) * psc(cstep) + pos];
+                    row[pair * 2] = packed.x;
+                    row[pair * 2 + 1] = packed.y;
+                }
+            }
+            else
+            {
+                [[unroll]] for (uint word = 0; word < 8; word++)
+                {
+                    uint packed_word = 0u;
+                    [[unroll]] for (uint component = 0; component < 2; component++)
                     {
-                        const uint offset = (gz * inch + channel) * psc(cstep) + pos;
-                        row[j] = unpack_scalar(bottom_tm_blob_data[offset / 4], offset % 4);
+                        const uint j = word * 2 + component;
+                        uint bits = 0u;
+                        const uint gk = k * K + j;
+                        const uint channel = elempack == 1 ? gk / maxk : (gk / 4 / maxk) * 4 + gk % 4;
+                        const uint kernel = elempack == 1 ? gk % maxk : (gk / 4) % maxk;
+                        const uint pos = gm;
+                        bits = 0u;
+                        if (si < M && gm < output_size && channel < inch && pos < psc(cstep))
+                        {
+                            if (elempack == 1)
+                            {
+                                const uint offset = (gz * inch + channel) * psc(cstep) + pos;
+                                bits = qcom_half_bits(bottom_tm_blob_data[offset / 4], offset % 4);
+                            }
+                            else
+                            {
+                                const uint offset = (gz * (inch / 4) + channel / 4) * psc(cstep) + pos;
+                                bits = qcom_half_bits(bottom_tm_blob_data[offset], channel % 4);
+                            }
+                        }
+
+                        packed_word |= (bits & 65535u) << (component * 16);
                     }
-                    else
-                    {
-                        const uint offset = (gz * (inch / 4) + channel / 4) * psc(cstep) + pos;
-                        row[j] = unpack_scalar(bottom_tm_blob_data[offset], channel % 4);
-                    }
+                    row[word] = packed_word;
                 }
             }
             vectorToCoopmatQCOM(row, a[zm]);
@@ -129,11 +163,20 @@ void main()
         const uint weight_offset = gz * wbstep + (k < kk / UNROLL_SG_K * UNROLL_SG_K ? wgni * kk * UNROLL_WG_N * tile_size + ((k / UNROLL_SG_K) * UNROLL_WG_N + sgni) * tile_size * UNROLL_SG_K + (k % UNROLL_SG_K) * tile_size : ((wgni * kk + k) * UNROLL_WG_N + sgni) * tile_size);
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
-            float16_t column[K];
-            [[unroll]] for (uint j = 0; j < K; j++)
+            uint column[8];
+            [[unroll]] for (uint word = 0; word < 8; word++)
             {
-                const uint offset = weight_offset + zn * N * K + j * N + si;
-                column[j] = si < N ? unpack_scalar(weight_tm_data[offset / 4], offset % 4) : float16_t(0);
+                uint packed_word = 0u;
+                [[unroll]] for (uint component = 0; component < 2; component++)
+                {
+                    const uint j = word * 2 + component;
+                    uint bits = 0u;
+                    const uint offset = weight_offset + zn * N * K + j * N + si;
+                    bits = si < N ? qcom_half_bits(weight_tm_data[offset / 4], offset % 4) : 0u;
+
+                    packed_word |= (bits & 65535u) << (component * 16);
+                }
+                column[word] = packed_word;
             }
             vectorToCoopmatQCOM(column, b[zn]);
         }
@@ -147,7 +190,7 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            afp row[N];
+            uint row[qcom_accumulator_words];
             coopmatToVectorQCOM(sum[zn][zm], row);
             const uint gm = (mi + zm) * M + si;
             if (out_elempack == 1)
@@ -156,7 +199,7 @@ void main()
                 {
                     const uint gn = (ni + zn) * N + j;
                     // match the original fp16 intermediate before activation
-                    const float v = si < M ? float(float16_t(row[j])) : 0.f;
+                    const float v = si < M ? float(float16_t(qcom_accumulator_value(row, j))) : 0.f;
                     // only the first lane writes the four packed spatial values
                     const uint lane = si & ~3u;
                     afpvec4 values = afpvec4(subgroupShuffle(v, lane), subgroupShuffle(v, lane + 1), subgroupShuffle(v, lane + 2), subgroupShuffle(v, lane + 3));
@@ -176,7 +219,7 @@ void main()
                         const uint gn = (ni + zn) * N + j;
                         if (gn < outch)
                         {
-                            afpvec4 values = afpvec4(float16_t(row[j]), float16_t(row[j + 1]), float16_t(row[j + 2]), float16_t(row[j + 3]));
+                            afpvec4 values = afpvec4(float16_t(qcom_accumulator_value(row, j)), float16_t(qcom_accumulator_value(row, j + 1)), float16_t(qcom_accumulator_value(row, j + 2)), float16_t(qcom_accumulator_value(row, j + 3)));
                             const uint offset = (gz * (outch / 4) + gn / 4) * psc(outcstep) + gm;
                             top_tm_blob_data[offset] = uvec2(packHalf2x16(vec2(values.xy)), packHalf2x16(vec2(values.zw)));
                         }
