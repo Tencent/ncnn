@@ -81,7 +81,9 @@ static int test_rmsnorm_2()
            || test_rmsnorm(RandomMat(4, 16), 4, 0.02f, 1)
            || test_rmsnorm(RandomMat(7, 24), 7, 0.001f, 1)
            || test_rmsnorm(RandomMat(8, 32), 8, 0.001f, 1)
-           || test_rmsnorm(RandomMat(79, 16), 79, 0.001f, 1);
+           || test_rmsnorm(RandomMat(79, 16), 79, 0.001f, 1)
+           || test_rmsnorm(RandomMat(31, 32), 31, 0.001f, 0)
+           || test_rmsnorm(RandomMat(33, 32), 33, 0.001f, 1);
 }
 
 static int test_rmsnorm_3()
@@ -103,7 +105,9 @@ static int test_rmsnorm_3()
            || test_rmsnorm(RandomMat(16), 16, 0.02f, 1)
            || test_rmsnorm(RandomMat(24), 24, 0.001f, 1)
            || test_rmsnorm(RandomMat(32), 32, 0.001f, 1)
-           || test_rmsnorm(RandomMat(64), 64, 0.001f, 1);
+           || test_rmsnorm(RandomMat(64), 64, 0.001f, 1)
+           || test_rmsnorm(RandomMat(127), 127, 0.001f, 0)
+           || test_rmsnorm(RandomMat(129), 129, 0.001f, 1);
 }
 
 static int test_rmsnorm_4()
