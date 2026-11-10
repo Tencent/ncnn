@@ -37,7 +37,9 @@ layout(constant_id = 13 + 7) const uint UNROLL_WG_M = 2;
 layout(constant_id = 13 + 8) const uint UNROLL_WG_N = 2;
 
 layout(binding = 0) readonly buffer A_blob { uvec2 A_blob_data[]; };
+layout(binding = 0) readonly buffer A_blob_8 { uvec4 A_blob_data_8[]; };
 layout(binding = 1) readonly buffer B_blob { uvec2 B_blob_data[]; };
+layout(binding = 1) readonly buffer B_blob_8 { uvec4 B_blob_data_8[]; };
 layout(binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
 
@@ -108,25 +110,34 @@ void main()
         {
             const uint gm = (mi + zm) * M + si;
             uint row[8];
-            [[unroll]] for (uint pair = 0; pair < 4; pair++)
+            [[unroll]] for (uint pair = 0; pair < 2; pair++)
             {
-                const uint gk = kt * K + pair * 4;
-                uvec2 packed = uvec2(0u);
+                const uint gk = kt * K + pair * 8;
+                uvec4 packed = uvec4(0u);
                 if (si < M && gm < uint(psc(GM)))
                 {
-                    if (uint(psc(GK)) % 4 == 0 && gk + 3 < uint(psc(GK)))
-                        packed = A_blob_data[(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk) / 4];
+                    if (uint(psc(GK)) % 8 == 0 && gk + 7 < uint(psc(GK)))
+                        packed = A_blob_data_8[(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk) / 8];
+                    else if (uint(psc(GK)) % 4 == 0)
+                    {
+                        if (gk + 3 < uint(psc(GK)))
+                            packed.xy = A_blob_data[((gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk)) / 4];
+                        if (gk + 7 < uint(psc(GK)))
+                            packed.zw = A_blob_data[((gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk)) / 4 + 1];
+                    }
                     else
                     {
-                        [[unroll]] for (uint component = 0; component < 4; component++)
+                        [[unroll]] for (uint component = 0; component < 8; component++)
                         {
                             if (gk + component < uint(psc(GK)))
                                 packed[component / 2] |= load_a_bits(gz * uint(psc(A_cstep)) + gm * uint(psc(GK)) + gk + component) << ((component % 2) * 16);
                         }
                     }
                 }
-                row[pair * 2] = packed.x;
-                row[pair * 2 + 1] = packed.y;
+                row[pair * 4] = packed.x;
+                row[pair * 4 + 1] = packed.y;
+                row[pair * 4 + 2] = packed.z;
+                row[pair * 4 + 3] = packed.w;
             }
             vectorToCoopmatQCOM(row, A[zm]);
         }
@@ -134,25 +145,34 @@ void main()
         {
             const uint gn = (ni + zn) * N + si;
             uint column[8];
-            [[unroll]] for (uint pair = 0; pair < 4; pair++)
+            [[unroll]] for (uint pair = 0; pair < 2; pair++)
             {
-                const uint gk = kt * K + pair * 4;
-                uvec2 packed = uvec2(0u);
+                const uint gk = kt * K + pair * 8;
+                uvec4 packed = uvec4(0u);
                 if (si < N && gn < uint(psc(GN)))
                 {
-                    if (transB == 1 && uint(psc(GK)) % 4 == 0 && gk + 3 < uint(psc(GK)))
-                        packed = B_blob_data[(gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + gn * uint(psc(GK)) + gk) / 4];
+                    if (transB == 1 && uint(psc(GK)) % 8 == 0 && gk + 7 < uint(psc(GK)))
+                        packed = B_blob_data_8[(gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + gn * uint(psc(GK)) + gk) / 8];
+                    else if (transB == 1 && uint(psc(GK)) % 4 == 0)
+                    {
+                        if (gk + 3 < uint(psc(GK)))
+                            packed.xy = B_blob_data[((gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + gn * uint(psc(GK)) + gk)) / 4];
+                        if (gk + 7 < uint(psc(GK)))
+                            packed.zw = B_blob_data[((gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + gn * uint(psc(GK)) + gk)) / 4 + 1];
+                    }
                     else
                     {
-                        [[unroll]] for (uint component = 0; component < 4; component++)
+                        [[unroll]] for (uint component = 0; component < 8; component++)
                         {
                             if (gk + component < uint(psc(GK)))
                                 packed[component / 2] |= load_b_bits(gz / uint(psc(num_heads_per_group)) * uint(psc(B_cstep)) + (transB == 0 ? (gk + component) * uint(psc(GN)) + gn : gn * uint(psc(GK)) + gk + component)) << ((component % 2) * 16);
                         }
                     }
                 }
-                column[pair * 2] = packed.x;
-                column[pair * 2 + 1] = packed.y;
+                column[pair * 4] = packed.x;
+                column[pair * 4 + 1] = packed.y;
+                column[pair * 4 + 2] = packed.z;
+                column[pair * 4 + 3] = packed.w;
             }
             coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
             vectorToCoopmatQCOM(column, B);

@@ -45,7 +45,9 @@ layout(constant_id = 18 + 8) const uint UNROLL_WG_N = 2;
 
 layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 1) readonly buffer A_blob { uvec2 A_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob_8 { uvec4 A_blob_data_8[]; };
 layout(binding = 2) readonly buffer B_blob { uvec2 B_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob_8 { uvec4 B_blob_data_8[]; };
 layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
 layout(binding = 4) writeonly buffer top_blob_4 { uvec2 top_blob_data_4[]; };
 
@@ -160,7 +162,24 @@ void main()
         {
             const uint gm = (mi + zm) * M + si;
             uint row[8];
-            if (uint(psc(GK)) % 4 == 0 && (constantA == 1 || (transA == 0 && psc(A_elempack) == 1)))
+            if (uint(psc(GK)) % 8 == 0 && (constantA == 1 || (transA == 0 && psc(A_elempack) == 1)))
+            {
+                [[unroll]] for (uint pair = 0; pair < 2; pair++)
+                {
+                    const uint gk = kt * K + pair * 8;
+                    uvec4 packed = uvec4(0u);
+                    if (si < M && gm < uint(psc(GM)) && gk + 7 < uint(psc(GK)))
+                    {
+                        const uint offset = constantA == 1 ? ((wgmi * kk + kg) * UNROLL_WG_M + sgmi * group_size + kt - kg) * UNROLL_SG_M * M * K + (zm * M + si) * K + pair * 8 : gm * uint(p.A_hstep) + gk;
+                        packed = A_blob_data_8[offset / 8];
+                    }
+                    row[pair * 4] = packed.x;
+                    row[pair * 4 + 1] = packed.y;
+                    row[pair * 4 + 2] = packed.z;
+                    row[pair * 4 + 3] = packed.w;
+                }
+            }
+            else if (uint(psc(GK)) % 4 == 0 && (constantA == 1 || (transA == 0 && psc(A_elempack) == 1)))
             {
                 [[unroll]] for (uint pair = 0; pair < 4; pair++)
                 {
@@ -212,7 +231,24 @@ void main()
         {
             const uint gn = (ni + zn) * N + si;
             uint column[8];
-            if (constantB == 0 && transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 4 == 0)
+            if (constantB == 0 && transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 8 == 0)
+            {
+                [[unroll]] for (uint pair = 0; pair < 2; pair++)
+                {
+                    const uint gk = kt * K + pair * 8;
+                    uvec4 packed = uvec4(0u);
+                    if (si < N && gn < uint(psc(GN)) && gk + 7 < uint(psc(GK)))
+                    {
+                        const uint offset = gn * uint(p.B_hstep) + gk;
+                        packed = B_blob_data_8[offset / 8];
+                    }
+                    column[pair * 4] = packed.x;
+                    column[pair * 4 + 1] = packed.y;
+                    column[pair * 4 + 2] = packed.z;
+                    column[pair * 4 + 3] = packed.w;
+                }
+            }
+            else if (constantB == 0 && transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 4 == 0)
             {
                 [[unroll]] for (uint pair = 0; pair < 4; pair++)
                 {
