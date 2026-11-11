@@ -29,6 +29,71 @@ namespace py = pybind11;
 
 static const int batch_index_none = 233;
 
+// Allocator that ties a wrapped Python buffer to the refcount of the ncnn::Mat that points into it.
+// Every shallow copy of that Mat (reshape, channel, range, Extractor inputs, ...) shares the refcount,
+// so the buffer owner stays alive until the last of them is released.
+// If ncnn uses this allocator for other allocations, they are served by fastMalloc / fastFree and
+// counted, so the object is deleted only after the wrapped buffer and all of them are released.
+class PyBufferOwnerAllocator : public Allocator
+{
+public:
+    PyBufferOwnerAllocator(py::object _owner, void* _data)
+        : refcount(1), owner(new py::object(std::move(_owner))), data(_data), users(1)
+    {
+    }
+
+    virtual void* fastMalloc(size_t size)
+    {
+        NCNN_XADD(&users, 1);
+        return ncnn::fastMalloc(size);
+    }
+
+    virtual void fastFree(void* ptr)
+    {
+        if (ptr == data)
+        {
+            release_owner();
+        }
+        else
+        {
+            ncnn::fastFree(ptr);
+        }
+
+        if (NCNN_XADD(&users, -1) == 1)
+            delete this;
+    }
+
+    // the Mat refcount of the wrapped buffer
+    int refcount;
+
+private:
+    void release_owner()
+    {
+        if (!owner)
+            return;
+
+        if (Py_IsInitialized())
+        {
+            py::gil_scoped_acquire acquire;
+            delete owner;
+        }
+        // else: the interpreter is gone, the object can not be released any more
+        owner = 0;
+    }
+
+    py::object* owner;
+    void* data;
+    int users;
+};
+
+// make a Mat that wraps external memory own a reference to the Python object exporting it
+static void own_buffer(Mat* m, const py::object& owner)
+{
+    PyBufferOwnerAllocator* a = new PyBufferOwnerAllocator(owner, m->data);
+    m->refcount = &a->refcount;
+    m->allocator = a;
+}
+
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
 public:
@@ -450,10 +515,13 @@ PYBIND11_MODULE(ncnn, m)
             // so we set the cstep as numpy's cstep
             v->cstep = (int)info.shape[3] * (int)info.shape[2] * (int)info.shape[1];
         }
+
+        // the Mat shares the buffer: keep the exporting object alive as long as any Mat refers to it
+        own_buffer(v, py::reinterpret_borrow<py::object>(b));
+
         return std::unique_ptr<Mat>(v);
     }),
-    // the zero-copy Mat points into the buffer: keep the buffer alive as long as the Mat
-    py::arg("array"), py::arg("batch_index") = batch_index_none, py::keep_alive<1, 2>())
+    py::arg("array"), py::arg("batch_index") = batch_index_none)
     .def_buffer([](Mat& m) -> py::buffer_info {
         return to_buffer_info(m);
     })
@@ -1039,9 +1107,7 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_kvcache_allocator", &Extractor::set_kvcache_allocator, py::arg("allocator"))
     .def("set_kvcache_max_seqlen_hint", &Extractor::set_kvcache_max_seqlen_hint, py::arg("max_seqlen_hint"))
 #if NCNN_STRING
-    // the extractor keeps a shallow copy of the input Mat, which may point into a numpy buffer:
-    // keep the Python Mat (and through it the buffer) alive as long as the extractor
-    .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"), py::keep_alive<1, 3>())
+    .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
     .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0, py::call_guard<py::gil_scoped_release>())
     .def(
     "extract", [](Extractor& ex, const char* blob_name, int type) {
@@ -1058,7 +1124,7 @@ PYBIND11_MODULE(ncnn, m)
     },
     py::arg("blob_name"), py::arg("type") = 0)
 #endif
-    .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input, py::keep_alive<1, 3>())
+    .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
     .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0, py::call_guard<py::gil_scoped_release>())
     .def(
     "extract", [](Extractor& ex, int blob_index, int type) {

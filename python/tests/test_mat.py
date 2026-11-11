@@ -3,6 +3,7 @@
 
 import gc
 import sys
+import weakref
 import numpy as np
 import pytest
 
@@ -811,3 +812,40 @@ def test_numpy_buffer_kept_alive():
     gc.collect()
     garbage = [np.random.rand(3, 16, 16).astype(np.float32) for _ in range(32)]
     assert np.all(np.array(mat) == 7.0)
+
+
+def test_numpy_buffer_kept_alive_by_views():
+    # shallow views of a zero-copy Mat must keep the numpy buffer alive too
+    def make():
+        return ncnn.Mat(np.full((4, 4, 4), 5.0, dtype=np.float32)).reshape(64)
+
+    view = make()
+    gc.collect()
+    garbage = [np.random.rand(4, 4, 4).astype(np.float32) for _ in range(32)]
+    assert np.all(np.array(view) == 5.0)
+
+
+def test_numpy_buffer_released():
+    class Array(np.ndarray):
+        pass  # a subclass, so that it can be weakly referenced
+
+    a = np.full((3, 8, 8), 1.0, dtype=np.float32).view(Array)
+    ref = weakref.ref(a)
+
+    # zero-copy: the array lives as long as the Mat
+    mat = ncnn.Mat(a)
+    del a
+    gc.collect()
+    assert ref() is not None
+    del mat
+    gc.collect()
+    assert ref() is None
+
+    # copied (non-contiguous) input: the source is not kept alive
+    b = np.full((3, 8, 8), 1.0, dtype=np.float32).view(Array)
+    ref = weakref.ref(b)
+    mat = ncnn.Mat(b.transpose(0, 2, 1))
+    del b
+    gc.collect()
+    assert ref() is None
+    assert np.all(np.array(mat) == 1.0)
