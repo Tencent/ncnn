@@ -1673,21 +1673,16 @@ void VkWeightAllocator::set_weights_in_disk(bool enable)
     d->use_weights_in_disk = enable;
 }
 
-int VkWeightAllocator::set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit)
+void VkWeightAllocator::set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit)
 {
     if (unified_weight_memory(vkdev))
     {
+        // one resident tier, the smaller positive limit applies
         device_memory_limit = device_memory_limit && host_memory_limit ? std::min(device_memory_limit, host_memory_limit) : std::max(device_memory_limit, host_memory_limit);
         host_memory_limit = 0;
     }
-    else if ((device_memory_limit == 0) != (host_memory_limit == 0))
-    {
-        NCNN_LOGE("disk weights require both device and host memory limits");
-        return -1;
-    }
     d->memory_limits[0] = device_memory_limit;
     d->memory_limits[1] = host_memory_limit;
-    return 0;
 }
 
 void VkWeightAllocator::get_weight_memory_usage(uint64_t& device_bytes, uint64_t& host_bytes) const
@@ -1922,9 +1917,7 @@ int VkWeightAllocator::finalize_weights()
 
 VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
 {
-    if (d->finalized)
-        return 0;
-    if (d->use_weights_in_disk && d->memory_limits[0])
+    if (d->use_weights_in_disk && (d->memory_limits[0] || d->memory_limits[1]))
     {
         // fill device, host and disk in loading order
         for (int type = 0; type < 2; type++)
@@ -1957,6 +1950,10 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     }
     if (d->use_weights_in_disk)
     {
+        // the file is sealed by finalize_weights()
+        if (d->finalized)
+            return 0;
+
         const size_t aligned_size = alignSize(size, d->buffer_offset_alignment);
         void* mapped_ptr = 0;
         int ret = d->file.reserve(aligned_size, d->buffer_offset_alignment, mapped_ptr);
@@ -2378,7 +2375,7 @@ int VkWeightAllocator::invalidate(VkBufferMemory* ptr)
 
 VkImageMemory* VkWeightAllocator::fastMalloc(int w, int h, int c, size_t elemsize, int elempack)
 {
-    if (d->memory_limits[0])
+    if (d->memory_limits[0] || d->memory_limits[1])
     {
         NCNN_LOGE("image weights are not supported with a disk weight memory limit");
         return 0;

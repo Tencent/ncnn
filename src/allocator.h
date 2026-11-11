@@ -354,8 +354,8 @@ public:
 
     // configure before allocating weights
     void set_weights_in_disk(bool enable);
-    // limit resident allocations, placing weights in loading order
-    int set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit);
+    // limit resident allocations, placing weights in loading order; zero disables a tier
+    void set_weight_memory_limit(size_t device_memory_limit, size_t host_memory_limit);
 
     // flush and seal file weights after uploads complete
     int finalize_weights();

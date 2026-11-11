@@ -2392,13 +2392,7 @@ int Net::load_model(const DataReader& dr)
             d->weight_vkallocator->set_weights_in_disk(opt.use_weights_in_disk);
             if (opt.use_weights_in_disk)
             {
-                ret = d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit);
-                if (ret != 0)
-                {
-                    delete d->weight_vkallocator;
-                    d->weight_vkallocator = 0;
-                    return ret;
-                }
+                d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit);
             }
         }
         if (!d->weight_staging_vkallocator)

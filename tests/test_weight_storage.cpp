@@ -246,6 +246,8 @@ static int test_weight_storage_0()
         {0, 1, 0, 0},
         {0, 1, 4096, 4096},
         {0, 1, 1048576, 1048576},
+        {0, 1, 4096, 0},
+        {0, 1, 0, 4096},
     };
 
     const int storage_count = sizeof(storages) / sizeof(storages[0]);
@@ -254,7 +256,7 @@ static int test_weight_storage_0()
     {
         for (int i = 0; i < storage_count; i++)
         {
-            if (storages[i][2] && !support_weight_file())
+            if ((storages[i][2] || storages[i][3]) && !support_weight_file())
                 continue;
 
             ncnn::Option opt = weight_storage_option(precision);
@@ -412,11 +414,7 @@ static int test_weight_storage_allocator(size_t device_memory_limit, size_t host
     ncnn::VkWeightStagingAllocator weight_staging_vkallocator(vkdev);
 
     weight_vkallocator.set_weights_in_disk(true);
-    if (weight_vkallocator.set_weight_memory_limit(device_memory_limit, host_memory_limit) != 0)
-    {
-        fprintf(stderr, "set_weight_memory_limit failed\n");
-        return -1;
-    }
+    weight_vkallocator.set_weight_memory_limit(device_memory_limit, host_memory_limit);
 
     ncnn::Option opt = weight_storage_option(0);
     opt.blob_vkallocator = &weight_vkallocator;
@@ -446,8 +444,9 @@ static int test_weight_storage_allocator(size_t device_memory_limit, size_t host
     bool exceeded = device_bytes > device_memory_limit || host_bytes > host_memory_limit;
     if (unified)
     {
-        // integrated gpu shares one limit
-        exceeded = device_bytes + host_bytes > std::min(device_memory_limit, host_memory_limit);
+        // integrated gpu shares one limit, the smaller positive one
+        const size_t memory_limit = device_memory_limit && host_memory_limit ? std::min(device_memory_limit, host_memory_limit) : std::max(device_memory_limit, host_memory_limit);
+        exceeded = device_bytes + host_bytes > memory_limit;
     }
     if (exceeded)
     {
@@ -512,34 +511,9 @@ static int test_weight_storage_3()
     return 0
            || test_weight_storage_allocator(0, 0)
            || test_weight_storage_allocator(4096, 4096)
-           || test_weight_storage_allocator(1048576, 1048576);
-}
-
-// discrete gpu requires both device and host limits
-static int test_weight_storage_4()
-{
-    const ncnn::GpuInfo& info = ncnn::get_gpu_info();
-    const bool unified = info.type() == 1 || info.type() == 3;
-
-    ncnn::Option opt = weight_storage_option(0);
-    opt.use_weights_in_disk = true;
-    opt.weight_device_memory_limit = 4096;
-    opt.weight_host_memory_limit = 0;
-
-    ncnn::Net net;
-    int ret = load_weight_storage_net(net, opt, 0);
-    if (unified && ret != 0)
-    {
-        fprintf(stderr, "test_weight_storage_4 single weight memory limit rejected on unified memory\n");
-        return -1;
-    }
-    if (!unified && ret == 0)
-    {
-        fprintf(stderr, "test_weight_storage_4 single weight memory limit accepted on discrete memory\n");
-        return -1;
-    }
-
-    return 0;
+           || test_weight_storage_allocator(1048576, 1048576)
+           || test_weight_storage_allocator(4096, 0)
+           || test_weight_storage_allocator(0, 4096);
 }
 
 int main()
@@ -556,6 +530,5 @@ int main()
            || test_weight_storage_0()
            || test_weight_storage_1()
            || test_weight_storage_2()
-           || test_weight_storage_3()
-           || test_weight_storage_4();
+           || test_weight_storage_3();
 }
