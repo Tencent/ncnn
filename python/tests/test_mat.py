@@ -849,3 +849,8 @@ def test_numpy_buffer_released():
     gc.collect()
     assert ref() is None
     assert np.all(np.array(mat) == 1.0)
+
+
+def test_numpy_0d_rejected():
+    with pytest.raises(RuntimeError, match="dims >=1"):
+        ncnn.Mat(np.array(1.0, dtype=np.float32))

@@ -342,6 +342,13 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
 #endif
+        if (info.ndim < 1)
+        {
+            std::stringstream ss;
+            ss << "convert numpy.ndarray to ncnn.Mat only dims >=1 support now, but given " << info.ndim;
+            pybind11::pybind11_fail(ss.str());
+        }
+
         if (batch_index == batch_index_none && info.ndim > 4)
         {
             std::stringstream ss;
