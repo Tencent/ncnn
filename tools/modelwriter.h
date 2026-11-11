@@ -102,6 +102,7 @@
 #include "layer/softmax.h"
 #include "layer/split.h"
 #include "layer/squeeze.h"
+#include "layer/swiglu.h"
 #include "layer/threshold.h"
 #include "layer/tile.h"
 #include "layer/unaryop.h"
@@ -2773,6 +2774,15 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
+        }
+        else if (layer->type == "SwiGLU")
+        {
+            ncnn::SwiGLU* op = (ncnn::SwiGLU*)layer;
+            ncnn::SwiGLU* op_default = (ncnn::SwiGLU*)layer_default;
+
+            fprintf_param_value(" 0=%e", sigmoid_scale)
+            fprintf_param_value(" 1=%e", up_offset)
+            fprintf_param_value(" 2=%e", activation_limit)
         }
         else if (layer->type == "Threshold")
         {
