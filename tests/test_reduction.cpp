@@ -351,7 +351,7 @@ static int test_reduction_depth_padding_boundaries()
 static int test_reduction_gpu_dispatch(const ncnn::Mat& a, int keepdims)
 {
     ncnn::ParamDict pd;
-    pd.set(0, 0); // sum
+    pd.set(0, op_type);
     pd.set(1, 0); // reduce_all
     pd.set(3, param_int_array(1, 0));
     pd.set(4, keepdims);
@@ -379,7 +379,7 @@ static int test_reduction_gpu_dispatch(const ncnn::Mat& a, int keepdims)
             ret = test_layer_gpu(ncnn::LayerType::Reduction, pd, weights, opt, a, b, ncnn::Mat(), 0);
             if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.001f) != 0))
             {
-                fprintf(stderr, "test_reduction_gpu_dispatch failed a=(%d %d %d) keepdims=%d fp16=%d subgroup=%d ret=%d\n", a.w, a.h, a.c, keepdims, fp16, subgroup, ret);
+                fprintf(stderr, "test_reduction_gpu_dispatch failed a=(%d %d %d) op_type=%d keepdims=%d fp16=%d subgroup=%d ret=%d\n", a.w, a.h, a.c, op_type, keepdims, fp16, subgroup, ret);
                 return -1;
             }
         }
@@ -394,8 +394,12 @@ static int test_reduction_gpu_dispatch()
         return 0;
 
     // output counts around the 65535-workgroup Vulkan minimum Y dispatch limit
-    // the 65537-output case also exercises the final padded workgroup after splitting
+    // 65537 outputs leave a padded tail workgroup once split across x and y
     const int shapes[3][2] = {{257, 255}, {256, 256}, {65537, 1}};
+
+    // sum mean logsumexp, logsumexp takes a separate barrier path in the shader
+    static const int op_types[3] = {0, 3, 10};
+
     for (int i = 0; i < 3; i++)
     {
         ncnn::Mat a(shapes[i][0], shapes[i][1], 3);
@@ -406,9 +410,14 @@ static int test_reduction_gpu_dispatch()
                 ptr[j] = (j % 13 - 6) * 0.25f + q * 0.5f;
         }
 
-        if (test_reduction_gpu_dispatch(a, 0)
-                || test_reduction_gpu_dispatch(a, 1))
-            return -1;
+        for (int j = 0; j < 3; j++)
+        {
+            op_type = op_types[j];
+
+            if (test_reduction_gpu_dispatch(a, 0)
+                    || test_reduction_gpu_dispatch(a, 1))
+                return -1;
+        }
     }
 
     return 0;
