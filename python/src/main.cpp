@@ -484,6 +484,12 @@ PYBIND11_MODULE(ncnn, m)
                 v->create((int)info.shape[3], (int)info.shape[2], (int)info.shape[1], (int)info.shape[0], elemsize);
             }
 
+            if (v->empty())
+            {
+                delete v;
+                throw std::bad_alloc(); // pybind11 raises MemoryError
+            }
+
             if (v->dims <= 2)
             {
                 memcpy(v->data, sptr, (size_t)v->w * v->h * elemsize);
