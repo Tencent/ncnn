@@ -21,6 +21,7 @@ class Model(nn.Module):
         z = F.elu(z, -0.6)
         w = F.elu(w, 0.1)
         q = F.elu(q, 0.1)
+        q = F.elu(q, 2)
         return x, y, z, w, q
 
 def test():
@@ -43,6 +44,23 @@ def test():
     # torchscript to pnnx
     import os
     os.system("../../src/pnnx test_F_elu.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11],[2,7,9,11]")
+
+    # Float spelling is required by ncnn2mem binary parameter conversion.
+    alphas = []
+    with open("test_F_elu.ncnn.param") as f:
+        for line in f:
+            fields = line.split()
+            if not fields or fields[0] != "ELU":
+                continue
+            values = [field[2:] for field in fields[4:] if field.startswith("0=")]
+            if len(values) != 1:
+                return False
+            alpha = values[0]
+            if "." not in alpha and "e" not in alpha.lower():
+                return False
+            alphas.append(float(alpha))
+    if 2.0 not in alphas:
+        return False
 
     # ncnn inference
     import test_F_elu_ncnn
