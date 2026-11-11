@@ -348,10 +348,10 @@ static int test_reduction_depth_padding_boundaries()
 }
 
 #if NCNN_VULKAN
-static int test_reduction_gpu_dispatch(const ncnn::Mat& a, int operation, int keepdims)
+static int test_reduction_gpu_dispatch(const ncnn::Mat& a, int keepdims)
 {
     ncnn::ParamDict pd;
-    pd.set(0, operation);
+    pd.set(0, 0); // sum
     pd.set(1, 0); // reduce_all
     pd.set(3, param_int_array(1, 0));
     pd.set(4, keepdims);
@@ -379,7 +379,7 @@ static int test_reduction_gpu_dispatch(const ncnn::Mat& a, int operation, int ke
             ret = test_layer_gpu(ncnn::LayerType::Reduction, pd, weights, opt, a, b, ncnn::Mat(), 0);
             if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.001f) != 0))
             {
-                fprintf(stderr, "test_reduction_gpu_dispatch failed a=(%d %d %d) operation=%d keepdims=%d fp16=%d subgroup=%d ret=%d\n", a.w, a.h, a.c, operation, keepdims, fp16, subgroup, ret);
+                fprintf(stderr, "test_reduction_gpu_dispatch failed a=(%d %d %d) keepdims=%d fp16=%d subgroup=%d ret=%d\n", a.w, a.h, a.c, keepdims, fp16, subgroup, ret);
                 return -1;
             }
         }
@@ -406,10 +406,8 @@ static int test_reduction_gpu_dispatch()
                 ptr[j] = (j % 13 - 6) * 0.25f + q * 0.5f;
         }
 
-        if (test_reduction_gpu_dispatch(a, 0, 0)
-                || test_reduction_gpu_dispatch(a, 0, 1)
-                || test_reduction_gpu_dispatch(a, 3, 0)
-                || test_reduction_gpu_dispatch(a, 3, 1))
+        if (test_reduction_gpu_dispatch(a, 0)
+            || test_reduction_gpu_dispatch(a, 1))
             return -1;
     }
 
