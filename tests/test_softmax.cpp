@@ -104,6 +104,11 @@ static int test_softmax_cpu_fp16a(ncnn::Mat a, int axis)
 
     ncnn::Mat c;
     int ret = test_layer_cpu(ncnn::layer_to_index("Softmax"), pd, weights, opt, a, c, ncnn::Mat(), 0);
+    if (ret == 233)
+    {
+        // this build's Softmax does not support packing or fp16 storage, skip like test_layer does
+        return 0;
+    }
     if (ret != 0 || c.dims != b.dims || c.w != b.w || c.h != b.h || c.d != b.d || c.c != b.c)
     {
         fprintf(stderr, "test_softmax_cpu_fp16a failed a.dims=%d a=(%d %d %d %d) axis=%d ret=%d\n", a.dims, a.w, a.h, a.d, a.c, axis, ret);
