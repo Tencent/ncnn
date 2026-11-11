@@ -775,7 +775,10 @@ int VkComputePrivate::resolve_weights(const std::vector<VkMat>& weights, std::ve
     }
 
     // record one upload command buffer for the whole group
-    begin_upload_command_buffer();
+    if (!mappable)
+    {
+        begin_upload_command_buffer();
+    }
 
     std::vector<VkMat> weight_group;
     std::vector<VkBufferMemoryBarrier> acquire_barriers;
@@ -879,12 +882,12 @@ int VkComputePrivate::resolve_weights(const std::vector<VkMat>& weights, std::ve
         weight_group.push_back(dst);
     }
 
-    end_upload_command_buffer();
-
     // submit recorded uploads
     int upload_ret = 0;
     if (!mappable)
     {
+        end_upload_command_buffer();
+
         // reset fence
         {
             VkResult ret = vkResetFences(vkdev->vkdevice(), 1, &upload_command_fence);
