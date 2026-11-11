@@ -2265,16 +2265,15 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             // create new descriptor_pool and descriptorset
             VkDescriptorPool descriptor_pool;
             {
-                int buffer_binding_count = 0;
                 int image_binding_count = 0;
                 int sampler_binding_count = 0;
                 for (int i = 0; i < binding_count; i++)
                 {
-                    if (shader_info.binding_types[i] == 1)
-                        buffer_binding_count++;
-                    else if (shader_info.binding_types[i] == 2)
+                    int binding_type = shader_info.binding_types[i];
+
+                    if (binding_type == 2)
                         image_binding_count++;
-                    else if (shader_info.binding_types[i] == 3)
+                    else if (binding_type == 3)
                         sampler_binding_count++;
                 }
 
@@ -2348,34 +2347,44 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             else
             {
                 std::vector<VkWriteDescriptorSet> writeDescriptorSets(binding_count);
-                const unsigned char* p_descriptorInfos = descriptorInfos.data();
-                for (int i = 0; i < binding_count; i++)
                 {
-                    int binding_type = shader_info.binding_types[i];
-
-                    writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                    writeDescriptorSets[i].pNext = 0;
-                    writeDescriptorSets[i].dstSet = descriptorset;
-                    writeDescriptorSets[i].dstBinding = i;
-                    writeDescriptorSets[i].dstArrayElement = 0;
-                    writeDescriptorSets[i].descriptorCount = 1;
-                    writeDescriptorSets[i].pTexelBufferView = 0;
-
-                    if (binding_type == 1)
+                    const unsigned char* p_descriptorInfos = descriptorInfos.data();
+                    for (int i = 0; i < binding_count; i++)
                     {
-                        writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                        writeDescriptorSets[i].pImageInfo = 0;
-                        writeDescriptorSets[i].pBufferInfo = (const VkDescriptorBufferInfo*)p_descriptorInfos;
+                        int binding_type = shader_info.binding_types[i];
 
-                        p_descriptorInfos += sizeof(VkDescriptorBufferInfo);
-                    }
-                    else // if (binding_type == 2 || binding_type == 3)
-                    {
-                        writeDescriptorSets[i].descriptorType = binding_type == 2 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                        writeDescriptorSets[i].pImageInfo = (const VkDescriptorImageInfo*)p_descriptorInfos;
-                        writeDescriptorSets[i].pBufferInfo = 0;
+                        writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                        writeDescriptorSets[i].pNext = 0;
+                        writeDescriptorSets[i].dstSet = descriptorset;
+                        writeDescriptorSets[i].dstBinding = i;
+                        writeDescriptorSets[i].dstArrayElement = 0;
+                        writeDescriptorSets[i].descriptorCount = 1;
+                        writeDescriptorSets[i].pTexelBufferView = 0;
 
-                        p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                        if (binding_type == 1)
+                        {
+                            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                            writeDescriptorSets[i].pImageInfo = 0;
+                            writeDescriptorSets[i].pBufferInfo = (const VkDescriptorBufferInfo*)p_descriptorInfos;
+
+                            p_descriptorInfos += sizeof(VkDescriptorBufferInfo);
+                        }
+                        else if (binding_type == 2)
+                        {
+                            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                            writeDescriptorSets[i].pImageInfo = (const VkDescriptorImageInfo*)p_descriptorInfos;
+                            writeDescriptorSets[i].pBufferInfo = 0;
+
+                            p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                        }
+                        else // if (binding_type == 3)
+                        {
+                            writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                            writeDescriptorSets[i].pImageInfo = (const VkDescriptorImageInfo*)p_descriptorInfos;
+                            writeDescriptorSets[i].pBufferInfo = 0;
+
+                            p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                        }
                     }
                 }
 
@@ -2499,41 +2508,16 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         }
     }
 
-    VkDescriptorImageInfo descriptorImageInfo;
-    descriptorImageInfo.sampler = pipeline->sampler;
-    descriptorImageInfo.imageView = src.imageview();
-    descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-    VkDescriptorBufferInfo descriptorBufferInfo;
-    descriptorBufferInfo.buffer = dst.buffer();
-    descriptorBufferInfo.offset = dst.buffer_offset();
-    descriptorBufferInfo.range = dst.total() * dst.elemsize;
-
-    struct ImportAndroidHardwareBufferDescriptorInfo
+    // record bind pipeline
     {
-        VkDescriptorImageInfo imageInfo;
-        VkDescriptorBufferInfo bufferInfo;
-        VkDescriptorBufferInfo buffer4Info;
-    };
-    ImportAndroidHardwareBufferDescriptorInfo info;
-    info.imageInfo = descriptorImageInfo;
-    info.bufferInfo = descriptorBufferInfo;
-    info.buffer4Info = descriptorBufferInfo;
-
-    const uint32_t group_count_x = (dst.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
-    const uint32_t group_count_y = (dst.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
-    const uint32_t group_count_z = (dst.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
-    if (vkdev->info.support_VK_KHR_push_descriptor())
-    {
-        vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            vkCmdBindPipeline(d->compute_command_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline->pipeline());
 #if NCNN_COVERAGE
-        vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
+            vkdev->bind_shader_coverage(d->compute_command_buffer, pipeline->pipeline_layout());
 #endif
-        vkdev->vkCmdPushDescriptorSetWithTemplateKHR(d->compute_command_buffer, pipeline->descriptor_update_template(), pipeline->pipeline_layout(), 0, &info);
-        vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
-    }
-    else
-    {
+        }
+        else
         {
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_bind_pipeline;
@@ -2544,129 +2528,138 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 #endif
             d->delayed_records.push_back(r);
         }
+    }
 
-        const int binding_types[3] = {3, 1, 1};
-        // create new descriptor_pool and descriptorset
-        VkDescriptorPool descriptor_pool;
+    // record update bindings
+    {
+        VkDescriptorImageInfo descriptorImageInfo;
+        descriptorImageInfo.sampler = pipeline->sampler;
+        descriptorImageInfo.imageView = src.imageview();
+        descriptorImageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkDescriptorBufferInfo descriptorBufferInfo;
+        descriptorBufferInfo.buffer = dst.buffer();
+        descriptorBufferInfo.offset = dst.buffer_offset();
+        descriptorBufferInfo.range = dst.total() * dst.elemsize;
+
+        if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            int buffer_binding_count = 0;
-            int image_binding_count = 0;
-            int sampler_binding_count = 0;
-            for (int i = 0; i < 3; i++)
+            struct ImportAndroidHardwareBufferDescriptorInfo
             {
-                if (binding_types[i] == 1)
-                    buffer_binding_count++;
-                else if (binding_types[i] == 2)
-                    image_binding_count++;
-                else if (binding_types[i] == 3)
-                    sampler_binding_count++;
-            }
+                VkDescriptorImageInfo imageInfo;
+                VkDescriptorBufferInfo bufferInfo;
+                VkDescriptorBufferInfo buffer4Info;
+            };
 
-            // VUID-VkDescriptorPoolSize-descriptorCount-00302: each
-            // descriptorCount must be > 0. Skip unused descriptor types
-            // (common on buffer-only compute shaders; Mesa v3dv asserts).
-            // See https://github.com/Tencent/ncnn/issues/6951
-            VkDescriptorPoolSize poolSizes[3];
-            uint32_t pool_size_count = 0;
-            if (buffer_binding_count > 0)
-            {
-                poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                poolSizes[pool_size_count].descriptorCount = buffer_binding_count;
-                pool_size_count++;
-            }
-            if (image_binding_count > 0)
-            {
-                poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                poolSizes[pool_size_count].descriptorCount = image_binding_count;
-                pool_size_count++;
-            }
-            if (sampler_binding_count > 0)
-            {
-                poolSizes[pool_size_count].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                poolSizes[pool_size_count].descriptorCount = sampler_binding_count;
-                pool_size_count++;
-            }
+            ImportAndroidHardwareBufferDescriptorInfo info;
+            info.imageInfo = descriptorImageInfo;
+            info.bufferInfo = descriptorBufferInfo;
+            info.buffer4Info = descriptorBufferInfo;
 
-            VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
-            descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-            descriptorPoolCreateInfo.pNext = 0;
-            descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-            descriptorPoolCreateInfo.maxSets = 1;
-            descriptorPoolCreateInfo.poolSizeCount = pool_size_count;
-            descriptorPoolCreateInfo.pPoolSizes = poolSizes;
-
-            VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkCreateDescriptorPool failed %d", ret);
-                return;
-            }
-        }
-
-        VkDescriptorSet descriptorset;
-        {
-            VkDescriptorSetLayout descriptorset_layout = pipeline->descriptorset_layout();
-
-            VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
-            descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-            descriptorSetAllocateInfo.pNext = 0;
-            descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
-            descriptorSetAllocateInfo.descriptorSetCount = 1;
-            descriptorSetAllocateInfo.pSetLayouts = &descriptorset_layout;
-
-            VkResult ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
-            if (ret != VK_SUCCESS)
-            {
-                NCNN_LOGE("vkAllocateDescriptorSets failed %d", ret);
-                vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pool, 0);
-                return;
-            }
-        }
-        d->descriptor_pools.push_back(descriptor_pool);
-        d->descriptorsets.push_back(descriptorset);
-
-        if (vkdev->info.support_VK_KHR_descriptor_update_template())
-        {
-            vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template(), (const unsigned char*)&info);
+            vkdev->vkCmdPushDescriptorSetWithTemplateKHR(d->compute_command_buffer, pipeline->descriptor_update_template(), pipeline->pipeline_layout(), 0, &info);
         }
         else
         {
-            std::vector<VkWriteDescriptorSet> writeDescriptorSets(3);
-            const unsigned char* p_descriptorInfos = (const unsigned char*)&info;
-            for (int i = 0; i < 3; i++)
+            // create new descriptor_pool and descriptorset
+            VkDescriptorPool descriptor_pool;
             {
-                int binding_type = binding_types[i];
+                VkDescriptorPoolSize poolSizes[2];
+                poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                poolSizes[0].descriptorCount = 1;
+                poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                poolSizes[1].descriptorCount = 2;
 
-                writeDescriptorSets[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-                writeDescriptorSets[i].pNext = 0;
-                writeDescriptorSets[i].dstSet = descriptorset;
-                writeDescriptorSets[i].dstBinding = i;
-                writeDescriptorSets[i].dstArrayElement = 0;
-                writeDescriptorSets[i].descriptorCount = 1;
-                writeDescriptorSets[i].pTexelBufferView = 0;
+                VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
+                descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+                descriptorPoolCreateInfo.pNext = 0;
+                descriptorPoolCreateInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+                descriptorPoolCreateInfo.maxSets = 1;
+                descriptorPoolCreateInfo.poolSizeCount = 2;
+                descriptorPoolCreateInfo.pPoolSizes = poolSizes;
 
-                if (binding_type == 1)
+                VkResult ret = vkCreateDescriptorPool(vkdev->vkdevice(), &descriptorPoolCreateInfo, 0, &descriptor_pool);
+                if (ret != VK_SUCCESS)
                 {
-                    writeDescriptorSets[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                    writeDescriptorSets[i].pImageInfo = 0;
-                    writeDescriptorSets[i].pBufferInfo = (const VkDescriptorBufferInfo*)p_descriptorInfos;
-
-                    p_descriptorInfos += sizeof(VkDescriptorBufferInfo);
-                }
-                else // if (binding_type == 2 || binding_type == 3)
-                {
-                    writeDescriptorSets[i].descriptorType = binding_type == 2 ? VK_DESCRIPTOR_TYPE_STORAGE_IMAGE : VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    writeDescriptorSets[i].pImageInfo = (const VkDescriptorImageInfo*)p_descriptorInfos;
-                    writeDescriptorSets[i].pBufferInfo = 0;
-
-                    p_descriptorInfos += sizeof(VkDescriptorImageInfo);
+                    NCNN_LOGE("vkCreateDescriptorPool failed %d", ret);
+                    return;
                 }
             }
 
-            vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets.data(), 0, 0);
-        }
+            VkDescriptorSet descriptorset;
+            {
+                VkDescriptorSetLayout descriptorset_layout = pipeline->descriptorset_layout();
 
-        {
+                VkDescriptorSetAllocateInfo descriptorSetAllocateInfo;
+                descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+                descriptorSetAllocateInfo.pNext = 0;
+                descriptorSetAllocateInfo.descriptorPool = descriptor_pool;
+                descriptorSetAllocateInfo.descriptorSetCount = 1;
+                descriptorSetAllocateInfo.pSetLayouts = &descriptorset_layout;
+
+                VkResult ret = vkAllocateDescriptorSets(vkdev->vkdevice(), &descriptorSetAllocateInfo, &descriptorset);
+                if (ret != VK_SUCCESS)
+                {
+                    NCNN_LOGE("vkAllocateDescriptorSets failed %d", ret);
+                    vkDestroyDescriptorPool(vkdev->vkdevice(), descriptor_pool, 0);
+                    return;
+                }
+            }
+            d->descriptor_pools.push_back(descriptor_pool);
+            d->descriptorsets.push_back(descriptorset);
+
+            if (vkdev->info.support_VK_KHR_descriptor_update_template())
+            {
+                struct ImportAndroidHardwareBufferDescriptorInfo
+                {
+                    VkDescriptorImageInfo imageInfo;
+                    VkDescriptorBufferInfo bufferInfo;
+                    VkDescriptorBufferInfo buffer4Info;
+                };
+
+                ImportAndroidHardwareBufferDescriptorInfo info;
+                info.imageInfo = descriptorImageInfo;
+                info.bufferInfo = descriptorBufferInfo;
+                info.buffer4Info = descriptorBufferInfo;
+
+                vkdev->vkUpdateDescriptorSetWithTemplateKHR(vkdev->vkdevice(), descriptorset, pipeline->descriptor_update_template(), &info);
+            }
+            else
+            {
+                VkWriteDescriptorSet writeDescriptorSets[3];
+                writeDescriptorSets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[0].pNext = 0;
+                writeDescriptorSets[0].dstSet = descriptorset;
+                writeDescriptorSets[0].dstBinding = 0;
+                writeDescriptorSets[0].dstArrayElement = 0;
+                writeDescriptorSets[0].descriptorCount = 1;
+                writeDescriptorSets[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                writeDescriptorSets[0].pImageInfo = &descriptorImageInfo;
+                writeDescriptorSets[0].pBufferInfo = 0;
+                writeDescriptorSets[0].pTexelBufferView = 0;
+                writeDescriptorSets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[1].pNext = 0;
+                writeDescriptorSets[1].dstSet = descriptorset;
+                writeDescriptorSets[1].dstBinding = 1;
+                writeDescriptorSets[1].dstArrayElement = 0;
+                writeDescriptorSets[1].descriptorCount = 1;
+                writeDescriptorSets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                writeDescriptorSets[1].pImageInfo = 0;
+                writeDescriptorSets[1].pBufferInfo = &descriptorBufferInfo;
+                writeDescriptorSets[1].pTexelBufferView = 0;
+                writeDescriptorSets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets[2].pNext = 0;
+                writeDescriptorSets[2].dstSet = descriptorset;
+                writeDescriptorSets[2].dstBinding = 2;
+                writeDescriptorSets[2].dstArrayElement = 0;
+                writeDescriptorSets[2].descriptorCount = 1;
+                writeDescriptorSets[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                writeDescriptorSets[2].pImageInfo = 0;
+                writeDescriptorSets[2].pBufferInfo = &descriptorBufferInfo;
+                writeDescriptorSets[2].pTexelBufferView = 0;
+
+                vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets, 0, 0);
+            }
+
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_bind_descriptorsets;
             r.bind_descriptorsets.bind_point = VK_PIPELINE_BIND_POINT_COMPUTE;
@@ -2675,7 +2668,19 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
             r.bind_descriptorsets.descriptorset_offset = d->descriptorsets.size() - 1;
             d->delayed_records.push_back(r);
         }
+    }
 
+    // record dispatch
+    {
+        uint32_t group_count_x = (dst.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
+        uint32_t group_count_y = (dst.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
+        uint32_t group_count_z = (dst.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
+
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
+        }
+        else
         {
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_dispatch;
