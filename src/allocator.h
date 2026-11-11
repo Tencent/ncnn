@@ -212,12 +212,6 @@ class VulkanDevice;
 class NCNN_EXPORT VkBufferMemory
 {
 public:
-    // allocators that do not assign storage_type return device buffers
-    VkBufferMemory()
-        : storage_type(0)
-    {
-    }
-
     VkBuffer buffer;
 
     // the base offset assigned by allocator

@@ -151,5 +151,5 @@ disk storage on a fixed workload and reports loading and inference times.
   is used by one thread at a time. Weights must not change while recorded work
   still refers to them.
 - `VkBufferMemory` gained a `storage_type` field, so custom allocators must be
-  rebuilt with the matching headers. Allocators that do not assign it return
-  device buffers.
+  rebuilt with the matching headers. Custom buffer allocators must set
+  `storage_type = 0` on every `VkBufferMemory` they return, like the other fields.
