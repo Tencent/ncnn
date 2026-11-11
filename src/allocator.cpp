@@ -1237,7 +1237,7 @@ static VkBuffer create_weight_buffer_object(const VulkanDevice* vkdev, size_t si
     return buffer;
 }
 
-size_t weight_buffer_alignment(const VulkanDevice* vkdev)
+static size_t weight_buffer_alignment(const VulkanDevice* vkdev)
 {
     size_t alignment = std::max((size_t)4, vkdev->info.buffer_offset_alignment());
     alignment = std::max(alignment, vkdev->info.non_coherent_atom_size());
@@ -1299,7 +1299,8 @@ static int weight_buffer_memory_size(const VulkanDevice* vkdev, size_t size, siz
         return 0;
     VkBuffer buffer = 0;
     VkMemoryRequirements requirements;
-    const int ret = create_weight_buffer_handle(vkdev, size, host, true, &buffer, &requirements);
+    // host weights are shared by compute and transfer, like the allocated buffer
+    const int ret = create_weight_buffer_handle(vkdev, size, host, host, &buffer, &requirements);
     if (ret != 0)
         return ret;
     allocation_size = (size_t)requirements.size;
@@ -1667,30 +1668,6 @@ void VkWeightAllocator::set_weight_file_directory(const char* path)
     d->file.set_directory(path);
 }
 
-#if _WIN32
-void VkWeightAllocator::set_weight_file_directory(const wchar_t* path)
-{
-    if (!path || !path[0])
-    {
-        d->file.set_directory("");
-        return;
-    }
-    int length = WideCharToMultiByte(CP_UTF8, 0, path, -1, 0, 0, 0, 0);
-    if (length == 0)
-    {
-        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
-        return;
-    }
-    std::vector<char> utf8(length);
-    if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8.data(), length, 0, 0))
-    {
-        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
-        return;
-    }
-    d->file.set_directory(utf8.data());
-}
-#endif
-
 void VkWeightAllocator::set_weights_in_disk(bool enable)
 {
     d->use_weights_in_disk = enable;
@@ -1719,7 +1696,7 @@ void VkWeightAllocator::get_weight_memory_usage(uint64_t& device_bytes, uint64_t
     host_bytes = d->allocated_sizes[1];
 }
 
-int VkWeightAllocator::allocate_cpu_memory(size_t size, size_t memory_limit, VkBufferMemory*& ptr)
+static int allocate_cpu_memory(VkWeightAllocatorPrivate* d, size_t size, size_t memory_limit, VkBufferMemory*& ptr)
 {
     ptr = 0;
 
@@ -1774,7 +1751,7 @@ int VkWeightAllocator::allocate_cpu_memory(size_t size, size_t memory_limit, VkB
     return 0;
 }
 
-int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr)
+static int allocate_resident(const VulkanDevice* vkdev, VkWeightAllocatorPrivate* d, size_t size, int storage_type, VkBufferMemory*& ptr)
 {
     ptr = 0;
     const size_t aligned_size = alignSize(size, weight_buffer_alignment(vkdev));
@@ -1793,7 +1770,7 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
             if (host_limit == 0)
                 return 0;
 
-            return allocate_cpu_memory(size, host_limit, ptr);
+            return allocate_cpu_memory(d, size, host_limit, ptr);
         }
         const uint64_t used = unified ? d->allocated_sizes[0] + d->allocated_sizes[1] : d->allocated_sizes[storage_type];
         if (used >= d->memory_limits[storage_type])
@@ -1806,7 +1783,7 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
         if (ret != 0 || capacity < aligned_size)
         {
             if (allow_cpu_memory)
-                return allocate_cpu_memory(size, host_limit, ptr);
+                return allocate_cpu_memory(d, size, host_limit, ptr);
 
             return 0;
         }
@@ -1824,7 +1801,7 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
             delete block;
 
             if (allow_cpu_memory)
-                return allocate_cpu_memory(size, host_limit, ptr);
+                return allocate_cpu_memory(d, size, host_limit, ptr);
 
             return -100;
         }
@@ -1834,7 +1811,7 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
             delete block;
 
             if (allow_cpu_memory)
-                return allocate_cpu_memory(size, host_limit, ptr);
+                return allocate_cpu_memory(d, size, host_limit, ptr);
 
             return -100;
         }
@@ -1858,14 +1835,14 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
 
         const uint32_t memory_type_index = vkdev->find_memory_index(requirements.memoryTypeBits, required, preferred, avoided);
         const VkPhysicalDeviceMemoryProperties& properties = vkdev->info.physicalDeviceMemoryProperties();
-        if (memory_type_index == (uint32_t)-1 || (!unified && (available || vkdev->info.type() == 0) && storage_type == 1 && (properties.memoryHeaps[properties.memoryTypes[memory_type_index].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
+        if (memory_type_index == (uint32_t)-1 || (!unified && storage_type == 1 && (properties.memoryHeaps[properties.memoryTypes[memory_type_index].heapIndex].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)))
         {
             NCNN_LOGE("no suitable weight memory type for storage %d", storage_type);
             vkDestroyBuffer(vkdev->vkdevice(), block->buffer, 0);
             delete block;
 
             if (allow_cpu_memory)
-                return allocate_cpu_memory(size, host_limit, ptr);
+                return allocate_cpu_memory(d, size, host_limit, ptr);
 
             return -100;
         }
@@ -1896,7 +1873,7 @@ int VkWeightAllocator::allocate_resident(size_t size, int storage_type, VkBuffer
                 delete block;
 
                 if (allow_cpu_memory)
-                    return allocate_cpu_memory(size, host_limit, ptr);
+                    return allocate_cpu_memory(d, size, host_limit, ptr);
 
                 return -100;
             }
@@ -1955,7 +1932,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             if (!d->memory_limits[type])
                 continue;
             VkBufferMemory* memory = 0;
-            int ret = allocate_resident(size, type, memory);
+            int ret = allocate_resident(vkdev, d, size, type, memory);
             if (ret != 0)
             {
                 NCNN_LOGE("weight allocator fallback from %s memory", type == 0 ? "device" : "host");
@@ -2043,7 +2020,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
     if (!d->cpu_memory_blocks.empty())
     {
         VkBufferMemory* ptr = 0;
-        allocate_cpu_memory(size, 0, ptr);
+        allocate_cpu_memory(d, size, 0, ptr);
         return ptr;
     }
 
@@ -2071,7 +2048,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             return 0;
 
         VkBufferMemory* ptr = 0;
-        allocate_cpu_memory(size, 0, ptr);
+        allocate_cpu_memory(d, size, 0, ptr);
         return ptr;
     }
     block->offset = 0;
@@ -2203,7 +2180,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
                     delete block;
 
                     VkBufferMemory* ptr = 0;
-                    allocate_cpu_memory(size, 0, ptr);
+                    allocate_cpu_memory(d, size, 0, ptr);
                     return ptr;
                 }
 
@@ -2296,7 +2273,7 @@ VkBufferMemory* VkWeightAllocator::fastMalloc(size_t size)
             return 0;
 
         VkBufferMemory* ptr = 0;
-        allocate_cpu_memory(size, 0, ptr);
+        allocate_cpu_memory(d, size, 0, ptr);
         return ptr;
     }
 

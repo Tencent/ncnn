@@ -212,6 +212,12 @@ class VulkanDevice;
 class NCNN_EXPORT VkBufferMemory
 {
 public:
+    // allocators that do not assign storage_type return device buffers
+    VkBufferMemory()
+        : storage_type(0)
+    {
+    }
+
     VkBuffer buffer;
 
     // the base offset assigned by allocator
@@ -343,11 +349,8 @@ public:
     }
     virtual ~VkWeightAllocator();
 
-    // set before allocating weights; null or empty uses the system directory
+    // UTF-8, set before allocating weights; null or empty uses the system directory
     void set_weight_file_directory(const char* path);
-#if _WIN32
-    void set_weight_file_directory(const wchar_t* path);
-#endif
 
     // configure before allocating weights
     void set_weights_in_disk(bool enable);
@@ -372,10 +375,6 @@ public:
 
     virtual int flush(VkBufferMemory* ptr);
     virtual int invalidate(VkBufferMemory* ptr);
-
-private:
-    int allocate_cpu_memory(size_t size, size_t memory_limit, VkBufferMemory*& ptr);
-    int allocate_resident(size_t size, int storage_type, VkBufferMemory*& ptr);
 
 private:
     VkWeightAllocator(const VkWeightAllocator&);
