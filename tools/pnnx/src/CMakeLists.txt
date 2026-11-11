@@ -434,6 +434,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
     pass_ncnn/fuse_convert_rotaryembed.cpp
+    pass_ncnn/fuse_convert_swiglu.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/reshape_shape.cpp
