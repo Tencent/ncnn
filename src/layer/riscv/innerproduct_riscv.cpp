@@ -15,6 +15,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "innerproduct_bf16s.h"
+#endif
+
 InnerProduct_riscv::InnerProduct_riscv()
 {
 #if __riscv_vector
@@ -26,6 +30,10 @@ InnerProduct_riscv::InnerProduct_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 
     flatten = 0;
@@ -56,6 +64,11 @@ int InnerProduct_riscv::create_pipeline(const Option& opt)
     {
         return create_pipeline_fp16s(opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage)
+        return create_pipeline_bf16s(opt);
 #endif
 
     int out_elempack = 1;
@@ -140,7 +153,12 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             Option opt_pack1 = opt;
             opt_pack1.blob_allocator = opt.workspace_allocator;
 
-            cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
+#if NCNN_BF16
+            if (opt.use_bf16_storage && !(support_fp16_storage && opt.use_fp16_storage))
+                cast_bfloat16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
+            else
+#endif
+                cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
             if (bottom_blob_unpacked_fp32.empty())
                 return -100;
         }
@@ -151,16 +169,23 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     }
 #endif
 
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_blob.elembits();
+#endif
 
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_fp16sa(bottom_blob, top_blob, opt);
         else
             return forward_fp16s(bottom_blob, top_blob, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
 #if __riscv_vector
@@ -523,5 +548,137 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     return 0;
 }
+
+#if NCNN_BF16
+int InnerProduct_riscv::create_pipeline_bf16s(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    int out_elempack = 1;
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+    if (opt.use_packing_layout)
+        out_elempack = num_output % packn == 0 ? packn : 1;
+#endif
+
+    Mat weight_data_bf16;
+    cast_float32_to_bfloat16(weight_data, weight_data_bf16, opt);
+    if (weight_data_bf16.empty())
+        return -100;
+
+    if (out_elempack == 1)
+    {
+        weight_data_tm = weight_data_bf16;
+    }
+    else
+    {
+        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
+        if (weight_data_tm.empty())
+            return -100;
+
+        const unsigned short* weight_ptr = weight_data_bf16;
+        for (int q = 0; q < num_output / out_elempack; q++)
+        {
+            unsigned short* g0 = weight_data_tm.row<unsigned short>(q);
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                    *g0++ = weight_ptr[(q * out_elempack + j) * num_input + p];
+            }
+        }
+    }
+
+    if (opt.lightmode)
+        weight_data.release();
+
+    return 0;
+}
+
+int InnerProduct_riscv::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+#else
+    const int packn = 4;
+#endif
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input)
+    {
+        const int h = bottom_blob.h;
+        const int elempack = bottom_blob.elempack;
+        top_blob.create(num_output, h, bottom_blob.elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int j = 0; j < h; j++)
+        {
+            const unsigned short* input = bottom_blob.row<const unsigned short>(j);
+            unsigned short* output = top_blob.row<unsigned short>(j);
+
+#if __riscv_vector
+            if (elempack == packn)
+            {
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+                unsigned long old_fxcr = csrr_fxcr();
+                old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
+#endif
+                const size_t vl = __riscv_vsetvl_e16m1(packn);
+                const int weight_elempack = weight_data_tm.elempack;
+                for (int p = 0; p < num_output; p++)
+                {
+                    const unsigned short* kptr = (const unsigned short*)weight_data_tm + p / weight_elempack * num_input * weight_elempack + p % weight_elempack;
+                    vfloat32m2_t _sum = __riscv_vfmv_v_f_f32m2(bias_term ? bias_data[p] : 0.f, vl);
+                    for (int i = 0; i < num_input; i++)
+                    {
+                        vfloat32m2_t _val = bfloat2float_rvv(__riscv_vle16_v_u16m1(input + i * packn, vl), vl);
+                        _sum = __riscv_vfmacc_vf_f32m2(_sum, bfloat16_to_float32(kptr[i * weight_elempack]), _val, vl);
+                    }
+                    _sum = activation_ps(_sum, activation_type, activation_params, vl);
+                    __riscv_vse16_v_u16m1(output + p * packn, float2bfloat_rvv(_sum, vl), vl);
+                }
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+                csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
+            }
+            else
+#endif
+            {
+                for (int p = 0; p < num_output; p += packn)
+                    innerproduct_bf16s(input, output, weight_data_tm, bias_data, num_input, p, std::min(packn, num_output - p), activation_type, activation_params);
+            }
+        }
+        return 0;
+    }
+
+    Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        int ret = flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+        if (ret != 0)
+            return ret;
+        if (bottom_blob_flattened.empty())
+            return -100;
+    }
+
+    const int out_elempack = weight_data_tm.elempack;
+    top_blob.create(num_output / out_elempack, (size_t)2u * out_elempack, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const int nn_num_output = (num_output + packn - 1) / packn;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_num_output; pp++)
+    {
+        const int p = pp * packn;
+        innerproduct_bf16s(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, num_input, p, std::min(packn, num_output - p), activation_type, activation_params);
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
