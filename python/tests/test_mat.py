@@ -854,3 +854,15 @@ def test_numpy_buffer_released():
 def test_numpy_0d_rejected():
     with pytest.raises(RuntimeError, match="dims >=1"):
         ncnn.Mat(np.array(1.0, dtype=np.float32))
+
+
+def test_numpy_buffer_allocator_not_exposed():
+    a = np.full((2, 3, 4), 1.0, dtype=np.float32)
+    mat = ncnn.Mat(a)
+    assert mat.allocator is None
+    mat.allocator = None  # no-op
+    with pytest.raises(RuntimeError, match="can not be changed"):
+        mat.allocator = ncnn.PoolAllocator()
+    mat.release()
+    assert mat.allocator is None and mat.dims == 0
+    assert np.all(a == 1.0)

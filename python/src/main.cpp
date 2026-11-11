@@ -86,6 +86,12 @@ private:
     int users;
 };
 
+// true if the Mat refers to a wrapped Python buffer; the owner allocator is alive while the Mat holds a reference
+static bool owns_python_buffer(const Mat& m)
+{
+    return m.refcount && m.allocator && dynamic_cast<PyBufferOwnerAllocator*>(m.allocator);
+}
+
 // make a Mat that wraps external memory own a reference to the Python object exporting it
 static void own_buffer(Mat* m, const py::object& owner)
 {
@@ -610,7 +616,12 @@ PYBIND11_MODULE(ncnn, m)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, int, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("n"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
-    .def("release", &Mat::release)
+    .def("release", [](Mat& m) {
+        const bool wrapped = owns_python_buffer(m);
+        m.release();
+        if (wrapped)
+            m.allocator = 0; // the internal owner allocator may be gone now
+    })
     .def("empty", &Mat::empty)
     .def("total", &Mat::total)
     .def("elembits", &Mat::elembits)
@@ -722,7 +733,21 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("refcount", &Mat::refcount)
     .def_readwrite("elemsize", &Mat::elemsize)
     .def_readwrite("elempack", &Mat::elempack)
-    .def_readwrite("allocator", &Mat::allocator)
+    // the internal owner allocator of a Mat that shares a numpy buffer is not exposed (None, as before)
+    .def_property(
+    "allocator", [](const Mat& m) -> Allocator* {
+        return owns_python_buffer(m) ? nullptr : m.allocator;
+    },
+    [](Mat& m, Allocator* allocator) {
+        if (owns_python_buffer(m))
+        {
+            if (allocator)
+                pybind11::pybind11_fail("the allocator of a Mat that shares a numpy buffer can not be changed, use clone(allocator) for an owned copy");
+            return;
+        }
+        m.allocator = allocator;
+    },
+    py::return_value_policy::reference_internal)
     .def_readwrite("dims", &Mat::dims)
     .def_readwrite("w", &Mat::w)
     .def_readwrite("h", &Mat::h)
