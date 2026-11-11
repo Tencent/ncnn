@@ -407,7 +407,7 @@ static int test_reduction_gpu_dispatch()
         }
 
         if (test_reduction_gpu_dispatch(a, 0)
-            || test_reduction_gpu_dispatch(a, 1))
+                || test_reduction_gpu_dispatch(a, 1))
             return -1;
     }
 
