@@ -2102,6 +2102,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {1, 0, 0, 0, 0, 0, 0},
 #if NCNN_VULKAN
         {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
         {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING, 1},
         {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
@@ -2143,6 +2144,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         {1, 0, 0, 0, 0, 0, 0},
 #if NCNN_VULKAN
         {1, 1, 0, 0, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
+        {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING},
         {1, 1, 0, 1, 0, 0, TEST_LAYER_DISABLE_CPU_TESTING, 1},
         {1, 0, 0, 0, 1, 0, TEST_LAYER_DISABLE_CPU_TESTING},
 #endif // NCNN_VULKAN
