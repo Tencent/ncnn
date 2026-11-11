@@ -710,7 +710,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
         if (opt.lightmode)
         {
             // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
+            if (layer->support_inplace && (!bottom_blob_ref.refcount || *bottom_blob_ref.refcount != 1))
             {
                 bottom_blob = bottom_blob_ref.clone(opt.blob_allocator);
                 if (bottom_blob.empty())
@@ -819,7 +819,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
             if (opt.lightmode)
             {
                 // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
+                if (layer->support_inplace && (!bottom_blob_ref.refcount || *bottom_blob_ref.refcount != 1))
                 {
                     bottom_blobs[i] = bottom_blob_ref.clone(opt.blob_allocator);
                     if (bottom_blobs[i].empty())
@@ -968,7 +968,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
         if (opt.lightmode)
         {
             // deep copy for inplace forward if data is shared
-            if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
+            if (layer->support_inplace && (!bottom_blob_ref.refcount || *bottom_blob_ref.refcount != 1))
             {
                 cmd.record_clone(bottom_blob_ref, bottom_blob, opt);
                 //                     NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blob.buffer(), bottom_blob.buffer_offset());
@@ -1076,7 +1076,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<VkMat>& blob_ma
             if (opt.lightmode)
             {
                 // deep copy for inplace forward if data is shared
-                if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
+                if (layer->support_inplace && (!bottom_blob_ref.refcount || *bottom_blob_ref.refcount != 1))
                 {
                     cmd.record_clone(bottom_blob_ref, bottom_blobs[i], opt);
                     //                         NCNN_LOGE("clone %p[+%lu] %p[+%lu]", bottom_blob_ref.buffer(), bottom_blob_ref.buffer_offset(), bottom_blobs[i].buffer(), bottom_blobs[i].buffer_offset());
