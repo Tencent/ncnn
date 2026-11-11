@@ -1,8 +1,11 @@
 # Copyright 2021 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import gc
 import threading
 import time
+
+import numpy as np
 
 import pytest
 
@@ -136,3 +139,19 @@ def test_extractor_releases_gil():
         if max_gap < duration / 2:
             break
     assert max_gap < duration / 2
+
+
+def test_extractor_input_keeps_numpy_alive():
+    # the extractor keeps a shallow copy of the input; a temporary numpy array must stay valid until extract
+    net = ncnn.Net()
+    # Split passes the input through without an in-place forward
+    net.load_param_mem("7767517\n2 2\nInput data 0 1 data\nSplit split 1 1 data out\n")
+    net.load_model(ncnn.DataReaderFromEmpty())
+
+    with net.create_extractor() as ex:
+        ex.input("data", ncnn.Mat(np.full((4, 16, 16), 3.0, dtype=np.float32)))
+        gc.collect()
+        garbage = [np.random.rand(4, 16, 16).astype(np.float32) for _ in range(32)]
+        ret, out = ex.extract("out")
+        assert ret == 0
+        assert np.all(np.array(out) == 3.0)

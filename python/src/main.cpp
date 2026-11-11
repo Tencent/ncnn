@@ -365,6 +365,64 @@ PYBIND11_MODULE(ncnn, m)
             return std::unique_ptr<Mat>(v);
         }
 
+        // the zero-copy path below assumes a packed row-major (C-contiguous) buffer
+        bool c_contiguous = true;
+        {
+            py::ssize_t expected_stride = (py::ssize_t)elemsize;
+            for (int i = (int)info.ndim - 1; i >= 0; i--)
+            {
+                if (info.shape[i] != 1 && info.strides[i] != expected_stride)
+                {
+                    c_contiguous = false;
+                    break;
+                }
+                expected_stride *= info.shape[i];
+            }
+        }
+
+        if (!c_contiguous)
+        {
+            // strided views (transpose, slicing with a step, negative strides) cannot be wrapped,
+            // copy them into memory owned by the Mat
+            py::array contiguous = py::module_::import("numpy").attr("ascontiguousarray")(b);
+            py::buffer_info cinfo = contiguous.request();
+            const unsigned char* sptr = (const unsigned char*)cinfo.ptr;
+
+            Mat* v = new Mat;
+            if (info.ndim == 1)
+            {
+                v->create((int)info.shape[0], elemsize);
+            }
+            else if (info.ndim == 2)
+            {
+                v->create((int)info.shape[1], (int)info.shape[0], elemsize);
+            }
+            else if (info.ndim == 3)
+            {
+                v->create((int)info.shape[2], (int)info.shape[1], (int)info.shape[0], elemsize);
+            }
+            else if (info.ndim == 4)
+            {
+                v->create((int)info.shape[3], (int)info.shape[2], (int)info.shape[1], (int)info.shape[0], elemsize);
+            }
+
+            if (v->dims <= 2)
+            {
+                memcpy(v->data, sptr, (size_t)v->w * v->h * elemsize);
+            }
+            else
+            {
+                size_t channel_size = (size_t)v->w * v->h * v->d * elemsize;
+                for (int q = 0; q < v->c; q++)
+                {
+                    Mat vq = v->channel(q);
+                    memcpy(vq.data, sptr + channel_size * q, channel_size);
+                }
+            }
+
+            return std::unique_ptr<Mat>(v);
+        }
+
         Mat* v = nullptr;
         if (info.ndim == 1)
         {
@@ -394,7 +452,8 @@ PYBIND11_MODULE(ncnn, m)
         }
         return std::unique_ptr<Mat>(v);
     }),
-    py::arg("array"), py::arg("batch_index") = batch_index_none)
+    // the zero-copy Mat points into the buffer: keep the buffer alive as long as the Mat
+    py::arg("array"), py::arg("batch_index") = batch_index_none, py::keep_alive<1, 2>())
     .def_buffer([](Mat& m) -> py::buffer_info {
         return to_buffer_info(m);
     })
@@ -980,7 +1039,9 @@ PYBIND11_MODULE(ncnn, m)
     .def("set_kvcache_allocator", &Extractor::set_kvcache_allocator, py::arg("allocator"))
     .def("set_kvcache_max_seqlen_hint", &Extractor::set_kvcache_max_seqlen_hint, py::arg("max_seqlen_hint"))
 #if NCNN_STRING
-    .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"))
+    // the extractor keeps a shallow copy of the input Mat, which may point into a numpy buffer:
+    // keep the Python Mat (and through it the buffer) alive as long as the extractor
+    .def("input", (int (Extractor::*)(const char*, const Mat&)) & Extractor::input, py::arg("blob_name"), py::arg("in"), py::keep_alive<1, 3>())
     .def("extract", (int (Extractor::*)(const char*, Mat&, int)) & Extractor::extract, py::arg("blob_name"), py::arg("feat"), py::arg("type") = 0, py::call_guard<py::gil_scoped_release>())
     .def(
     "extract", [](Extractor& ex, const char* blob_name, int type) {
@@ -997,7 +1058,7 @@ PYBIND11_MODULE(ncnn, m)
     },
     py::arg("blob_name"), py::arg("type") = 0)
 #endif
-    .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input)
+    .def("input", (int (Extractor::*)(int, const Mat&)) & Extractor::input, py::keep_alive<1, 3>())
     .def("extract", (int (Extractor::*)(int, Mat&, int)) & Extractor::extract, py::arg("blob_index"), py::arg("feat"), py::arg("type") = 0, py::call_guard<py::gil_scoped_release>())
     .def(
     "extract", [](Extractor& ex, int blob_index, int type) {

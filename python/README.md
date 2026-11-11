@@ -171,6 +171,10 @@ mat_np = np.array(...)
 mat = ncnn.Mat(mat_np)
 ```
 
+For a C-contiguous array the Mat shares its memory, and the Mat (and an Extractor it is given to)
+keeps the array alive. A non-contiguous view, such as `img.transpose(2, 0, 1)` or `img[:, :, ::-1]`,
+is copied into memory owned by the Mat.
+
 # Model Zoo
 install requirements
 ```bash

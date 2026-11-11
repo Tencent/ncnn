@@ -1,6 +1,7 @@
 # Copyright 2020 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import gc
 import sys
 import numpy as np
 import pytest
@@ -778,3 +779,35 @@ def test_substract_mean_normalize():
     assert (
         np.abs((pixels[0, 0, 0] - 127.5) * 0.007843 - mat.channel(0).row(0)[0]) < 1e-5
     )
+
+
+def test_numpy_noncontiguous():
+    # strided views (transpose, slicing with a step, negative strides) must keep their logical layout
+    a1 = np.arange(10, dtype=np.float32)
+    a2 = np.arange(12, dtype=np.float32).reshape(3, 4)
+    a3 = np.arange(2 * 3 * 4, dtype=np.float32).reshape(2, 3, 4)
+    a4 = np.arange(2 * 3 * 4 * 5, dtype=np.float32).reshape(2, 3, 4, 5)
+    views = [
+        a1[::2],
+        a2.T,
+        a2[:, ::2],
+        a2[::-1],
+        a3.transpose(2, 0, 1),
+        a3[:, :, ::-1],
+        a4.transpose(3, 2, 1, 0),
+    ]
+    for view in views:
+        assert not view.flags.c_contiguous
+        mat = ncnn.Mat(view)
+        assert np.array_equal(np.array(mat), view)
+
+
+def test_numpy_buffer_kept_alive():
+    # a zero-copy Mat must keep its numpy buffer alive
+    def make():
+        return ncnn.Mat(np.full((3, 16, 16), 7.0, dtype=np.float32))
+
+    mat = make()
+    gc.collect()
+    garbage = [np.random.rand(3, 16, 16).astype(np.float32) for _ in range(32)]
+    assert np.all(np.array(mat) == 7.0)
