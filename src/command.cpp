@@ -848,8 +848,8 @@ int VkComputePrivate::resolve_weights(const std::vector<VkMat>& weights, std::ve
                 barrier.dstAccessMask = 0;
                 barrier.srcQueueFamilyIndex = src_queue_family_index;
                 barrier.dstQueueFamilyIndex = dst_queue_family_index;
-                barrier.buffer = dst.data->buffer;
-                barrier.offset = dst.data->offset;
+                barrier.buffer = dst.buffer();
+                barrier.offset = dst.buffer_offset();
                 barrier.size = size;
 
                 vkCmdPipelineBarrier(upload_command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, 0, 1, &barrier, 0, 0);
@@ -985,8 +985,8 @@ int VkComputePrivate::resolve_weights(const std::vector<VkMat>& weights, std::ve
             barriers[i].dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_TRANSFER_READ_BIT;
             barriers[i].srcQueueFamilyIndex = src_queue_family_index;
             barriers[i].dstQueueFamilyIndex = dst_queue_family_index;
-            barriers[i].buffer = weight.data->buffer;
-            barriers[i].offset = weight.data->offset;
+            barriers[i].buffer = weight.buffer();
+            barriers[i].offset = weight.buffer_offset();
             barriers[i].size = weight.buffer_capacity();
         }
 
