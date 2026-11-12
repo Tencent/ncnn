@@ -103,6 +103,8 @@ public:
 
     uint64_t pending_upload_total() const;
 
+    int status() const;
+
 protected:
     const VulkanDevice* vkdev;
 
