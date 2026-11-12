@@ -136,11 +136,11 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         // the selected tile may use fp32 accumulation even when fp16 arithmetic was requested
         opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
-        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
-        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion();
+        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
         if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
             use_qcom_cooperative_matrix = false;
-        if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+        if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !opt_cm.use_fp16_storage || !vkdev->info.support_fp16_arithmetic())
             use_qcom_cooperative_matrix = false;
 
         // qcom conversion assigns a row or column to each subgroup invocation
@@ -149,6 +149,14 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
                 || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
                 || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
             use_qcom_cooperative_matrix = false;
+
+        if (use_qcom_cooperative_matrix)
+        {
+            const int output_tiles = (M + coopmat_M - 1) / coopmat_M * ((N + coopmat_N - 1) / coopmat_N);
+            // small grids with runtime K tails lose to the existing gemm path
+            if (output_tiles < 4 || (output_tiles < 16 && K % coopmat_K != 0 && (!constantA || !constantB)))
+                use_qcom_cooperative_matrix = false;
+        }
 
         const bool use_khr_cooperative_matrix = vkdev->info.support_VK_KHR_cooperative_matrix();
         if (coopmat_M == 0 || (use_khr_cooperative_matrix && ((coopmat_M != 4 && coopmat_M % 8) || coopmat_N % 8 || coopmat_K % 8))
@@ -605,11 +613,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
             pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
             if (use_qcom_cooperative_matrix)
-            {
-                specializations.resize(28);
-                specializations[27].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
                 pipeline_gemm_pack4->create(LayerShaderType::gemm_cm_qcom, opt_cm, specializations);
-            }
             else
                 pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt_cm, specializations);
         }
@@ -1075,8 +1079,8 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
         vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_SINT8_KHR, VK_COMPONENT_TYPE_SINT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
 
-        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_int8.use_subgroup_ops;
-        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion();
+        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
         if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
             use_qcom_cooperative_matrix = false;
 
@@ -1372,42 +1376,94 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
                 return -100;
             B_data_int8_packed.fill(0);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int bn = 0; bn < blocks_n; bn++)
+            if (use_qcom_cooperative_matrix)
             {
-                signed char* p = B_data_int8_packed.row<signed char>(bn);
-
-                for (int kg = 0; kg < kkg; kg++)
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bn = 0; bn < blocks_n; bn++)
                 {
-                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
-                    {
-                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
-                        {
-                            const int kt = kg * UNROLL_SG_K + zk;
-                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
-                            {
-                                for (int i = 0; i < coopmat_K; i++)
-                                {
-                                    for (int j4 = 0; j4 < coopmat_Nd4; j4++)
-                                    {
-                                        for (int r = 0; r < 4; r++)
-                                        {
-                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j4 * 4 + r;
-                                            const int gki = kt * coopmat_K + i;
+                    signed char* p = B_data_int8_packed.row<signed char>(bn);
 
-                                            if (kt < kk && gni < constantN && gki < constantK)
+                    for (int kg = 0; kg < kkg; kg++)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                const int kt = kg * UNROLL_SG_K + zk;
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j4 = 0; j4 < coopmat_Nd4; j4++)
+                                        {
+                                            for (int r = 0; r < 4; r++)
                                             {
-                                                const int offset = ((kg * UNROLL_WG_N + wn) * (UNROLL_SG_K * UNROLL_SG_N * coopmat_K * coopmat_Nd4p) + ((zk * UNROLL_SG_N + zn) * coopmat_K + i) * coopmat_Nd4p + j4) * 4 + r;
-                                                if (B_data.elemsize == (size_t)1u)
+                                                const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j4 * 4 + r;
+                                                const int gki = kt * coopmat_K + i;
+
+                                                if (kt < kk && gni < constantN && gki < constantK)
                                                 {
-                                                    p[offset] = transB ? B_data.row<const signed char>(gni)[gki] : B_data.row<const signed char>(gki)[gni];
+                                                    const int offset = ((kg * UNROLL_WG_N + wn) * UNROLL_SG_K * UNROLL_SG_N + zk * UNROLL_SG_N + zn) * coopmat_K * coopmat_Nd4p * 4 + (j4 * 4 + r) * coopmat_K + i;
+                                                    if (B_data.elemsize == (size_t)1u)
+                                                    {
+                                                        p[offset] = transB ? B_data.row<const signed char>(gni)[gki] : B_data.row<const signed char>(gki)[gni];
+                                                    }
+                                                    else
+                                                    {
+                                                        const float v = transB ? B_data.row(gni)[gki] : B_data.row(gki)[gni];
+                                                        const float descale = B_data_int8_descale[0];
+                                                        const float scale = descale == 0.f ? 1.f : 1.f / descale;
+                                                        p[offset] = float2int8(v * scale);
+                                                    }
                                                 }
-                                                else
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int bn = 0; bn < blocks_n; bn++)
+                {
+                    signed char* p = B_data_int8_packed.row<signed char>(bn);
+
+                    for (int kg = 0; kg < kkg; kg++)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                const int kt = kg * UNROLL_SG_K + zk;
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j4 = 0; j4 < coopmat_Nd4; j4++)
+                                        {
+                                            for (int r = 0; r < 4; r++)
+                                            {
+                                                const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j4 * 4 + r;
+                                                const int gki = kt * coopmat_K + i;
+
+                                                if (kt < kk && gni < constantN && gki < constantK)
                                                 {
-                                                    const float v = transB ? B_data.row(gni)[gki] : B_data.row(gki)[gni];
-                                                    const float descale = B_data_int8_descale[0];
-                                                    const float scale = descale == 0.f ? 1.f : 1.f / descale;
-                                                    p[offset] = float2int8(v * scale);
+                                                    const int offset = ((kg * UNROLL_WG_N + wn) * (UNROLL_SG_K * UNROLL_SG_N * coopmat_K * coopmat_Nd4p) + ((zk * UNROLL_SG_N + zn) * coopmat_K + i) * coopmat_Nd4p + j4) * 4 + r;
+                                                    if (B_data.elemsize == (size_t)1u)
+                                                    {
+                                                        p[offset] = transB ? B_data.row<const signed char>(gni)[gki] : B_data.row<const signed char>(gki)[gni];
+                                                    }
+                                                    else
+                                                    {
+                                                        const float v = transB ? B_data.row(gni)[gki] : B_data.row(gki)[gni];
+                                                        const float descale = B_data_int8_descale[0];
+                                                        const float scale = descale == 0.f ? 1.f : 1.f / descale;
+                                                        p[offset] = float2int8(v * scale);
+                                                    }
                                                 }
                                             }
                                         }
@@ -1605,7 +1661,11 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
         pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
         if (use_qcom_cooperative_matrix)
+        {
+            specializations.resize(19);
+            specializations[18].u32 = constantB;
             pipeline_gemm->create(LayerShaderType::gemm_int8_cm_qcom, opt_int8, specializations);
+        }
         else
             pipeline_gemm->create(LayerShaderType::gemm_int8_cm, opt_int8, specializations);
 

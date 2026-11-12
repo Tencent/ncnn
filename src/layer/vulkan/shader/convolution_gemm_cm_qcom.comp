@@ -15,6 +15,11 @@
 #extension GL_KHR_cooperative_matrix : require
 #extension GL_QCOM_cooperative_matrix_conversion : require
 
+// match the packed-buffer stride workaround in the existing cooperative shaders
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 2, layout)
+#endif
+
 layout(constant_id = 0) const uint kernel_w = 1;
 layout(constant_id = 1) const uint kernel_h = 1;
 layout(constant_id = 2) const uint dilation_w = 1;
@@ -199,22 +204,7 @@ void main()
                                         : ((wgni * kk + k) * UNROLL_WG_N + sgni) * tile_size);
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
-            uint column[8];
-            [[unroll]] for (uint word = 0; word < 8; word++)
-            {
-                uint packed_word = 0u;
-                [[unroll]] for (uint component = 0; component < 2; component++)
-                {
-                    const uint j = word * 2 + component;
-                    uint bits = 0u;
-                    const uint offset = weight_offset + zn * N * K + j * N + si;
-                    bits = si < N ? qcom_half_bits(weight_data[offset / 4], offset % 4) : 0u;
-
-                    packed_word |= (bits & 65535u) << (component * 16);
-                }
-                column[word] = packed_word;
-            }
-            vectorToCoopmatQCOM(column, b[zn]);
+            coopMatLoad(b[zn], weight_data, (weight_offset + zn * N * K) / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
         }
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             [[unroll]]
@@ -231,19 +221,22 @@ void main()
             const uint gm = (mi + zm) * M + si;
             if (out_elempack == 1)
             {
-                [[unroll]] for (uint j = 0; j < N; j++)
+                [[unroll]] for (uint j = 0; j < N; j += 4)
                 {
-                    const uint gn = (ni + zn) * N + j;
-                    // match the original fp16 intermediate before activation
-                    const float v = si < M ? float(float16_t(qcom_accumulator_value(row, j))) : 0.f;
-                    // only the first lane writes the four packed spatial values
-                    const uint lane = si & ~3u;
-                    afpvec4 values = afpvec4(subgroupShuffle(v, lane), subgroupShuffle(v, lane + 1), subgroupShuffle(v, lane + 2), subgroupShuffle(v, lane + 3));
-                    if (si < M && si % 4 == 0 && gm < psc(outcstep) && gn < outch)
+                    afpvec4 values = si < M ? afpvec4(float16_t(qcom_accumulator_value(row, j)), float16_t(qcom_accumulator_value(row, j + 1)), float16_t(qcom_accumulator_value(row, j + 2)), float16_t(qcom_accumulator_value(row, j + 3))) : afpvec4(0.f);
+                    values = activation_afpvec4(values, activation_type, activation_param_0, activation_param_1);
+                    uvec2 packed = uvec2(packHalf2x16(vec2(values.xy)), packHalf2x16(vec2(values.zw)));
+                    const uvec2 peer = uvec2(subgroupShuffle(packed.x, si ^ 1u), subgroupShuffle(packed.y, si ^ 1u));
+                    const uvec2 pairs = (si & 1u) == 0 ? (packed & 65535u) | (peer << 16) : (peer >> 16) | (packed & 0xffff0000u);
+                    const uint exchange = (si & 2u) == 0 ? pairs.y : pairs.x;
+                    const uint other = subgroupShuffle(exchange, si ^ 2u);
+                    packed = (si & 2u) == 0 ? uvec2(pairs.x, other) : uvec2(other, pairs.y);
+
+                    const uint gn = (ni + zn) * N + j + (si & 3u);
+                    if (si < M && (gm & ~3u) < psc(outcstep) && gn < outch)
                     {
-                        values = activation_afpvec4(values, activation_type, activation_param_0, activation_param_1);
                         const uint offset = gn * (psc(outcstep) / 4) + gm / 4;
-                        top_blob_data[offset] = uvec2(packHalf2x16(vec2(values.xy)), packHalf2x16(vec2(values.zw)));
+                        top_blob_data[offset] = packed;
                     }
                 }
             }

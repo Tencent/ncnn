@@ -8,9 +8,13 @@
 #extension GL_KHR_memory_scope_semantics : require
 #extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
-#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
 #extension GL_KHR_cooperative_matrix : require
 #extension GL_QCOM_cooperative_matrix_conversion : require
+
+// match the packed-buffer stride workaround in the existing cooperative shaders
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 2, layout)
+#endif
 
 layout(constant_id = 0) const float alpha = 1.f;
 layout(constant_id = 1) const float beta = 1.f;
@@ -161,141 +165,147 @@ void main()
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             const uint gm = (mi + zm) * M + si;
-            uint row[8];
-            if (uint(psc(GK)) % 8 == 0 && (constantA == 1 || (transA == 0 && psc(A_elempack) == 1)))
+            if (constantA == 1)
             {
-                [[unroll]] for (uint pair = 0; pair < 2; pair++)
-                {
-                    const uint gk = kt * K + pair * 8;
-                    uvec4 packed = uvec4(0u);
-                    if (si < M && gm < uint(psc(GM)) && gk + 7 < uint(psc(GK)))
-                    {
-                        const uint offset = constantA == 1 ? ((wgmi * kk + kg) * UNROLL_WG_M + sgmi * group_size + kt - kg) * UNROLL_SG_M * M * K + (zm * M + si) * K + pair * 8 : gm * uint(p.A_hstep) + gk;
-                        packed = A_blob_data_8[offset / 8];
-                    }
-                    row[pair * 4] = packed.x;
-                    row[pair * 4 + 1] = packed.y;
-                    row[pair * 4 + 2] = packed.z;
-                    row[pair * 4 + 3] = packed.w;
-                }
-            }
-            else if (uint(psc(GK)) % 4 == 0 && (constantA == 1 || (transA == 0 && psc(A_elempack) == 1)))
-            {
-                [[unroll]] for (uint pair = 0; pair < 4; pair++)
-                {
-                    const uint gk = kt * K + pair * 4;
-                    uvec2 packed = uvec2(0u);
-                    if (si < M && gm < uint(psc(GM)) && gk + 3 < uint(psc(GK)))
-                    {
-                        const uint offset = constantA == 1 ? ((wgmi * kk + kg) * UNROLL_WG_M + sgmi * group_size + kt - kg) * UNROLL_SG_M * M * K + (zm * M + si) * K + pair * 4 : gm * uint(p.A_hstep) + gk;
-                        packed = A_blob_data[offset / 4];
-                    }
-                    row[pair * 2] = packed.x;
-                    row[pair * 2 + 1] = packed.y;
-                }
+                const uint offset = ((wgmi * kk + kg) * UNROLL_WG_M + sgmi * group_size + kt - kg) * UNROLL_SG_M * M * K + zm * M * K;
+                coopMatLoad(A[zm], A_blob_data, offset / 4, K / 4, gl_CooperativeMatrixLayoutRowMajor);
             }
             else
             {
-                [[unroll]] for (uint word = 0; word < 8; word++)
+                uint row[8];
+                if (uint(psc(GK)) % 8 == 0 && transA == 0 && psc(A_elempack) == 1)
                 {
-                    uint packed_word = 0u;
-                    [[unroll]] for (uint component = 0; component < 2; component++)
+                    [[unroll]] for (uint pair = 0; pair < 2; pair++)
                     {
-                        const uint r = word * 2 + component;
-                        uint bits = 0u;
-                        const uint gk = kt * K + r;
-                        bits = 0u;
-                        if (si < M && gm < uint(psc(GM)) && gk < uint(psc(GK)))
+                        const uint gk = kt * K + pair * 8;
+                        uvec4 packed = uvec4(0u);
+                        if (si < M && gm < uint(psc(GM)) && gk + 7 < uint(psc(GK)))
                         {
-                            uint ai;
-                            if (constantA == 1)
-                                ai = ((wgmi * kk + kg) * UNROLL_WG_M + sgmi * group_size + kt - kg) * UNROLL_SG_M * M * K + (zm * M + si) * K + r;
-                            else
+                            const uint offset = gm * uint(p.A_hstep) + gk;
+                            packed = A_blob_data_8[offset / 8];
+                        }
+                        row[pair * 4] = packed.x;
+                        row[pair * 4 + 1] = packed.y;
+                        row[pair * 4 + 2] = packed.z;
+                        row[pair * 4 + 3] = packed.w;
+                    }
+                }
+                else if (uint(psc(GK)) % 4 == 0 && transA == 0 && psc(A_elempack) == 1)
+                {
+                    [[unroll]] for (uint pair = 0; pair < 4; pair++)
+                    {
+                        const uint gk = kt * K + pair * 4;
+                        uvec2 packed = uvec2(0u);
+                        if (si < M && gm < uint(psc(GM)) && gk + 3 < uint(psc(GK)))
+                        {
+                            const uint offset = gm * uint(p.A_hstep) + gk;
+                            packed = A_blob_data[offset / 4];
+                        }
+                        row[pair * 2] = packed.x;
+                        row[pair * 2 + 1] = packed.y;
+                    }
+                }
+                else
+                {
+                    [[unroll]] for (uint word = 0; word < 8; word++)
+                    {
+                        uint packed_word = 0u;
+                        [[unroll]] for (uint component = 0; component < 2; component++)
+                        {
+                            const uint r = word * 2 + component;
+                            uint bits = 0u;
+                            const uint gk = kt * K + r;
+                            bits = 0u;
+                            if (si < M && gm < uint(psc(GM)) && gk < uint(psc(GK)))
                             {
+                                uint ai;
                                 const uint ar = transA == 0 ? gm : gk;
                                 const uint ac = transA == 0 ? gk : gm;
                                 const uint pack = uint(psc(A_elempack));
                                 ai = (ar / pack * uint(p.A_hstep) + ac) * pack + ar % pack;
+                                bits = load_a_bits(ai);
                             }
-                            bits = load_a_bits(ai);
-                        }
 
-                        packed_word |= (bits & 65535u) << (component * 16);
+                            packed_word |= (bits & 65535u) << (component * 16);
+                        }
+                        row[word] = packed_word;
                     }
-                    row[word] = packed_word;
                 }
+                vectorToCoopmatQCOM(row, A[zm]);
             }
-            vectorToCoopmatQCOM(row, A[zm]);
         }
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
             const uint gn = (ni + zn) * N + si;
-            uint column[8];
-            if (constantB == 0 && transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 8 == 0)
+            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
+            if (constantB == 1)
             {
-                [[unroll]] for (uint pair = 0; pair < 2; pair++)
-                {
-                    const uint gk = kt * K + pair * 8;
-                    uvec4 packed = uvec4(0u);
-                    if (si < N && gn < uint(psc(GN)) && gk + 7 < uint(psc(GK)))
-                    {
-                        const uint offset = gn * uint(p.B_hstep) + gk;
-                        packed = B_blob_data_8[offset / 8];
-                    }
-                    column[pair * 4] = packed.x;
-                    column[pair * 4 + 1] = packed.y;
-                    column[pair * 4 + 2] = packed.z;
-                    column[pair * 4 + 3] = packed.w;
-                }
-            }
-            else if (constantB == 0 && transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 4 == 0)
-            {
-                [[unroll]] for (uint pair = 0; pair < 4; pair++)
-                {
-                    const uint gk = kt * K + pair * 4;
-                    uvec2 packed = uvec2(0u);
-                    if (si < N && gn < uint(psc(GN)) && gk + 3 < uint(psc(GK)))
-                    {
-                        const uint offset = gn * uint(p.B_hstep) + gk;
-                        packed = B_blob_data[offset / 4];
-                    }
-                    column[pair * 2] = packed.x;
-                    column[pair * 2 + 1] = packed.y;
-                }
+                const uint offset = ((wgni * kk + kg) * UNROLL_WG_N + sgni * group_size + kt - kg) * UNROLL_SG_N * K * N + zn * K * N;
+                coopMatLoad(B, B_blob_data, offset / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
             }
             else
             {
-                [[unroll]] for (uint word = 0; word < 8; word++)
+                uint column[8];
+                if (transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 8 == 0)
                 {
-                    uint packed_word = 0u;
-                    [[unroll]] for (uint component = 0; component < 2; component++)
+                    [[unroll]] for (uint pair = 0; pair < 2; pair++)
                     {
-                        const uint r = word * 2 + component;
-                        uint bits = 0u;
-                        const uint gk = kt * K + r;
-                        bits = 0u;
-                        if (si < N && gn < uint(psc(GN)) && gk < uint(psc(GK)))
+                        const uint gk = kt * K + pair * 8;
+                        uvec4 packed = uvec4(0u);
+                        if (si < N && gn < uint(psc(GN)) && gk + 7 < uint(psc(GK)))
                         {
-                            uint bi;
-                            if (constantB == 1)
-                                bi = ((wgni * kk + kg) * UNROLL_WG_N + sgni * group_size + kt - kg) * UNROLL_SG_N * K * N + (zn * K + r) * N + si;
-                            else
+                            const uint offset = gn * uint(p.B_hstep) + gk;
+                            packed = B_blob_data_8[offset / 8];
+                        }
+                        column[pair * 4] = packed.x;
+                        column[pair * 4 + 1] = packed.y;
+                        column[pair * 4 + 2] = packed.z;
+                        column[pair * 4 + 3] = packed.w;
+                    }
+                }
+                else if (transB == 1 && psc(B_elempack) == 1 && uint(psc(GK)) % 4 == 0)
+                {
+                    [[unroll]] for (uint pair = 0; pair < 4; pair++)
+                    {
+                        const uint gk = kt * K + pair * 4;
+                        uvec2 packed = uvec2(0u);
+                        if (si < N && gn < uint(psc(GN)) && gk + 3 < uint(psc(GK)))
+                        {
+                            const uint offset = gn * uint(p.B_hstep) + gk;
+                            packed = B_blob_data[offset / 4];
+                        }
+                        column[pair * 2] = packed.x;
+                        column[pair * 2 + 1] = packed.y;
+                    }
+                }
+                else
+                {
+                    [[unroll]] for (uint word = 0; word < 8; word++)
+                    {
+                        uint packed_word = 0u;
+                        [[unroll]] for (uint component = 0; component < 2; component++)
+                        {
+                            const uint r = word * 2 + component;
+                            uint bits = 0u;
+                            const uint gk = kt * K + r;
+                            bits = 0u;
+                            if (si < N && gn < uint(psc(GN)) && gk < uint(psc(GK)))
                             {
+                                uint bi;
                                 const uint br = transB == 0 ? gk : gn;
                                 const uint bc = transB == 0 ? gn : gk;
                                 const uint pack = uint(psc(B_elempack));
                                 bi = (br / pack * uint(p.B_hstep) + bc) * pack + br % pack;
+                                bits = load_b_bits(bi);
                             }
-                            bits = load_b_bits(bi);
-                        }
 
-                        packed_word |= (bits & 65535u) << (component * 16);
+                            packed_word |= (bits & 65535u) << (component * 16);
+                        }
+                        column[word] = packed_word;
                     }
-                    column[word] = packed_word;
                 }
+                vectorToCoopmatQCOM(column, B);
             }
-            coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
-            vectorToCoopmatQCOM(column, B);
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
                 sum[zn][zm] = coopMatMulAdd(A[zm], B, sum[zn][zm]);
         }
@@ -305,22 +315,42 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            sum[zn][zm] = sum[zn][zm] * afp(alpha);
+            if (alpha != 1.f)
+                sum[zn][zm] = sum[zn][zm] * afp(alpha);
             uint row[qcom_accumulator_words];
             coopmatToVectorQCOM(sum[zn][zm], row);
             const uint gm = (mi + zm) * M + si;
             if (si < M && gm < uint(psc(GM)))
             {
-                [[unroll]] for (uint j = 0; j < N; j++)
+                if (output_transpose == 0 && psc(out_elempack) == 1 && p.outhstep % 4 == 0 && psc(GN) % 4 == 0)
                 {
-                    const uint gn = (ni + zn) * N + j;
-                    if (gn < uint(psc(GN)))
+                    [[unroll]] for (uint j = 0; j < N; j += 4)
                     {
-                        const uint orow = output_transpose == 0 ? gm : gn;
-                        const uint ocol = output_transpose == 0 ? gn : gm;
-                        const uint pack = uint(psc(out_elempack));
-                        const uint oi = (orow / pack * uint(p.outhstep) + ocol) * pack + orow % pack;
-                        buffer_st1(top_blob_data, oi, float16_t(qcom_accumulator_value(row, j)));
+                        const uint gn = (ni + zn) * N + j;
+                        if (gn < uint(psc(GN)))
+                        {
+#if NCNN_fp16_arithmetic
+                            const uvec2 packed = uvec2(row[j / 2], row[j / 2 + 1]);
+#else
+                            const uvec2 packed = uvec2(packHalf2x16(vec2(qcom_accumulator_value(row, j), qcom_accumulator_value(row, j + 1))), packHalf2x16(vec2(qcom_accumulator_value(row, j + 2), qcom_accumulator_value(row, j + 3))));
+#endif
+                            top_blob_data_4[(gm * uint(p.outhstep) + gn) / 4] = packed;
+                        }
+                    }
+                }
+                else
+                {
+                    [[unroll]] for (uint j = 0; j < N; j++)
+                    {
+                        const uint gn = (ni + zn) * N + j;
+                        if (gn < uint(psc(GN)))
+                        {
+                            const uint orow = output_transpose == 0 ? gm : gn;
+                            const uint ocol = output_transpose == 0 ? gn : gm;
+                            const uint pack = uint(psc(out_elempack));
+                            const uint oi = (orow / pack * uint(p.outhstep) + ocol) * pack + orow % pack;
+                            buffer_st1(top_blob_data, oi, float16_t(qcom_accumulator_value(row, j)));
+                        }
                     }
                 }
             }

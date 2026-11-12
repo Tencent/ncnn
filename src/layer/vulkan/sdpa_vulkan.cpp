@@ -92,8 +92,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
 
         opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
 
-        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
-        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+        use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion();
+        const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
         if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
             use_qcom_cooperative_matrix = false;
         if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
@@ -104,6 +104,10 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
                 || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
                 || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
+            use_qcom_cooperative_matrix = false;
+
+        // the shared-memory cross path is faster on adreno
+        if (vkdev->info.vendor_id() == 0x5143)
             use_qcom_cooperative_matrix = false;
 
         if (coopmat_M == 0 || coopmat_N % 8 || coopmat_K % 8
@@ -171,8 +175,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
         use_flash_attention = ((support_subgroup_ops & required_subgroup_ops) == required_subgroup_ops);
     }
 
-    // retain the shared-memory flash attention blacklist on adreno
-    if (vkdev->info.vendor_id() == 0x5143 && use_cooperative_matrix && !vkdev->info.support_cooperative_matrix_conversion())
+    // keep adreno cooperative flash attention disabled until validated
+    if (vkdev->info.vendor_id() == 0x5143 && use_cooperative_matrix)
         use_flash_attention = false;
 
     if (use_flash_attention)
@@ -192,8 +196,8 @@ int SDPA_vulkan::create_pipeline(const Option& opt)
                 vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, FA_coopmat_M, FA_coopmat_N, FA_coopmat_K, FA_coopmat_subgroup_size);
             }
 
-            bool use_qcom_flash_attention = vkdev->info.support_cooperative_matrix_conversion() && opt.use_subgroup_ops;
-            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            bool use_qcom_flash_attention = vkdev->info.support_cooperative_matrix_conversion();
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_flash_attention = false;
             if (opt.use_bf16_storage || opt.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())

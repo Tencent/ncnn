@@ -8,12 +8,16 @@
 
 #extension GL_EXT_control_flow_attributes : require
 #extension GL_KHR_shader_subgroup_basic : require
-#extension GL_KHR_shader_subgroup_shuffle : require
 #extension GL_KHR_memory_scope_semantics : require
 #extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #extension GL_KHR_cooperative_matrix : require
 #extension GL_QCOM_cooperative_matrix_conversion : require
+
+// match the packed-buffer stride workaround in the existing cooperative shaders
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 2, layout)
+#endif
 
 layout(constant_id = 0) const uint kernel_w = 1;
 layout(constant_id = 1) const uint dilation_w = 1;
@@ -194,22 +198,7 @@ void main()
                                         : ((wgni * kk + k) * UNROLL_WG_N + sgni) * tile_size);
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
-            uint column[8];
-            [[unroll]] for (uint word = 0; word < 8; word++)
-            {
-                uint packed_word = 0u;
-                [[unroll]] for (uint component = 0; component < 2; component++)
-                {
-                    const uint j = word * 2 + component;
-                    uint bits = 0u;
-                    const uint offset = weight_offset + zn * N * K + j * N + si;
-                    bits = si < N ? qcom_half_bits(weight_data[offset / 4], offset % 4) : 0u;
-
-                    packed_word |= (bits & 65535u) << (component * 16);
-                }
-                column[word] = packed_word;
-            }
-            vectorToCoopmatQCOM(column, b[zn]);
+            coopMatLoad(b[zn], weight_data, (weight_offset + zn * N * K) / 4, N / 4, gl_CooperativeMatrixLayoutRowMajor);
         }
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             [[unroll]]

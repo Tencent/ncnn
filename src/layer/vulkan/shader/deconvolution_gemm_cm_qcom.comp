@@ -3,9 +3,6 @@
 
 #version 460
 
-#extension GL_GOOGLE_include_directive : require
-#include "vulkan_activation.comp"
-
 #extension GL_EXT_control_flow_attributes : require
 #extension GL_KHR_shader_subgroup_basic : require
 #extension GL_KHR_shader_subgroup_shuffle : require
@@ -36,7 +33,7 @@ layout(constant_id = shape_constant_id_offset + 2) const uint outcstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { uvec2 bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer col_blob { uvec2 col_blob_data[]; };
-layout(binding = 2) readonly buffer weight_blob { uvec2 weight_data[]; };
+layout(binding = 2) readonly buffer weight_blob { uvec4 weight_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -44,11 +41,6 @@ layout(push_constant) uniform parameter
     uint cstep;
     uint outcstep;
 } p;
-
-float unpack_scalar(uvec2 v, uint i)
-{
-    return unpackHalf2x16(v[i / 2])[i % 2];
-}
 
 // each invocation supplies one row of a and one column of b
 // Adreno requires a direct specialization constant for packed array lengths.
@@ -108,7 +100,7 @@ void main()
                 {
                     const uint gk = k * K + pair * 4;
                     const uint channel = (gk / 4 / maxk) * 4;
-                    const uint kernel = (gk / 4) % maxk;
+
                     const uint pos = gm;
                     uvec2 packed = uvec2(0u);
                     if (si < M && gm < output_size && channel < inch && pos < psc(cstep))
@@ -128,7 +120,7 @@ void main()
                         uint bits = 0u;
                         const uint gk = k * K + j;
                         const uint channel = elempack == 1 ? gk / maxk : (gk / 4 / maxk) * 4 + gk % 4;
-                        const uint kernel = elempack == 1 ? gk % maxk : (gk / 4) % maxk;
+
                         const uint pos = gm;
                         bits = 0u;
                         if (si < M && gm < output_size && channel < inch && pos < psc(cstep))
@@ -161,19 +153,18 @@ void main()
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
         {
             uint column[8];
-            [[unroll]] for (uint word = 0; word < 8; word++)
+            [[unroll]] for (uint quad = 0; quad < 2; quad++)
             {
-                uint packed_word = 0u;
-                [[unroll]] for (uint component = 0; component < 2; component++)
+                uvec4 packed = uvec4(0u);
+                if (si < N)
                 {
-                    const uint j = word * 2 + component;
-                    uint bits = 0u;
-                    const uint offset = weight_offset + zn * N * K + j * N + si;
-                    bits = si < N ? qcom_half_bits(weight_data[offset / 4], offset % 4) : 0u;
-
-                    packed_word |= (bits & 65535u) << (component * 16);
+                    const uint offset = weight_offset + zn * N * K + si * K + quad * 8;
+                    packed = weight_data[offset / 8];
                 }
-                column[word] = packed_word;
+                column[quad * 4] = packed.x;
+                column[quad * 4 + 1] = packed.y;
+                column[quad * 4 + 2] = packed.z;
+                column[quad * 4 + 3] = packed.w;
             }
             vectorToCoopmatQCOM(column, b[zn]);
         }
@@ -192,18 +183,21 @@ void main()
             const uint gm = (mi + zm) * M + si;
             if (out_elempack == 1)
             {
-                [[unroll]] for (uint j = 0; j < N; j++)
+                [[unroll]] for (uint j = 0; j < N; j += 4)
                 {
-                    const uint gn = (ni + zn) * N + j;
-                    // match the original fp16 intermediate before activation
-                    const float v = si < M ? float(float16_t(qcom_accumulator_value(row, j))) : 0.f;
-                    // only the first lane writes the four packed spatial values
-                    const uint lane = si & ~3u;
-                    afpvec4 values = afpvec4(subgroupShuffle(v, lane), subgroupShuffle(v, lane + 1), subgroupShuffle(v, lane + 2), subgroupShuffle(v, lane + 3));
-                    if (si < M && si % 4 == 0 && gm < psc(outcstep) && gn < outch)
+                    afpvec4 values = si < M ? afpvec4(float16_t(qcom_accumulator_value(row, j)), float16_t(qcom_accumulator_value(row, j + 1)), float16_t(qcom_accumulator_value(row, j + 2)), float16_t(qcom_accumulator_value(row, j + 3))) : afpvec4(0.f);
+                    uvec2 packed = uvec2(packHalf2x16(vec2(values.xy)), packHalf2x16(vec2(values.zw)));
+                    const uvec2 peer = uvec2(subgroupShuffle(packed.x, si ^ 1u), subgroupShuffle(packed.y, si ^ 1u));
+                    const uvec2 pairs = (si & 1u) == 0 ? (packed & 65535u) | (peer << 16) : (peer >> 16) | (packed & 0xffff0000u);
+                    const uint exchange = (si & 2u) == 0 ? pairs.y : pairs.x;
+                    const uint other = subgroupShuffle(exchange, si ^ 2u);
+                    packed = (si & 2u) == 0 ? uvec2(pairs.x, other) : uvec2(other, pairs.y);
+
+                    const uint gn = (ni + zn) * N + j + (si & 3u);
+                    if (si < M && (gm & ~3u) < psc(outcstep) && gn < outch)
                     {
                         const uint offset = gn * (psc(outcstep) / 4) + gm / 4;
-                        col_blob_data[offset] = uvec2(packHalf2x16(vec2(values.xy)), packHalf2x16(vec2(values.zw)));
+                        col_blob_data[offset] = packed;
                     }
                 }
             }

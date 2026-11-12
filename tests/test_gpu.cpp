@@ -68,16 +68,26 @@ static int test_cooperative_matrix_conversion_features()
     {
         const ncnn::GpuInfo& info = ncnn::get_gpu_info(i);
         const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM& features = info.queryCooperativeMatrixConversionFeaturesQCOM();
-        const bool expected = info.queryCooperativeMatrixFeatures().cooperativeMatrix && features.cooperativeMatrixConversion;
+        bool forced = false;
 
 #if defined __ANDROID__
-        if (info.vendor_id() == 0x5143 && info.support_VK_KHR_cooperative_matrix()
-                && (!info.support_VK_QCOM_cooperative_matrix_conversion() || !features.cooperativeMatrixConversion))
-        {
-            fprintf(stderr, "test_cooperative_matrix_conversion_features failed forced android qcom capability gpu=%d\n", i);
-            return -1;
-        }
+        forced = info.vendor_id() == 0x5143 && info.support_VK_KHR_cooperative_matrix() && !info.support_VK_QCOM_cooperative_matrix_conversion();
 #endif // __ANDROID__
+
+        const bool expected = info.queryCooperativeMatrixFeatures().cooperativeMatrix
+                              && ((info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion) || forced);
+
+        struct Feature
+        {
+            VkStructureType sType;
+            const void* pNext;
+        };
+        bool chained = false;
+        for (const Feature* f = (const Feature*)info.queryExtensionFeatures(); f; f = (const Feature*)f->pNext)
+        {
+            if (f->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM)
+                chained = true;
+        }
 
         if (info.support_cooperative_matrix_conversion())
         {
@@ -91,6 +101,7 @@ static int test_cooperative_matrix_conversion_features()
 
         if (features.sType != VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM
                 || (!info.support_VK_QCOM_cooperative_matrix_conversion() && features.cooperativeMatrixConversion)
+                || chained != (info.support_VK_QCOM_cooperative_matrix_conversion() != 0)
                 || (info.support_VK_QCOM_cooperative_matrix_conversion() && !info.support_VK_KHR_cooperative_matrix())
                 || info.support_cooperative_matrix_conversion() != expected)
         {
@@ -104,6 +115,7 @@ static int test_cooperative_matrix_conversion_features()
 
 static int test_compile_spirv_module_cooperative_matrix_conversion()
 {
+#if NCNN_TEST_LAYER_convolution || NCNN_TEST_LAYER_convolution1d || NCNN_TEST_LAYER_deconvolution || NCNN_TEST_LAYER_gemm || NCNN_TEST_LAYER_sdpa
     struct Shader
     {
         int type;
@@ -111,18 +123,13 @@ static int test_compile_spirv_module_cooperative_matrix_conversion()
         bool int8;
     };
     const Shader shaders[] = {
-        {-1, "", false},
 #if NCNN_TEST_LAYER_convolution
         {ncnn::LayerShaderType::convolution_1x1s1d1_cm_qcom, "convolution_1x1s1d1_cm_qcom", false},
         {ncnn::LayerShaderType::convolution_gemm_cm_qcom, "convolution_gemm_cm_qcom", false},
         {ncnn::LayerShaderType::convolution_winograd_gemm_cm_qcom, "convolution_winograd_gemm_cm_qcom", false},
 #if NCNN_INT8
         {ncnn::LayerShaderType::convolution_1x1s1d1_int8_cm_qcom, "convolution_1x1s1d1_int8_cm_qcom", true},
-#endif
-#if NCNN_INT8
         {ncnn::LayerShaderType::convolution_gemm_int8_cm_qcom, "convolution_gemm_int8_cm_qcom", true},
-#endif
-#if NCNN_INT8
         {ncnn::LayerShaderType::convolution_3x3s1d1_winograd_gemm_int8_cm_qcom, "convolution_3x3s1d1_winograd_gemm_int8_cm_qcom", true},
 #endif
 #endif
@@ -147,12 +154,8 @@ static int test_compile_spirv_module_cooperative_matrix_conversion()
 
     for (int device_index = 0; device_index < ncnn::get_gpu_count(); device_index++)
     {
-        const ncnn::GpuInfo& info = ncnn::get_gpu_info(device_index);
-        if (!info.support_cooperative_matrix_conversion())
-            continue;
-
         // compile only, matrix dimensions are supplied by pipeline specialization
-        for (size_t i = 1; i < sizeof(shaders) / sizeof(shaders[0]); i++)
+        for (size_t i = 0; i < sizeof(shaders) / sizeof(shaders[0]); i++)
         {
             for (int fp16_storage = 0; fp16_storage < 2; fp16_storage++)
             {
@@ -187,6 +190,7 @@ static int test_compile_spirv_module_cooperative_matrix_conversion()
             }
         }
     }
+#endif
 
     return 0;
 }

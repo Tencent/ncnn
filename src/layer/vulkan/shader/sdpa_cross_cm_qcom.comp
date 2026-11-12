@@ -8,7 +8,6 @@
 #extension GL_KHR_memory_scope_semantics : require
 #extension GL_EXT_shader_explicit_arithmetic_types : require
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
-#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
 #extension GL_KHR_cooperative_matrix : require
 #extension GL_QCOM_cooperative_matrix_conversion : require
 
@@ -41,6 +40,7 @@ layout(binding = 0) readonly buffer A_blob_8 { uvec4 A_blob_data_8[]; };
 layout(binding = 1) readonly buffer B_blob { uvec2 B_blob_data[]; };
 layout(binding = 1) readonly buffer B_blob_8 { uvec4 B_blob_data_8[]; };
 layout(binding = 2) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 2) writeonly buffer top_blob_4 { uvec2 top_blob_data_4[]; };
 layout(binding = 3) readonly buffer attn_mask_blob { sfp attn_mask_blob_data[]; };
 
 layout(push_constant) uniform parameter
@@ -192,18 +192,38 @@ void main()
             const uint gm = (mi + zm) * M + si;
             if (si < M && gm < uint(psc(GM)))
             {
-                [[unroll]] for (uint j = 0; j < N; j++)
+                if (psc(GN) % 4 == 0 && psc(out_cstep) % 4 == 0)
                 {
-                    const uint gn = (ni + zn) * N + j;
-                    if (gn < uint(psc(GN)))
+                    [[unroll]] for (uint j = 0; j < N; j += 4)
                     {
-                        afp value = afp(qcom_accumulator_value(row, j)) * afp(psc(scale));
-                        if (attn_mask == 1)
+                        const uint gn = (ni + zn) * N + j;
+                        if (gn < uint(psc(GN)))
                         {
-                            const uint mask_head = psc(attn_mask_dims) == 3 ? gz : 0;
-                            value += afp(float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn)));
+                            afpvec4 values = afpvec4(qcom_accumulator_value(row, j), qcom_accumulator_value(row, j + 1), qcom_accumulator_value(row, j + 2), qcom_accumulator_value(row, j + 3)) * afp(psc(scale));
+                            if (attn_mask == 1)
+                            {
+                                const uint mask_head = psc(attn_mask_dims) == 3 ? gz : 0;
+                                values += afpvec4(float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn)), float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn + 1)), float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn + 2)), float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn + 3)));
+                            }
+                            top_blob_data_4[(gz * uint(psc(out_cstep)) + gm * uint(psc(GN)) + gn) / 4] = uvec2(packHalf2x16(vec2(values.xy)), packHalf2x16(vec2(values.zw)));
                         }
-                        buffer_st1(top_blob_data, gz * uint(psc(out_cstep)) + gm * uint(psc(GN)) + gn, float16_t(value));
+                    }
+                }
+                else
+                {
+                    [[unroll]] for (uint j = 0; j < N; j++)
+                    {
+                        const uint gn = (ni + zn) * N + j;
+                        if (gn < uint(psc(GN)))
+                        {
+                            afp value = afp(qcom_accumulator_value(row, j)) * afp(psc(scale));
+                            if (attn_mask == 1)
+                            {
+                                const uint mask_head = psc(attn_mask_dims) == 3 ? gz : 0;
+                                value += afp(float16_t(buffer_ld1(attn_mask_blob_data, mask_head * uint(psc(mask_cstep)) + gm * uint(psc(GN)) + gn)));
+                            }
+                            buffer_st1(top_blob_data, gz * uint(psc(out_cstep)) + gm * uint(psc(GN)) + gn, float16_t(value));
+                        }
                     }
                 }
             }

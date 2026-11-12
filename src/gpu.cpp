@@ -995,13 +995,6 @@ int GpuInfoPrivate::query_extensions()
         support_VK_NV_cooperative_matrix2 = 0;
         support_VK_QCOM_cooperative_matrix_conversion = 0;
     }
-#if defined __ANDROID__
-    if (physicalDeviceProperties.vendorID == 0x5143 && support_VK_KHR_cooperative_matrix && !support_VK_QCOM_cooperative_matrix_conversion)
-    {
-        // force qcom conversion alongside khr cooperative matrix on android adreno
-        support_VK_QCOM_cooperative_matrix_conversion = 1;
-    }
-#endif // __ANDROID__
 
     if (!support_VK_KHR_surface)
         support_VK_KHR_swapchain = 0;
@@ -1278,14 +1271,6 @@ void GpuInfoPrivate::query_extension_features()
 
         vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &queryFeatures);
     }
-
-#if defined __ANDROID__
-    if (physicalDeviceProperties.vendorID == 0x5143 && support_VK_KHR_cooperative_matrix)
-    {
-        // retain the forced capability even when the driver does not report it
-        queryCooperativeMatrixConversionFeaturesQCOM.cooperativeMatrixConversion = VK_TRUE;
-    }
-#endif // __ANDROID__
 
     // apply known blacklist
     if (physicalDeviceProperties.vendorID == 0x13b5 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 0, 82))
@@ -2213,6 +2198,12 @@ bool GpuInfo::support_cooperative_matrix() const
 
 bool GpuInfo::support_cooperative_matrix_conversion() const
 {
+#if defined __ANDROID__
+    // force qcom conversion alongside khr cooperative matrix on android adreno
+    if (d->physicalDeviceProperties.vendorID == 0x5143 && d->support_VK_KHR_cooperative_matrix && !d->support_VK_QCOM_cooperative_matrix_conversion)
+        return d->queryCooperativeMatrixFeatures.cooperativeMatrix;
+#endif // __ANDROID__
+
     return d->queryCooperativeMatrixFeatures.cooperativeMatrix && d->queryCooperativeMatrixConversionFeaturesQCOM.cooperativeMatrixConversion;
 }
 
@@ -4228,19 +4219,7 @@ VulkanDevice::VulkanDevice(int device_index)
     if (info.support_VK_NV_cooperative_vector())
         enabledExtensions.push_back("VK_NV_cooperative_vector");
     if (info.support_VK_QCOM_cooperative_matrix_conversion())
-    {
-        // Android's loader rejects unadvertised extension names even when the
-        // Adreno shader compiler supports the conversion instructions.
-        const std::vector<VkExtensionProperties>& properties = info.deviceExtensionProperties();
-        for (size_t i = 0; i < properties.size(); i++)
-        {
-            if (strcmp(properties[i].extensionName, "VK_QCOM_cooperative_matrix_conversion") == 0)
-            {
-                enabledExtensions.push_back("VK_QCOM_cooperative_matrix_conversion");
-                break;
-            }
-        }
-    }
+        enabledExtensions.push_back("VK_QCOM_cooperative_matrix_conversion");
 
     const void* enabledExtensionFeatures = info.queryExtensionFeatures();
 
@@ -5736,12 +5715,8 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             for (size_t i = 0; i < properties.size(); i++)
             {
                 const VkExtensionProperties& exp = properties[i];
-                if (strcmp(exp.extensionName, "VK_QCOM_cooperative_matrix_conversion") == 0)
-                    continue;
                 device_defines.append(exp.extensionName, exp.specVersion);
             }
-            if (info.support_VK_QCOM_cooperative_matrix_conversion())
-                device_defines.append("VK_QCOM_cooperative_matrix_conversion", info.support_VK_QCOM_cooperative_matrix_conversion());
         }
 
 #define DD_APPEND_FEATURE(X) device_defines.append(#X, features.X ? 1 : 0);
