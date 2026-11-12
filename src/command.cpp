@@ -3610,8 +3610,8 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barrier.buffer = dst_staging.buffer();
-        barrier.offset = dst_staging.data->offset;
-        barrier.size = dst_staging.data->capacity;
+        barrier.offset = dst_staging.buffer_offset();
+        barrier.size = dst_staging.buffer_capacity();
 
         VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_HOST_BIT;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
