@@ -7,19 +7,22 @@
 #include <stdio.h>
 #include <string.h>
 
-static int test_sdpa_fa_cm(bool khr, bool bf16, bool maintenance1, bool conversions, unsigned int vendor)
+static int test_sdpa_fa_cm(bool khr, bool bf16, bool maintenance1, bool conversions, bool reductions, bool per_element, unsigned int vendor)
 {
     // Override device macros in the shader body, after compile_spirv_module injects
     // its device definitions. Compilation needs a Vulkan device, but does not
     // require that device to support cooperative matrices or maintenance1.
-    char defines[1024];
+    char defines[1536];
     snprintf(defines, sizeof(defines),
              "#undef ncnn_VK_KHR_cooperative_matrix\n#define ncnn_VK_KHR_cooperative_matrix %d\n"
              "#undef ncnn_VK_NV_cooperative_matrix\n#define ncnn_VK_NV_cooperative_matrix %d\n"
              "#undef ncnn_VK_EXT_cooperative_matrix_maintenance1\n#define ncnn_VK_EXT_cooperative_matrix_maintenance1 %d\n"
              "#undef ncnn_cooperativeMatrixConversionsEXT\n#define ncnn_cooperativeMatrixConversionsEXT %d\n"
+             "#undef ncnn_cooperativeMatrixReductionsEXT\n#define ncnn_cooperativeMatrixReductionsEXT %d\n"
+             "#undef ncnn_cooperativeMatrixPerElementOperationsEXT\n#define ncnn_cooperativeMatrixPerElementOperationsEXT %d\n"
+             "#undef ncnn_cooperativeMatrixGetCoordinate\n#define ncnn_cooperativeMatrixGetCoordinate 0\n"
              "#undef ncnn_vendorID\n#define ncnn_vendorID %u\n",
-             khr, !khr, maintenance1, conversions, vendor);
+             khr, !khr, maintenance1, conversions, reductions, per_element, vendor);
     const size_t source_size = sizeof(sdpa_fa_cm_comp_data);
     const size_t defines_size = strlen(defines);
     char* source = new char[source_size + defines_size + 1];
@@ -48,12 +51,18 @@ static int test_sdpa_fa_cm(bool khr, bool bf16, bool maintenance1, bool conversi
     delete[] source;
     if (ret != 0 || spirv.size() < 5)
     {
-        fprintf(stderr, "sdpa_fa_cm compile failed khr=%d bf16=%d maintenance1=%d conversions=%d vendor=%x\n", khr, bf16, maintenance1, conversions, vendor);
+        fprintf(stderr, "sdpa_fa_cm compile failed khr=%d bf16=%d maintenance1=%d conversions=%d reductions=%d per_element=%d vendor=%x\n", khr, bf16, maintenance1, conversions, reductions, per_element,
+                vendor);
         return -1;
     }
 
     bool has_conversions = false;
     bool has_maintenance1 = false;
+    bool has_reductions = false;
+    bool has_per_element = false;
+    bool has_coordinates = false;
+    int reduction_ops = 0;
+    int per_element_ops = 0;
     int matrix_a_conversions = 0;
     std::vector<bool> zero_constants(spirv[3], false);
     std::vector<bool> matrix_a_types(spirv[3], false);
@@ -67,6 +76,17 @@ static int test_sdpa_fa_cm(bool khr, bool bf16, bool maintenance1, bool conversi
         // so this test does not depend on private glslang/SPIR-V headers.
         if (opcode == 17 && word_count == 2 && spirv[i + 1] == 5429)
             has_conversions = true;
+        // CooperativeMatrixReductionsEXT and CooperativeMatrixPerElementOperationsEXT.
+        if (opcode == 17 && word_count == 2 && spirv[i + 1] == 5430)
+            has_reductions = true;
+        if (opcode == 17 && word_count == 2 && spirv[i + 1] == 5432)
+            has_per_element = true;
+        if (opcode == 17 && word_count == 2 && spirv[i + 1] == 5438)
+            has_coordinates = true;
+        if (opcode == 5366)
+            reduction_ops++;
+        if (opcode == 5369)
+            per_element_ops++;
         // OpExtension SPV_EXT_cooperative_matrix_maintenance1.
         const char extension[] = "SPV_EXT_cooperative_matrix_maintenance1";
         if (opcode == 10 && (word_count - 1) * 4 >= sizeof(extension)
@@ -84,10 +104,15 @@ static int test_sdpa_fa_cm(bool khr, bool bf16, bool maintenance1, bool conversi
         i += word_count;
     }
     const bool expected = khr && maintenance1 && conversions;
-    if (has_conversions != expected || has_maintenance1 != expected || matrix_a_conversions != (expected ? 2 : 0))
+    const bool expected_reductions = khr && maintenance1 && reductions && per_element;
+    if (has_conversions != expected || has_maintenance1 != (expected || expected_reductions) || matrix_a_conversions != (expected ? 2 : 0)
+            || has_reductions != expected_reductions || has_per_element != expected_reductions || has_coordinates
+            || reduction_ops != (expected_reductions ? 4 : 0) || (per_element_ops != 0) != expected_reductions)
     {
         fprintf(stderr, "sdpa_fa_cm conversion capability mismatch khr=%d bf16=%d maintenance1=%d conversions=%d vendor=%x expected=%d capability=%d extension=%d matrix_a_conversions=%d\n", khr, bf16,
                 maintenance1, conversions, vendor, expected, has_conversions, has_maintenance1, matrix_a_conversions);
+        fprintf(stderr, "reductions=%d per_element=%d expected_reductions=%d capabilities=%d/%d reduction_ops=%d per_element_ops=%d\n", reductions, per_element, expected_reductions, has_reductions,
+                has_per_element, reduction_ops, per_element_ops);
         return -1;
     }
     return 0;
@@ -106,11 +131,18 @@ int main()
             {
                 for (int conversions = 0; conversions < 2; conversions++)
                 {
-                    if (test_sdpa_fa_cm(true, bf16, maintenance1, conversions, amd ? 0x1002 : 0x10de))
-                        return -1;
+                    for (int reductions = 0; reductions < 2; reductions++)
+                    {
+                        for (int per_element = 0; per_element < 2; per_element++)
+                        {
+                            if (test_sdpa_fa_cm(true, bf16, maintenance1, conversions, reductions, per_element, amd ? 0x1002 : 0x10de))
+                                return -1;
+                        }
+                    }
                 }
             }
         }
     }
-    return test_sdpa_fa_cm(false, false, false, false, 0x10de);
+    return test_sdpa_fa_cm(false, false, false, false, false, false, 0x10de)
+           || test_sdpa_fa_cm(false, false, true, true, true, true, 0x10de);
 }

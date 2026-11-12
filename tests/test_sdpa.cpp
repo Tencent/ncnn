@@ -57,6 +57,10 @@ static int test_sdpa(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v,
 static int test_sdpa_0()
 {
     return 0
+           || test_sdpa(RandomMat(16, 3, 4), RandomMat(16, 1, 2), RandomMat(24, 1, 2), 0)
+           || test_sdpa(RandomMat(24, 5, 4), RandomMat(24, 7, 2), RandomMat(16, 7, 2), 3)
+           || test_sdpa(RandomMat(32, 17, 4), RandomMat(32, 9, 2), RandomMat(40, 9, 2), 1, -0.4f)
+           || test_sdpa(RandomMat(16, 3, 2), RandomMat(16, 17, 1), RandomMat(24, 17, 1), 4)
            || test_sdpa(RandomMat(64, 1, 16), RandomMat(64, 521, 1), RandomMat(48, 521, 1), 0)
            || test_sdpa(RandomMat(63, 1, 31), RandomMat(63, 37, 1), RandomMat(47, 37, 1), 3, 0.f, TEST_LAYER_ENABLE_THREADING)
            || test_sdpa(RandomMat(65, 1, 4), RandomMat(65, 37, 4), RandomMat(33, 37, 4), 1)
