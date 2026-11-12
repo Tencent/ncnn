@@ -112,7 +112,7 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
     int16x8_t _v16_leaky = vcombine_s16(vqmovn_s32(_vlow32_leaky), vqmovn_s32(_vhigh32_leaky));
     int8x8_t _v8 = vqmovn_s16(_v16);
     int8x8_t _v8_leaky = vqmovn_s16(_v16_leaky);
-    return vmax_s8(_v8, _v8_leaky);
+    return vmax_s8(vmax_s8(_v8, _v8_leaky), vdup_n_s8(-127));
 }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC

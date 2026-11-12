@@ -459,6 +459,7 @@ static NCNN_FORCEINLINE __m128i float2int8leakyrelu(__m128 _v, __m128 _slope)
     __m128i _v16_leaky = __lsx_vpickev_h(_v32_16_leaky, _v32_16_leaky);
 
     _v16 = __lsx_vmax_h(_v16, _v16_leaky);
+    _v16 = __lsx_vmax_h(_v16, __lsx_vreplgr2vr_h(-127));
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
     __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
@@ -501,6 +502,7 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(__m128 _vlow, __m128 _vhigh,
     __m128i _v16_leaky = __lsx_vpickev_h(_vhigh32_16_leaky, _vlow32_16_leaky);
 
     _v16 = __lsx_vmax_h(_v16, _v16_leaky);
+    _v16 = __lsx_vmax_h(_v16, __lsx_vreplgr2vr_h(-127));
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
     __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
@@ -625,6 +627,7 @@ static NCNN_FORCEINLINE __m256i float2int8leakyrelu(__m256 _v, __m256 _slope)
     __m256i _v16_leaky = __lasx_xvpickev_h(_v32_16_leaky, _v32_16_leaky);
 
     _v16 = __lasx_xvmax_h(_v16, _v16_leaky);
+    _v16 = __lasx_xvmax_h(_v16, __lasx_xvreplgr2vr_h(-127));
     __m256i _v16_8 = __lasx_xvsat_h(_v16, 7);
     __m256i _v8 = __lasx_xvpickev_b(_v16_8, _v16_8);
     _v8 = __lasx_cast_128(__lsx_vilvl_w(__lasx_extract_128_hi(_v8), __lasx_extract_128_lo(_v8)));
@@ -668,6 +671,7 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(__m256 _vlow, __m256 _vhigh,
     __m256i _v16_leaky = __lasx_xvpickev_h(_vhigh32_16_leaky, _vlow32_16_leaky);
 
     _v16 = __lasx_xvmax_h(_v16, _v16_leaky);
+    _v16 = __lasx_xvmax_h(_v16, __lasx_xvreplgr2vr_h(-127));
     __m256i _v16_8 = __lasx_xvsat_h(_v16, 7);
     __m256i _v8 = __lasx_xvpickev_b(_v16_8, _v16_8);
 
