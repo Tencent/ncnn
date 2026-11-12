@@ -14,6 +14,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
 #if ncnn_VK_KHR_cooperative_matrix
 #extension GL_KHR_cooperative_matrix : require
+#if GL_EXT_cooperative_matrix_maintenance1 && ncnn_VK_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixConversionsEXT
+#extension GL_EXT_cooperative_matrix_maintenance1 : require
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
 #extension GL_NV_cooperative_matrix : require
 #endif
@@ -477,7 +480,13 @@ void main()
 #endif
 
 #if ncnn_VK_KHR_cooperative_matrix
-        // convert P from fp32 to fp16
+#if NCNN_bf16_storage
+        coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M][UNROLL_P_N];
+#else
+        coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M][UNROLL_P_N];
+#endif
+
+        // convert P from fp32 to fp16/bf16
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
@@ -485,30 +494,33 @@ void main()
                 coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> a;
                 coopMatLoad(a, tmp_s, ((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * N, N, gl_CooperativeMatrixLayoutRowMajor);
 
-#if NCNN_bf16_storage
-#if ncnn_vendorID == 0x1002
+#if NCNN_bf16_storage && ncnn_vendorID == 0x1002
                 [[unroll]] for (uint i = 0; i < a.length(); i++)
                 {
                     a[i] = roundBFloat16(a[i]);
                 }
 #endif
+#if GL_EXT_cooperative_matrix_maintenance1 && ncnn_VK_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixConversionsEXT
+#if NCNN_bf16_storage
+                pm[zm][zp] = coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA>(a);
+#else
+                pm[zm][zp] = coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA>(a);
+#endif
+#else
+#if NCNN_bf16_storage
                 coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #else
                 coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
 #endif
                 coopMatStore(b, tmp_s, ((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * N, N * coopmat_16bit_stride_scale, gl_CooperativeMatrixLayoutRowMajor);
+#endif
             }
         }
 
+#if !(GL_EXT_cooperative_matrix_maintenance1 && ncnn_VK_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixConversionsEXT)
         barrier();
 
         // load P
-#if NCNN_bf16_storage
-        coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M][UNROLL_P_N];
-#else
-        coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M][UNROLL_P_N];
-#endif
-
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
@@ -516,6 +528,7 @@ void main()
                 coopMatLoad(pm[zm][zp], tmp_s, ((sgi * UNROLL_SG_M + zm) * UNROLL_P_N + zp) * M * N, N * coopmat_16bit_stride_scale, gl_CooperativeMatrixLayoutRowMajor);
             }
         }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
         // load P from fp32 to fp16
         fcoopmatNV<16, gl_ScopeSubgroup, M, K> pm[UNROLL_SG_M][UNROLL_P_N];
@@ -885,39 +898,49 @@ void main()
 #endif
 
 #if ncnn_VK_KHR_cooperative_matrix
-        // convert P from fp32 to fp16
-        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
-        {
-            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> a;
-            coopMatLoad(a, tmp_s, (sgi * UNROLL_SG_M + zm) * M * N, N, gl_CooperativeMatrixLayoutRowMajor);
-
-#if NCNN_bf16_storage
-#if ncnn_vendorID == 0x1002
-            [[unroll]] for (uint i = 0; i < a.length(); i++)
-            {
-                a[i] = roundBFloat16(a[i]);
-            }
-#endif
-            coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
-#else
-            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
-#endif
-            coopMatStore(b, tmp_s, (sgi * UNROLL_SG_M + zm) * M * N, N * coopmat_16bit_stride_scale, gl_CooperativeMatrixLayoutRowMajor);
-        }
-
-        barrier();
-
-        // load P
 #if NCNN_bf16_storage
         coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M];
 #else
         coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> pm[UNROLL_SG_M];
 #endif
 
+        // convert P from fp32 to fp16/bf16
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> a;
+            coopMatLoad(a, tmp_s, (sgi * UNROLL_SG_M + zm) * M * N, N, gl_CooperativeMatrixLayoutRowMajor);
+
+#if NCNN_bf16_storage && ncnn_vendorID == 0x1002
+            [[unroll]] for (uint i = 0; i < a.length(); i++)
+            {
+                a[i] = roundBFloat16(a[i]);
+            }
+#endif
+#if GL_EXT_cooperative_matrix_maintenance1 && ncnn_VK_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixConversionsEXT
+#if NCNN_bf16_storage
+            pm[zm] = coopmat<bfloat16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA>(a);
+#else
+            pm[zm] = coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA>(a);
+#endif
+#else
+#if NCNN_bf16_storage
+            coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<bfloat16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
+#else
+            coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> b = coopmat<float16_t, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(a);
+#endif
+            coopMatStore(b, tmp_s, (sgi * UNROLL_SG_M + zm) * M * N, N * coopmat_16bit_stride_scale, gl_CooperativeMatrixLayoutRowMajor);
+#endif
+        }
+
+#if !(GL_EXT_cooperative_matrix_maintenance1 && ncnn_VK_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixConversionsEXT)
+        barrier();
+
+        // load P
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
             coopMatLoad(pm[zm], tmp_s, (sgi * UNROLL_SG_M + zm) * M * N, N * coopmat_16bit_stride_scale, gl_CooperativeMatrixLayoutRowMajor);
         }
+#endif
 #elif ncnn_VK_NV_cooperative_matrix
         // load P from fp32 to fp16
         fcoopmatNV<16, gl_ScopeSubgroup, M, K> pm[UNROLL_SG_M];
