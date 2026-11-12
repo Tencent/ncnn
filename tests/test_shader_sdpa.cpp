@@ -70,7 +70,7 @@ static int test_sdpa_fa_cm(bool khr, bool bf16, bool maintenance1, bool conversi
         // OpExtension SPV_EXT_cooperative_matrix_maintenance1.
         const char extension[] = "SPV_EXT_cooperative_matrix_maintenance1";
         if (opcode == 10 && (word_count - 1) * 4 >= sizeof(extension)
-            && memcmp(&spirv[i + 1], extension, sizeof(extension)) == 0)
+                && memcmp(&spirv[i + 1], extension, sizeof(extension)) == 0)
             has_maintenance1 = true;
         // OpConstant 0 identifies gl_MatrixUseA in OpTypeCooperativeMatrixKHR.
         if (opcode == 43 && word_count == 4 && spirv[i + 3] == 0)
