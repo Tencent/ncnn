@@ -277,7 +277,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
                     int k = 0;
                     for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
                     {
-
                         for (int wn = 0; wn < UNROLL_WG_N; wn++)
                         {
                             for (int zk = 0; zk < UNROLL_SG_K; zk++)
@@ -307,7 +306,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
                     }
                     for (; k < kk; k++)
                     {
-
                         for (int wn = 0; wn < UNROLL_WG_N; wn++)
                         {
                             {
