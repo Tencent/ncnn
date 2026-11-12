@@ -61,35 +61,47 @@ pnnx.Output             output      1 0 out
         op->params["13"] = padding[0];
 
         // pad_mode
-        // ceil_mode keeps the zero padded last window, which ncnn reproduces
-        // with full padding. torch drops that window only when it starts at or
-        // beyond the end of the input, so decide from the known input shape and
-        // fall back to the stride heuristic when the shape is dynamic.
+        // ceil_mode allows the last window to start outside the valid range,
+        // which ncnn only reproduces with full padding. torch drops that window
+        // only when it starts at or beyond the end of the input, so decide from
+        // the known input shape and fall back to the stride heuristic when the
+        // shape is dynamic.
         const int kernel_h = captured_params.at("kernel_size").ai[0];
         const int kernel_w = captured_params.at("kernel_size").ai[1];
         const int stride_h = stride[0];
         const int stride_w = stride[1];
         const std::vector<int>& in_shape = op->inputs[0]->shape;
         const bool shape_known = in_shape.size() >= 2 && in_shape[in_shape.size() - 2] > 0 && in_shape[in_shape.size() - 1] > 0;
-        bool drop_last = false;
+        bool drop_h = false;
+        bool drop_w = false;
+        int torch_out_h = 0;
+        int torch_out_w = 0;
         if (shape_known)
         {
             const int in_h = in_shape[in_shape.size() - 2];
             const int in_w = in_shape[in_shape.size() - 1];
             const int out_h = (in_h - kernel_h + stride_h - 1) / stride_h + 1;
             const int out_w = (in_w - kernel_w + stride_w - 1) / stride_w + 1;
-            drop_last = (out_h - 1) * stride_h >= in_h || (out_w - 1) * stride_w >= in_w;
+            drop_h = (out_h - 1) * stride_h >= in_h;
+            drop_w = (out_w - 1) * stride_w >= in_w;
+            torch_out_h = drop_h ? out_h - 1 : out_h;
+            torch_out_w = drop_w ? out_w - 1 : out_w;
         }
         const bool empty_window = stride_h > kernel_h || stride_w > kernel_w;
         const bool unpadded = padding[0] == 0 && padding[1] == 0;
         bool use_full = false;
         if (ceil_mode)
         {
-            // padded inputs keep the upstream behaviour, the shape based window
-            // drop only applies when ncnn pads to the full window itself
-            use_full = !unpadded || (!drop_last && !(!shape_known && empty_window));
+            // padded inputs keep the upstream behaviour
+            if (!unpadded)
+                use_full = true;
+            else if (shape_known)
+                use_full = !(drop_h || drop_w);
+            else
+                use_full = !empty_window;
         }
         op->params["5"] = use_full ? 0 : 1;
+
 
         // avgpool_count_include_pad
         // with count_include_pad enabled ncnn always divides by the full kernel,
