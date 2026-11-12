@@ -13,6 +13,17 @@ namespace pnnx {
 
 void fuse_slice_indices(Graph& graph)
 {
+    for (Operator* op : graph.ops)
+    {
+        if (op->type != "Tensor.slice")
+            continue;
+
+        if (op->has_param("start") && op->params.at("start").type == 0)
+            op->params["start"] = 0;
+        if (op->has_param("end") && op->params.at("end").type == 0)
+            op->params["end"] = INT_MAX;
+    }
+
     while (1)
     {
         bool matched = false;
@@ -170,19 +181,12 @@ void fuse_slice_indices(Graph& graph)
                 {
                     if (static_starts)
                     {
-                        new_starts.push_back(sop->params.at("start").type == 0 ? 0 : sop->params.at("start").i);
+                        new_starts.push_back(sop->params.at("start").i);
                     }
                     else if (sop->has_param("start"))
                     {
                         char tmp[32];
-                        if (sop->params.at("start").type == 0)
-                        {
-                            snprintf(tmp, 32, "0");
-                        }
-                        else
-                        {
-                            snprintf(tmp, 32, "%d", sop->params.at("start").i);
-                        }
+                        snprintf(tmp, 32, "%d", sop->params.at("start").i);
                         starts_indexes.push_back(tmp);
                     }
                     else
@@ -198,19 +202,12 @@ void fuse_slice_indices(Graph& graph)
 
                     if (static_ends)
                     {
-                        new_ends.push_back(sop->params.at("end").type == 0 ? INT_MAX : sop->params.at("end").i);
+                        new_ends.push_back(sop->params.at("end").i);
                     }
                     else if (sop->has_param("end"))
                     {
                         char tmp[32];
-                        if (sop->params.at("end").type == 0)
-                        {
-                            snprintf(tmp, 32, "%d", INT_MAX);
-                        }
-                        else
-                        {
-                            snprintf(tmp, 32, "%d", sop->params.at("end").i);
-                        }
+                        snprintf(tmp, 32, "%d", sop->params.at("end").i);
                         ends_indexes.push_back(tmp);
                     }
                     else
@@ -343,19 +340,12 @@ void fuse_slice_indices(Graph& graph)
             {
                 if (static_starts)
                 {
-                    new_starts.push_back(op->params.at("start").type == 0 ? 0 : op->params.at("start").i);
+                    new_starts.push_back(op->params.at("start").i);
                 }
                 else if (op->has_param("start"))
                 {
                     char tmp[32];
-                    if (op->params.at("start").type == 0)
-                    {
-                        snprintf(tmp, 32, "0");
-                    }
-                    else
-                    {
-                        snprintf(tmp, 32, "%d", op->params.at("start").i);
-                    }
+                    snprintf(tmp, 32, "%d", op->params.at("start").i);
                     starts_indexes.push_back(tmp);
                 }
                 else
@@ -371,19 +361,12 @@ void fuse_slice_indices(Graph& graph)
 
                 if (static_ends)
                 {
-                    new_ends.push_back(op->params.at("end").type == 0 ? INT_MAX : op->params.at("end").i);
+                    new_ends.push_back(op->params.at("end").i);
                 }
                 else if (op->has_param("end"))
                 {
                     char tmp[32];
-                    if (op->params.at("end").type == 0)
-                    {
-                        snprintf(tmp, 32, "%d", INT_MAX);
-                    }
-                    else
-                    {
-                        snprintf(tmp, 32, "%d", op->params.at("end").i);
-                    }
+                    snprintf(tmp, 32, "%d", op->params.at("end").i);
                     ends_indexes.push_back(tmp);
                 }
                 else

@@ -280,7 +280,14 @@ void eliminate_noop_math(Graph& graph)
             {
                 Operator* op1 = op->inputs[1]->producer;
 
-                if (operator_is_all_constant(op1, 1.f, 1))
+                bool rounding = false;
+                if (op->inputs.size() == 3)
+                {
+                    const Operator* mode = op->inputs[2]->producer;
+                    rounding = mode->type != "prim::Constant" || !mode->has_param("value") || mode->params.at("value").type != 0;
+                }
+
+                if (!rounding && op->inputs[0]->type != 0 && op->inputs[0]->type == op->outputs[0]->type && operator_is_all_constant(op1, 1.f, 1))
                 {
                     // x <= a / 1
                     need_eliminate = true;
@@ -299,8 +306,8 @@ void eliminate_noop_math(Graph& graph)
                 }
             }
 
-            // but if shape changes
-            if (need_eliminate && op->inputs[identity_input_id]->shape != op->outputs[0]->shape)
+            // but if shape or dtype changes
+            if (need_eliminate && (op->inputs[identity_input_id]->shape != op->outputs[0]->shape || op->inputs[identity_input_id]->type <= 0 || op->inputs[identity_input_id]->type != op->outputs[0]->type))
             {
                 need_eliminate = false;
             }

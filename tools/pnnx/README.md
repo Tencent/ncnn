@@ -140,6 +140,48 @@ Parameters:
 
 `moduleop` (Optional): list of modules to keep as one big operator, separated by ",". for example, `models.common.Focus,models.yolo.Detect`
 
+Both TorchScript and ExportedProgram conversion normalize floating-point inputs, weights and computations to FP32, including FP16, BF16 and FP64 models. Complex tensors use FP32 components (`complex64`); integer and bool operations retain their types. Floating-point weights in `pnnx.bin` are stored as FP32. The `fp16` option controls final ncnn and ONNX weight storage, not frontend computation precision. Dtype reinterpretation with `view(dtype)` is unsupported.
+
+# PyTorch ExportedProgram (.pt2)
+
+The converter also reads single-model `torch.export.save()` raw-storage archives produced by PyTorch 2.11 through 2.15. The frontend requires a build with LibTorch 2.11 or newer; older builds retain TorchScript conversion.
+
+```python
+program = torch.export.export(model.eval(), example_inputs)
+torch.export.save(program, "model.pt2")
+```
+
+```sh
+pnnx model.pt2 fp16=0
+```
+
+Static input shapes and dtypes come from the archive. The Python package also accepts `pnnx.convert("model.pt2", fp16=False)` without repeating them.
+
+Dynamic inputs require concrete samples through `inputshape` or `input`. A single sample specializes the input dimensions and known dependent shapes, enabling constant shape calculations and static optimization. Supply `inputshape2` or `input2` to retain the exported dynamic dimensions. Both samples must satisfy shared dimensions and range constraints.
+
+```sh
+pnnx model.pt2 inputshape=[2,3,224,224] fp16=0
+pnnx model.pt2 inputshape=[2,3,224,224] inputshape2=[4,3,224,224] fp16=0
+```
+
+The frontend supports CPU dense-strided inference with parameters, buffers, lifted tensors, storage views, specialized scalar inputs, and Tensor leaves from standard tuple/list/dict interfaces. Use the default optimization level of 2. Deterministic constant tensor subgraphs, including common factories, windows and masks, are folded before the public optimization passes. Uninitialized allocations and values involved in mutation remain runtime operations. Exported guards and runtime assertions are discarded; callers must satisfy the original model constraints and any specialized input shapes. Dynamic control flow is rejected.
+
+Legacy archive layouts, compressed model payloads, pickle weights, custom objects/operators/PyTrees, sparse or quantized tensors, non-Tensor outputs, external state writes, training and random operations are not supported. Raw exported programs do not need `run_decompositions()` before conversion. Local in-place operations are supported when their storage and alias relationships can be preserved; unsupported mutations are diagnosed during conversion.
+
+Scalar comparisons require representable thresholds under FP32 normalization. Storage-dependent operations such as `as_strided` require a provably valid layout. Alias effects needed by in-place operations are preserved, but Python tensor identity, output storage aliases and gradients are not part of the converted model's interface.
+
+The ncnn backend has narrower operator and dtype support than pnnx Python. Conversion uses the existing backend passes and diagnostics; successful pnnx Python inference does not imply that the generated ncnn model is supported.
+
+Run the focused tests from the pnnx build directory:
+
+```sh
+ctest --output-on-failure -j 4 -R '^test_pt2_'
+```
+
+The focused `tests/pt2` suite is registered only for builds with LibTorch 2.11 or newer, and its scripts require Python PyTorch 2.11 or newer. These tests compare generated Python results with PyTorch references and run supported models through ncnn.
+
+Root-directory operator tests retain their TorchScript checks and enable the additional pt2 checks based only on the Python PyTorch version (2.11 or newer). They do not check the converter's build version; pairing newer Python PyTorch with an older LibTorch build will fail at the pt2 step rather than skip it.
+
 # The pnnx.param format
 
 ### example
@@ -172,6 +214,8 @@ pnnx.Output     output      1 0 2
 * input operands : name list of all the input blob names, separated by space
 * output operands : name list of all the output blob names, separated by space
 * operator params : key=value pair list, separated by space, operator weights are prefixed by ```@``` symbol, tensor shapes are prefixed by ```#``` symbol, input parameter keys are prefixed by ```$```
+
+Parameter values preserve `None` separately from empty lists. Integer lists use `(1,2,3)` and an empty integer list uses `()` or `[]`. Typed empty float, string and complex lists use `[]f`, `[]s` and `[]c`, respectively, so their element types survive parsing and graph rewrites. Floating-point values also accept `nan`, `inf` and `-inf`.
 
 # The pnnx.bin format
 

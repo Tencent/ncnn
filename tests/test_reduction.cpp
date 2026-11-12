@@ -348,6 +348,81 @@ static int test_reduction_depth_padding_boundaries()
 }
 
 #if NCNN_VULKAN
+static int test_reduction_gpu_dispatch(const ncnn::Mat& a, int keepdims)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, op_type);
+    pd.set(1, 0); // reduce_all
+    pd.set(3, param_int_array(1, 0));
+    pd.set(4, keepdims);
+    pd.set(5, 1); // fixbug0
+
+    std::vector<ncnn::Mat> weights(0);
+    ncnn::Mat expected;
+    int ret = test_layer_naive(ncnn::LayerType::Reduction, pd, weights, a, expected, 0);
+    if (ret != 0)
+        return ret;
+
+    for (int fp16 = 0; fp16 < 2; fp16++)
+    {
+        for (int subgroup = 0; subgroup < 2; subgroup++)
+        {
+            ncnn::Option opt;
+            opt.use_fp16_packed = fp16 != 0;
+            opt.use_fp16_storage = fp16 != 0;
+            opt.use_fp16_arithmetic = false;
+            opt.use_bf16_packed = false;
+            opt.use_bf16_storage = false;
+            opt.use_subgroup_ops = subgroup != 0;
+
+            ncnn::Mat b;
+            ret = test_layer_gpu(ncnn::LayerType::Reduction, pd, weights, opt, a, b, ncnn::Mat(), 0);
+            if (ret != 233 && (ret != 0 || CompareMat(expected, b, 0.001f) != 0))
+            {
+                fprintf(stderr, "test_reduction_gpu_dispatch failed a=(%d %d %d) op_type=%d keepdims=%d fp16=%d subgroup=%d ret=%d\n", a.w, a.h, a.c, op_type, keepdims, fp16, subgroup, ret);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_reduction_gpu_dispatch()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    // output counts around the 65535-workgroup Vulkan minimum Y dispatch limit
+    // 65537 outputs leave a padded tail workgroup once split across x and y
+    const int shapes[3][2] = {{257, 255}, {256, 256}, {65537, 1}};
+
+    // sum mean logsumexp, logsumexp takes a separate barrier path in the shader
+    static const int op_types[3] = {0, 3, 10};
+
+    for (int i = 0; i < 3; i++)
+    {
+        ncnn::Mat a(shapes[i][0], shapes[i][1], 3);
+        for (int q = 0; q < a.c; q++)
+        {
+            float* ptr = a.channel(q);
+            for (int j = 0; j < a.w * a.h; j++)
+                ptr[j] = (j % 13 - 6) * 0.25f + q * 0.5f;
+        }
+
+        for (int j = 0; j < 3; j++)
+        {
+            op_type = op_types[j];
+
+            if (test_reduction_gpu_dispatch(a, 0)
+                    || test_reduction_gpu_dispatch(a, 1))
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int test_reduction_gpu_fp16a(const ncnn::Mat& a, float coeff, const std::vector<int>& axes_array, bool use_subgroup_ops)
 {
     ncnn::ParamDict pd;
@@ -519,6 +594,7 @@ int main()
            || test_reduction_load_param_text()
 #endif // NCNN_VALIDATION
 #if NCNN_VULKAN
+           || test_reduction_gpu_dispatch()
            || test_reduction_gpu_fp16a()
 #endif // NCNN_VULKAN
            || test_reduction_depth_padding_boundaries();

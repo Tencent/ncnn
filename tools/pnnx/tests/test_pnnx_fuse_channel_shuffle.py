@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
+from packaging import version
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -162,6 +163,26 @@ def test():
     import test_pnnx_channel_shuffle_pnnx
     b = test_pnnx_channel_shuffle_pnnx.test_inference()
 
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_pnnx_channel_shuffle_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_channel_shuffle_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_pnnx_channel_shuffle_export_pnnx
+    b = test_pnnx_channel_shuffle_export_pnnx.test_inference()
+
+    if len(a) != len(b):
+        return False
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
