@@ -594,8 +594,10 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
             if (outh != -233)
                 _outh = std::min(outh, _outh);
 
+            // outc/crop offset default to 0, which must be treated as "keep all
+            // remaining channels" and not as an explicit zero-channel output
             _outc = channels - coffset - coffset2;
-            if (outc != -233)
+            if (outc != -233 && outc != 0)
                 _outc = std::min(outc, _outc);
         }
         if (dims == 4)
@@ -609,11 +611,11 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
                 _outh = std::min(outh, _outh);
 
             _outd = d - doffset - doffset2;
-            if (outd != -233)
+            if (outd != -233 && outd != 0)
                 _outd = std::min(outd, _outd);
 
             _outc = channels - coffset - coffset2;
-            if (outc != -233)
+            if (outc != -233 && outc != 0)
                 _outc = std::min(outc, _outc);
         }
     }
