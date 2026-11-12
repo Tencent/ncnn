@@ -48,15 +48,29 @@ pnnx.Output             output      1 0 out
             stride = captured_params.at("stride").ai;
         }
 
+        const std::vector<int>& padding = captured_params.at("padding").ai;
+        const bool ceil_mode = captured_params.at("ceil_mode").b;
+        const bool count_include_pad = captured_params.at("count_include_pad").b;
+
         op->params["0"] = 1;
         op->params["1"] = captured_params.at("kernel_size").ai[1];
         op->params["11"] = captured_params.at("kernel_size").ai[0];
         op->params["2"] = stride[1];
         op->params["12"] = stride[0];
-        op->params["3"] = captured_params.at("padding").ai[1];
-        op->params["13"] = captured_params.at("padding").ai[0];
-        op->params["5"] = captured_params.at("ceil_mode").b ? 0 : 1;
-        op->params["6"] = captured_params.at("count_include_pad").b ? 1 : 0;
+        op->params["3"] = padding[1];
+        op->params["13"] = padding[0];
+
+        // pad_mode
+        // ceil_mode allows the last window to start outside the valid range,
+        // which ncnn only reproduces with full padding
+        op->params["5"] = ceil_mode ? 0 : 1;
+
+        // avgpool_count_include_pad
+        // with count_include_pad enabled ncnn always divides by the full kernel,
+        // while torch divides by the number of real elements when ceil_mode has
+        // zero-filled the tail of the last window, so disable it for that case
+        const bool ceil_tail = ceil_mode && padding[0] == 0 && padding[1] == 0;
+        op->params["6"] = (count_include_pad && !ceil_tail) ? 1 : 0;
     }
 };
 
