@@ -19,6 +19,7 @@
 
 // ncnn private header
 #include "../modelwriter.h"
+#include "quantize_error.h"
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
@@ -1123,35 +1124,36 @@ int main(int argc, char** argv)
         }
     }
 
-    quantizer.load_param(inparam);
+    NCNN_QUANTIZE_CHECK(quantizer.load_param(inparam), "load_param failed: %s\n", inparam);
     if (strcmp(inbin, "null") == 0)
     {
         DataReaderFromEmpty dr;
-        quantizer.load_model(dr);
+        NCNN_QUANTIZE_CHECK(quantizer.load_model(dr), "load_model failed: %s\n", inbin);
         quantizer.gen_random_weight = true;
     }
     else
-        quantizer.load_model(inbin);
+    {
+        NCNN_QUANTIZE_CHECK(quantizer.load_model(inbin), "load_model failed: %s\n", inbin);
+    }
 
     if (quantizer.check_int8scale_table_requirement(int8scale_table_path) != 0)
         return -1;
 
-    quantizer.quantize_convolution();
-    quantizer.quantize_convolutiondepthwise();
-    quantizer.quantize_innerproduct();
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_convolution(), "quantize_convolution failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_convolutiondepthwise(), "quantize_convolutiondepthwise failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_innerproduct(), "quantize_innerproduct failed\n");
 
-    quantizer.quantize_rnn();
-    quantizer.quantize_lstm();
-    quantizer.quantize_gru();
-    quantizer.quantize_embed();
-    if (quantizer.quantize_gemm() != 0)
-        return -1;
-    quantizer.quantize_multiheadattention();
-    quantizer.quantize_sdpa();
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_rnn(), "quantize_rnn failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_lstm(), "quantize_lstm failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_gru(), "quantize_gru failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_embed(), "quantize_embed failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_gemm(), "quantize_gemm failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_multiheadattention(), "quantize_multiheadattention failed\n");
+    NCNN_QUANTIZE_CHECK(quantizer.quantize_sdpa(), "quantize_sdpa failed\n");
 
-    quantizer.fuse_requantize();
+    NCNN_QUANTIZE_CHECK(quantizer.fuse_requantize(), "fuse_requantize failed\n");
 
-    quantizer.save(outparam, outbin);
+    NCNN_QUANTIZE_CHECK(quantizer.save(outparam, outbin), "save model failed: %s %s; output may be incomplete\n", outparam, outbin);
 
     return 0;
 }
