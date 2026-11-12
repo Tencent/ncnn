@@ -13,11 +13,14 @@ class Model(nn.Module):
         # torch still divides by the number of real elements
         self.pool_0 = nn.AvgPool2d(kernel_size=2, stride=2, padding=0, ceil_mode=True, count_include_pad=True)
         self.pool_1 = nn.AvgPool2d(kernel_size=3, stride=2, padding=0, ceil_mode=True, count_include_pad=True)
+        # stride > kernel, the last window starts outside the input and is dropped
+        self.pool_2 = nn.AvgPool2d(kernel_size=2, stride=3, padding=0, ceil_mode=True, count_include_pad=True)
 
     def forward(self, x):
         a = self.pool_0(x)
         b = self.pool_1(x)
-        return a, b
+        c = self.pool_2(x[:, :, :3, :3])
+        return a, b, c
 
 def test():
     net = Model()
@@ -44,8 +47,36 @@ def test():
         return False
 
     for a0, b0 in zip(a, b):
+        if a0.shape != b0.shape:
+            return False
         if not torch.allclose(a0, b0):
             return False
+
+    # the pnnx python module only replays torch ops, the ncnn conversion itself
+    # must be checked on the generated param: ceil_mode needs full padding to
+    # keep the zero padded last window, unless stride > kernel where that window
+    # starts outside the input and torch drops it, and count_include_pad must be
+    # off so the average divides by the real element count
+    expect = {
+        (2, 2): (0, 0),
+        (3, 2): (0, 0),
+        (2, 3): (1, 0),
+    }
+    found = {}
+    with open("test_nn_AvgPool2d_ceil.ncnn.param") as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) < 5 or parts[0] != "Pooling":
+                continue
+            kv = {}
+            for p in parts[4:]:
+                if "=" in p:
+                    k, v = p.split("=")
+                    kv[int(k)] = int(float(v))
+            found[(kv.get(1), kv.get(2))] = (kv.get(5), kv.get(6))
+
+    if found != expect:
+        return False
 
     return True
 

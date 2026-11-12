@@ -51,9 +51,16 @@ pnnx.Output             output      1 0 out
         op->params["13"] = padding[0];
 
         // pad_mode
-        // ceil_mode allows the last window to start outside the valid range,
-        // which ncnn only reproduces with full padding
-        op->params["5"] = ceil_mode ? 0 : 1;
+        // ceil_mode zero-pads the last window, which ncnn reproduces with full
+        // padding. when stride is larger than kernel that window may start
+        // outside the input and torch drops it, while full padding would average
+        // an all-zero window and emit nan, so fall back to valid in that case.
+        const int kernel_h = captured_params.at("kernel_size").ai[0];
+        const int kernel_w = captured_params.at("kernel_size").ai[1];
+        const int stride_h = captured_params.at("stride").ai[0];
+        const int stride_w = captured_params.at("stride").ai[1];
+        const bool empty_window = stride_h > kernel_h || stride_w > kernel_w;
+        op->params["5"] = (ceil_mode && !empty_window) ? 0 : 1;
 
         // avgpool_count_include_pad
         // with count_include_pad enabled ncnn always divides by the full kernel,
