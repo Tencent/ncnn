@@ -528,13 +528,23 @@ int MultiHeadAttention_vulkan::forward(const std::vector<VkMat>& bottom_blobs, s
                 return retv;
         }
 
-        int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, cmd, opt);
-        if (retk != 0)
-            return retk;
+        if (append_seqlen > 0)
+        {
+            int retk = create_or_grow_kvcache(past_xk_blob_unpacked, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, current_key.elemsize, 1, cmd, opt);
+            if (retk != 0)
+                return retk;
 
-        int retv = create_or_grow_kvcache(past_xv_blob_unpacked, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, current_value.elemsize, 1, cmd, opt);
-        if (retv != 0)
-            return retv;
+            int retv = create_or_grow_kvcache(past_xv_blob_unpacked, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, current_value.elemsize, 1, cmd, opt);
+            if (retv != 0)
+                return retv;
+        }
+        else
+        {
+            // a cross attention step appends nothing: the cache it was given is
+            // already the answer, and allocating another one only copies it
+            cached_xk_blob = past_xk_blob_unpacked;
+            cached_xv_blob = past_xv_blob_unpacked;
+        }
 
         if (append_seqlen > 0)
         {
