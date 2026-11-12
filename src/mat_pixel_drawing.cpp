@@ -5,6 +5,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <stdint.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -610,6 +611,11 @@ void draw_rectangle_yuv420sp(unsigned char* yuv420sp, int w, int h, int rx, int 
     // assert rh % 2 == 0
     // assert thickness % 2 == 0
 
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* pen_color = (const unsigned char*)&color;
 
     unsigned int v_y;
@@ -623,7 +629,7 @@ void draw_rectangle_yuv420sp(unsigned char* yuv420sp, int w, int h, int rx, int 
     unsigned char* Y = yuv420sp;
     draw_rectangle_c1(Y, w, h, rx, ry, rw, rh, v_y, thickness);
 
-    unsigned char* UV = yuv420sp + w * h;
+    unsigned char* UV = yuv420sp + (size_t)w * (size_t)h;
     int thickness_uv = thickness == -1 ? thickness : std::max(thickness / 2, 1);
     draw_rectangle_c2(UV, w / 2, h / 2, rx / 2, ry / 2, rw / 2, rh / 2, v_uv, thickness_uv);
 }
@@ -949,6 +955,11 @@ void draw_circle_yuv420sp(unsigned char* yuv420sp, int w, int h, int cx, int cy,
     // assert radius % 2 == 0
     // assert thickness % 2 == 0
 
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* pen_color = (const unsigned char*)&color;
 
     unsigned int v_y;
@@ -962,7 +973,7 @@ void draw_circle_yuv420sp(unsigned char* yuv420sp, int w, int h, int cx, int cy,
     unsigned char* Y = yuv420sp;
     draw_circle_c1(Y, w, h, cx, cy, radius, v_y, thickness);
 
-    unsigned char* UV = yuv420sp + w * h;
+    unsigned char* UV = yuv420sp + (size_t)w * (size_t)h;
     int thickness_uv = thickness == -1 ? thickness : std::max(thickness / 2, 1);
     draw_circle_c2(UV, w / 2, h / 2, cx / 2, cy / 2, radius / 2, v_uv, thickness_uv);
 }
@@ -1179,6 +1190,11 @@ void draw_line_yuv420sp(unsigned char* yuv420sp, int w, int h, int x0, int y0, i
     // assert y1 % 2 == 0
     // assert thickness % 2 == 0
 
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* pen_color = (const unsigned char*)&color;
 
     unsigned int v_y;
@@ -1192,7 +1208,7 @@ void draw_line_yuv420sp(unsigned char* yuv420sp, int w, int h, int x0, int y0, i
     unsigned char* Y = yuv420sp;
     draw_line_c1(Y, w, h, x0, y0, x1, y1, v_y, thickness);
 
-    unsigned char* UV = yuv420sp + w * h;
+    unsigned char* UV = yuv420sp + (size_t)w * (size_t)h;
     int thickness_uv = thickness == -1 ? thickness : std::max(thickness / 2, 1);
     draw_line_c2(UV, w / 2, h / 2, x0 / 2, y0 / 2, x1 / 2, y1 / 2, v_uv, thickness_uv);
 }
@@ -1927,6 +1943,11 @@ void draw_text_yuv420sp(unsigned char* yuv420sp, int w, int h, const char* text,
     // assert y % 2 == 0
     // assert fontpixelsize % 2 == 0
 
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* pen_color = (const unsigned char*)&color;
 
     unsigned int v_y;
@@ -1940,7 +1961,7 @@ void draw_text_yuv420sp(unsigned char* yuv420sp, int w, int h, const char* text,
     unsigned char* Y = yuv420sp;
     draw_text_c1(Y, w, h, text, x, y, fontpixelsize, v_y);
 
-    unsigned char* UV = yuv420sp + w * h;
+    unsigned char* UV = yuv420sp + (size_t)w * (size_t)h;
     draw_text_c2(UV, w / 2, h / 2, text, x / 2, y / 2, std::max(fontpixelsize / 2, 1), v_uv);
 }
 

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "mat.h"
+#include <limits.h>
+#include <stdint.h>
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -6093,12 +6095,17 @@ void kanna_rotate_yuv420sp(const unsigned char* src, int srcw, int srch, unsigne
     // assert w % 2 == 0
     // assert h % 2 == 0
 
+    if (srcw <= 0 || srch <= 0 || w <= 0 || h <= 0 || srcw % 2 != 0 || srch % 2 != 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)srcw * (int64_t)srch > (int64_t)INT_MAX / 4 || (int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* srcY = src;
     unsigned char* dstY = dst;
     kanna_rotate_c1(srcY, srcw, srch, dstY, w, h, type);
 
-    const unsigned char* srcUV = src + srcw * srch;
-    unsigned char* dstUV = dst + w * h;
+    const unsigned char* srcUV = src + (size_t)srcw * (size_t)srch;
+    unsigned char* dstUV = dst + (size_t)w * (size_t)h;
     kanna_rotate_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2, type);
 }
 #endif // NCNN_PIXEL_ROTATE
