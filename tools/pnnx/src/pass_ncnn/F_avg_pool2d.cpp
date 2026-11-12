@@ -81,7 +81,15 @@ pnnx.Output             output      1 0 out
             drop_last = (out_h - 1) * stride_h >= in_h || (out_w - 1) * stride_w >= in_w;
         }
         const bool empty_window = stride_h > kernel_h || stride_w > kernel_w;
-        op->params["5"] = (ceil_mode && !drop_last && !(!shape_known && empty_window)) ? 0 : 1;
+        const bool unpadded = padding[0] == 0 && padding[1] == 0;
+        bool use_full = false;
+        if (ceil_mode)
+        {
+            // padded inputs keep the upstream behaviour, the shape based window
+            // drop only applies when ncnn pads to the full window itself
+            use_full = !unpadded || (!drop_last && !(!shape_known && empty_window));
+        }
+        op->params["5"] = use_full ? 0 : 1;
 
         // avgpool_count_include_pad
         // with count_include_pad enabled ncnn always divides by the full kernel,
