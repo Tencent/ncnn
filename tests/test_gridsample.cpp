@@ -3,7 +3,7 @@
 
 #include "testutil.h"
 
-static int test_gridsample(const ncnn::Mat& a, const ncnn::Mat& grid, int sample_type, int padding_mode, int align_corner, int permute_fusion)
+static int test_gridsample(const ncnn::Mat& a, const ncnn::Mat& grid, int sample_type, int padding_mode, int align_corner, int permute_fusion, int flag = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, sample_type);
@@ -17,7 +17,7 @@ static int test_gridsample(const ncnn::Mat& a, const ncnn::Mat& grid, int sample
     as[0] = a;
     as[1] = grid;
 
-    int ret = test_layer("GridSample", pd, weights, as);
+    int ret = test_layer("GridSample", pd, weights, as, 1, 0.001f, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_gridsample failed a.dims=%d a=(%d %d %d %d) grid.dims=%d grid=(%d %d %d %d) sample_type=%d padding_mode=%d align_corner=%d permute_fusion=%d",
@@ -168,6 +168,36 @@ static int test_gridsample_3()
            || test_gridsample(RandomMat(16, 12, 11, 16), RandomMat(11, 12, 16, 3), 2, 3, 1, 1);
 }
 
+static int test_gridsample_4()
+{
+    // permute_fusion 0 with output height 1 or output depth less than 3
+    return 0
+           || test_gridsample(RandomMat(3, 7, 1), RandomMat(2, 11, 1), 1, 1, 0, 0)
+           || test_gridsample(RandomMat(3, 7, 1), RandomMat(2, 11, 1), 2, 2, 1, 0)
+           || test_gridsample(RandomMat(3, 7, 1), RandomMat(2, 11, 1), 3, 3, 0, 0)
+           || test_gridsample(RandomMat(8, 12, 16), RandomMat(2, 24, 1), 1, 3, 1, 0)
+           || test_gridsample(RandomMat(5, 7, 11, 13), RandomMat(3, 17, 11, 1), 1, 1, 0, 0)
+           || test_gridsample(RandomMat(5, 7, 11, 13), RandomMat(3, 17, 11, 2), 2, 3, 1, 0)
+           || test_gridsample(RandomMat(16, 12, 11, 16), RandomMat(3, 11, 12, 2), 1, 2, 0, 0);
+}
+
+static int test_gridsample_5()
+{
+    // fewer channels than threads
+    return 0
+           || test_gridsample(RandomMat(9, 7, 3), RandomMat(2, 33, 25), 1, 1, 0, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(9, 7, 3), RandomMat(33, 25, 2), 2, 2, 1, 1, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(9, 7, 3), RandomMat(2, 33, 25), 3, 3, 0, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(9, 7, 4), RandomMat(2, 33, 25), 1, 3, 1, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(9, 7, 4), RandomMat(33, 25, 2), 2, 1, 0, 1, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(9, 7, 4), RandomMat(2, 33, 25), 3, 2, 0, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(9, 7, 8), RandomMat(2, 33, 25), 1, 2, 0, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(5, 7, 6, 3), RandomMat(3, 17, 9, 5), 1, 1, 0, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(5, 7, 6, 3), RandomMat(17, 9, 5, 3), 2, 2, 1, 1, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(5, 7, 6, 4), RandomMat(3, 17, 9, 5), 2, 3, 0, 0, TEST_LAYER_ENABLE_THREADING)
+           || test_gridsample(RandomMat(5, 7, 6, 8), RandomMat(17, 9, 5, 3), 1, 3, 1, 1, TEST_LAYER_ENABLE_THREADING);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -176,5 +206,7 @@ int main()
            || test_gridsample_0()
            || test_gridsample_1()
            || test_gridsample_2()
-           || test_gridsample_3();
+           || test_gridsample_3()
+           || test_gridsample_4()
+           || test_gridsample_5();
 }
