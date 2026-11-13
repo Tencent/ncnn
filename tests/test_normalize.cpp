@@ -174,6 +174,37 @@ static int test_normalize_6()
            || test_normalize(RandomMat(7, 5, 12), 0, 0, 0, 0.0001f, 0, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 
+static int test_normalize_7()
+{
+    // all-zero vectors with a tiny eps, the coefficient 1 / sqrt(eps) does not fit in fp16
+    ncnn::Mat a = RandomMat(7, 5, 16);
+    for (int q = 0; q < a.c; q++)
+    {
+        float* ptr = a.channel(q);
+        for (int i = 0; i < a.w * a.h; i += 3)
+        {
+            ptr[i] = 0.f;
+        }
+    }
+
+    ncnn::Mat b = RandomMat(6, 4, 12);
+    b.channel(5).fill(0.f);
+
+    ncnn::Mat c(5, 3, 8);
+    c.fill(0.f);
+
+    return 0
+           || test_normalize(a, 0, 1, 0, 1e-10f, 0)
+           || test_normalize(a, 0, 1, 1, 1e-12f, 1)
+           || test_normalize(a, 0, 1, 0, 1e-12f, 2)
+           || test_normalize(b, 1, 0, 0, 1e-10f, 0)
+           || test_normalize(b, 1, 0, 1, 1e-12f, 1)
+           || test_normalize(b, 1, 0, 0, 1e-12f, 2)
+           || test_normalize(c, 1, 1, 0, 1e-10f, 0)
+           || test_normalize(c, 1, 1, 1, 1e-12f, 1)
+           || test_normalize(c, 1, 1, 0, 1e-12f, 2);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -185,5 +216,6 @@ int main()
            || test_normalize_3()
            || test_normalize_4()
            || test_normalize_5()
-           || test_normalize_6();
+           || test_normalize_6()
+           || test_normalize_7();
 }

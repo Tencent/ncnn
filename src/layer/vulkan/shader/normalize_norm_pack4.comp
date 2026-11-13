@@ -17,7 +17,7 @@ layout(constant_id = shape_constant_id_offset + 3) const int c = 0;
 layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
-layout(binding = 1) readonly buffer coeffs_blob { sfpvec4 coeffs_blob_data[]; };
+layout(binding = 1) readonly buffer coeffs_blob { vec4 coeffs_blob_data[]; };
 layout(binding = 2) readonly buffer scale_blob { sfpvec4 scale_blob_data[]; };
 
 layout(push_constant) uniform parameter
@@ -40,33 +40,24 @@ void main()
 
     const int gi = gz * psc(cstep) + gy * psc(w) + gx;
 
-    afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
+    vec4 v = vec4(buffer_ld4(bottom_top_blob_data, gi));
 
-    afpvec4 a;
+    vec4 a;
 
     if (across_spatial == 1 && across_channel == 1)
     {
-        a = buffer_ld4(coeffs_blob_data, 0);
+        a = coeffs_blob_data[0];
     }
 
     if (across_spatial == 1 && across_channel == 0)
     {
-        a = buffer_ld4(coeffs_blob_data, gz);
+        a = coeffs_blob_data[gz];
     }
 
     if (across_spatial == 0 && across_channel == 1)
     {
-        a = buffer_ld4(coeffs_blob_data, gy * psc(w) + gx);
+        a = coeffs_blob_data[gy * psc(w) + gx];
     }
-
-#if (NCNN_fp16_packed || NCNN_fp16_storage)
-    // NOTE coeffs may produce (X, undef, X, undef) on nvidia fp16p/fp16s
-    // TODO only enable this workaround for some nvidia driver
-    if (across_channel == 1)
-    {
-        a = afpvec4(a.r);
-    }
-#endif
 
     v = v * a;
 
@@ -74,13 +65,13 @@ void main()
     {
         if (channel_shared == 1)
         {
-            v = v * afp(channel_shared_scale);
+            v = v * channel_shared_scale;
         }
         else
         {
-            v = v * buffer_ld4(scale_blob_data, gz);
+            v = v * vec4(buffer_ld4(scale_blob_data, gz));
         }
     }
 
-    buffer_st4(bottom_top_blob_data, gi, v);
+    buffer_st4(bottom_top_blob_data, gi, afpvec4(v));
 }
