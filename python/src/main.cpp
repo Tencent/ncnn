@@ -523,7 +523,7 @@ PYBIND11_MODULE(ncnn, m)
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
     .def(
     "depth", [](Mat& m, int z) {
-        check_index("depth", z, m.w * m.h > 0 ? m.total() / ((size_t)m.w * m.h) : 0);
+        check_index("depth", z, m.w > 0 && m.h > 0 ? m.total() / ((size_t)m.w * m.h) : 0);
         return m.depth(z);
     },
     py::arg("z"))
@@ -563,7 +563,7 @@ PYBIND11_MODULE(ncnn, m)
     //.def("channel_range", (const Mat (Mat::*)(int, int) const) & Mat::channel_range, py::arg("c"), py::arg("channels"))
     .def(
     "depth_range", [](Mat& m, int z, int depths) {
-        check_range("depth_range", z, depths, m.w * m.h > 0 ? m.total() / ((size_t)m.w * m.h) : 0);
+        check_range("depth_range", z, depths, m.w > 0 && m.h > 0 ? m.total() / ((size_t)m.w * m.h) : 0);
         return m.depth_range(z, depths);
     },
     py::arg("z"), py::arg("depths"))
