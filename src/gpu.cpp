@@ -5793,9 +5793,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& features = info.queryCooperativeMatrixMaintenance1Features();
             DD_APPEND_FEATURE(cooperativeMatrixProperties2)
-            DD_APPEND_FEATURE(cooperativeMatrixReductions)
-            DD_APPEND_FEATURE(cooperativeMatrixConversions)
-            DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            // EXT suffix avoids redefining the same named cooperative_matrix2 NV features
+            device_defines.append("cooperativeMatrixReductionsEXT", features.cooperativeMatrixReductions ? 1 : 0);
+            device_defines.append("cooperativeMatrixConversionsEXT", features.cooperativeMatrixConversions ? 1 : 0);
+            device_defines.append("cooperativeMatrixPerElementOperationsEXT", features.cooperativeMatrixPerElementOperations ? 1 : 0);
             DD_APPEND_FEATURE(cooperativeMatrixGetCoordinate)
         }
         if (info.support_VK_NV_cooperative_matrix2())
