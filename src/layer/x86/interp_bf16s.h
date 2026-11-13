@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
-void interp_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+void interp_bf16s_avx512bf16(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
-void interp_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+void interp_bf16s_avxneconvert(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
-void interp_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+void interp_bf16s_avx2(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
-void interp_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+void interp_bf16s_fma(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
-void interp_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+void interp_bf16s_fma4(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt);
 #endif
 
-static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt);
+static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt);
 
 static void vresize_bilinear_bf16s(const float* rows0, const float* rows1, unsigned short* Dp, int n, float b0, float b1)
 {
@@ -1422,12 +1422,12 @@ static void resize_bicubic_image_bf16s(const Mat& src, Mat& dst, float* alpha, i
     }
 }
 
-static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_size_expr, const Option& opt)
+static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type, int align_corner, float height_scale, float width_scale, int output_height, int output_width, int has_output_size, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx512_bf16())
     {
-        interp_bf16s_avx512bf16(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        interp_bf16s_avx512bf16(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_output_size, opt);
         return;
     }
 #endif
@@ -1435,7 +1435,7 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
     if (ncnn::cpu_support_x86_avx_ne_convert())
     {
-        interp_bf16s_avxneconvert(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        interp_bf16s_avxneconvert(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_output_size, opt);
         return;
     }
 #endif
@@ -1443,7 +1443,7 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
-        interp_bf16s_avx2(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        interp_bf16s_avx2(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_output_size, opt);
         return;
     }
 #endif
@@ -1451,14 +1451,14 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
-        interp_bf16s_fma(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        interp_bf16s_fma(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_output_size, opt);
         return;
     }
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA4 && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma4())
     {
-        interp_bf16s_fma4(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_size_expr, opt);
+        interp_bf16s_fma4(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, has_output_size, opt);
         return;
     }
 #endif
@@ -1498,7 +1498,7 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
     {
         if (resize_type == 1) // nearest
         {
-            const float ws = (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale;
+            const float ws = (output_width || has_output_size) ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1524,7 +1524,8 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            linear_coeffs(w, outw, xofs, alpha, align_corner);
+            const double ws = (output_width || has_output_size) ? (double)w / outw : 1.0 / width_scale;
+            linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1597,7 +1598,8 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
             int* xofs = buf;
             float* alpha = (float*)(buf + outw);
 
-            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+            const double ws = (output_width || has_output_size) ? (double)w / outw : 1.0 / width_scale;
+            cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -1688,8 +1690,8 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
 
     if (resize_type == 1) // nearest
     {
-        const float hs = (output_height || has_size_expr) ? h / (float)outh : 1.f / height_scale;
-        const float ws = (output_width || has_size_expr) ? w / (float)outw : 1.f / width_scale;
+        const float hs = (output_height || has_output_size) ? h / (float)outh : 1.f / height_scale;
+        const float ws = (output_width || has_output_size) ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -1726,8 +1728,10 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 2];
         float* beta = (float*)(buf + outw + outh + outw * 2); //new float[outh * 2];
 
-        linear_coeffs(w, outw, xofs, alpha, align_corner);
-        linear_coeffs(h, outh, yofs, beta, align_corner);
+        const double ws = (output_width || has_output_size) ? (double)w / outw : 1.0 / width_scale;
+        linear_coeffs(w, outw, ws, xofs, alpha, align_corner);
+        const double hs = (output_height || has_output_size) ? (double)h / outh : 1.0 / height_scale;
+        linear_coeffs(h, outh, hs, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -1772,8 +1776,10 @@ static void interp_bf16s(const Mat& bottom_blob, Mat& top_blob, int resize_type,
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
         float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-        cubic_coeffs(w, outw, xofs, alpha, align_corner);
-        cubic_coeffs(h, outh, yofs, beta, align_corner);
+        const double ws = (output_width || has_output_size) ? (double)w / outw : 1.0 / width_scale;
+        cubic_coeffs(w, outw, ws, xofs, alpha, align_corner);
+        const double hs = (output_height || has_output_size) ? (double)h / outh : 1.0 / height_scale;
+        cubic_coeffs(h, outh, hs, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

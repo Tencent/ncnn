@@ -77,7 +77,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         return forward_int8(bottom_blob, top_blob, opt);
 
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && elembits == 16)
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
@@ -296,7 +296,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 // *INDENT-OFF*
                 vuint16m1_t pad_value;
 #if NCNN_ZFH
-                if (opt.use_fp16_storage)
+                if (support_fp16_storage && opt.use_fp16_storage)
                 {
                     pad_value = __riscv_vmv_v_x_u16m1(value_fp16, vl);
                 }
@@ -337,7 +337,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 // *INDENT-OFF*
                 vuint16m1_t pad_value;
 #if NCNN_ZFH
-                if (opt.use_fp16_storage)
+                if (support_fp16_storage && opt.use_fp16_storage)
                 {
                     pad_value = __riscv_vmv_v_x_u16m1(value_fp16, vl);
                 }
@@ -385,7 +385,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     // *INDENT-OFF*
                     vuint16m1_t pad_value;
 #if NCNN_ZFH
-                    if (opt.use_fp16_storage)
+                    if (support_fp16_storage && opt.use_fp16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? __riscv_vle16_v_u16m1((const unsigned short*)per_channel_pad_data_fp16 + q * packn, vl) : __riscv_vmv_v_x_u16m1(value_fp16, vl);
                     }
@@ -443,7 +443,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     // *INDENT-OFF*
                     vuint16m1_t pad_value;
 #if NCNN_ZFH
-                    if (opt.use_fp16_storage)
+                    if (support_fp16_storage && opt.use_fp16_storage)
                     {
                         pad_value = per_channel_pad_data_size ? __riscv_vle16_v_u16m1((const unsigned short*)per_channel_pad_data_fp16 + q * packn, vl) : __riscv_vmv_v_x_u16m1(value_fp16, vl);
                     }

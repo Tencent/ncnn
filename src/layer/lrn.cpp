@@ -68,7 +68,7 @@ int LRN::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             // square sum
             float* ssptr = square_sum.channel(q);
-            for (int p = q - local_size / 2; p <= q + local_size / 2; p++)
+            for (int p = q - local_size / 2; p <= q + (local_size - 1) / 2; p++)
             {
                 if (p < 0 || p >= channels)
                     continue;

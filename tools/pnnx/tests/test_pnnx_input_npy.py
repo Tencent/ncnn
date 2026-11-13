@@ -55,7 +55,22 @@ def _test_basic():
     pnnx_net.eval()
     b = pnnx_net(x, y)
 
-    return _allclose(a, b)
+    if not (_allclose(a, b)):
+        return False
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y,))
+    torch.export.save(ep, "test_pnnx_input_npy_basic_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_input_npy_basic_export.pt2 fp16=0 input=test_pnnx_input_npy_basic_x.npy,test_pnnx_input_npy_basic_y.npy")
+
+    # pnnx inference
+    import test_pnnx_input_npy_basic_export_pnnx
+    c = test_pnnx_input_npy_basic_export_pnnx.Model().eval()(x, y)
+    return len(a) == len(c) and _allclose(a, c)
 
 
 class Input2Model(nn.Module):
@@ -110,7 +125,26 @@ def _test_input2():
     b0 = pnnx_net(x0, y0)
     b1 = pnnx_net(x1, y1)
 
-    return _allclose(a0, b0) and _allclose(a1, b1)
+    if not (_allclose(a0, b0) and _allclose(a1, b1)):
+        return False
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    channels = torch.export.Dim("channels", min=2)
+    width = 2 * torch.export.Dim("half_width", min=2)
+    ep = torch.export.export(net, (x0, y0), dynamic_shapes=({1: channels, 2: width}, {1: channels, 2: width}))
+    torch.export.save(ep, "test_pnnx_input_npy_input2_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_input_npy_input2_export.pt2 fp16=0 input=test_pnnx_input_npy_input2_x0.npy,test_pnnx_input_npy_input2_y0.npy input2=test_pnnx_input_npy_input2_x1.npy,test_pnnx_input_npy_input2_y1.npy")
+
+    # pnnx inference
+    import test_pnnx_input_npy_input2_export_pnnx
+    pnnx_export = test_pnnx_input_npy_input2_export_pnnx.Model().eval()
+    c0 = pnnx_export(x0, y0)
+    c1 = pnnx_export(x1, y1)
+    return len(a0) == len(c0) and len(a1) == len(c1) and _allclose(a0, c0) and _allclose(a1, c1)
 
 
 class Int64Model(nn.Module):
@@ -150,7 +184,22 @@ def _test_int64():
     pnnx_net.eval()
     b = pnnx_net(x, y)
 
-    return torch.equal(a, b)
+    if not (torch.equal(a, b)):
+        return False
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y,))
+    torch.export.save(ep, "test_pnnx_input_npy_int64_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_input_npy_int64_export.pt2 fp16=0 input=test_pnnx_input_npy_int64_x.npy,test_pnnx_input_npy_int64_y.npy")
+
+    # pnnx inference
+    import test_pnnx_input_npy_int64_export_pnnx
+    c = test_pnnx_input_npy_int64_export_pnnx.Model().eval()(x, y)
+    return a.dtype == c.dtype and torch.equal(a, c)
 
 
 class EmbeddingModel(nn.Module):
@@ -189,7 +238,22 @@ def _test_embedding():
     pnnx_net.eval()
     b = pnnx_net(x)
 
-    return torch.equal(a, b)
+    if not (torch.equal(a, b)):
+        return False
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_pnnx_input_npy_embedding_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_input_npy_embedding_export.pt2 fp16=0 input=test_pnnx_input_npy_embedding_x.npy")
+
+    # pnnx inference
+    import test_pnnx_input_npy_embedding_export_pnnx
+    c = test_pnnx_input_npy_embedding_export_pnnx.Model().eval()(x)
+    return a.dtype == c.dtype and torch.equal(a, c)
 
 
 def test():

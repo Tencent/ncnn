@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
+from packaging import version
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -49,6 +50,23 @@ def test():
     # pnnx inference
     import test_pnnx_fuse_layernorm_pnnx
     b0 = test_pnnx_fuse_layernorm_pnnx.test_inference()
+
+    if not (torch.allclose(a0, b0, 1e-4, 1e-4)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_pnnx_fuse_layernorm_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_fuse_layernorm_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_pnnx_fuse_layernorm_export_pnnx
+    b0 = test_pnnx_fuse_layernorm_export_pnnx.test_inference()
 
     return torch.allclose(a0, b0, 1e-4, 1e-4)
 
