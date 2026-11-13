@@ -19,6 +19,9 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+protected:
+    int check_input_shapes(const std::vector<Mat>& bottom_blobs) const;
+
 public:
     // param
     int num_output;

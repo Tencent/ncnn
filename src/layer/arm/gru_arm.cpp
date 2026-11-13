@@ -625,6 +625,11 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
 int GRU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blob, Mat()) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_INT8
     if (int8_scale_term)
     {
@@ -707,6 +712,11 @@ int GRU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
 int GRU_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs[0], bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat()) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_INT8
     if (int8_scale_term)
     {

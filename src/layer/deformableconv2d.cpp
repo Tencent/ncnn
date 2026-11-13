@@ -88,6 +88,11 @@ int DeformableConv2D::load_model(const ModelBin& mb)
 
 int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& offset = bottom_blobs[1];
 
@@ -194,6 +199,37 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             }
         }
     }
+    return 0;
+}
+
+int DeformableConv2D::check_input_shapes(const std::vector<Mat>& bottom_blobs) const
+{
+    // weight_data holds weight_data_size / num_output / maxk input channels,
+    // offset holds 2 * maxk and mask holds maxk channels of out_h x out_w
+    if (bottom_blobs.size() < 2)
+        return -1;
+
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& offset = bottom_blobs[1];
+    const int maxk = kernel_w * kernel_h;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int out_w = (bottom_blob.w + pad_left + pad_right - kernel_extent_w) / stride_w + 1;
+    const int out_h = (bottom_blob.h + pad_top + pad_bottom - kernel_extent_h) / stride_h + 1;
+
+    if (bottom_blob.dims != 3 || bottom_blob.c * bottom_blob.elempack != weight_data_size / num_output / maxk)
+        return -1;
+
+    if (offset.dims != 3 || offset.w < out_w || offset.h < out_h || offset.c * offset.elempack < maxk * 2)
+        return -1;
+
+    if (bottom_blobs.size() == 3)
+    {
+        const Mat& mask = bottom_blobs[2];
+        if (mask.dims != 3 || mask.w < out_w || mask.h < out_h || mask.c * mask.elempack < maxk)
+            return -1;
+    }
+
     return 0;
 }
 
