@@ -1,6 +1,8 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <float.h>
+
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
 void swiglu_bf16s_zvfbfmin(const Mat& gate, const Mat& up, Mat& top_blob, const Option& opt, float scale, float offset, float limit);
 #endif
@@ -17,6 +19,8 @@ static void swiglu_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, const Op
 
     const int channels = gate.c;
     const int size = gate.w * gate.h * gate.d * gate.elempack;
+    const float climit = limit > 0.f ? limit : FLT_MAX;
+    const float mlimit = -climit;
 
     const int block_size = 1024;
     const int nn_block = (size + block_size - 1) / block_size;
@@ -48,12 +52,9 @@ static void swiglu_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, const Op
             vfloat32m4_t _g = bfloat2float_rvv(_g16, vl);
             vfloat32m4_t _u = bfloat2float_rvv(_u16, vl);
 
-            if (limit > 0.f)
-            {
-                _g = __riscv_vfmin_vf_f32m4(_g, limit, vl);
-                _u = __riscv_vfmax_vf_f32m4(_u, -limit, vl);
-                _u = __riscv_vfmin_vf_f32m4(_u, limit, vl);
-            }
+            _g = __riscv_vfmin_vf_f32m4(_g, climit, vl);
+            _u = __riscv_vfmax_vf_f32m4(_u, mlimit, vl);
+            _u = __riscv_vfmin_vf_f32m4(_u, climit, vl);
 
             // silu(scale * g) = g * sigmoid(scale * g)
             _g = __riscv_vfmul_vv_f32m4(_g, sigmoid_ps(__riscv_vfmul_vf_f32m4(_g, scale, vl), vl), vl);
@@ -74,11 +75,8 @@ static void swiglu_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, const Op
         {
             float g = bfloat16_to_float32(gateptr[i]);
             float u = bfloat16_to_float32(upptr[i]);
-            if (limit > 0.f)
-            {
-                g = std::min(g, limit);
-                u = std::min(std::max(u, -limit), limit);
-            }
+            g = std::min(g, climit);
+            u = std::min(std::max(u, mlimit), climit);
             outptr[i] = float32_to_bfloat16(g / (1.f + expf(-scale * g)) * (u + offset));
         }
 #endif // __riscv_vector

@@ -3,6 +3,8 @@
 
 #include "swiglu_riscv.h"
 
+#include <float.h>
+
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
@@ -35,8 +37,10 @@ SwiGLU_riscv::SwiGLU_riscv()
 }
 
 #if __riscv_vector
-static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* outptr, int size, float scale, float offset, float limit)
+static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* outptr, int size, float scale, float offset, float climit)
 {
+    const float mlimit = -climit;
+
     int n = size;
     while (n > 0)
     {
@@ -45,12 +49,9 @@ static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* o
         vfloat32m4_t _g = __riscv_vle32_v_f32m4(gateptr, vl);
         vfloat32m4_t _u = __riscv_vle32_v_f32m4(upptr, vl);
 
-        if (limit > 0.f)
-        {
-            _g = __riscv_vfmin_vf_f32m4(_g, limit, vl);
-            _u = __riscv_vfmax_vf_f32m4(_u, -limit, vl);
-            _u = __riscv_vfmin_vf_f32m4(_u, limit, vl);
-        }
+        _g = __riscv_vfmin_vf_f32m4(_g, climit, vl);
+        _u = __riscv_vfmax_vf_f32m4(_u, mlimit, vl);
+        _u = __riscv_vfmin_vf_f32m4(_u, climit, vl);
 
         // silu(scale * g) = g * sigmoid(scale * g)
         _g = __riscv_vfmul_vv_f32m4(_g, sigmoid_ps(__riscv_vfmul_vf_f32m4(_g, scale, vl), vl), vl);
@@ -103,6 +104,7 @@ int SwiGLU_riscv::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob, co
 {
     const int channels = gate.c;
     const int size = gate.w * gate.h * gate.d * gate.elempack;
+    const float climit = activation_limit > 0.f ? activation_limit : FLT_MAX;
 
     const int block_size = 1024;
     const int nn_block = (size + block_size - 1) / block_size;
@@ -119,17 +121,15 @@ int SwiGLU_riscv::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob, co
         float* outptr = (float*)top_blob.channel(q) + offset;
 
 #if __riscv_vector
-        swiglu_vector_f32(gateptr, upptr, outptr, len, sigmoid_scale, up_offset, activation_limit);
+        swiglu_vector_f32(gateptr, upptr, outptr, len, sigmoid_scale, up_offset, climit);
 #else
+        const float mlimit = -climit;
         for (int i = 0; i < len; i++)
         {
             float g = gateptr[i];
             float u = upptr[i];
-            if (activation_limit > 0.f)
-            {
-                g = std::min(g, activation_limit);
-                u = std::min(std::max(u, -activation_limit), activation_limit);
-            }
+            g = std::min(g, climit);
+            u = std::min(std::max(u, mlimit), climit);
             outptr[i] = g / (1.f + expf(-sigmoid_scale * g)) * (u + up_offset);
         }
 #endif // __riscv_vector

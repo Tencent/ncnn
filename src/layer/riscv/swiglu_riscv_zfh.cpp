@@ -3,6 +3,8 @@
 
 #include "swiglu_riscv.h"
 
+#include <float.h>
+
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
@@ -15,6 +17,8 @@ int SwiGLU_riscv::forward_fp16s(const Mat& gate, const Mat& up, Mat& top_blob, c
 {
     const int channels = gate.c;
     const int size = gate.w * gate.h * gate.d * gate.elempack;
+    const float climit = activation_limit > 0.f ? activation_limit : FLT_MAX;
+    const float mlimit = -climit;
 
     const int block_size = 1024;
     const int nn_block = (size + block_size - 1) / block_size;
@@ -42,12 +46,9 @@ int SwiGLU_riscv::forward_fp16s(const Mat& gate, const Mat& up, Mat& top_blob, c
             vfloat32m4_t _g = __riscv_vfwcvt_f_f_v_f32m4(_g16, vl);
             vfloat32m4_t _u = __riscv_vfwcvt_f_f_v_f32m4(_u16, vl);
 
-            if (activation_limit > 0.f)
-            {
-                _g = __riscv_vfmin_vf_f32m4(_g, activation_limit, vl);
-                _u = __riscv_vfmax_vf_f32m4(_u, -activation_limit, vl);
-                _u = __riscv_vfmin_vf_f32m4(_u, activation_limit, vl);
-            }
+            _g = __riscv_vfmin_vf_f32m4(_g, climit, vl);
+            _u = __riscv_vfmax_vf_f32m4(_u, mlimit, vl);
+            _u = __riscv_vfmin_vf_f32m4(_u, climit, vl);
 
             // silu(scale * g) = g * sigmoid(scale * g)
             _g = __riscv_vfmul_vv_f32m4(_g, sigmoid_ps(__riscv_vfmul_vf_f32m4(_g, sigmoid_scale, vl), vl), vl);
@@ -65,11 +66,8 @@ int SwiGLU_riscv::forward_fp16s(const Mat& gate, const Mat& up, Mat& top_blob, c
         {
             float g = (float)gateptr[i];
             float u = (float)upptr[i];
-            if (activation_limit > 0.f)
-            {
-                g = std::min(g, activation_limit);
-                u = std::min(std::max(u, -activation_limit), activation_limit);
-            }
+            g = std::min(g, climit);
+            u = std::min(std::max(u, mlimit), climit);
             outptr[i] = (__fp16)(g / (1.f + expf(-sigmoid_scale * g)) * (u + up_offset));
         }
 #endif // __riscv_zvfh

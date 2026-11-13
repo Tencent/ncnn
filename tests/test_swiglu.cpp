@@ -3,6 +3,8 @@
 
 #include "testutil.h"
 
+#include <float.h>
+
 static int test_swiglu(const ncnn::Mat& a, const ncnn::Mat& b, float sigmoid_scale, float up_offset, float activation_limit, int flag = 0)
 {
     ncnn::ParamDict pd;
@@ -170,15 +172,15 @@ static int test_swiglu_oracle(const char* name, float scale, float offset, float
     }
 
     const ncnn::Mat& out = tops[0];
+    const float climit = limit > 0.f ? limit : FLT_MAX;
+    const float mlimit = -climit;
+
     for (int i = 0; i < size; i++)
     {
         float g = gate_data[i];
         float u = up_data[i];
-        if (limit > 0.f)
-        {
-            g = std::min(g, limit);
-            u = std::min(std::max(u, -limit), limit);
-        }
+        g = std::min(g, climit);
+        u = std::min(std::max(u, mlimit), climit);
         const float expected = g / (1.f + expf(-scale * g)) * (u + offset);
 
         if (!NearlyEqual(out[i], expected, 0.001f))

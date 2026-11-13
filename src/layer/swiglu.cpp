@@ -3,6 +3,8 @@
 
 #include "swiglu.h"
 
+#include <float.h>
+
 namespace ncnn {
 
 SwiGLU::SwiGLU()
@@ -38,6 +40,8 @@ int SwiGLU::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     const int channels = gate.c;
     const int size = gate.w * gate.h * gate.d * gate.elempack;
+    const float climit = activation_limit > 0.f ? activation_limit : FLT_MAX;
+    const float mlimit = -climit;
 
     // gather short channels into one task and split long channels, so that
     // 2d llm tensors with c == 1 also spread over all threads
@@ -60,11 +64,8 @@ int SwiGLU::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             float g = gateptr[i];
             float u = upptr[i];
 
-            if (activation_limit > 0.f)
-            {
-                g = std::min(g, activation_limit);
-                u = std::min(std::max(u, -activation_limit), activation_limit);
-            }
+            g = std::min(g, climit);
+            u = std::min(std::max(u, mlimit), climit);
 
             outptr[i] = g / (1.f + expf(-sigmoid_scale * g)) * (u + up_offset);
         }
