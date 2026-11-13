@@ -3048,12 +3048,74 @@ int Gemm_riscv::create_pipeline(const Option& opt)
 #endif
 
 #if NCNN_ZFH
+    // Fix the "static initialization order" defect: support_fp16_storage is assigned in the
+    // constructor, but with some compilers (observed: clang 24) ncnn's CPU-feature globals are
+    // not yet initialized when the layer object is constructed, so the member stays permanently
+    // 0 and the whole fp16 path (including IME2) is silently skipped. Refresh it live at the
+    // point of use. The predicate must match the constructor exactly (the RVV variant checks
+    // zvfh, the base variant checks zfh), otherwise on a ZFH-only machine the RVV variant's
+    // fp16 would be wrongly enabled.
+    {
+#if __riscv_vector
+        support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+        support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+    }
     if (support_fp16_storage && opt.use_fp16_storage)
     {
+#if NCNN_RISCV_SPACEMIT_IME2
+        // SpacemiT IME2 (smt.vfwmadot) only covers the pure A*B^T case with no C term (transB=1).
+        // When the conditions are not met, do not build the IME2 packing; take the upstream fp16s pipeline.
+        // Note: this must come before the fp16_arithmetic check — IME2 is fp16 storage + fp32
+        // accumulation, unrelated to use_fp16_arithmetic; checking arithmetic first would take fp16sa and bypass IME2.
+        bool ime2_full_takeover = false;
+        if (!constantA && constantB && transB && !transA
+                && !output_transpose && !output_N1M
+                && (!constantC || constant_broadcast_type_C == -1))
+        {
+            const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
+            if (c_never_exists)
+            {
+                // IME2 takes over the fp16 forward. But that does not mean the generic fp32
+                // pipeline below can be dropped: a bare Gemm layer (not inside a Net, so no
+                // automatic cast, e.g. ncnn_llm's LlmHead) may receive fp32 input and must still
+                // be able to fall to the fp32 forward, otherwise BT_data is empty and the fp32
+                // kernel would dereference a null pointer.
+                ime2_full_takeover = (create_pipeline_ime2(opt) == 0);
+                if (ime2_full_takeover)
+                {
+                    ime2_fp32_fallback_ready = 1; /* the fp32 fallback pipeline is still built below */
+                    /* Retain the original fp32 weights for the affinity fallback (the generic
+                     * pipeline releases B_data under lightmode; Mat is refcounted, zero copy).
+                     * FULL TAKEOVER ONLY: the non-takeover fp32 dispatch casts A to fp16 before
+                     * recursing, so its fallback can never read fp32 weights -- retaining them
+                     * there would keep 4*N*K dead bytes alive per optional-runtime-C gemm. */
+                    if (opt.lightmode && !B_data.empty() && B_data.elembits() == 32 && B_data.elempack == 1)
+                        B_data_fp32_fallback = B_data;
+                }
+            }
+            else
+            {
+                // runtime C may exist: build the IME2 packing as well, and keep building the fp16s pipeline
+                create_pipeline_ime2(opt);
+            }
+        }
+        if (!ime2_full_takeover)
+        {
+            // when IME2 does not take over, keep the upstream fp16 pipeline choice (fp16sa if fp16 arithmetic is available)
+            if (opt.use_fp16_arithmetic)
+                return create_pipeline_fp16sa(opt);
+
+            return create_pipeline_fp16s(opt);
+        }
+        // ime2_full_takeover: fp16 input goes through IME2; continue below to build the fp32 fallback pipeline
+#else
         if (opt.use_fp16_arithmetic)
             return create_pipeline_fp16sa(opt);
 
         return create_pipeline_fp16s(opt);
+#endif // NCNN_RISCV_SPACEMIT_IME2
     }
 #endif
 
@@ -3213,6 +3275,31 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if NCNN_ZFH || NCNN_BF16
     const Mat& bottom_blob = constantA ? AT_data : bottom_blobs[0];
     int elembits = bottom_blob.elembits();
+#if NCNN_RISCV_SPACEMIT_IME2
+    if (use_ime2_path && elembits == 16)
+    {
+        // The IME2 path only handles the pure A*B^T case with no C term.
+        // With constantB, C can only come from bottom_blobs[1] (passed at runtime); with constantC
+        // and broadcast=-1, CT_data is empty (equivalent to no C). Fall back if C is non-empty and beta!=0.
+        bool has_C = false;
+        if (constantC)
+            has_C = !CT_data.empty() && beta != 0.f;
+        else if (bottom_blobs.size() == 2)
+            has_C = !bottom_blobs[1].empty() && beta != 0.f;
+        else if (bottom_blobs.size() >= 3)
+            has_C = true; // conservative: fall back on any extra inputs
+
+        if (!has_C)
+        {
+            const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
+            /* -99 = team check failed and this layer has an fp16s pipeline (not full-takeover):
+             * fall into the 16-bit dispatch below. With full-takeover, forward_ime2 has already
+             * taken the fp32-conversion fallback internally and never returns -99. */
+            if (ret != -99)
+                return ret;
+        }
+    }
+#endif // NCNN_RISCV_SPACEMIT_IME2
 #endif
 #if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
@@ -3222,6 +3309,92 @@ int Gemm_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
         return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
+
+#if NCNN_RISCV_SPACEMIT_IME2
+    if (use_ime2_path && elembits == 32 && !ime2_fp32_fallback_ready)
+    {
+        /* non-takeover: the fp16s pipeline was built, BT_data is an fp16 panel, and the fp32
+         * generic kernel cannot read it (this is a latent upstream hole: an fp16s panel plus a
+         * bare fp32 input breaks on any machine where fp16s truly works — on K3 it stayed latent
+         * only because the static-initialization-order and hwprobe bugs together kept fp16s
+         * disabled). When this layer is armed with IME2 it must catch bare fp32 input itself
+         * (ncnn_llm's LlmHead mode): cast it to fp16 and re-enter the 16-bit dispatch, which is
+         * equivalent to the cast that would happen automatically inside a Net. */
+        /* the temporary cast tensor uses the workspace allocator: the recursive forward allocates
+         * its output from blob_allocator, and if the temporary also occupied blob_allocator, the
+         * graph allocator sized for the large input would double-count it and falsely report -100. */
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = opt.workspace_allocator;
+        std::vector<Mat> in16(bottom_blobs.size());
+        bool ok = true;
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            /* beta == 0 makes a runtime C semantically absent (has_C above): it is
+             * never read by the calculation, so do not cast it either -- a full MxN
+             * C would needlessly consume a half-sized workspace buffer and could
+             * make the call fail with -100 even though C is ignored. */
+            if (beta == 0 && i >= 1)
+            {
+                in16[i] = bottom_blobs[i];
+                continue;
+            }
+            if (!bottom_blobs[i].empty() && bottom_blobs[i].elembits() == 32)
+            {
+                cast_float32_to_float16(bottom_blobs[i], in16[i], opt_cast);
+                if (in16[i].empty())
+                {
+                    ok = false;
+                    break;
+                }
+            }
+            else
+                in16[i] = bottom_blobs[i];
+        }
+        if (!ok)
+            return -100;
+        /* cast preserves the input elempack: packed fp32 (packn=32 on A100) cast to fp16 is
+         * still pack32, while the fp16s pipeline indexes by the native fp16 packn (64 on A100) —
+         * same packing count with a different bit width is a mismatch. Repack everything to
+         * pack1 (accepted by all kernels) before recursing. */
+        for (size_t i = 0; i < in16.size(); i++)
+        {
+            /* beta == 0 makes a runtime C semantically absent: it is not cast and
+             * must not be repacked either -- converting a packed full MxN C would
+             * still allocate a full fp32 workspace buffer for an input the
+             * recursive forward never reads. */
+            if (beta == 0 && i >= 1)
+                continue;
+            if (!in16[i].empty() && in16[i].elempack != 1)
+            {
+                Mat tmp;
+                convert_packing(in16[i], tmp, 1, opt_cast);
+                if (tmp.empty())
+                    return -100;
+                in16[i] = tmp;
+            }
+        }
+        return forward(in16, top_blobs, opt);
+    }
+
+    if (use_ime2_path && elembits == 32 && ime2_fp32_fallback_ready)
+    {
+        /* this entry is only valid under full-takeover (the fp32 fallback panel really exists).
+         * The non-takeover branch built the fp16s pipeline: BT_data is an fp16 panel, and the
+         * fp32 generic kernel reading it at fp32 stride would go out of bounds (observed to
+         * crash at M>=320). In that case let the normal flow go through forward_fp16s (which
+         * internally casts fp32 input to fp16 — the existing upstream behavior for an "fp16s
+         * layer + bare fp32 input").
+         * The team check is just as necessary for fp32 input: the BT_data panel was packed with
+         * the vlenb of pipeline-build time, and after the team leaves the A100 the generic path
+         * below would recompute tiles with the new vlenb to index the old panel.
+         * Inside forward_ime2: team OK -> return -1 (continue the generic path; the panel comes
+         * from the same source and stays valid); team left + full-takeover -> the VLEN-agnostic
+         * fallback computes the result directly (returns 0/-100). */
+        const int ret = forward_ime2(bottom_blobs, top_blobs, opt);
+        if (ret != -1 && ret != -99)
+            return ret;
+    }
+#endif // NCNN_RISCV_SPACEMIT_IME2
 #endif
 
 #if NCNN_BF16
