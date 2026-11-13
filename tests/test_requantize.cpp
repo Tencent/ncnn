@@ -316,6 +316,68 @@ static int test_requantize_4()
            || test_requantize_pack1(RandomIntMat(3, 5, 3, 13), 13, 1, 0);
 }
 
+static int test_requantize_leakyrelu_saturate(const ncnn::Mat& a, int scale_in_data_size, int scale_out_data_size, int bias_data_size, int flag)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, scale_in_data_size);
+    pd.set(1, scale_out_data_size);
+    pd.set(2, bias_data_size);
+
+    ncnn::Mat activation_params(1);
+    activation_params[0] = 0.5f;
+    pd.set(3, 2);
+    pd.set(4, activation_params);
+
+    std::vector<ncnn::Mat> weights(bias_data_size ? 3 : 2);
+    weights[0] = RandomMat(scale_in_data_size);
+    weights[1] = RandomMat(scale_out_data_size);
+    if (bias_data_size)
+        weights[2] = RandomMat(bias_data_size);
+
+    Randomize(weights[0], 0.0001, 0.001);
+    Randomize(weights[1], 10, 100);
+
+    // every output saturates, so it must be exactly -127 or 127
+    int ret = test_layer("Requantize", pd, weights, a, 0.001, TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | flag);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_requantize_leakyrelu_saturate failed a.dims=%d a=(%d %d %d %d) scale_in_data_size=%d scale_out_data_size=%d bias_data_size=%d\n", a.dims, a.w, a.h, a.d, a.c, scale_in_data_size, scale_out_data_size, bias_data_size);
+    }
+
+    return ret;
+}
+
+static ncnn::Mat RandomSaturateIntMat(int w, int h, int c)
+{
+    ncnn::Mat m = RandomIntMat(w, h, c);
+    RandomizeInt(m, 1000000, 2000000);
+
+    int* p = m;
+    for (size_t i = 0; i < m.total(); i += 2)
+    {
+        p[i] = -p[i];
+    }
+
+    return m;
+}
+
+static int test_requantize_5()
+{
+    const int pack1 = TEST_LAYER_DISABLE_AUTO_INPUT_PACKING;
+#if !__riscv
+    const int pack8 = TEST_LAYER_ENABLE_FORCE_INPUT_PACK8;
+#else
+    const int pack8 = 0;
+#endif
+
+    return 0
+           || test_requantize_leakyrelu_saturate(RandomSaturateIntMat(13, 3, 4), 1, 1, 0, pack1)
+           || test_requantize_leakyrelu_saturate(RandomSaturateIntMat(13, 3, 4), 1, 1, 1, pack1)
+           || test_requantize_leakyrelu_saturate(RandomSaturateIntMat(13, 3, 4), 4, 4, 4, pack1)
+           || test_requantize_leakyrelu_saturate(RandomSaturateIntMat(5, 7, 24), 1, 1, 0, pack8)
+           || test_requantize_leakyrelu_saturate(RandomSaturateIntMat(5, 7, 24), 24, 24, 24, pack8);
+}
+
 static int test_requantize_activation_params_text()
 {
 #if NCNN_STRING
@@ -461,6 +523,7 @@ int main()
            || test_requantize_1()
            || test_requantize_2()
            || test_requantize_3()
+           || test_requantize_5()
            || test_requantize_activation_params_text()
 #if NCNN_VALIDATION
            || test_requantize_load_param()

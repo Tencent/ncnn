@@ -400,6 +400,7 @@ static NCNN_FORCEINLINE v16i8 float2int8leakyrelu(v4f32 _v, v4f32 _slope)
     v8i16 _v16_leaky = __msa_pckev_h(_v32_16_leaky, _v32_16_leaky);
 
     _v16 = __msa_max_s_h(_v16, _v16_leaky);
+    _v16 = __msa_max_s_h(_v16, __msa_fill_h(-127));
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
     v16i8 _v8 = __msa_pckev_b(_v16_8, _v16_8);
 
@@ -442,6 +443,7 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v
     v8i16 _v16_leaky = __msa_pckev_h(_vhigh32_16_leaky, _vlow32_16_leaky);
 
     _v16 = __msa_max_s_h(_v16, _v16_leaky);
+    _v16 = __msa_max_s_h(_v16, __msa_fill_h(-127));
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
     v2i64 _v8 = (v2i64)__msa_pckev_b(_v16_8, _v16_8);
 
