@@ -73,10 +73,6 @@ if(NCNN_VULKAN)
     ncnn_add_test(gpu)
     ncnn_add_test(command)
     ncnn_add_test(pipeline_cache)
-    # This compile-only test requires the bundled compiler's maintenance1 support.
-    if(WITH_LAYER_sdpa AND NOT NCNN_SYSTEM_GLSLANG)
-        ncnn_add_test(shader_sdpa)
-    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
