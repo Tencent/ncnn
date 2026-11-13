@@ -176,7 +176,11 @@ float finalize_out(float outv)
 
 void main()
 {
-    const int out_index = int(gl_WorkGroupID.y);
+    const uint out_index_u = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    if (out_index_u >= uint(p.out_w * p.out_h * p.out_d * p.out_c))
+        return;
+
+    const int out_index = int(out_index_u);
     const int tid = int(gl_LocalInvocationID.x);
 
     int ow, oh, od, oc;

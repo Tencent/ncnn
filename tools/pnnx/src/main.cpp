@@ -24,6 +24,10 @@
 #if BUILD_TORCH2PNNX
 #include "load_torchscript.h"
 #endif
+#if BUILD_PT22PNNX
+#include "load_pt2.h"
+#include "storezip.h"
+#endif
 #if BUILD_ONNX2PNNX
 #include "load_onnx.h"
 #endif
@@ -307,6 +311,14 @@ int main(int argc, char** argv)
 
     std::string ptpath = std::string(argv[1]);
 
+#if !BUILD_PT22PNNX
+    if (ptpath.size() >= 4 && ptpath.compare(ptpath.size() - 4, 4, ".pt2") == 0)
+    {
+        fprintf(stderr, "pnnx: pt2 load: this build requires PyTorch >= 2.11 for .pt2 support\n");
+        return -1;
+    }
+#endif
+
     std::string ptbase = get_basename(ptpath);
 
     std::string pnnxparampath = ptbase + ".pnnx.param";
@@ -451,6 +463,20 @@ int main(int argc, char** argv)
     // clang-format off
     // *INDENT-OFF*
 
+#if BUILD_PT22PNNX
+    if (model_file_maybe_torchscript(ptpath) && pnnx::model_file_maybe_pt2(ptpath))
+    {
+        if (device != "cpu")
+        {
+            fprintf(stderr, "pnnx: pt2 load: only CPU device is supported\n");
+            return -1;
+        }
+        int ret = pnnx::load_pt2(ptpath, pnnx_graph, input_shapes, input_types, input_shapes2, input_types2);
+        if (ret != 0)
+            return ret;
+    }
+    else
+#endif
 #if BUILD_TNN2PNNX
     if (model_file_maybe_tnnproto(ptpath))
     {
@@ -491,7 +517,8 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level2\n");
 
-    pnnx::pass_level2(pnnx_graph);
+    if (pnnx::pass_level2(pnnx_graph) != 0)
+        return -1;
 
     // pnnx_graph.save("debug.param", "debug.bin");
 

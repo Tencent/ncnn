@@ -108,6 +108,8 @@ private:
     std::unordered_map<std::string, TorchTensorProxy> attrs;
 };
 
+void write_dropout_alias(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod);
+
 class FuseModulePass
 {
 public:

@@ -240,6 +240,7 @@ pnnx_ncnn_add_test(shufflenet_v2_x1_0)
 pnnx_ncnn_add_test(squeezenet1_1)
 pnnx_ncnn_add_test(vit_b_32)
 
+pnnx_ncnn_add_test(functionize)
 pnnx_ncnn_add_test(ncnn_fuse_transpose_matmul)
 pnnx_ncnn_add_test(ncnn_fuse_shufflechannel_slice)
 pnnx_ncnn_add_test(ncnn_fuse_binaryop_eltwise)

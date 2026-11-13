@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import torch
+from packaging import version
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -167,6 +168,29 @@ def test():
     import test_pnnx_eliminate_noop_expand_pnnx
     b = test_pnnx_eliminate_noop_expand_pnnx.test_inference()
 
+    for a0, b0 in zip(a, b):
+        # allclose may auto broadcast compare
+        if a0.shape != b0.shape:
+            return False
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x0, x1, y0, y1, y2, y3, z0, z1, z2, z3, z4, z5, z6, z7, w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15))
+    torch.export.save(ep, "test_pnnx_eliminate_noop_expand_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_eliminate_noop_expand_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_pnnx_eliminate_noop_expand_export_pnnx
+    b = test_pnnx_eliminate_noop_expand_export_pnnx.test_inference()
+
+    if len(a) != len(b):
+        return False
     for a0, b0 in zip(a, b):
         # allclose may auto broadcast compare
         if a0.shape != b0.shape:

@@ -13,8 +13,7 @@ void fuse_constantlist(Graph& graph)
     // from prim::Constant * N - prim::ListConstruct
     //   to prim::Constant (x0,x1,...)
 
-    // from prim::Constant * 0 - prim::ListConstruct
-    //   to prim::Constant None
+    // Keep zero-input lists: their element type is not recoverable here.
 
     for (;;)
     {
@@ -27,11 +26,7 @@ void fuse_constantlist(Graph& graph)
                 continue;
 
             if (op->inputs.empty())
-            {
-                op->type = "prim::Constant";
-                op->params["value"] = Parameter();
                 continue;
-            }
 
             bool is_constant_list = true;
             std::vector<int> constants_i;
@@ -96,6 +91,9 @@ void fuse_constantlist(Graph& graph)
 
             for (auto x : op->inputs)
             {
+                x->remove_consumer(op);
+                if (!x->consumers.empty())
+                    continue;
                 graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x->producer));
                 delete x->producer;
                 graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), x));

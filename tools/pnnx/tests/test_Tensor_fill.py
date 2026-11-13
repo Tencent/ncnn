@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -37,7 +38,16 @@ def test():
     import test_Tensor_fill_pnnx
     b = test_Tensor_fill_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    if not torch.equal(a, b):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # This model writes directly to the caller's x and y tensors. The pt2
+    # frontend accepts inference graphs without external storage mutation.
+    print("pt2 not applicable: Tensor.fill writes external input storage")
+    return True
 
 if __name__ == "__main__":
     if test():
