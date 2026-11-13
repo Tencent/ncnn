@@ -29,6 +29,85 @@ namespace py = pybind11;
 
 static const int batch_index_none = 233;
 
+// Allocator that keeps the Python object exporting the wrapped buffer alive.
+// It owns the ncnn::Mat refcount of that buffer, so every shallow copy of the
+// Mat (reshape / channel / range / extractor input) shares it, and the Python
+// object is released when the last of them is destroyed.
+class PyBufferOwnerAllocator : public Allocator
+{
+public:
+    PyBufferOwnerAllocator(py::object _owner, void* _data)
+        : refcount(1), owner(new py::object(std::move(_owner))), data(_data), users(1)
+    {
+    }
+
+    virtual void* fastMalloc(size_t size)
+    {
+        NCNN_XADD(&users, 1);
+        return ncnn::fastMalloc(size);
+    }
+
+    virtual void fastFree(void* ptr)
+    {
+        if (ptr == data)
+        {
+            release_owner();
+        }
+        else
+        {
+            ncnn::fastFree(ptr);
+        }
+
+        if (NCNN_XADD(&users, -1) == 1)
+            delete this;
+    }
+
+    // the Mat refcount of the wrapped buffer
+    int refcount;
+
+private:
+    void release_owner()
+    {
+        if (!owner)
+            return;
+
+        if (Py_IsInitialized())
+        {
+            py::gil_scoped_acquire acquire;
+            delete owner;
+        }
+        // else: interpreter is gone, dropping the reference is not possible any more
+        owner = 0;
+    }
+
+    py::object* owner;
+    void* data;
+    int users;
+};
+
+// Mat created from an external buffer does not own the memory (refcount == 0),
+// so the buffer may be freed while the Mat is still alive. Give it a refcount
+// and an allocator that keeps the exporting Python object alive instead.
+static void attach_buffer_owner(Mat* m, py::object owner)
+{
+    PyBufferOwnerAllocator* a = new PyBufferOwnerAllocator(std::move(owner), m->data);
+    m->refcount = &a->refcount;
+    m->allocator = a;
+}
+
+static bool buffer_is_c_contiguous(const py::buffer_info& info)
+{
+    ssize_t expected = (ssize_t)info.itemsize;
+    for (int i = info.ndim - 1; i >= 0; i--)
+    {
+        if (info.strides[i] != expected)
+            return false;
+        expected *= (ssize_t)info.shape[i];
+    }
+    return true;
+}
+
+
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
 public:
@@ -277,6 +356,13 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
 #endif
+        if (info.ndim < 1)
+        {
+            std::stringstream ss;
+            ss << "convert numpy.ndarray to ncnn.Mat only dims >= 1 support now, but given " << info.ndim;
+            pybind11::pybind11_fail(ss.str());
+        }
+
         if (batch_index == batch_index_none && info.ndim > 4)
         {
             std::stringstream ss;
@@ -365,6 +451,16 @@ PYBIND11_MODULE(ncnn, m)
             return std::unique_ptr<Mat>(v);
         }
 
+        // ncnn::Mat always assumes C-contiguous data, while a Python buffer may be
+        // an arbitrary strided view (arr.T, arr[:, ::2], img[:, :, ::-1], ...).
+        // Materialize a contiguous copy for such views so the values are not scrambled.
+        py::object owner = py::reinterpret_borrow<py::object>(b);
+        if (!buffer_is_c_contiguous(info))
+        {
+            owner = py::module_::import("numpy").attr("ascontiguousarray")(owner);
+            info = py::reinterpret_borrow<py::buffer>(owner).request();
+        }
+
         Mat* v = nullptr;
         if (info.ndim == 1)
         {
@@ -392,6 +488,11 @@ PYBIND11_MODULE(ncnn, m)
             // so we set the cstep as numpy's cstep
             v->cstep = (int)info.shape[3] * (int)info.shape[2] * (int)info.shape[1];
         }
+
+        // the buffer is not owned by ncnn, keep the Python object alive as long as
+        // this Mat (and its shallow copies) live
+        attach_buffer_owner(v, owner);
+
         return std::unique_ptr<Mat>(v);
     }),
     py::arg("array"), py::arg("batch_index") = batch_index_none)
@@ -588,7 +689,18 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("refcount", &Mat::refcount)
     .def_readwrite("elemsize", &Mat::elemsize)
     .def_readwrite("elempack", &Mat::elempack)
-    .def_readwrite("allocator", &Mat::allocator)
+    // the allocator of a Mat wrapping a python buffer is an internal detail,
+    // report it as None so that the documented "allocator is None when the Mat
+    // does not own its memory" still holds
+    .def_property("allocator",
+    [](const Mat& m) -> Allocator* {
+        if (m.allocator && dynamic_cast<PyBufferOwnerAllocator*>(m.allocator))
+            return 0;
+        return m.allocator;
+    },
+    [](Mat& m, Allocator* allocator) {
+        m.allocator = allocator;
+    })
     .def_readwrite("dims", &Mat::dims)
     .def_readwrite("w", &Mat::w)
     .def_readwrite("h", &Mat::h)
