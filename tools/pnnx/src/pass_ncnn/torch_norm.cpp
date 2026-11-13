@@ -30,6 +30,14 @@ pnnx.Output             output      1 0 out
         return "norm";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const Parameter& p = captured_params.at("p");
+        return (p.type == 2 && (p.i == 1 || p.i == 2))
+               || (p.type == 3 && (p.f == 1.f || p.f == 2.f))
+               || (p.type == 4 && p.s == "fro");
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         float p = 0.f;
