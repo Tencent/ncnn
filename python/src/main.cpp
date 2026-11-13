@@ -34,7 +34,8 @@ static const int batch_index_none = 233;
 // A strided view such as img[:, :, ::-1] (BGR to RGB) or img[y0:y1, x0:x1] is copied first.
 struct PixelsBuffer
 {
-    py::object holder; // keeps a copied buffer alive while ncnn reads it
+    py::buffer_info info; // the acquired view, released only after ncnn has read it
+    py::object holder;    // keeps a copied buffer alive while ncnn reads it
     const unsigned char* data;
 };
 
@@ -71,7 +72,9 @@ static PixelsBuffer pixels_buffer(const py::buffer& b, int type, int w, int h, i
         pybind11::pybind11_fail(ss.str());
     }
 
-    py::buffer_info info = b.request();
+    PixelsBuffer pixels;
+    pixels.info = b.request();
+    const py::buffer_info& info = pixels.info;
     if (info.itemsize != 1)
     {
         std::stringstream ss;
@@ -93,7 +96,6 @@ static PixelsBuffer pixels_buffer(const py::buffer& b, int type, int w, int h, i
         }
     }
 
-    PixelsBuffer pixels;
     pixels.data = (const unsigned char*)info.ptr;
     py::ssize_t size = info.size;
     if (!c_contiguous)
@@ -102,9 +104,9 @@ static PixelsBuffer pixels_buffer(const py::buffer& b, int type, int w, int h, i
             pybind11::pybind11_fail("from_pixels with an explicit stride needs a C-contiguous buffer");
 
         py::array contiguous = py::module_::import("numpy").attr("ascontiguousarray")(b);
-        py::buffer_info cinfo = contiguous.request();
-        pixels.data = (const unsigned char*)cinfo.ptr;
-        size = cinfo.size;
+        pixels.info = contiguous.request();
+        pixels.data = (const unsigned char*)pixels.info.ptr;
+        size = pixels.info.size;
         pixels.holder = contiguous;
     }
 
