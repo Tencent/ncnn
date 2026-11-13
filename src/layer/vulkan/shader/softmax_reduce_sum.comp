@@ -50,16 +50,16 @@ void main()
         return;
 
     int positive_axis = axis < 0 ? psc(dims) + axis : axis;
-    afp sum_value = afp(0.f);
+    float sum_value = 0.f;
 
     if (psc(dims) == 1) // positive_axis == 0
     {
         for (int i = 0; i < psc(w); i++)
         {
             afp v = buffer_ld1(bottom_top_blob_data, i);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, 0, sum_value);
+        buffer_st1(sum_workspace_data, 0, afp(sum_value));
         return;
     }
 
@@ -69,9 +69,9 @@ void main()
         {
             int v_offset = i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gx, sum_value);
+        buffer_st1(sum_workspace_data, gx, afp(sum_value));
         return;
     }
 
@@ -81,9 +81,9 @@ void main()
         {
             int v_offset = gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gx, sum_value);
+        buffer_st1(sum_workspace_data, gx, afp(sum_value));
         return;
     }
 
@@ -93,9 +93,9 @@ void main()
         {
             int v_offset = i * psc(cstep) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gy * psc(w) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gy * psc(w) + gx, afp(sum_value));
         return;
     }
 
@@ -105,9 +105,9 @@ void main()
         {
             int v_offset = gy * psc(cstep) + i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gy * psc(w) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gy * psc(w) + gx, afp(sum_value));
         return;
     }
 
@@ -117,9 +117,9 @@ void main()
         {
             int v_offset = gy * psc(cstep) + gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gy * psc(h) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gy * psc(h) + gx, afp(sum_value));
         return;
     }
 
@@ -129,9 +129,9 @@ void main()
         {
             int v_offset = i * psc(cstep) + gz * psc(h) * psc(w) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, afp(sum_value));
         return;
     }
 
@@ -141,9 +141,9 @@ void main()
         {
             int v_offset = gz * psc(cstep) + i * psc(h) * psc(w) + gy * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, afp(sum_value));
         return;
     }
 
@@ -153,9 +153,9 @@ void main()
         {
             int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + i * psc(w) + gx;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, afp(sum_value));
         return;
     }
 
@@ -165,9 +165,9 @@ void main()
         {
             int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + gx * psc(w) + i;
             afp v = buffer_ld1(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += float(v);
         }
-        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(h) + gx, sum_value);
+        buffer_st1(sum_workspace_data, gz * psc(outcstep) + gy * psc(h) + gx, afp(sum_value));
         return;
     }
 }

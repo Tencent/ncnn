@@ -50,18 +50,18 @@ void main()
         return;
 
     int positive_axis = axis < 0 ? psc(dims) + axis : axis;
-    afpvec4 sum_value = afpvec4(0.f);
+    vec4 sum_value = vec4(0.f);
 
     if (psc(dims) == 1) // positive_axis == 0
     {
         for (int i = 0; i < psc(w); i++)
         {
             afpvec4 v = buffer_ld4(bottom_top_blob_data, i);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_value = afpvec4(sum2.r + sum2.g);
-        buffer_st4(sum_workspace_data, 0, sum_value);
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_value = vec4(sum2.r + sum2.g);
+        buffer_st4(sum_workspace_data, 0, afpvec4(sum_value));
         return;
     }
 
@@ -71,11 +71,11 @@ void main()
         {
             int v_offset = i * psc(w) + gx;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_value = afpvec4(sum2.r + sum2.g);
-        buffer_st4(sum_workspace_data, gx, sum_value);
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_value = vec4(sum2.r + sum2.g);
+        buffer_st4(sum_workspace_data, gx, afpvec4(sum_value));
         return;
     }
 
@@ -85,9 +85,9 @@ void main()
         {
             int v_offset = gx * psc(w) + i;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        buffer_st4(sum_workspace_data, gx, sum_value);
+        buffer_st4(sum_workspace_data, gx, afpvec4(sum_value));
         return;
     }
 
@@ -97,11 +97,11 @@ void main()
         {
             int v_offset = i * psc(cstep) + gy * psc(w) + gx;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_value = afpvec4(sum2.r + sum2.g);
-        buffer_st4(sum_workspace_data, gy * psc(w) + gx, sum_value);
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_value = vec4(sum2.r + sum2.g);
+        buffer_st4(sum_workspace_data, gy * psc(w) + gx, afpvec4(sum_value));
         return;
     }
 
@@ -111,9 +111,9 @@ void main()
         {
             int v_offset = gy * psc(cstep) + i * psc(w) + gx;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        buffer_st4(sum_workspace_data, gy * psc(w) + gx, sum_value);
+        buffer_st4(sum_workspace_data, gy * psc(w) + gx, afpvec4(sum_value));
         return;
     }
 
@@ -123,9 +123,9 @@ void main()
         {
             int v_offset = gy * psc(cstep) + gx * psc(w) + i;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        buffer_st4(sum_workspace_data, gy * psc(h) + gx, sum_value);
+        buffer_st4(sum_workspace_data, gy * psc(h) + gx, afpvec4(sum_value));
         return;
     }
 
@@ -135,11 +135,11 @@ void main()
         {
             int v_offset = i * psc(cstep) + gz * psc(h) * psc(w) + gy * psc(w) + gx;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        afpvec2 sum2 = sum_value.rg + sum_value.ba;
-        sum_value = afpvec4(sum2.r + sum2.g);
-        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
+        vec2 sum2 = sum_value.rg + sum_value.ba;
+        sum_value = vec4(sum2.r + sum2.g);
+        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, afpvec4(sum_value));
         return;
     }
 
@@ -149,9 +149,9 @@ void main()
         {
             int v_offset = gz * psc(cstep) + i * psc(h) * psc(w) + gy * psc(w) + gx;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
+        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, afpvec4(sum_value));
         return;
     }
 
@@ -161,9 +161,9 @@ void main()
         {
             int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + i * psc(w) + gx;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, sum_value);
+        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(w) + gx, afpvec4(sum_value));
         return;
     }
 
@@ -173,9 +173,9 @@ void main()
         {
             int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + gx * psc(w) + i;
             afpvec4 v = buffer_ld4(bottom_top_blob_data, v_offset);
-            sum_value += v;
+            sum_value += vec4(v);
         }
-        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(h) + gx, sum_value);
+        buffer_st4(sum_workspace_data, gz * psc(outcstep) + gy * psc(h) + gx, afpvec4(sum_value));
         return;
     }
 }
