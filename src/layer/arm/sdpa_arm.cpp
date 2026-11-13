@@ -3,10 +3,41 @@
 
 #include "sdpa_arm.h"
 
+#include <float.h>
+
+#if __ARM_NEON
+#include <arm_neon.h>
+#include "neon_mathfun.h"
+#endif // __ARM_NEON
+
+#include "arm_usability.h"
 #include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+// bf16 storage element access for the decode kernels, which compute in fp32
+// these overloads must be declared before the kernel templates
+static inline float sdpa_cvt(unsigned short v)
+{
+    return bfloat16_to_float32(v);
+}
+
+#if __ARM_NEON
+static inline float32x4_t sdpa_load4(const unsigned short* p)
+{
+    return bfloat2float(vld1_u16(p));
+}
+
+static inline float32x4_t sdpa_load4_dup(const unsigned short* p)
+{
+    return vdupq_n_f32(bfloat16_to_float32(*p));
+}
+#endif // __ARM_NEON
+#endif // NCNN_BF16
+
+#include "sdpa_decode.h"
 
 SDPA_arm::SDPA_arm()
 {
@@ -176,6 +207,25 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     const size_t elemsize = query.elemsize;
 
+    const bool fp32 = int8_scale_term == 0
+                      && query.elembits() == 32 && cur_key.elembits() == 32 && cur_value.elembits() == 32
+                      && (!kv_cache || past_key.empty() || (past_key.elembits() == 32 && past_value.elembits() == 32))
+                      && (!attn_mask || attn_mask_blob.elembits() == 32);
+
+#if NCNN_ARM82
+    const bool fp16 = int8_scale_term == 0 && opt.use_fp16_storage
+                      && query.elembits() == 16 && cur_key.elembits() == 16 && cur_value.elembits() == 16
+                      && (!kv_cache || past_key.empty() || (past_key.elembits() == 16 && past_value.elembits() == 16))
+                      && (!attn_mask || attn_mask_blob.elembits() == 16);
+#endif
+
+#if NCNN_BF16
+    const bool bf16 = int8_scale_term == 0 && opt.use_bf16_storage && !opt.use_fp16_storage
+                      && query.elembits() == 16 && cur_key.elembits() == 16 && cur_value.elembits() == 16
+                      && (!kv_cache || past_key.empty() || (past_key.elembits() == 16 && past_value.elembits() == 16))
+                      && (!attn_mask || attn_mask_blob.elembits() == 16);
+#endif
+
     Mat key;
     Mat value;
     if (kv_cache)
@@ -196,8 +246,8 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         {
             Mat key_head = cached_key.channel(q);
             Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
+            memcpy(key_head.row<unsigned char>(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row<unsigned char>(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
 
         key = cached_key;
@@ -208,6 +258,45 @@ int SDPA_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         key = cur_key;
         value = cur_value;
     }
+
+    if (fp32 && src_seqlen == 1)
+    {
+        // the kv cache keeps plain [seqlen][dim] rows, decode reads it directly
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        return sdpa_decode<float, float>(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+    }
+
+#if NCNN_ARM82
+    if (fp16 && src_seqlen == 1)
+    {
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(out_embed_dim, src_seqlen, num_heads, 2u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        return forward_decode_fp16s(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+    }
+#endif
+
+#if NCNN_BF16
+    if (bf16 && src_seqlen == 1)
+    {
+        // bf16 storage writes fp32 output, like the existing path
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const float _scale = scale == 0.f ? 1.f / sqrtf(embed_dim) : scale;
+        return sdpa_decode<unsigned short, float>(query, key, value, attn_mask_blob, top_blob, _scale, opt);
+    }
+#endif
 
     const int num_heads_per_group = num_heads / num_group;
 
