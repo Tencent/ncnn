@@ -341,17 +341,20 @@ void main()
 
 #if NCNN_cooperative_matrix_reductions
         // Keep online softmax and row statistics in accumulator fragments.
+        // row_summ keeps per-column partial sums, reduced once after the loop.
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> new_maxm = row_maxm[zm];
-            [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
+            coopMatPerElementEXT(qkm[zm][0], qkm[zm][0], coopmat_apply_mask, (mi + zm) * M, j * N, gz);
+            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> tile_maxm = qkm[zm][0];
+            [[unroll]] for (uint zp = 1; zp < UNROLL_P_N; zp++)
             {
                 coopMatPerElementEXT(qkm[zm][zp], qkm[zm][zp], coopmat_apply_mask, (mi + zm) * M, (j + zp) * N, gz);
-
-                coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> tile_maxm;
-                coopMatReduceEXT(tile_maxm, qkm[zm][zp], gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_max);
-                coopMatPerElementEXT(new_maxm, new_maxm, coopmat_max, tile_maxm);
+                coopMatPerElementEXT(tile_maxm, tile_maxm, coopmat_max, qkm[zm][zp]);
             }
+
+            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> new_maxm;
+            coopMatReduceEXT(new_maxm, tile_maxm, gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_max);
+            coopMatPerElementEXT(new_maxm, new_maxm, coopmat_max, row_maxm[zm]);
 
             coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> correction;
             coopMatPerElementEXT(correction, row_maxm[zm], coopmat_correction, new_maxm);
@@ -361,10 +364,7 @@ void main()
             [[unroll]] for (uint zp = 0; zp < UNROLL_P_N; zp++)
             {
                 coopMatPerElementEXT(qkm[zm][zp], qkm[zm][zp], coopmat_softmax, new_maxm, (mi + zm) * M, (j + zp) * N);
-
-                coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> tile_summ;
-                coopMatReduceEXT(tile_summ, qkm[zm][zp], gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_add);
-                row_summ[zm] += tile_summ;
+                row_summ[zm] += qkm[zm][zp];
             }
 
             [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
@@ -650,7 +650,7 @@ void main()
 #endif
 
         // O += PV
-        for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+        [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
             barrier();
 
@@ -809,14 +809,14 @@ void main()
 
 #if NCNN_cooperative_matrix_reductions
         // Keep online softmax and row statistics in accumulator fragments.
+        // row_summ keeps per-column partial sums, reduced once after the loop.
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> new_maxm = row_maxm[zm];
             coopMatPerElementEXT(qkm[zm], qkm[zm], coopmat_apply_mask, (mi + zm) * M, j * N, gz);
 
-            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> tile_maxm;
-            coopMatReduceEXT(tile_maxm, qkm[zm], gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_max);
-            coopMatPerElementEXT(new_maxm, new_maxm, coopmat_max, tile_maxm);
+            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> new_maxm;
+            coopMatReduceEXT(new_maxm, qkm[zm], gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_max);
+            coopMatPerElementEXT(new_maxm, new_maxm, coopmat_max, row_maxm[zm]);
 
             coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> correction;
             coopMatPerElementEXT(correction, row_maxm[zm], coopmat_correction, new_maxm);
@@ -824,10 +824,7 @@ void main()
             row_summ[zm] = row_summ[zm] * correction;
 
             coopMatPerElementEXT(qkm[zm], qkm[zm], coopmat_softmax, new_maxm, (mi + zm) * M, j * N);
-
-            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> tile_summ;
-            coopMatReduceEXT(tile_summ, qkm[zm], gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_add);
-            row_summ[zm] += tile_summ;
+            row_summ[zm] += qkm[zm];
 
             [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
             {
@@ -1092,7 +1089,7 @@ void main()
 #endif
 
         // O += PV
-        for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+        [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
         {
             barrier();
 
@@ -1142,16 +1139,26 @@ void main()
         }
     }
 
+#if NCNN_cooperative_matrix_reductions
+    // reduce the per-column partial sums once
+    coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> inv_summ[UNROLL_SG_M];
+    [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+    {
+        coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> summ;
+        coopMatReduceEXT(summ, row_summ[zm], gl_CooperativeMatrixReduceRowEXT, coopmat_reduce_add);
+        inv_summ[zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(1.f) / summ;
+    }
+#endif
+
     // O = O / row_sum
     // store top_blob
-    for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
+    [[unroll]] for (uint c = 0; c < MAX_OUT_CHUNKS; c++)
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
 #if ncnn_VK_KHR_cooperative_matrix
 #if NCNN_cooperative_matrix_reductions
-            coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> inv_summ = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(1.f) / row_summ[zm];
-            om[c][zm] = om[c][zm] * inv_summ;
+            om[c][zm] = om[c][zm] * inv_summ[zm];
 #endif
             coopMatStore(om[c][zm], tmp_o, (sgi * UNROLL_SG_M + zm) * M * N, N, gl_CooperativeMatrixLayoutRowMajor);
 #elif ncnn_VK_NV_cooperative_matrix
