@@ -244,6 +244,9 @@ public:
     uint32_t max_workgroup_size_x() const;
     uint32_t max_workgroup_size_y() const;
     uint32_t max_workgroup_size_z() const;
+    // zero when the optional limit is not reported
+    VkDeviceSize max_memory_allocation_size() const;
+    VkDeviceSize max_buffer_size() const;
     size_t memory_map_alignment() const;
     size_t buffer_offset_alignment() const;
     size_t non_coherent_atom_size() const;
