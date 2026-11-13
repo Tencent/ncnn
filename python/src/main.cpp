@@ -584,15 +584,16 @@ PYBIND11_MODULE(ncnn, m)
     //.def("range", (const Mat (Mat::*)(int, int) const) & Mat::range, py::arg("x"), py::arg("n"))
     .def(
     "__getitem__", [](const Mat& m, size_t i) {
-        // element i as float; IndexError past the data also ends a Python for loop over the Mat
-        if ((i + 1) * sizeof(float) > m.total() * m.elemsize)
+        // element i as float; IndexError past the data also ends a Python for loop over the Mat.
+        // Compare i itself (not (i + 1) * sizeof(float)) so that huge indices cannot wrap around.
+        if (i >= m.total() * m.elemsize / sizeof(float))
             throw py::index_error("ncnn.Mat index out of range");
         return m[i];
     },
     py::arg("i"))
     .def(
     "__setitem__", [](Mat& m, size_t i, float v) {
-        if ((i + 1) * sizeof(float) > m.total() * m.elemsize)
+        if (i >= m.total() * m.elemsize / sizeof(float))
             throw py::index_error("ncnn.Mat index out of range");
         m[i] = v;
     },
