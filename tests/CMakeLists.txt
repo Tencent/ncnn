@@ -72,6 +72,11 @@ endif()
 
 if(NCNN_VULKAN)
     ncnn_add_test(gpu)
+    foreach(layer convolution convolution1d deconvolution gemm sdpa)
+        if(WITH_LAYER_${layer})
+            target_compile_definitions(test_gpu PRIVATE NCNN_TEST_LAYER_${layer}=1)
+        endif()
+    endforeach()
     ncnn_add_test(command)
     ncnn_add_test(pipeline_cache)
 

@@ -1,0 +1,140 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 460
+
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : require
+#extension GL_KHR_cooperative_matrix : require
+#extension GL_QCOM_cooperative_matrix_conversion : require
+
+// match the packed-buffer stride workaround in the existing cooperative shaders
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
+#endif
+
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int constantC = 0;
+layout(constant_id = 3) const int constant_broadcast_type_C = 0;
+layout(constant_id = 4) const int output_transpose = 0;
+layout(constant_id = 5) const uint GM = 0;
+layout(constant_id = 6) const uint GN = 0;
+layout(constant_id = 7) const uint GK = 0;
+layout(constant_id = 8) const uint out_elempack = 0;
+
+layout(constant_id = 9 + 0) const uint M = 1;
+layout(constant_id = 9 + 1) const uint N = 1;
+layout(constant_id = 9 + 2) const uint K = 1;
+layout(constant_id = 9 + 3) const uint subgroup_size = 32;
+layout(constant_id = 9 + 4) const uint UNROLL_SG_M = 2;
+layout(constant_id = 9 + 5) const uint UNROLL_SG_N = 2;
+layout(constant_id = 9 + 6) const uint UNROLL_SG_K = 2;
+layout(constant_id = 9 + 7) const uint UNROLL_WG_M = 2;
+layout(constant_id = 9 + 8) const uint UNROLL_WG_N = 2;
+
+layout(constant_id = 18) const uint B_nmajor = 0;
+
+layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_int8_blob { sint8vec4 A_int8_data[]; };
+layout(binding = 2) readonly buffer B_int8_blob { sint8vec4 B_int8_data[]; };
+layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 4) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+layout(binding = 5) readonly buffer A_descales_blob { vec4 A_descales_data[]; };
+layout(binding = 6) readonly buffer B_descale_blob { float B_descale_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    uint GM;
+    uint GN;
+    uint GK;
+    int broadcast_type_C;
+    uint outhstep;
+    uint out_elempack;
+} p;
+
+void main()
+{
+#if ncnn_vendorID == 0x5143
+    // retain the adreno cooperative matrix lane index workaround
+    const uint si = gl_LocalInvocationID.x % subgroup_size;
+    const uint sgi = gl_LocalInvocationID.x / subgroup_size;
+#else
+    const uint si = gl_SubgroupInvocationID;
+    const uint sgi = gl_SubgroupID;
+#endif
+    const uint sgmi = sgi / UNROLL_WG_N;
+    const uint sgni = sgi % UNROLL_WG_N;
+    const uint wgnn = (uint(psc(GN)) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
+    const uint wgmi = gl_WorkGroupID.x / wgnn;
+    const uint wgni = gl_WorkGroupID.x % wgnn;
+    const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
+    const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
+    const uint kk = (uint(psc(GK)) + K - 1) / K;
+    const uint kkg = (kk + UNROLL_SG_K - 1) / UNROLL_SG_K;
+    const uint Kd4p = ((((K / 4) + 3) / 4) | 1) * 4;
+    const uint Nd4p = ((((N / 4) + 3) / 4) | 1) * 4;
+    coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_SG_N][UNROLL_SG_M];
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        [[unroll]]
+        for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            sum[zn][zm] = coopmat<int, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0);
+
+    for (uint kt = 0; kt < kk; kt++)
+    {
+        const uint kg = kt / UNROLL_SG_K;
+        const uint zk = kt % UNROLL_SG_K;
+        coopmat<int8_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+            coopMatLoad(A[zm], A_int8_data, ((wgmi * kkg + kg) * UNROLL_WG_M + sgmi) * UNROLL_SG_K * UNROLL_SG_M * M * Kd4p + (zk * UNROLL_SG_M + zm) * M * Kd4p, Kd4p, gl_CooperativeMatrixLayoutRowMajor);
+        }
+        [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        {
+            coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
+            const uint offset = (((wgni * kkg + kg) * UNROLL_WG_N + sgni) * UNROLL_SG_K * UNROLL_SG_N + zk * UNROLL_SG_N + zn) * K * Nd4p;
+            if (B_nmajor == 1)
+                coopMatLoad(B, B_int8_data, offset, K / 4, gl_CooperativeMatrixLayoutColumnMajor);
+            else
+                coopMatLoad(B, B_int8_data, offset, Nd4p, gl_CooperativeMatrixLayoutRowMajor);
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+                sum[zn][zm] = coopMatMulAdd(A[zm], B, sum[zn][zm]);
+        }
+    }
+
+    const int broadcast_type_C = constantC == 1 ? constant_broadcast_type_C : p.broadcast_type_C;
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+    {
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+            uint row[N];
+            coopmatToVectorQCOM(sum[zn][zm], row);
+            const uint gm = (mi + zm) * M + si;
+            if (si < M && gm < psc(GM))
+            {
+                [[unroll]] for (uint j = 0; j < N; j++)
+                {
+                    const uint gn = (ni + zn) * N + j;
+                    if (gn < psc(GN))
+                    {
+                        float value = float(int(row[j])) * A_descales_data[gm / 4][gm % 4] * B_descale_data[0];
+                        if (broadcast_type_C == 0) value += float(buffer_ld1(C_blob_data, 0)) * beta;
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2) value += float(buffer_ld1(C_blob_data, gm)) * beta;
+                        if (broadcast_type_C == 3) value += float(buffer_ld1(C_blob_data, gm * psc(GN) + gn)) * beta;
+                        if (broadcast_type_C == 4) value += float(buffer_ld1(C_blob_data, gn)) * beta;
+                        value *= alpha;
+                        const uint orow = output_transpose == 0 ? gm : gn;
+                        const uint ocol = output_transpose == 0 ? gn : gm;
+                        const uint pack = psc(out_elempack);
+                        const uint oi = (orow / pack * p.outhstep + ocol) * pack + orow % pack;
+                        buffer_st1(top_blob_data, oi, afp(value));
+                    }
+                }
+            }
+        }
+    }
+}

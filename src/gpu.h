@@ -316,6 +316,7 @@ public:
 
     // cooperative matrix feature
     bool support_cooperative_matrix() const;
+    bool support_cooperative_matrix_conversion() const;
     bool support_cooperative_matrix_8_8_16() const;
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
@@ -380,6 +381,7 @@ public:
     int support_VK_NV_cooperative_matrix() const;
     int support_VK_NV_cooperative_matrix2() const;
     int support_VK_NV_cooperative_vector() const;
+    int support_VK_QCOM_cooperative_matrix_conversion() const;
 
     // extension features
     const void* queryExtensionFeatures() const;
@@ -392,6 +394,7 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM& queryCooperativeMatrixConversionFeaturesQCOM() const;
     const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
     const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
