@@ -29,6 +29,103 @@ namespace py = pybind11;
 
 static const int batch_index_none = 233;
 
+// from_pixels* read h rows of w packed 8-bit pixels straight from the buffer pointer. Check the
+// buffer first: 8-bit values, large enough for the requested image, and laid out as packed rows.
+// A strided view such as img[:, :, ::-1] (BGR to RGB) or img[y0:y1, x0:x1] is copied first.
+struct PixelsBuffer
+{
+    py::object holder; // keeps a copied buffer alive while ncnn reads it
+    const unsigned char* data;
+};
+
+static int pixel_type_channels(int type)
+{
+    switch (type & Mat::PIXEL_FORMAT_MASK)
+    {
+    case Mat::PIXEL_GRAY:
+        return 1;
+    case Mat::PIXEL_RGB:
+    case Mat::PIXEL_BGR:
+        return 3;
+    case Mat::PIXEL_RGBA:
+    case Mat::PIXEL_BGRA:
+        return 4;
+    default:
+        return 0;
+    }
+}
+
+static PixelsBuffer pixels_buffer(const py::buffer& b, int type, int w, int h, int stride)
+{
+    const int channels = pixel_type_channels(type);
+    if (channels == 0)
+    {
+        std::stringstream ss;
+        ss << "unsupported pixel type " << type;
+        pybind11::pybind11_fail(ss.str());
+    }
+    if (w <= 0 || h <= 0)
+    {
+        std::stringstream ss;
+        ss << "invalid image size " << w << " x " << h;
+        pybind11::pybind11_fail(ss.str());
+    }
+
+    py::buffer_info info = b.request();
+    if (info.itemsize != 1)
+    {
+        std::stringstream ss;
+        ss << "from_pixels expects 8-bit pixels (numpy.uint8), but the buffer item size is " << info.itemsize;
+        pybind11::pybind11_fail(ss.str());
+    }
+
+    bool c_contiguous = true;
+    {
+        py::ssize_t expected_stride = 1;
+        for (int i = (int)info.ndim - 1; i >= 0; i--)
+        {
+            if (info.shape[i] != 1 && info.strides[i] != expected_stride)
+            {
+                c_contiguous = false;
+                break;
+            }
+            expected_stride *= info.shape[i];
+        }
+    }
+
+    PixelsBuffer pixels;
+    pixels.data = (const unsigned char*)info.ptr;
+    py::ssize_t size = info.size;
+    if (!c_contiguous)
+    {
+        if (stride != 0)
+            pybind11::pybind11_fail("from_pixels with an explicit stride needs a C-contiguous buffer");
+
+        py::array contiguous = py::module_::import("numpy").attr("ascontiguousarray")(b);
+        py::buffer_info cinfo = contiguous.request();
+        pixels.data = (const unsigned char*)cinfo.ptr;
+        size = cinfo.size;
+        pixels.holder = contiguous;
+    }
+
+    const py::ssize_t row = stride != 0 ? (py::ssize_t)stride : (py::ssize_t)w * channels;
+    if (row < (py::ssize_t)w * channels)
+    {
+        std::stringstream ss;
+        ss << "stride " << stride << " is smaller than w * channels = " << w * channels;
+        pybind11::pybind11_fail(ss.str());
+    }
+    const py::ssize_t needed = (py::ssize_t)(h - 1) * row + (py::ssize_t)w * channels;
+    if (size < needed)
+    {
+        std::stringstream ss;
+        ss << "buffer too small: " << w << " x " << h << " pixels with " << channels << " channels need " << needed << " bytes, but the buffer has " << size;
+        pybind11::pybind11_fail(ss.str());
+    }
+
+    return pixels;
+}
+
 class DataReaderFromMemoryCopy : public DataReaderFromMemory
 {
 public:
@@ -536,47 +633,55 @@ PYBIND11_MODULE(ncnn, m)
     //convenient construct from pixel data
     .def_static(
     "from_pixels", [](py::buffer const b, int type, int w, int h, Allocator* allocator) {
-        return Mat::from_pixels((const unsigned char*)b.request().ptr, type, w, h, allocator);
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, 0);
+        return Mat::from_pixels(pixels.data, type, w, h, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels", [](py::buffer const b, int type, int w, int h, int stride, Allocator* allocator) {
-        return Mat::from_pixels((const unsigned char*)b.request().ptr, type, w, h, stride, allocator);
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, stride);
+        return Mat::from_pixels(pixels.data, type, w, h, stride, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels_resize", [](py::buffer const b, int type, int w, int h, int target_width, int target_height, Allocator* allocator) {
-        return Mat::from_pixels_resize((const unsigned char*)b.request().ptr,
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, 0);
+        return Mat::from_pixels_resize(pixels.data,
                                        type, w, h, target_width, target_height, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels_resize", [](py::buffer const b, int type, int w, int h, int stride, int target_width, int target_height, Allocator* allocator) {
-        return Mat::from_pixels_resize((const unsigned char*)b.request().ptr,
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, stride);
+        return Mat::from_pixels_resize(pixels.data,
                                        type, w, h, stride, target_width, target_height, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels_roi", [](py::buffer const b, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator) {
-        return Mat::from_pixels_roi((const unsigned char*)b.request().ptr,
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, 0);
+        return Mat::from_pixels_roi(pixels.data,
                                     type, w, h, roix, roiy, roiw, roih, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels_roi", [](py::buffer const b, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, Allocator* allocator) {
-        return Mat::from_pixels_roi((const unsigned char*)b.request().ptr,
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, stride);
+        return Mat::from_pixels_roi(pixels.data,
                                     type, w, h, stride, roix, roiy, roiw, roih, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels_roi_resize", [](py::buffer const b, int type, int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator) {
-        return Mat::from_pixels_roi_resize((const unsigned char*)b.request().ptr,
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, 0);
+        return Mat::from_pixels_roi_resize(pixels.data,
                                            type, w, h, roix, roiy, roiw, roih, target_width, target_height, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
     .def_static(
     "from_pixels_roi_resize", [](py::buffer const b, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator) {
-        return Mat::from_pixels_roi_resize((const unsigned char*)b.request().ptr,
+        PixelsBuffer pixels = pixels_buffer(b, type, w, h, stride);
+        return Mat::from_pixels_roi_resize(pixels.data,
                                            type, w, h, stride, roix, roiy, roiw, roih, target_width, target_height, allocator);
     },
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
