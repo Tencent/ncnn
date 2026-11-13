@@ -101,6 +101,7 @@
 * [Split](#split)
 * [StatisticsPooling](#statisticspooling)
 * [Squeeze](#squeeze)
+* [SwiGLU](#swiglu)
 * [Swish](#swish)
 * [TanH](#tanh)
 * [Threshold](#threshold)
@@ -2411,6 +2412,31 @@ y = mean(x) or concat(mean(x), stddev(x))
 | 11        | squeeze_d     | int   | 0         |                   |
 | 2         | squeeze_c     | int   | 0         |                   |
 | 3         | axes          | array | [ ]       |                   |
+
+# SwiGLU
+```
+gate2 = activation_limit > 0 ? min(gate, activation_limit) : gate
+up2   = activation_limit > 0 ? clamp(up, -activation_limit, activation_limit) : up
+y     = gate2 / (1 + exp(-sigmoid_scale * gate2)) * (up2 + up_offset)
+```
+
+* input mat dims: 1d, 2d, 3d, 4d; two inputs with the same shape
+* input order: gate first, up second
+* output mat dims: same as input
+
+| param id  | name             | type  | default   | description                                  |
+| --------- | ---------------- | ----- | --------- | -------------------------------------------- |
+| 0         | sigmoid_scale    | float | 1.f       | scale applied to gate                        |
+| 1         | up_offset        | float | 0.f       | offset added to up after clamping            |
+| 2         | activation_limit | float | 0.f       | asymmetric clamp bound, disabled when <= 0   |
+
+Common configurations:
+
+| model family      | sigmoid_scale | up_offset | activation_limit |
+| ----------------- | ------------- | --------- | ---------------- |
+| standard SwiGLU   | 1.f           | 0.f       | 0.f              |
+| gpt-oss           | 1.702f        | 1.f       | 7.f              |
+| DeepSeek-V4       | 1.f           | 0.f       | 10.f             |
 
 # Swish
 ```
