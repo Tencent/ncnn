@@ -1,6 +1,8 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import sys
+
 import numpy as np
 import pytest
 
@@ -17,6 +19,12 @@ def test_mat_item_index_checks():
         mat[4]
     with pytest.raises(IndexError):
         mat[4] = 1.0
+    # huge indices must not wrap around in the bound check
+    for i in (sys.maxsize, 2 * sys.maxsize + 1):
+        with pytest.raises(IndexError):
+            mat[i]
+        with pytest.raises(IndexError):
+            mat[i] = 1.0
 
 
 def test_mat_accessor_index_checks():
