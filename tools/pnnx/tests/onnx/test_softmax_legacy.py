@@ -48,10 +48,21 @@ def test():
 
 
 def test_five_dimensional_last_axis():
-    x = torch.linspace(-1, 1, 120).reshape(1, 2, 3, 4, 5)
+    for shape, axes in (((1, 2, 3, 4, 5), (4, -1)),
+                        ((1, 2, 3, 4, 1), (3, -2)),
+                        ((1, 2, 3, 1, 1), (2, -3)),
+                        ((1, 2, 1, 1, 1), (1, -4))):
+        if not test_five_dimensional_shape(shape, axes):
+            return False
+    return True
+
+
+def test_five_dimensional_shape(shape, axes):
+    x = torch.linspace(-1, 1, torch.Size(shape).numel()).reshape(shape)
     for op in ("Softmax", "LogSoftmax"):
-        for axis in (4, -1):
-            name = "test_softmax_legacy_5d_%s_%s" % (op, "negative" if axis < 0 else "positive")
+        for axis in axes:
+            name = "test_softmax_legacy_5d_%s_%s_%s" % (
+                op, "_".join(map(str, shape)), "negative" if axis < 0 else "positive")
             weights = helper.make_tensor("weights", TensorProto.FLOAT, [2, 2, 1, 1, 1], [1, 0, 0, 1])
             model = helper.make_model(
                 helper.make_graph([
@@ -63,7 +74,7 @@ def test_five_dimensional_last_axis():
             onnx.checker.check_model(model)
             onnx.save(model, name + ".onnx")
             converted = subprocess.run([
-                "../../src/pnnx", name + ".onnx", "inputshape=[1,2,3,4,5]", "fp16=0"],
+                "../../src/pnnx", name + ".onnx", "inputshape=[%s]" % ",".join(map(str, shape)), "fp16=0"],
                 check=True, capture_output=True, text=True)
             if "target exceeds ncnn physical rank" in converted.stderr:
                 return False
@@ -73,7 +84,7 @@ def test_five_dimensional_last_axis():
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             actual = module.Model().eval()(x)
-            expected = F.softmax(x, -1) if op == "Softmax" else F.log_softmax(x, -1)
+            expected = F.softmax(x, axis) if op == "Softmax" else F.log_softmax(x, axis)
             if not torch.allclose(actual, expected, rtol=1e-5, atol=1e-6):
                 return False
     return True
