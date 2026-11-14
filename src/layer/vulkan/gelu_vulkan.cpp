@@ -19,8 +19,9 @@ int GELU_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
-    std::vector<vk_specialization_type> specializations(1);
-    specializations[0].u32 = shape.total() * shape.elempack / 4;
+    std::vector<vk_specialization_type> specializations(1 + 1);
+    specializations[0].i = fast_gelu;
+    specializations[1 + 0].u32 = shape.total() * shape.elempack / 4;
 
     const int local_size_x = std::max(16, (int)vkdev->info.subgroup_size());
 
