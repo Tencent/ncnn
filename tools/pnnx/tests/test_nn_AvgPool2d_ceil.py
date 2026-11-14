@@ -75,23 +75,28 @@ def test():
         (2, 3, 0, 0),
     ]
     pooling = []
+    pooling_outputs = set()
     crops = 0
     with open("test_nn_AvgPool2d_ceil.ncnn.param") as f:
         for line in f:
             parts = line.split()
-            if len(parts) < 5:
+            if len(parts) < 6:
                 continue
             if parts[0] == "Crop":
-                crops += 1
+                # the tensor slicing in forward() also becomes Crop, only count
+                # the ones that trim a pooling result
+                if parts[4] in pooling_outputs:
+                    crops += 1
                 continue
             if parts[0] != "Pooling":
                 continue
             kv = {}
-            for p in parts[4:]:
+            for p in parts[6:]:
                 if "=" in p:
                     k, v = p.split("=")
                     kv[int(k)] = int(float(v))
             pooling.append((kv.get(1), kv.get(2), kv.get(5), kv.get(6)))
+            pooling_outputs.add(parts[5])
 
     if sorted(pooling) != sorted(expect):
         return False
