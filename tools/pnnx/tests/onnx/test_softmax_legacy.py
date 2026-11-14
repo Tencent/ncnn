@@ -49,6 +49,8 @@ def test():
 
 def test_five_dimensional_last_axis():
     for shape, axes in (((1, 2, 3, 4, 5), (4, -1)),
+                        ((1, 2, 3, 4, 5), (2, -3)),
+                        ((1, 2, 3, 4, 5), (1, -4)),
                         ((1, 2, 3, 4, 1), (3, -2)),
                         ((1, 2, 3, 1, 1), (2, -3)),
                         ((1, 2, 1, 1, 1), (1, -4))):
@@ -62,7 +64,7 @@ def test_five_dimensional_shape(shape, axes):
     for op in ("Softmax", "LogSoftmax"):
         for axis in axes:
             name = "test_softmax_legacy_5d_%s_%s_%s" % (
-                op, "_".join(map(str, shape)), "negative" if axis < 0 else "positive")
+                op, "_".join(map(str, shape)) + "_axis" + str(abs(axis)), "negative" if axis < 0 else "positive")
             weights = helper.make_tensor("weights", TensorProto.FLOAT, [2, 2, 1, 1, 1], [1, 0, 0, 1])
             model = helper.make_model(
                 helper.make_graph([
@@ -84,7 +86,10 @@ def test_five_dimensional_shape(shape, axes):
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             actual = module.Model().eval()(x)
-            expected = F.softmax(x, axis) if op == "Softmax" else F.log_softmax(x, axis)
+            dim = axis % x.ndim
+            flattened = x.reshape(x.shape[:dim].numel(), x.shape[dim:].numel())
+            expected = F.softmax(flattened, 1) if op == "Softmax" else F.log_softmax(flattened, 1)
+            expected = expected.reshape_as(x)
             if not torch.allclose(actual, expected, rtol=1e-5, atol=1e-6):
                 return False
     return True

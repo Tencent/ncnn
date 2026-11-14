@@ -1313,15 +1313,22 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                     }
                     if (static_shape && outer <= INT_MAX && inner <= INT_MAX)
                     {
+                        std::vector<int> flat_shape{(int)outer, (int)inner};
+                        int normalized_axis = 1;
+                        if (axis > 0)
+                        {
+                            flat_shape = {shape[0], (int)(outer / shape[0]), (int)inner};
+                            normalized_axis = 2;
+                        }
                         Operator* before = pnnx_graph.new_operator_before("Tensor.reshape", op->name + "_flatten", op);
                         Operator* after = pnnx_graph.new_operator_after("Tensor.reshape", op->name + "_restore", op);
-                        before->params["shape"] = std::vector<int>{(int)outer, (int)inner};
+                        before->params["shape"] = flat_shape;
                         after->params["shape"] = shape;
 
                         Operand* flat = pnnx_graph.new_operand(op->name + "_flat");
                         Operand* normalized = pnnx_graph.new_operand(op->name + "_normalized");
                         flat->type = normalized->type = op->inputs[0]->type;
-                        flat->shape = normalized->shape = std::vector<int>{(int)outer, (int)inner};
+                        flat->shape = normalized->shape = flat_shape;
                         flat->producer = before;
                         normalized->producer = op;
 
@@ -1338,7 +1345,7 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                         after->inputs.push_back(normalized);
                         after->outputs.push_back(output);
                         output->producer = after;
-                        op->params["axis"] = 1;
+                        op->params["axis"] = normalized_axis;
                     }
                     else
                     {
