@@ -44,6 +44,13 @@ public:
     Mat weight_data_tm;
     Mat weight_3x3s2_data;
 
+    // apple amx transposed weight, num_input x num_output
+    Mat weight_data_amx;
+    // apple amx transposed fp16 weight, num_input x aligned num_output
+    Mat weight_data_amx_fp16;
+    // apple amx int8 weight, 16 output channels per block and 64 bytes per k with the weight at byte 4m
+    Mat weight_data_amx_int8;
+
     Mat weight_sgemm_data;
     Mat weight_winograd23_data;
     Mat weight_winograd43_data;

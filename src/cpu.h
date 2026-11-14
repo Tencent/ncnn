@@ -69,6 +69,20 @@ NCNN_EXPORT int cpu_support_arm_svebf16();
 NCNN_EXPORT int cpu_support_arm_svei8mm();
 // svef32mm = aarch64 svef32mm
 NCNN_EXPORT int cpu_support_arm_svef32mm();
+// sme = aarch64 sme
+NCNN_EXPORT int cpu_support_arm_sme();
+// sme2 = aarch64 sme2
+NCNN_EXPORT int cpu_support_arm_sme2();
+// sme_f32f32 = aarch64 sme fp32 outer product
+NCNN_EXPORT int cpu_support_arm_sme_f32f32();
+// sme_f16f32 = aarch64 sme fp16 input fp32 accumulate outer product
+NCNN_EXPORT int cpu_support_arm_sme_f16f32();
+// sme_b16f32 = aarch64 sme bfloat16 input fp32 accumulate outer product
+NCNN_EXPORT int cpu_support_arm_sme_b16f32();
+// sme_i8i32 = aarch64 sme int8 outer product
+NCNN_EXPORT int cpu_support_arm_sme_i8i32();
+// amx = apple undocumented matrix coprocessor
+NCNN_EXPORT int cpu_support_apple_amx();
 
 // avx = x86 avx
 NCNN_EXPORT int cpu_support_x86_avx();
