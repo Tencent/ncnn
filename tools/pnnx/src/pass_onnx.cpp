@@ -731,6 +731,14 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
 {
     onnx2pnnx::OnnxModelProxy modelproxy(model);
 
+    int64_t opset_version = 1;
+    for (int i = 0; i < model.opset_import_size(); i++)
+    {
+        const auto& imported = model.opset_import(i);
+        if (imported.domain().empty() || imported.domain() == "ai.onnx")
+            opset_version = imported.version();
+    }
+
     const onnx::GraphProto& graph = model.graph();
 
     for (int i = 0; i < graph.input_size(); i++)
@@ -1272,6 +1280,63 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 const onnx::AttributeProto& attr = node.attribute(j);
 
                 op->params[attr.name()] = attr;
+            }
+
+            if (node.domain().empty() && opset_version < 13 && (op_type == "Softmax" || op_type == "LogSoftmax"))
+            {
+                const std::vector<int>& shape = op->inputs[0]->shape;
+                int axis = op->params.find("axis") != op->params.end() ? op->params["axis"].i : 1;
+                if (axis < 0) axis += (int)shape.size();
+
+                // Legacy ONNX normalizes all dimensions from axis through the end.
+                if (axis >= 0 && axis < (int)shape.size())
+                {
+                    int64_t outer = 1;
+                    int64_t inner = 1;
+                    bool static_shape = true;
+                    for (int d = 0; d < (int)shape.size(); d++)
+                    {
+                        int64_t& size = d < axis ? outer : inner;
+                        if (shape[d] <= 0 || size > INT_MAX / shape[d])
+                            static_shape = false;
+                        else
+                            size *= shape[d];
+                    }
+                    if (static_shape && outer <= INT_MAX && inner <= INT_MAX)
+                    {
+                        Operator* before = pnnx_graph.new_operator_before("Tensor.reshape", op->name + "_flatten", op);
+                        Operator* after = pnnx_graph.new_operator_after("Tensor.reshape", op->name + "_restore", op);
+                        before->params["shape"] = std::vector<int>{(int)outer, (int)inner};
+                        after->params["shape"] = shape;
+
+                        Operand* flat = pnnx_graph.new_operand(op->name + "_flat");
+                        Operand* normalized = pnnx_graph.new_operand(op->name + "_normalized");
+                        flat->type = normalized->type = op->inputs[0]->type;
+                        flat->shape = normalized->shape = std::vector<int>{(int)outer, (int)inner};
+                        flat->producer = before;
+                        normalized->producer = op;
+
+                        Operand* input = op->inputs[0];
+                        Operand* output = op->outputs[0];
+                        input->remove_consumer(op);
+                        input->consumers.push_back(before);
+                        before->inputs.push_back(input);
+                        before->outputs.push_back(flat);
+                        flat->consumers.push_back(op);
+                        op->inputs[0] = flat;
+                        op->outputs[0] = normalized;
+                        normalized->consumers.push_back(after);
+                        after->inputs.push_back(normalized);
+                        after->outputs.push_back(output);
+                        output->producer = after;
+                        op->params["axis"] = 1;
+                    }
+                    else
+                    {
+                        fprintf(stderr, "legacy ONNX %s requires a static input shape\n", op_type.c_str());
+                        op->type = "onnx::Legacy" + op_type;
+                    }
+                }
             }
         }
     }
