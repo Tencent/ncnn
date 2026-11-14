@@ -53,8 +53,8 @@ static void gridsample_2d_nearest_compute_blob_loongarch(const Mat& src, const M
                 sample_x = compute_coord_loongarch(sample_x, src.w, padding_mode, align_corner);
                 sample_y = compute_coord_loongarch(sample_y, src.h, padding_mode, align_corner);
 
-                int x0 = (int)floorf(sample_x + 0.5f);
-                int y0 = (int)floorf(sample_y + 0.5f);
+                int x0 = (int)gridsample_round_nearest_even(sample_x);
+                int y0 = (int)gridsample_round_nearest_even(sample_y);
 
                 offset_ptr[0] = in_bounds_loongarch(x0, y0, src.w, src.h) ? (x0 + y0 * src.w) * src.elempack : -1;
 
@@ -112,8 +112,8 @@ static void gridsample_2d_nearest_compute_blob_loongarch(const Mat& src, const M
                 sample_x = compute_coord_loongarch(sample_x, src.w, padding_mode, align_corner);
                 sample_y = compute_coord_loongarch(sample_y, src.h, padding_mode, align_corner);
 
-                int x0 = (int)floorf(sample_x + 0.5f);
-                int y0 = (int)floorf(sample_y + 0.5f);
+                int x0 = (int)gridsample_round_nearest_even(sample_x);
+                int y0 = (int)gridsample_round_nearest_even(sample_y);
 
                 offset_ptr[0] = in_bounds_loongarch(x0, y0, src.w, src.h) ? (x0 + y0 * src.w) * src.elempack : -1;
 
@@ -188,9 +188,9 @@ static void gridsample_3d_nearest_compute_blob_loongarch(const Mat& src, const M
                     sample_y = compute_coord_loongarch(sample_y, src.h, padding_mode, align_corner);
                     sample_z = compute_coord_loongarch(sample_z, src.d, padding_mode, align_corner);
 
-                    int x0 = (int)floorf(sample_x + 0.5f);
-                    int y0 = (int)floorf(sample_y + 0.5f);
-                    int z0 = (int)floorf(sample_z + 0.5f);
+                    int x0 = (int)gridsample_round_nearest_even(sample_x);
+                    int y0 = (int)gridsample_round_nearest_even(sample_y);
+                    int z0 = (int)gridsample_round_nearest_even(sample_z);
 
                     offset_ptr[0] = in_bounds_loongarch(x0, y0, z0, src.w, src.h, src.d) ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1;
 
@@ -262,9 +262,9 @@ static void gridsample_3d_nearest_compute_blob_loongarch(const Mat& src, const M
                     sample_y = compute_coord_loongarch(sample_y, src.h, padding_mode, align_corner);
                     sample_z = compute_coord_loongarch(sample_z, src.d, padding_mode, align_corner);
 
-                    int x0 = (int)floorf(sample_x + 0.5f);
-                    int y0 = (int)floorf(sample_y + 0.5f);
-                    int z0 = (int)floorf(sample_z + 0.5f);
+                    int x0 = (int)gridsample_round_nearest_even(sample_x);
+                    int y0 = (int)gridsample_round_nearest_even(sample_y);
+                    int z0 = (int)gridsample_round_nearest_even(sample_z);
 
                     offset_ptr[0] = in_bounds_loongarch(x0, y0, z0, src.w, src.h, src.d) ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1;
 

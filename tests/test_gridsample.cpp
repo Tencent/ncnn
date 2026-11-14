@@ -1,7 +1,170 @@
 // Copyright 2023 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <fenv.h>
+
+#include "net.h"
 #include "testutil.h"
+
+static int test_gridsample_nearest_even()
+{
+    ncnn::Mat image(5, 5, 1);
+    float* image_ptr = image.channel(0);
+    for (int y = 0; y < 5; y++)
+        for (int x = 0; x < 5; x++)
+            image_ptr[y * 5 + x] = (float)x;
+
+    const float coordinates[4] = {-0.75f, -0.25f, 0.25f, 0.75f};
+    const float expected[4] = {0.f, 2.f, 2.f, 4.f};
+
+    for (int permute_fusion = 0; permute_fusion < 2; permute_fusion++)
+    {
+        ncnn::Mat grid = permute_fusion ? ncnn::Mat(16, 1, 2) : ncnn::Mat(2, 16, 1);
+        for (int i = 0; i < 16; i++)
+        {
+            if (permute_fusion)
+            {
+                ((float*)grid.channel(0))[i] = coordinates[i % 4];
+                ((float*)grid.channel(1))[i] = 0.f;
+            }
+            else
+            {
+                ((float*)grid.channel(0))[i * 2] = coordinates[i % 4];
+                ((float*)grid.channel(0))[i * 2 + 1] = 0.f;
+            }
+        }
+
+        ncnn::Layer* layer = ncnn::create_layer("GridSample");
+        ncnn::ParamDict pd;
+        pd.set(0, 2); // nearest
+        pd.set(1, 1); // zeros padding
+        pd.set(2, 1); // align corners
+        pd.set(3, permute_fusion);
+        int ret = layer->load_param(pd);
+        std::vector<ncnn::Mat> inputs(2);
+        inputs[0] = image;
+        inputs[1] = grid;
+        std::vector<ncnn::Mat> outputs(1);
+        if (ret == 0)
+            ret = layer->forward(inputs, outputs, ncnn::Option());
+        delete layer;
+        if (ret != 0)
+            return ret;
+
+        const float* output_ptr = outputs[0].channel(0);
+        for (int i = 0; i < 16; i++)
+        {
+            if (output_ptr[i] != expected[i % 4])
+            {
+                fprintf(stderr, "test_gridsample_nearest_even failed permute_fusion=%d index=%d value=%f expected=%f\n", permute_fusion, i, output_ptr[i], expected[i % 4]);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_gridsample_3d_nearest_even()
+{
+    ncnn::Mat image(5, 5, 5, 1);
+    float* image_ptr = image.channel(0);
+    for (int z = 0; z < 5; z++)
+        for (int y = 0; y < 5; y++)
+            for (int x = 0; x < 5; x++)
+                image_ptr[z * 25 + y * 5 + x] = (float)(100 * z + 10 * y + x);
+
+    const float coordinates[4] = {-0.75f, -0.25f, 0.25f, 0.75f};
+    const float expected[4] = {0.f, 222.f, 222.f, 444.f};
+
+    for (int permute_fusion = 0; permute_fusion < 2; permute_fusion++)
+    {
+        ncnn::Mat grid = permute_fusion ? ncnn::Mat(16, 1, 1, 3) : ncnn::Mat(3, 16, 1, 1);
+        for (int i = 0; i < 16; i++)
+        {
+            for (int axis = 0; axis < 3; axis++)
+            {
+                if (permute_fusion)
+                    ((float*)grid.channel(axis))[i] = coordinates[i % 4];
+                else
+                    ((float*)grid.channel(0))[i * 3 + axis] = coordinates[i % 4];
+            }
+        }
+
+        ncnn::Layer* layer = ncnn::create_layer("GridSample");
+        ncnn::ParamDict pd;
+        pd.set(0, 2); // nearest
+        pd.set(1, 1); // zeros padding
+        pd.set(2, 1); // align corners
+        pd.set(3, permute_fusion);
+        int ret = layer->load_param(pd);
+        std::vector<ncnn::Mat> inputs(2);
+        inputs[0] = image;
+        inputs[1] = grid;
+        std::vector<ncnn::Mat> outputs(1);
+        if (ret == 0)
+            ret = layer->forward(inputs, outputs, ncnn::Option());
+        delete layer;
+        if (ret != 0)
+            return ret;
+
+        const float* output_ptr = outputs[0].channel(0);
+        for (int i = 0; i < 16; i++)
+        {
+            if (output_ptr[i] != expected[i % 4])
+            {
+                fprintf(stderr, "test_gridsample_3d_nearest_even failed permute_fusion=%d index=%d value=%f expected=%f\n", permute_fusion, i, output_ptr[i], expected[i % 4]);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_gridsample_nearest_even_rounding_mode()
+{
+#ifdef FE_UPWARD
+    ncnn::Mat image(5, 5, 1);
+    float* image_ptr = image.channel(0);
+    for (int y = 0; y < 5; y++)
+        for (int x = 0; x < 5; x++)
+            image_ptr[y * 5 + x] = (float)x;
+
+    ncnn::Mat grid(2, 1, 1);
+    float* grid_ptr = grid.channel(0);
+    grid_ptr[0] = -0.75f; // pixel coordinate 0.5, which rounds to zero
+    grid_ptr[1] = 0.f;
+
+    ncnn::Layer* layer = ncnn::create_layer("GridSample");
+    ncnn::ParamDict pd;
+    pd.set(0, 2);
+    pd.set(1, 1);
+    pd.set(2, 1);
+    pd.set(3, 0);
+    int ret = layer->load_param(pd);
+    std::vector<ncnn::Mat> inputs(2);
+    inputs[0] = image;
+    inputs[1] = grid;
+    std::vector<ncnn::Mat> outputs(1);
+    const int old_rounding_mode = fegetround();
+    if (fesetround(FE_UPWARD) == 0)
+    {
+        if (ret == 0)
+            ret = layer->forward(inputs, outputs, ncnn::Option());
+        fesetround(old_rounding_mode);
+        if (ret == 0 && ((const float*)outputs[0].channel(0))[0] != 0.f)
+            ret = -1;
+    }
+    delete layer;
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_gridsample_nearest_even_rounding_mode failed\n");
+        return ret;
+    }
+#endif
+    return 0;
+}
 
 static int test_gridsample(const ncnn::Mat& a, const ncnn::Mat& grid, int sample_type, int padding_mode, int align_corner, int permute_fusion)
 {
@@ -173,6 +336,9 @@ int main()
     SRAND(7767517);
 
     return 0
+           || test_gridsample_nearest_even()
+           || test_gridsample_3d_nearest_even()
+           || test_gridsample_nearest_even_rounding_mode()
            || test_gridsample_0()
            || test_gridsample_1()
            || test_gridsample_2()
