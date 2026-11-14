@@ -83,12 +83,14 @@ int HardSwish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
-            if (*ptr < lower)
-                *ptr = 0.f;
-            else if (*ptr > upper)
-                ;
-            else
-                *ptr = *ptr * (*ptr * alpha + beta);
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
+            float v = *ptr;
+            float t = v * alpha + beta;
+            if (t < 0.f)
+                t = 0.f;
+            if (t > 1.f)
+                t = 1.f;
+            *ptr = v * t;
             ++ptr;
         }
     }
@@ -170,14 +172,14 @@ int HardSwish_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Optio
 #endif // __loongarch_sx
         for (; i < size; i++)
         {
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
             float v = bfloat16_to_float32(*ptr);
-            if (v < lower)
-                v = 0.f;
-            else if (v > upper)
-                ;
-            else
-                v = v * (v * alpha + beta);
-            *ptr = float32_to_bfloat16(v);
+            float t = v * alpha + beta;
+            if (t < 0.f)
+                t = 0.f;
+            if (t > 1.f)
+                t = 1.f;
+            *ptr = float32_to_bfloat16(v * t);
             ++ptr;
         }
     }

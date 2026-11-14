@@ -24,8 +24,6 @@ int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        __fp16 _lower = (__fp16)lower;
-        __fp16 _upper = (__fp16)upper;
         __fp16 _alpha = (__fp16)alpha;
         __fp16 _beta = (__fp16)beta;
 
@@ -36,13 +34,11 @@ int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
             size_t vl = __riscv_vsetvl_e16m8(n);
             vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
 
-            vbool2_t _is_lower = __riscv_vmflt_vf_f16m8_b2(_p, _lower, vl);
-            vbool2_t _is_higher = __riscv_vmfgt_vf_f16m8_b2(_p, _upper, vl);
-            vbool2_t _apply = __riscv_vmnor_mm_b2(_is_lower, _is_higher, vl);
-            _p = __riscv_vfmerge_vfm_f16m8(_p, (__fp16).0f, _is_lower, vl);
-
-            vfloat16m8_t _p0 = __riscv_vfadd_vf_f16m8_m(_apply, __riscv_vfmul_vf_f16m8_m(_apply, _p, _alpha, vl), _beta, vl);
-            _p = __riscv_vfmul_vv_f16m8_mu(_apply, _p, _p, _p0, vl);
+            vfloat16m8_t _p0 = __riscv_vfmul_vf_f16m8(_p, _alpha, vl);
+            _p0 = __riscv_vfadd_vf_f16m8(_p0, _beta, vl);
+            _p0 = __riscv_vfmax_vf_f16m8(_p0, (__fp16)0.f, vl);
+            _p0 = __riscv_vfmin_vf_f16m8(_p0, (__fp16)1.f, vl);
+            _p = __riscv_vfmul_vv_f16m8(_p, _p0, vl);
 
             __riscv_vse16_v_f16m8(ptr, _p, vl);
             ptr += vl;
@@ -51,12 +47,14 @@ int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
 #else  // __riscv_zvfh
         for (int i = 0; i < size; i++)
         {
-            if (ptr[i] < _lower)
-                ptr[i] = (__fp16)0.f;
-            else if (ptr[i] > _upper)
-                ;
-            else
-                ptr[i] = ptr[i] * (ptr[i] * _alpha + _beta);
+            // keep the scalar path identical to the vectorized body for alpha <= 0 too
+            __fp16 v = ptr[i];
+            __fp16 t = v * _alpha + _beta;
+            if (t < (__fp16)0.f)
+                t = (__fp16)0.f;
+            if (t > (__fp16)1.f)
+                t = (__fp16)1.f;
+            ptr[i] = v * t;
         }
 #endif // __riscv_zvfh
     }

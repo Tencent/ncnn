@@ -46,16 +46,57 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     }
     case 6:
     {
+        // hardswish y = x * clamp(alpha * x + beta, 0, 1)
+        // use the clamped form like every vectorized hardswish helper and the vulkan shader,
+        // it also stays well defined for the degenerate alpha <= 0 case where the
+        // lower/upper bounds invert and the branch form no longer matches the vector paths
         float alpha = activation_params[0];
         float beta = activation_params[1];
-        float lower = -beta / alpha;
-        float upper = (1.f / alpha) + lower;
-        if (v < lower)
-            v = 0.f;
-        else if (v > upper)
-            ;
+        v = v * std::min(std::max(v * alpha + beta, 0.f), 1.f);
+        break;
+    }
+    case 7:
+    {
+        // GELU, activation_params[0] is the fast_gelu flag
+        // the flag is read as int so that both the plain numeric element written by pnnx
+        // (10=-23310=1,0 for slow gelu, 10=-23310=1,1 for fast gelu) and a float encoded
+        // element select the same branch, any nonzero value means fast_gelu
+        int fast_gelu = activation_params.row<int>(0)[0];
+        if (fast_gelu)
+        {
+            // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+            v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+        }
         else
-            v = v * (v * alpha + beta);
+        {
+            // y = 0.5 * x * erfc(-x / sqrt(2))
+            v = 0.5f * v * erfcf(-0.70710678f * v);
+        }
+        break;
+    }
+    case 8:
+    {
+        // SiLU/Swish: y = x / (1 + exp(-x))
+        v = v / (1.f + expf(-v));
+        break;
+    }
+    case 9:
+    {
+        // ELU: y = x if x >= 0 else alpha * (exp(x) - 1)
+        float alpha = activation_params[0];
+        if (v < 0.f)
+            v = alpha * (expf(v) - 1.f);
+        break;
+    }
+    case 10:
+    {
+        // SELU: y = lambda * x if x >= 0 else lambda * alpha * (exp(x) - 1)
+        float alpha = activation_params[0];
+        float lambda = activation_params[1];
+        if (v < 0.f)
+            v = lambda * alpha * (expf(v) - 1.f);
+        else
+            v = lambda * v;
         break;
     }
     }
@@ -113,6 +154,41 @@ static ncnn::Layer* create_activation_layer(int activation_type, const ncnn::Mat
         ncnn::ParamDict pd;
         pd.set(0, activation_params[0]); // alpha
         pd.set(1, activation_params[1]); // beta
+
+        activation->load_param(pd);
+    }
+    else if (activation_type == 7)
+    {
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::GELU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params.row<int>(0)[0]); // fast_gelu
+
+        activation->load_param(pd);
+    }
+    else if (activation_type == 8)
+    {
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::Swish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 9)
+    {
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::ELU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // alpha
+
+        activation->load_param(pd);
+    }
+    else if (activation_type == 10)
+    {
+        activation = ncnn::create_layer_cpu(ncnn::LayerType::SELU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // alpha
+        pd.set(1, activation_params[1]); // lambda
 
         activation->load_param(pd);
     }

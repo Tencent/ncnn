@@ -133,7 +133,7 @@ static int test_convolution1d_0()
     }
 
     // activation types are explicit and cover both packed and scalar output
-    for (int activation = 0; activation < 7; activation++)
+    for (int activation = 0; activation < 11; activation++)
     {
         if (test_convolution1d(9, 7, 7, 3, 1, 1, 1, 1, activation)
                 || test_convolution1d(9, 8, 16, 3, 1, 1, 1, 0, activation))
@@ -168,7 +168,7 @@ static int test_convolution1d_dynamic(int w, int h, int outh, int kernel, int di
     pd.set(6, 0);
     pd.set(19, 1); // dynamic weight
 
-    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
+    int activation_type = RAND() % 11; // 0 1 2 3 4 5 6 7 8 9 10
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
@@ -376,7 +376,7 @@ static int test_convolution1d_activation_packing_boundaries()
 {
     // scalar and packed outputs apply activation after cooperative matrix kernels
     // the mixed packing directions also exercise bias and vector reductions
-    for (int activation = 1; activation < 6; activation++)
+    for (int activation = 1; activation < 11; activation++)
     {
         if (test_convolution1d(9, 16, 15, 3, 1, 1, 1, 1, activation) != 0)
             return -1;
