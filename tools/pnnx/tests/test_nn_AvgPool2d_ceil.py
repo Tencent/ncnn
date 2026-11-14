@@ -17,13 +17,18 @@ class Model(nn.Module):
         self.pool_2 = nn.AvgPool2d(kernel_size=2, stride=3, padding=0, ceil_mode=True, count_include_pad=True)
         # stride > kernel but the last window still overlaps the 4x4 input, it is kept
         self.pool_3 = nn.AvgPool2d(kernel_size=2, stride=3, padding=0, ceil_mode=True, count_include_pad=True)
+        # stride > kernel and the out of range window only happens on one axis,
+        # 3x4 drops the extra row but keeps the extra column, 4x3 the other way round
+        self.pool_4 = nn.AvgPool2d(kernel_size=2, stride=3, padding=0, ceil_mode=True, count_include_pad=True)
 
     def forward(self, x):
         a = self.pool_0(x)
         b = self.pool_1(x)
         c = self.pool_2(x[:, :, :3, :3])
         d = self.pool_3(x[:, :, :4, :4])
-        return a, b, c, d
+        e = self.pool_4(x[:, :, :3, :4])
+        f = self.pool_4(x[:, :, :4, :3])
+        return a, b, c, d, e, f
 
 def test():
     net = Model()
@@ -60,26 +65,39 @@ def test():
     # keep the zero padded last window, unless stride > kernel where that window
     # starts outside the input and torch drops it, and count_include_pad must be
     # off so the average divides by the real element count
-    expect = {
-        "avgpool2d_0": (2, 2, 0, 0),
-        "avgpool2d_1": (3, 2, 0, 0),
-        "avgpool2d_2": (2, 3, 1, 0),
-        "avgpool2d_3": (2, 3, 0, 0),
-    }
-    found = {}
+    # a mixed axis case needs one pooling with full padding plus one crop
+    expect = [
+        (2, 2, 0, 0),
+        (3, 2, 0, 0),
+        (2, 3, 1, 0),
+        (2, 3, 0, 0),
+        (2, 3, 0, 0),
+        (2, 3, 0, 0),
+    ]
+    pooling = []
+    crops = 0
     with open("test_nn_AvgPool2d_ceil.ncnn.param") as f:
         for line in f:
             parts = line.split()
-            if len(parts) < 5 or parts[0] != "Pooling":
+            if len(parts) < 5:
+                continue
+            if parts[0] == "Crop":
+                crops += 1
+                continue
+            if parts[0] != "Pooling":
                 continue
             kv = {}
             for p in parts[4:]:
                 if "=" in p:
                     k, v = p.split("=")
                     kv[int(k)] = int(float(v))
-            found[parts[1]] = (kv.get(1), kv.get(2), kv.get(5), kv.get(6))
+            pooling.append((kv.get(1), kv.get(2), kv.get(5), kv.get(6)))
 
-    if found != expect:
+    if sorted(pooling) != sorted(expect):
+        return False
+
+    # the two mixed axis pools must each be followed by a crop
+    if crops != 2:
         return False
 
     return True
