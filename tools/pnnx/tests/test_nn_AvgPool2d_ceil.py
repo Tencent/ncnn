@@ -76,17 +76,19 @@ def test():
     ]
     pooling = []
     pooling_outputs = set()
-    crops = 0
+    mixed_crops = 0
     with open("test_nn_AvgPool2d_ceil.ncnn.param") as f:
         for line in f:
             parts = line.split()
             if len(parts) < 6:
                 continue
             if parts[0] == "Crop":
-                # the tensor slicing in forward() also becomes Crop, only count
-                # the ones that trim a pooling result
+                # convert_Tensor_slice runs before the pooling rewriters and
+                # turns every spatial slice in forward() into a Crop as well, so
+                # counting all Crop layers gives 6 instead of 2. only the crops
+                # fed by a mixed pooling result belong to this assertion.
                 if parts[4] in pooling_outputs:
-                    crops += 1
+                    mixed_crops += 1
                 continue
             if parts[0] != "Pooling":
                 continue
@@ -101,8 +103,9 @@ def test():
     if sorted(pooling) != sorted(expect):
         return False
 
-    # the two mixed axis pools must each be followed by a crop
-    if crops != 2:
+    # the two mixed axis pools must each be followed by a crop, and no other
+    # pooling result may be cropped
+    if mixed_crops != 2:
         return False
 
     return True
