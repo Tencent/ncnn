@@ -3,6 +3,7 @@
 
 import importlib.util
 import subprocess
+from pathlib import Path
 
 import onnx
 from onnx import helper, TensorProto
@@ -43,6 +44,38 @@ def test():
                 if not torch.allclose(actual, expected.reshape_as(x), rtol=1e-5, atol=1e-6):
                     return False
                 case += 1
+    return test_five_dimensional_last_axis()
+
+
+def test_five_dimensional_last_axis():
+    x = torch.linspace(-1, 1, 120).reshape(1, 2, 3, 4, 5)
+    for op in ("Softmax", "LogSoftmax"):
+        for axis in (4, -1):
+            name = "test_softmax_legacy_5d_%s_%s" % (op, "negative" if axis < 0 else "positive")
+            weights = helper.make_tensor("weights", TensorProto.FLOAT, [2, 2, 1, 1, 1], [1, 0, 0, 1])
+            model = helper.make_model(
+                helper.make_graph([
+                    helper.make_node("Conv", ["x", "weights"], ["conv"], kernel_shape=[1, 1, 1]),
+                    helper.make_node(op, ["conv"], ["y"], axis=axis)], name,
+                    [helper.make_tensor_value_info("x", TensorProto.FLOAT, list(x.shape))],
+                    [helper.make_tensor_value_info("y", TensorProto.FLOAT, list(x.shape))], [weights]),
+                opset_imports=[helper.make_opsetid("", 11)], ir_version=8)
+            onnx.checker.check_model(model)
+            onnx.save(model, name + ".onnx")
+            converted = subprocess.run([
+                "../../src/pnnx", name + ".onnx", "inputshape=[1,2,3,4,5]", "fp16=0"],
+                check=True, capture_output=True, text=True)
+            if "target exceeds ncnn physical rank" in converted.stderr:
+                return False
+            if "Tensor.reshape" in Path(name + ".ncnn.param").read_text():
+                return False
+            spec = importlib.util.spec_from_file_location(name, name + "_pnnx.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            actual = module.Model().eval()(x)
+            expected = F.softmax(x, -1) if op == "Softmax" else F.log_softmax(x, -1)
+            if not torch.allclose(actual, expected, rtol=1e-5, atol=1e-6):
+                return False
     return True
 
 

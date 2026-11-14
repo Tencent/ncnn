@@ -1288,6 +1288,12 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                 int axis = op->params.find("axis") != op->params.end() ? op->params["axis"].i : 1;
                 if (axis < 0) axis += (int)shape.size();
 
+                if (!shape.empty() && axis == (int)shape.size() - 1)
+                {
+                    op->params["axis"] = axis;
+                    continue;
+                }
+
                 // Legacy ONNX normalizes all dimensions from axis through the end.
                 if (axis >= 0 && axis < (int)shape.size())
                 {
