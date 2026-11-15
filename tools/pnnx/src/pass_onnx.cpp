@@ -1313,13 +1313,11 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                     }
                     if (static_shape && outer <= INT_MAX && inner <= INT_MAX)
                     {
-                        std::vector<int> flat_shape{(int)outer, (int)inner};
-                        int normalized_axis = 1;
-                        if (axis > 0)
-                        {
-                            flat_shape = {shape[0], (int)(outer / shape[0]), (int)inner};
-                            normalized_axis = 2;
-                        }
+                        // Preserve prefix dimensions so batch-axis inference can track
+                        // a batch dimension moved by a preceding transpose.
+                        std::vector<int> flat_shape(shape.begin(), shape.begin() + axis);
+                        flat_shape.push_back((int)inner);
+                        int normalized_axis = axis;
                         Operator* before = pnnx_graph.new_operator_before("Tensor.reshape", op->name + "_flatten", op);
                         Operator* after = pnnx_graph.new_operator_after("Tensor.reshape", op->name + "_restore", op);
                         before->params["shape"] = flat_shape;
