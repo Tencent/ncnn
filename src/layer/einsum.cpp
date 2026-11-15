@@ -373,6 +373,9 @@ static bool make_contraction_plan(const std::vector<Mat>& bottom_blobs, const st
     if (plan.M * plan.N * plan.K < 256)
         return false;
 
+    if (plan.M == 1 && plan.N == 1 && plan.K < 1024)
+        return false;
+
     return true;
 }
 
@@ -520,8 +523,13 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
         gemm->load_param(pd);
     }
 
+    Option gemm_opt = opt;
+    // Small per-slice GEMMs lose to OpenMP barrier overhead when run across threads.
+    if ((plan.M == 1 && plan.N == 1) || plan.M * plan.N * plan.K < 65536)
+        gemm_opt.num_threads = 1;
+
     gemm->load_model(ModelBinFromMatArray(0));
-    gemm->create_pipeline(opt);
+    gemm->create_pipeline(gemm_opt);
 
     // Pack as (rows, K) for transB=1. Allocation failure can still fall back
     // without touching the output.
@@ -529,7 +537,7 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     Mat X((int)plan.K, (int)plan.N, 4u, opt.workspace_allocator);
     if (W.empty() || X.empty())
     {
-        gemm->destroy_pipeline(opt);
+        gemm->destroy_pipeline(gemm_opt);
         delete gemm;
         return 1;
     }
@@ -548,14 +556,14 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     }
     if (top_blob.empty())
     {
-        gemm->destroy_pipeline(opt);
+        gemm->destroy_pipeline(gemm_opt);
         delete gemm;
         return -100;
     }
 
-    const int ret = compute_contraction_gemm(gemm, bottom_blobs, W, X, top_blob, rhs_token, plan, opt);
+    const int ret = compute_contraction_gemm(gemm, bottom_blobs, W, X, top_blob, rhs_token, plan, gemm_opt);
 
-    gemm->destroy_pipeline(opt);
+    gemm->destroy_pipeline(gemm_opt);
     delete gemm;
 
     return ret == 0 ? 0 : 1;

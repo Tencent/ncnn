@@ -559,6 +559,17 @@ static int test_einsum_oracle_paths()
             return ret;
     }
 
+    // generic path: short batched dot products fall back without workspace allocation
+    {
+        std::vector<ncnn::Mat> a(2);
+        a[0] = RandomMat(256, 8, 32);
+        a[1] = RandomMat(256, 8, 32);
+
+        int ret = test_einsum_oracle_path(a, "ijm,ijm->ij", false, 1) || test_einsum_oracle_path(a, "ijm,ijm->ij", false, 4);
+        if (ret != 0)
+            return ret;
+    }
+
     // Keep the temporary GEMM result bounded for direct and scattered outputs.
     {
         const char* equations[] = {"i,j->ij", "ik,j->ijk"};
