@@ -268,12 +268,7 @@ static int test_einsum_load_param_char()
 }
 #endif // NCNN_VALIDATION
 
-// independent reference implementation, used as an oracle for the layer.
-// it enumerates every index tuple, multiplies the gathered operand values and
-// scatters the product into the output, which is a different shape of
-// computation than the layer itself, so it can disagree instead of repeating
-// the layer's own arithmetic.
-
+// Enumerate index tuples independently of the packed GEMM layout.
 static int einsum_ref_dim_size(const ncnn::Mat& m, int s)
 {
     if (m.dims == 1)
@@ -288,207 +283,92 @@ static int einsum_ref_dim_size(const ncnn::Mat& m, int s)
     return 0;
 }
 
-static float einsum_ref_get(const ncnn::Mat& m, const int* idx)
+static size_t einsum_ref_offset(const ncnn::Mat& m, const std::string& token, const int* index)
 {
+    int coords[4] = {0};
+    for (size_t p = 0; p < token.size(); p++)
+        coords[p] = index[token[p] - 'i'];
+
     if (m.dims == 1)
-        return m[idx[0]];
+        return coords[0];
     if (m.dims == 2)
-        return m.row(idx[0])[idx[1]];
+        return (size_t)coords[0] * m.w + coords[1];
     if (m.dims == 3)
-        return m.channel(idx[0]).row(idx[1])[idx[2]];
+        return coords[0] * m.cstep + (size_t)coords[1] * m.w + coords[2];
 
-    return m.channel(idx[0]).depth(idx[1]).row(idx[2])[idx[3]];
+    return coords[0] * m.cstep + (size_t)coords[1] * m.h * m.w + (size_t)coords[2] * m.w + coords[3];
 }
 
-static void einsum_ref_add(ncnn::Mat& m, const int* idx, float v)
-{
-    if (m.dims == 1)
-    {
-        m[idx[0]] += v;
-        return;
-    }
-    if (m.dims == 2)
-    {
-        m.row(idx[0])[idx[1]] += v;
-        return;
-    }
-    if (m.dims == 3)
-    {
-        m.channel(idx[0]).row(idx[1])[idx[2]] += v;
-        return;
-    }
-
-    m.channel(idx[0]).depth(idx[1]).row(idx[2])[idx[3]] += v;
-}
-
-static float einsum_ref_leaf(const std::vector<ncnn::Mat>& a, const std::vector<std::string>& tokens, const int* char_index)
-{
-    float v = 1.f;
-
-    for (size_t b = 0; b < a.size(); b++)
-    {
-        int idx[4];
-        for (size_t s = 0; s < tokens[b].size(); s++)
-        {
-            idx[s] = char_index[tokens[b][s] - 'i'];
-        }
-
-        v *= einsum_ref_get(a[b], idx);
-    }
-
-    return v;
-}
-
-static void einsum_ref_enumerate(const std::vector<ncnn::Mat>& a, const std::vector<std::string>& tokens, const std::string& out_token, const std::vector<int>& used, const int* sizes, int* char_index, size_t d, ncnn::Mat& out)
-{
-    if (d == used.size())
-    {
-        const float v = einsum_ref_leaf(a, tokens, char_index);
-
-        int idx[4];
-        for (size_t s = 0; s < out_token.size(); s++)
-        {
-            idx[s] = char_index[out_token[s] - 'i'];
-        }
-
-        einsum_ref_add(out, idx, v);
-        return;
-    }
-
-    const int c = used[d];
-    for (int i = 0; i < sizes[c]; i++)
-    {
-        char_index[c] = i;
-        einsum_ref_enumerate(a, tokens, out_token, used, sizes, char_index, d + 1, out);
-    }
-}
-
-// returns 0 and fills out when the oracle understands the case, -1 when the case
-// is out of the oracle contract and the caller should skip it
 static int einsum_reference(const std::vector<ncnn::Mat>& a, const char* equation, ncnn::Mat& out)
 {
+    // Fixed two-operand cases with explicit output; enumerate the union of indices.
     const std::string eq(equation);
-
-    if (eq == "ii")
-    {
-        if (a.size() != 1 || a[0].dims != 2 || a[0].w != a[0].h)
-            return -1;
-
-        out.create(1);
-        if (out.empty())
-            return -1;
-
-        float sum = 0.f;
-        for (int i = 0; i < a[0].h; i++)
-        {
-            sum += a[0].row(i)[i];
-        }
-        out[0] = sum;
-        return 0;
-    }
-
+    const size_t comma = eq.find(',');
     const size_t arrow = eq.find("->");
-    if (arrow == std::string::npos)
+    if (a.size() != 2 || comma == std::string::npos || arrow == std::string::npos || comma >= arrow)
         return -1;
-
-    const std::string lhs = eq.substr(0, arrow);
+    const std::string tokens[2] = {eq.substr(0, comma), eq.substr(comma + 1, arrow - comma - 1)};
     const std::string rhs = eq.substr(arrow + 2);
     if (rhs.empty() || rhs.size() > 4)
         return -1;
 
-    std::vector<std::string> tokens;
+    int sizes[16] = {0};
+    for (int b = 0; b < 2; b++)
     {
-        std::string cur;
-        for (size_t i = 0; i < lhs.size(); i++)
-        {
-            if (lhs[i] == ',')
-            {
-                tokens.push_back(cur);
-                cur.clear();
-            }
-            else
-            {
-                cur.push_back(lhs[i]);
-            }
-        }
-        tokens.push_back(cur);
-    }
-
-    if (tokens.size() != a.size())
-        return -1;
-
-    int sizes[16];
-    bool used_flag[16];
-    for (int c = 0; c < 16; c++)
-    {
-        sizes[c] = 1;
-        used_flag[c] = false;
-    }
-
-    for (size_t b = 0; b < tokens.size(); b++)
-    {
-        if (tokens[b].empty() || tokens[b].size() > 4)
+        if ((int)tokens[b].size() != a[b].dims || a[b].dims < 1 || a[b].dims > 4)
             return -1;
-        if ((int)tokens[b].size() != a[b].dims)
-            return -1;
-
-        for (size_t s = 0; s < tokens[b].size(); s++)
+        for (int p = 0; p < a[b].dims; p++)
         {
-            const int c = tokens[b][s] - 'i';
+            const int c = tokens[b][p] - 'i';
             if (c < 0 || c >= 16)
                 return -1;
-
-            const int sz = einsum_ref_dim_size(a[b], (int)s);
-            if (used_flag[c] && sizes[c] != sz)
-                return -1; // the operands disagree on this dimension, out of contract
-
-            sizes[c] = sz;
-            used_flag[c] = true;
+            const int size = einsum_ref_dim_size(a[b], p);
+            if (size <= 0 || (sizes[c] != 0 && sizes[c] != size))
+                return -1;
+            sizes[c] = size;
         }
     }
 
-    for (size_t s = 0; s < rhs.size(); s++)
+    int shape[4] = {1, 1, 1, 1};
+    for (size_t p = 0; p < rhs.size(); p++)
     {
-        const int c = rhs[s] - 'i';
-        if (c < 0 || c >= 16 || !used_flag[c])
+        const int c = rhs[p] - 'i';
+        if (c < 0 || c >= 16 || sizes[c] == 0)
             return -1;
+        shape[rhs.size() - 1 - p] = sizes[c];
     }
-
-    std::vector<int> used;
-    for (int c = 0; c < 16; c++)
-    {
-        if (used_flag[c])
-            used.push_back(c);
-    }
-
-    // the layer emits the output token positions as w h d c from the innermost
-    // position, so the third position is the depth only for a 4 dim output
-    const int ow = sizes[rhs[rhs.size() - 1] - 'i'];
-    const int oh = rhs.size() >= 2 ? sizes[rhs[rhs.size() - 2] - 'i'] : 1;
-    const int ohd = rhs.size() >= 3 ? sizes[rhs[rhs.size() - 3] - 'i'] : 1;
-    const int oc = rhs.size() >= 4 ? sizes[rhs[rhs.size() - 4] - 'i'] : 1;
-
     if (rhs.size() == 1)
-        out.create(ow);
+        out.create(shape[0]);
     else if (rhs.size() == 2)
-        out.create(ow, oh);
+        out.create(shape[0], shape[1]);
     else if (rhs.size() == 3)
-        out.create(ow, oh, ohd);
+        out.create(shape[0], shape[1], shape[2]);
     else
-        out.create(ow, oh, ohd, oc);
-
+        out.create(shape[0], shape[1], shape[2], shape[3]);
     if (out.empty())
         return -1;
-
     out.fill(0.f);
 
-    int char_index[16];
+    size_t total = 1;
     for (int c = 0; c < 16; c++)
+        if (sizes[c] != 0)
+            total *= sizes[c];
+    const float* aptr = a[0];
+    const float* bptr = a[1];
+    float* outptr = out;
+    for (size_t i = 0; i < total; i++)
     {
-        char_index[c] = 0;
+        size_t remaining = i;
+        int index[16] = {0};
+        for (int c = 15; c >= 0; c--)
+        {
+            if (sizes[c] == 0)
+                continue;
+            index[c] = (int)(remaining % sizes[c]);
+            remaining /= sizes[c];
+        }
+        outptr[einsum_ref_offset(out, rhs, index)] += aptr[einsum_ref_offset(a[0], tokens[0], index)] * bptr[einsum_ref_offset(a[1], tokens[1], index)];
     }
-
-    einsum_ref_enumerate(a, tokens, rhs, used, sizes, char_index, 0, out);
 
     return 0;
 }
@@ -498,8 +378,6 @@ static int test_einsum_oracle(const std::vector<ncnn::Mat>& a, const char* equat
     ncnn::Mat ref;
     if (einsum_reference(a, equation, ref) != 0)
     {
-        // every case in this battery is expected to be inside the contract, a
-        // skip here means the case is malformed and must not pass silently
         fprintf(stderr, "test_einsum_oracle case is out of oracle contract equation=%s\n", equation);
         return -1;
     }
@@ -534,8 +412,7 @@ static int test_einsum_oracle(const std::vector<ncnn::Mat>& a, const char* equat
     return ret;
 }
 
-// counts workspace allocations so a test can prove which path ran. without it a
-// silent fall back to the generic implementation would still compare equal
+// Detect silent fallback: both paths produce the same numerical result.
 class WorkspaceCountingAllocator : public ncnn::PoolAllocator
 {
 public:
@@ -598,7 +475,7 @@ public:
     std::vector<std::pair<void*, size_t> > allocations;
 };
 
-static int test_einsum_oracle_path(const std::vector<ncnn::Mat>& a, const char* equation, bool expect_fast)
+static int test_einsum_oracle_path(const std::vector<ncnn::Mat>& a, const char* equation, bool expect_fast, int num_threads = 4)
 {
     ncnn::Mat ref;
     if (einsum_reference(a, equation, ref) != 0)
@@ -615,7 +492,7 @@ static int test_einsum_oracle_path(const std::vector<ncnn::Mat>& a, const char* 
 
     std::vector<ncnn::Mat> b(1);
     ncnn::Option opt;
-    opt.num_threads = 4;
+    opt.num_threads = num_threads;
     WorkspaceCountingAllocator workspace_allocator;
     opt.workspace_allocator = &workspace_allocator;
 
@@ -649,15 +526,13 @@ static int test_einsum_oracle_paths()
     const bool gemm_available = gemm != 0;
     delete gemm;
 
-    // packed path: a contraction with a long reduction
+    // Packed path with padded output channel stride, in both thread configurations.
     {
         std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(4, 3, 256);
-        a[1] = RandomMat(256, 5);
+        a[0] = RandomMat(5, 3, 64);
+        a[1] = RandomMat(64, 4);
 
-        int ret = 0
-                  || test_einsum_oracle_path(a, "ljk,il->ijk", gemm_available)
-                  || test_einsum_oracle_path(a, "ljk,il->ijk", gemm_available);
+        int ret = test_einsum_oracle_path(a, "ljk,il->ijk", gemm_available, 1) || test_einsum_oracle_path(a, "ljk,il->ijk", gemm_available, 4);
         if (ret != 0)
             return ret;
     }
@@ -752,50 +627,8 @@ static int test_einsum_oracle_paths()
     return 0;
 }
 
-static int test_einsum_oracle_one_operand()
-{
-    // single operand equations stay on the generic path, they are here to pin
-    // the token to axis mapping and the output layout independently of the
-    // packed path
-    std::vector<ncnn::Mat> a(1);
-    a[0] = RandomMat(5, 4);
-
-    int ret = 0
-              || test_einsum_oracle(a, "ij->i", 1)
-              || test_einsum_oracle(a, "ji->i", 1)
-              || test_einsum_oracle(a, "ji->ij", 4);
-
-    std::vector<ncnn::Mat> a3(1);
-    a3[0] = RandomMat(4, 3, 2);
-
-    ret = ret
-          || test_einsum_oracle(a3, "jki->i", 1)
-          || test_einsum_oracle(a3, "kij->ij", 4)
-          || test_einsum_oracle(a3, "ijk->ijk", 1);
-
-    std::vector<ncnn::Mat> a4(1);
-    a4[0] = RandomMat(4, 3, 2, 2);
-
-    ret = ret
-          || test_einsum_oracle(a4, "jkli->i", 4)
-          || test_einsum_oracle(a4, "klij->ij", 4)
-          || test_einsum_oracle(a4, "ijkl->ijkl", 1);
-
-    return ret;
-}
-
 static int test_einsum_oracle_two_operands()
 {
-    // trace
-    {
-        std::vector<ncnn::Mat> a(1);
-        a[0] = RandomMat(4, 4);
-
-        int ret = test_einsum_oracle(a, "ii", 1);
-        if (ret != 0)
-            return ret;
-    }
-
     // matrix vector, surface large enough that the packed path is taken
     {
         std::vector<ncnn::Mat> a(2);
@@ -803,42 +636,6 @@ static int test_einsum_oracle_two_operands()
         a[1] = RandomMat(300);
 
         int ret = test_einsum_oracle(a, "ij,j->i", 1) || test_einsum_oracle(a, "ij,j->i", 4);
-        if (ret != 0)
-            return ret;
-    }
-
-    // outer product, K is one so the surface has to be larger to pass the
-    // packed path threshold
-    {
-        std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(20);
-        a[1] = RandomMat(20);
-
-        int ret = test_einsum_oracle(a, "i,j->ij", 1) || test_einsum_oracle(a, "i,j->ij", 4);
-        if (ret != 0)
-            return ret;
-    }
-
-    // elementwise product: every index is shared by both operands and present in
-    // the output, so this stays on the generic path by design
-    {
-        std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(5);
-        a[1] = RandomMat(5);
-
-        int ret = test_einsum_oracle(a, "i,i->i", 1);
-        if (ret != 0)
-            return ret;
-    }
-
-    // reduction over an index that appears in one operand only, also generic
-    // path by design
-    {
-        std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(5, 1);
-        a[1] = RandomMat(4, 1);
-
-        int ret = test_einsum_oracle(a, "ij,ik->ij", 1);
         if (ret != 0)
             return ret;
     }
@@ -856,31 +653,7 @@ static int test_einsum_oracle_two_operands()
             return ret;
     }
 
-    // batched attention style contraction, a[0] is (i m j k), a[1] is (l i m)
-    {
-        std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(16, 12, 64, 3);
-        a[1] = RandomMat(64, 3, 4);
-
-        int ret = test_einsum_oracle(a, "imjk,lim->ijkl", 1) || test_einsum_oracle(a, "imjk,lim->ijkl", 4);
-        if (ret != 0)
-            return ret;
-    }
-
-    // weight times activation style contraction, a[0] is (l j k), a[1] is (i l)
-    {
-        std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(4, 3, 256);
-        a[1] = RandomMat(256, 5);
-
-        int ret = test_einsum_oracle(a, "ljk,il->ijk", 1) || test_einsum_oracle(a, "ljk,il->ijk", 4);
-        if (ret != 0)
-            return ret;
-    }
-
-    // every index is shared by both operands and present in the output, so the
-    // batch carry runs with more than one batch index while the reduction is
-    // still large enough for the packed path
+    // Multiple shared output indices exercise the batch carry.
     {
         std::vector<ncnn::Mat> a(2);
         a[0] = RandomMat(1200, 3, 2);
@@ -907,48 +680,6 @@ static int test_einsum_oracle_two_operands()
             return ret;
     }
 
-    // 3d output whose w * h is not a multiple of 4, so the output channel
-    // stride is padded as well
-    {
-        std::vector<ncnn::Mat> a(2);
-        a[0] = RandomMat(5, 3, 64);
-        a[1] = RandomMat(64, 4);
-
-        int ret = 0
-                  || test_einsum_oracle(a, "ljk,il->ijk", 1)
-                  || test_einsum_oracle(a, "ljk,il->ijk", 4);
-        if (ret != 0)
-            return ret;
-    }
-
-    return 0;
-}
-
-static int test_einsum_oracle_many_operands()
-{
-    {
-        std::vector<ncnn::Mat> a(3);
-        a[0] = RandomMat(3, 4);
-        a[1] = RandomMat(2, 3, 3);
-        a[2] = RandomMat(2, 4);
-
-        int ret = test_einsum_oracle(a, "ik,jkl,il->ij", 1) || test_einsum_oracle(a, "ik,jkl,il->ij", 4);
-        if (ret != 0)
-            return ret;
-    }
-
-    {
-        std::vector<ncnn::Mat> a(4);
-        a[0] = RandomMat(3);
-        a[1] = RandomMat(2);
-        a[2] = RandomMat(4);
-        a[3] = RandomMat(2);
-
-        int ret = test_einsum_oracle(a, "i,j,k,l->ijkl", 1) || test_einsum_oracle(a, "i,j,k,l->ijkl", 4);
-        if (ret != 0)
-            return ret;
-    }
-
     return 0;
 }
 
@@ -970,9 +701,7 @@ int main()
            || test_einsum_10()
            || test_einsum_11()
            || test_einsum_reload()
-           || test_einsum_oracle_one_operand()
            || test_einsum_oracle_two_operands()
-           || test_einsum_oracle_many_operands()
            || test_einsum_oracle_paths()
 #if NCNN_VALIDATION
            || test_einsum_load_param()

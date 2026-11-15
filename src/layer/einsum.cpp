@@ -5,6 +5,8 @@
 
 #include "layer_type.h"
 
+#include <limits.h>
+
 namespace ncnn {
 
 Einsum::Einsum()
@@ -184,15 +186,8 @@ static float sum_dim(const std::vector<int>& dim_sizes, int d, const std::vector
     return sum;
 }
 
-// the generic path below visits every index tuple for every output element and
-// resolves the operand tokens with string comparisons, which costs far more
-// than the arithmetic itself. a plain two operand contraction is packed into
-// two dense (rows, K) blocks with the contracted dimensions innermost and
-// reduced with a contiguous dot product instead. the conditions are: exactly
-// two fp32 operands, dims 1..4, token length equal to dims, no repeated index
-// inside one token, every index that appears in only one operand must be in the
-// output, indices shared by both operands and absent from the output are
-// contracted, and 1..4 output dimensions. anything else falls back unchanged.
+// Pack plain two-operand contractions as (rows, K) blocks for Gemm.
+// Unsupported equations retain the generic implementation.
 
 static int dim_size_at(const Mat& m, int p)
 {
@@ -250,158 +245,264 @@ static void advance_char(const int* chars, const int* dim_sizes, int count, int*
     }
 }
 
-// return 0 when handled, 1 when the equation is not a plain two operand
-// contraction, negative on error
-static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const std::vector<std::string>& lhs_tokens, const std::string& rhs_token, const Option& opt)
+struct TwoBlobContraction
+{
+    int dim_sizes[16];
+    int token_pos_a[16];
+    int token_pos_b[16];
+    int batch_chars[16];
+    int aout_chars[16];
+    int bout_chars[16];
+    int kchars[16];
+    int batch_count;
+    int aout_count;
+    int bout_count;
+    int kcount;
+    size_t M;
+    size_t N;
+    size_t K;
+    size_t batch;
+};
+
+static bool make_contraction_plan(const std::vector<Mat>& bottom_blobs, const std::vector<std::string>& lhs_tokens, const std::string& rhs_token, TwoBlobContraction& plan)
 {
     if (lhs_tokens.size() != 2)
-        return 1;
+        return false;
 
     const Mat& A = bottom_blobs[0];
     const Mat& B = bottom_blobs[1];
 
     if (A.elemsize != 4u || B.elemsize != 4u)
-        return 1;
+        return false;
     if (A.elempack != 1 || B.elempack != 1)
-        return 1;
+        return false;
     if (A.dims < 1 || A.dims > 4 || B.dims < 1 || B.dims > 4)
-        return 1;
+        return false;
     if ((int)lhs_tokens[0].size() != A.dims || (int)lhs_tokens[1].size() != B.dims)
-        return 1;
+        return false;
     if (rhs_token.empty() || rhs_token.size() > 4)
-        return 1;
+        return false;
 
-    const std::string& token_a = lhs_tokens[0];
-    const std::string& token_b = lhs_tokens[1];
-
-    int dim_sizes[16];
-    int token_pos_a[16];
-    int token_pos_b[16];
-    bool in_a[16];
-    bool in_b[16];
-    bool in_out[16];
-
+    bool in_out[16] = {false};
     for (int c = 0; c < 16; c++)
     {
-        dim_sizes[c] = 1;
-        token_pos_a[c] = -1;
-        token_pos_b[c] = -1;
-        in_a[c] = false;
-        in_b[c] = false;
-        in_out[c] = false;
+        plan.dim_sizes[c] = 1;
+        plan.token_pos_a[c] = -1;
+        plan.token_pos_b[c] = -1;
     }
 
-    for (int p = 0; p < (int)token_a.size(); p++)
+    int* positions[2] = {plan.token_pos_a, plan.token_pos_b};
+    for (int b = 0; b < 2; b++)
     {
-        const int c = token_a[p] - 'i';
-        if (c < 0 || c >= 16)
-            return 1;
-        if (in_a[c])
-            return 1; // a repeated index inside one operand is a diagonal, not handled here
+        for (int p = 0; p < bottom_blobs[b].dims; p++)
+        {
+            const int c = lhs_tokens[b][p] - 'i';
+            if (c < 0 || c >= 16 || positions[b][c] >= 0)
+                return false; // Diagonals stay on the generic path.
 
-        const int s = dim_size_at(A, p);
-        if (s <= 0)
-            return 1;
+            const int size = dim_size_at(bottom_blobs[b], p);
+            if (size <= 0 || (b == 1 && plan.token_pos_a[c] >= 0 && plan.dim_sizes[c] != size))
+                return false;
 
-        in_a[c] = true;
-        token_pos_a[c] = p;
-        dim_sizes[c] = s;
-    }
-
-    for (int p = 0; p < (int)token_b.size(); p++)
-    {
-        const int c = token_b[p] - 'i';
-        if (c < 0 || c >= 16)
-            return 1;
-        if (in_b[c])
-            return 1;
-
-        const int s = dim_size_at(B, p);
-        if (s <= 0)
-            return 1;
-        if (in_a[c] && dim_sizes[c] != s)
-            return 1; // the operands disagree on this dimension
-
-        in_b[c] = true;
-        token_pos_b[c] = p;
-        dim_sizes[c] = s;
+            positions[b][c] = p;
+            plan.dim_sizes[c] = size;
+        }
     }
 
     for (size_t p = 0; p < rhs_token.size(); p++)
     {
         const int c = rhs_token[p] - 'i';
         if (c < 0 || c >= 16)
-            return 1;
+            return false;
         if (in_out[c])
-            return 1; // a repeated output index is not a canonical equation
-        if (!in_a[c] && !in_b[c])
-            return 1; // an output index has to come from an operand
+            return false; // a repeated output index is not a canonical equation
+        if (plan.token_pos_a[c] < 0 && plan.token_pos_b[c] < 0)
+            return false; // an output index has to come from an operand
 
         in_out[c] = true;
     }
 
-    int batch_chars[16];
-    int aout_chars[16];
-    int bout_chars[16];
-    int kchars[16];
-    int batch_count = 0;
-    int aout_count = 0;
-    int bout_count = 0;
-    int kcount = 0;
+    plan.batch_count = 0;
+    plan.aout_count = 0;
+    plan.bout_count = 0;
+    plan.kcount = 0;
 
     for (int c = 0; c < 16; c++)
     {
-        if (!in_a[c] && !in_b[c] && !in_out[c])
+        const bool in_a = plan.token_pos_a[c] >= 0;
+        const bool in_b = plan.token_pos_b[c] >= 0;
+        if (!in_a && !in_b)
             continue;
 
-        if (in_a[c] && in_b[c])
+        if (in_a && in_b)
         {
             if (in_out[c])
-                batch_chars[batch_count++] = c;
+                plan.batch_chars[plan.batch_count++] = c;
             else
-                kchars[kcount++] = c;
+                plan.kchars[plan.kcount++] = c;
 
             continue;
         }
 
         if (!in_out[c])
-            return 1; // a reduction over one operand only, the generic path handles it
+            return false; // a reduction over one operand only, the generic path handles it
 
-        if (in_a[c])
-            aout_chars[aout_count++] = c;
+        if (in_a)
+            plan.aout_chars[plan.aout_count++] = c;
         else
-            bout_chars[bout_count++] = c;
+            plan.bout_chars[plan.bout_count++] = c;
     }
 
-    size_t M = 1;
-    size_t N = 1;
-    size_t K = 1;
-    size_t batch = 1;
-    for (int d = 0; d < aout_count; d++)
-        M *= dim_sizes[aout_chars[d]];
-    for (int d = 0; d < bout_count; d++)
-        N *= dim_sizes[bout_chars[d]];
-    for (int d = 0; d < kcount; d++)
-        K *= dim_sizes[kchars[d]];
-    for (int d = 0; d < batch_count; d++)
-        batch *= dim_sizes[batch_chars[d]];
+    plan.M = 1;
+    plan.N = 1;
+    plan.K = 1;
+    plan.batch = 1;
+    for (int d = 0; d < plan.aout_count; d++)
+        plan.M *= plan.dim_sizes[plan.aout_chars[d]];
+    for (int d = 0; d < plan.bout_count; d++)
+        plan.N *= plan.dim_sizes[plan.bout_chars[d]];
+    for (int d = 0; d < plan.kcount; d++)
+        plan.K *= plan.dim_sizes[plan.kchars[d]];
+    for (int d = 0; d < plan.batch_count; d++)
+        plan.batch *= plan.dim_sizes[plan.batch_chars[d]];
 
-    if (M * K > (size_t)INT_MAX || N * K > (size_t)INT_MAX || M * N > (size_t)INT_MAX)
+    if (plan.M * plan.K > (size_t)INT_MAX || plan.N * plan.K > (size_t)INT_MAX || plan.M * plan.N > (size_t)INT_MAX)
+        return false;
+
+    // Small slices do not amortize packing and per-slice GEMM setup.
+    if (plan.M * plan.N * plan.K < 256)
+        return false;
+
+    return true;
+}
+
+static void pack_contraction_operand(const Mat& src, Mat& packed, const int* free_chars, int free_count, const int* token_pos, const TwoBlobContraction& plan, const int* batch_index)
+{
+    // Free dimensions precede contracted dimensions: destination is row * K + k.
+    int chars[4];
+    size_t strides[4];
+    const int count = free_count + plan.kcount;
+    for (int d = 0; d < count; d++)
+    {
+        const int c = d < free_count ? free_chars[d] : plan.kchars[d - free_count];
+        chars[d] = c;
+        strides[d] = stride_at(src, token_pos[c]);
+    }
+
+    size_t offset = 0;
+    for (int d = 0; d < plan.batch_count; d++)
+    {
+        const int c = plan.batch_chars[d];
+        offset += (size_t)batch_index[c] * stride_at(src, token_pos[c]);
+    }
+
+    int index[16] = {0};
+    const float* ptr = src;
+    float* outptr = packed;
+    const size_t total = (size_t)packed.w * packed.h;
+    for (size_t i = 0; i < total; i++)
+    {
+        outptr[i] = ptr[offset];
+        if (i + 1 < total)
+            advance_index(chars, strides, plan.dim_sizes, count, index, offset);
+    }
+}
+
+static void scatter_contraction_tile(const Mat& product, Mat& output, const std::string& rhs_token, const TwoBlobContraction& plan, const size_t* stride_out, const int* batch_index, size_t m_start, size_t n_start)
+{
+    int index[16];
+    std::copy(batch_index, batch_index + 16, index);
+    const float* ptr = product;
+    float* outptr = output;
+    for (int m = 0; m < product.h; m++)
+    {
+        size_t mm = m_start + m;
+        for (int d = plan.aout_count - 1; d >= 0; d--)
+        {
+            const int c = plan.aout_chars[d];
+            index[c] = (int)(mm % plan.dim_sizes[c]);
+            mm /= plan.dim_sizes[c];
+        }
+
+        for (int n = 0; n < product.w; n++)
+        {
+            size_t nn = n_start + n;
+            for (int d = plan.bout_count - 1; d >= 0; d--)
+            {
+                const int c = plan.bout_chars[d];
+                index[c] = (int)(nn % plan.dim_sizes[c]);
+                nn /= plan.dim_sizes[c];
+            }
+
+            size_t offset = 0;
+            for (size_t p = 0; p < rhs_token.size(); p++)
+                offset += (size_t)index[rhs_token[p] - 'i'] * stride_out[p];
+
+            outptr[offset] = ptr[(size_t)m * product.w + n];
+        }
+    }
+}
+
+static int compute_contraction_gemm(Layer* gemm, const std::vector<Mat>& inputs, Mat& W, Mat& X, Mat& output, const std::string& rhs_token, const TwoBlobContraction& plan, const Option& opt)
+{
+    // Reuse the final output for the identity layout; other layouts scatter bounded tiles.
+    const bool direct_output = plan.batch == 1 && rhs_token.size() == 2 && plan.aout_count == 1 && plan.bout_count == 1 && rhs_token[0] == (char)('i' + plan.aout_chars[0]) && rhs_token[1] == (char)('i' + plan.bout_chars[0]) && output.dims == 2 && output.h == (int)plan.M && output.w == (int)plan.N;
+    const size_t max_gemm_tile_size = 256;
+    const size_t tile_m = direct_output ? plan.M : std::min(plan.M, max_gemm_tile_size);
+    const size_t tile_n = direct_output ? plan.N : std::min(plan.N, max_gemm_tile_size);
+
+    size_t stride_out[4];
+    for (size_t p = 0; p < rhs_token.size(); p++)
+        stride_out[p] = stride_at(output, (int)p);
+
+    std::vector<Mat> bottoms(2);
+    std::vector<Mat> tops(1);
+    if (direct_output)
+        tops[0] = output;
+
+    int batch_index[16] = {0};
+    for (size_t bi = 0; bi < plan.batch; bi++)
+    {
+        pack_contraction_operand(inputs[0], W, plan.aout_chars, plan.aout_count, plan.token_pos_a, plan, batch_index);
+        pack_contraction_operand(inputs[1], X, plan.bout_chars, plan.bout_count, plan.token_pos_b, plan, batch_index);
+
+        for (size_t m = 0; m < plan.M; m += tile_m)
+        {
+            const int rows = (int)std::min(tile_m, plan.M - m);
+            bottoms[0] = W.row_range((int)m, rows);
+            for (size_t n = 0; n < plan.N; n += tile_n)
+            {
+                const int cols = (int)std::min(tile_n, plan.N - n);
+                bottoms[1] = X.row_range((int)n, cols);
+                const int ret = gemm->forward(bottoms, tops, opt);
+                if (ret != 0)
+                    return ret;
+
+                const Mat& product = tops[0];
+                if (product.dims != 2 || product.w != cols || product.h != rows || product.elemsize != 4u)
+                    return -1;
+
+                if (!direct_output)
+                    scatter_contraction_tile(product, output, rhs_token, plan, stride_out, batch_index, m, n);
+            }
+        }
+
+        if (bi + 1 < plan.batch)
+            advance_char(plan.batch_chars, plan.dim_sizes, plan.batch_count, batch_index);
+    }
+
+    return 0;
+}
+
+// Return 0 when handled, 1 for the generic path, negative on allocation error.
+static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const std::vector<std::string>& lhs_tokens, const std::string& rhs_token, const Option& opt)
+{
+    TwoBlobContraction plan;
+    if (!make_contraction_plan(bottom_blobs, lhs_tokens, rhs_token, plan))
         return 1;
 
-    // a slice with almost no reduction left is cheaper on the generic path,
-    // which pays nothing for packing and per slice bookkeeping. this keeps
-    // equations where every index is a batch index (an elementwise product with
-    // a large batch) from regressing behind the interpreter
-    if (M * N * K < 256)
-        return 1;
-
-    // the reduction is delegated to the library's own Gemm, the way
-    // src/layer/x86/matmul_x86.cpp drives its own Gemm, which reaches the arch
-    // optimized kernels that a generic layer translation unit cannot. a
-    // selective build can compile Gemm out, so resolve it before reserving
-    // anything: otherwise a build without Gemm would hand |A| + |B| floats to
-    // the workspace pool, which caches them for the lifetime of the net
+    // Resolve Gemm before allocating: selective builds may omit it, and the
+    // workspace pool retains freed packing buffers for the Net lifetime.
     Layer* gemm = ncnn::create_layer_cpu(LayerType::Gemm);
     if (!gemm)
         return 1;
@@ -422,12 +523,10 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     gemm->load_model(ModelBinFromMatArray(0));
     gemm->create_pipeline(opt);
 
-    // dims 2 with w = K, h = rows, which is the layout Gemm reads and the layout
-    // the packing loops below write with a linear index. allocate before
-    // touching the output, so that a failed allocation falls back instead of
-    // failing a graph the generic path still computes
-    Mat W((int)K, (int)M, 4u, opt.workspace_allocator);
-    Mat X((int)K, (int)N, 4u, opt.workspace_allocator);
+    // Pack as (rows, K) for transB=1. Allocation failure can still fall back
+    // without touching the output.
+    Mat W((int)plan.K, (int)plan.M, 4u, opt.workspace_allocator);
+    Mat X((int)plan.K, (int)plan.N, 4u, opt.workspace_allocator);
     if (W.empty() || X.empty())
     {
         gemm->destroy_pipeline(opt);
@@ -439,13 +538,13 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
     {
         const int out_dims = (int)rhs_token.size();
         if (out_dims == 1)
-            top_blob.create(dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
+            top_blob.create(plan.dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
         if (out_dims == 2)
-            top_blob.create(dim_sizes[rhs_token[1] - 'i'], dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
+            top_blob.create(plan.dim_sizes[rhs_token[1] - 'i'], plan.dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
         if (out_dims == 3)
-            top_blob.create(dim_sizes[rhs_token[2] - 'i'], dim_sizes[rhs_token[1] - 'i'], dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
+            top_blob.create(plan.dim_sizes[rhs_token[2] - 'i'], plan.dim_sizes[rhs_token[1] - 'i'], plan.dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
         if (out_dims == 4)
-            top_blob.create(dim_sizes[rhs_token[3] - 'i'], dim_sizes[rhs_token[2] - 'i'], dim_sizes[rhs_token[1] - 'i'], dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
+            top_blob.create(plan.dim_sizes[rhs_token[3] - 'i'], plan.dim_sizes[rhs_token[2] - 'i'], plan.dim_sizes[rhs_token[1] - 'i'], plan.dim_sizes[rhs_token[0] - 'i'], 4u, opt.blob_allocator);
     }
     if (top_blob.empty())
     {
@@ -454,186 +553,12 @@ static int forward_two_blob_contraction(const std::vector<Mat>& bottom_blobs, st
         return -100;
     }
 
-    // free dimensions first, then the contracted ones, so that the destination
-    // index is m * K + k
-    int list_a_char[4];
-    size_t list_a_stride[4];
-    int list_a_count = 0;
-    for (int d = 0; d < aout_count; d++)
-    {
-        const int c = aout_chars[d];
-        list_a_char[list_a_count] = c;
-        list_a_stride[list_a_count] = stride_at(A, token_pos_a[c]);
-        list_a_count++;
-    }
-    for (int d = 0; d < kcount; d++)
-    {
-        const int c = kchars[d];
-        list_a_char[list_a_count] = c;
-        list_a_stride[list_a_count] = stride_at(A, token_pos_a[c]);
-        list_a_count++;
-    }
-
-    int list_b_char[4];
-    size_t list_b_stride[4];
-    int list_b_count = 0;
-    for (int d = 0; d < bout_count; d++)
-    {
-        const int c = bout_chars[d];
-        list_b_char[list_b_count] = c;
-        list_b_stride[list_b_count] = stride_at(B, token_pos_b[c]);
-        list_b_count++;
-    }
-    for (int d = 0; d < kcount; d++)
-    {
-        const int c = kchars[d];
-        list_b_char[list_b_count] = c;
-        list_b_stride[list_b_count] = stride_at(B, token_pos_b[c]);
-        list_b_count++;
-    }
-
-    size_t stride_out[4];
-    for (int p = 0; p < (int)rhs_token.size(); p++)
-        stride_out[p] = stride_at(top_blob, p);
-
-    int char_index[16];
-    for (int c = 0; c < 16; c++)
-        char_index[c] = 0;
-
-    const float* aptr = A;
-    const float* bptr = B;
-    float* wptr = W;
-    float* xptr = X;
-    float* outptr = top_blob;
-
-    // Reuse the final output for the identity layout; other layouts scatter bounded tiles.
-    const bool direct_gemm_output = batch == 1 && rhs_token.size() == 2 && aout_count == 1 && bout_count == 1 && rhs_token[0] == (char)('i' + aout_chars[0]) && rhs_token[1] == (char)('i' + bout_chars[0]) && top_blob.dims == 2 && top_blob.h == (int)M && top_blob.w == (int)N;
-    // Bound the temporary GEMM output instead of allocating another full M x N result.
-    const size_t max_gemm_tile_size = 256;
-    const size_t gemm_tile_m = direct_gemm_output ? M : std::min(M, max_gemm_tile_size);
-    const size_t gemm_tile_n = direct_gemm_output ? N : std::min(N, max_gemm_tile_size);
-
-    std::vector<Mat> gemm_bottoms(2);
-    std::vector<Mat> gemm_tops(1);
-    if (direct_gemm_output)
-        gemm_tops[0] = top_blob;
-
-    int gemm_ret = 0;
-
-    for (size_t bi = 0; bi < batch; bi++)
-    {
-        size_t base_a = 0;
-        size_t base_b = 0;
-        for (int d = 0; d < batch_count; d++)
-        {
-            const int c = batch_chars[d];
-            if (token_pos_a[c] >= 0)
-                base_a += (size_t)char_index[c] * stride_at(A, token_pos_a[c]);
-            if (token_pos_b[c] >= 0)
-                base_b += (size_t)char_index[c] * stride_at(B, token_pos_b[c]);
-        }
-
-        {
-            for (int d = 0; d < list_a_count; d++)
-                char_index[list_a_char[d]] = 0;
-
-            const size_t total = M * K;
-            size_t off = base_a;
-            for (size_t i = 0; i < total; i++)
-            {
-                wptr[i] = aptr[off];
-                if (i + 1 < total)
-                    advance_index(list_a_char, list_a_stride, dim_sizes, list_a_count, char_index, off);
-            }
-        }
-
-        {
-            for (int d = 0; d < list_b_count; d++)
-                char_index[list_b_char[d]] = 0;
-
-            const size_t total = N * K;
-            size_t off = base_b;
-            for (size_t i = 0; i < total; i++)
-            {
-                xptr[i] = bptr[off];
-                if (i + 1 < total)
-                    advance_index(list_b_char, list_b_stride, dim_sizes, list_b_count, char_index, off);
-            }
-        }
-
-        for (size_t m_start = 0; m_start < M; m_start += gemm_tile_m)
-        {
-            const size_t tile_m = std::min(gemm_tile_m, M - m_start);
-            const Mat w_tile = W.row_range((int)m_start, (int)tile_m);
-
-            for (size_t n_start = 0; n_start < N; n_start += gemm_tile_n)
-            {
-                const size_t tile_n = std::min(gemm_tile_n, N - n_start);
-                gemm_bottoms[0] = w_tile;
-                gemm_bottoms[1] = X.row_range((int)n_start, (int)tile_n);
-
-                gemm_ret = gemm->forward(gemm_bottoms, gemm_tops, opt);
-                if (gemm_ret != 0)
-                    break;
-
-                const Mat& product = gemm_tops[0];
-                if (product.dims != 2 || product.w != (int)tile_n || product.h != (int)tile_m || product.elemsize != 4u)
-                {
-                    gemm_ret = -1;
-                    break;
-                }
-
-                if (direct_gemm_output)
-                    continue;
-
-                const float* cptr = product;
-                for (size_t m = 0; m < tile_m; m++)
-                {
-                    size_t mm = m_start + m;
-                    for (int d = aout_count - 1; d >= 0; d--)
-                    {
-                        const int c = aout_chars[d];
-                        char_index[c] = (int)(mm % dim_sizes[c]);
-                        mm /= dim_sizes[c];
-                    }
-
-                    for (size_t n = 0; n < tile_n; n++)
-                    {
-                        size_t nn = n_start + n;
-                        for (int d = bout_count - 1; d >= 0; d--)
-                        {
-                            const int c = bout_chars[d];
-                            char_index[c] = (int)(nn % dim_sizes[c]);
-                            nn /= dim_sizes[c];
-                        }
-
-                        size_t off = 0;
-                        for (size_t p = 0; p < rhs_token.size(); p++)
-                            off += (size_t)char_index[rhs_token[p] - 'i'] * stride_out[p];
-
-                        outptr[off] = cptr[m * tile_n + n];
-                    }
-                }
-            }
-
-            if (gemm_ret != 0)
-                break;
-        }
-
-        if (gemm_ret != 0)
-            break;
-
-        if (bi + 1 < batch)
-            advance_char(batch_chars, dim_sizes, batch_count, char_index);
-    }
+    const int ret = compute_contraction_gemm(gemm, bottom_blobs, W, X, top_blob, rhs_token, plan, opt);
 
     gemm->destroy_pipeline(opt);
     delete gemm;
 
-    if (gemm_ret != 0)
-        return 1;
-
-    return 0;
+    return ret == 0 ? 0 : 1;
 }
 
 int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -674,8 +599,6 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         const int ret = forward_two_blob_contraction(bottom_blobs, top_blobs, lhs_tokens, rhs_token, opt);
         if (ret != 1)
             return ret;
-
-        // not a plain pair contraction, keep going with the generic path below
     }
 
     // resolve dimension sizes
