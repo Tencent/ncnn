@@ -1293,7 +1293,8 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                     single_axis = shape[d] == 1;
                 if (single_axis)
                 {
-                    op->params["axis"] = axis;
+                    if (op->params.find("axis") == op->params.end())
+                        op->params["axis"] = 1;
                     continue;
                 }
 
@@ -1322,6 +1323,8 @@ void pass_onnx(const onnx::ModelProto& model, const std::vector<unsigned char>& 
                         Operator* after = pnnx_graph.new_operator_after("Tensor.reshape", op->name + "_restore", op);
                         before->params["shape"] = flat_shape;
                         after->params["shape"] = shape;
+                        before->params["__legacy_softmax_prefix"] = axis;
+                        after->params["__legacy_softmax_prefix"] = axis;
 
                         Operand* flat = pnnx_graph.new_operand(op->name + "_flat");
                         Operand* normalized = pnnx_graph.new_operand(op->name + "_normalized");

@@ -16,7 +16,7 @@ def test():
     case = 0
     for op in ("Softmax", "LogSoftmax"):
         for opset in (11, 13):
-            for axis in (None, 1, -2):
+            for axis in (None, 1, -2, -1):
                 name = "test_softmax_legacy_%d" % case
                 attrs = {} if axis is None else {"axis": axis}
                 model = helper.make_model(
@@ -28,6 +28,10 @@ def test():
                 onnx.checker.check_model(model)
                 onnx.save(model, name + ".onnx")
                 subprocess.run(["../../src/pnnx", name + ".onnx", "inputshape=[2,3,4]", "fp16=0"], check=True)
+                if opset == 11 and axis == -1:
+                    graph = Path(name + ".pnnx.param").read_text()
+                    if not any("dim=-1" in line for line in graph.splitlines() if "F.softmax" in line or "F.log_softmax" in line):
+                        return False
 
                 spec = importlib.util.spec_from_file_location(name, name + "_pnnx.py")
                 module = importlib.util.module_from_spec(spec)
@@ -44,14 +48,15 @@ def test():
                 if not torch.allclose(actual, expected.reshape_as(x), rtol=1e-5, atol=1e-6):
                     return False
                 case += 1
-    return test_five_dimensional_last_axis() and test_transposed_batch_axis()
+    return (test_five_dimensional_last_axis()
+            and test_transposed_batch_axis((1, 2, 3, 4, 5))
+            and test_transposed_batch_axis((1, 2, 1, 4, 5)))
 
 
-def test_transposed_batch_axis():
-    shape = (1, 2, 3, 4, 5)
+def test_transposed_batch_axis(shape):
     x = torch.linspace(-1, 1, torch.Size(shape).numel()).reshape(shape)
     for op in ("Softmax", "LogSoftmax"):
-        name = "test_softmax_legacy_transposed_" + op
+        name = "test_softmax_legacy_transposed_" + op + "_" + "_".join(map(str, shape))
         weights = helper.make_tensor("weights", TensorProto.FLOAT, [2, 2, 1, 1, 1], [1, 0, 0, 1])
         model = helper.make_model(helper.make_graph([
             helper.make_node("Conv", ["x", "weights"], ["conv"], kernel_shape=[1, 1, 1]),
@@ -63,7 +68,7 @@ def test_transposed_batch_axis():
             opset_imports=[helper.make_opsetid("", 11)], ir_version=8)
         onnx.checker.check_model(model)
         onnx.save(model, name + ".onnx")
-        converted = subprocess.run(["../../src/pnnx", name + ".onnx", "inputshape=[1,2,3,4,5]", "fp16=0"],
+        converted = subprocess.run(["../../src/pnnx", name + ".onnx", "inputshape=[%s]" % ",".join(map(str, shape)), "fp16=0"],
                                    check=True, capture_output=True, text=True)
         if "target exceeds ncnn physical rank" in converted.stderr or "Tensor.reshape" in Path(name + ".ncnn.param").read_text():
             return False
@@ -72,7 +77,7 @@ def test_transposed_batch_axis():
         spec.loader.exec_module(module)
         actual = module.Model().eval()(x)
         transposed = x.permute(1, 0, 2, 3, 4)
-        flattened = transposed.reshape(6, 20)
+        flattened = transposed.reshape(-1, 20)
         expected = F.softmax(flattened, 1) if op == "Softmax" else F.log_softmax(flattened, 1)
         expected = expected.reshape(transposed.shape).permute(1, 0, 2, 3, 4)
         if not torch.allclose(actual, expected, rtol=1e-5, atol=1e-6):
