@@ -41,6 +41,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-15-intel, windows-latest]
         python-version: ['3.9', '3.12']
@@ -125,7 +126,12 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        cd python && pytest tests
+        export VK_LOADER_DEBUG=error,warn
+        cat "$VK_ICD_FILENAMES"
+        ls -l "$GITHUB_WORKSPACE/swiftshader-install"
+        ldd "$GITHUB_WORKSPACE/swiftshader-install/libvk_swiftshader.so"
+        python -u -c 'import ncnn; count = ncnn.get_gpu_count(); print("Vulkan GPU count:", count, flush=True); assert count > 0, "SwiftShader device unavailable"; device = ncnn.get_gpu_device(0); print("Vulkan device:", device, flush=True); assert device is not None, "SwiftShader device creation failed"'
+        cd python && pytest -s tests
     - name: test
       if: matrix.os != 'ubuntu-latest'
       run: |
