@@ -41,7 +41,7 @@ jobs:
         . /etc/os-release
         if [ "$VERSION_CODENAME" != noble ]; then
           echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe' | sudo tee /etc/apt/sources.list.d/noble-mips.list
-          printf 'Package: *mips*\nPin: release n=noble\nPin-Priority: 100\n\nPackage: *\nPin: release n=noble\nPin-Priority: -1\n' | sudo tee /etc/apt/preferences.d/noble-mips
+          printf 'Package: *mips* libsframe1\nPin: release n=noble\nPin-Priority: 100\n\nPackage: *\nPin: release n=noble\nPin-Priority: -1\n' | sudo tee /etc/apt/preferences.d/noble-mips
         fi
         sudo apt-get update
         sudo apt-get install g++-mips64el-linux-gnuabi64 qemu-user
@@ -67,7 +67,7 @@ jobs:
         . /etc/os-release
         if [ "$VERSION_CODENAME" != noble ]; then
           echo 'deb [arch=amd64 signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] https://archive.ubuntu.com/ubuntu noble main universe' | sudo tee /etc/apt/sources.list.d/noble-mips.list
-          printf 'Package: *mips*\nPin: release n=noble\nPin-Priority: 100\n\nPackage: *\nPin: release n=noble\nPin-Priority: -1\n' | sudo tee /etc/apt/preferences.d/noble-mips
+          printf 'Package: *mips* libsframe1\nPin: release n=noble\nPin-Priority: 100\n\nPackage: *\nPin: release n=noble\nPin-Priority: -1\n' | sudo tee /etc/apt/preferences.d/noble-mips
         fi
         sudo apt-get update
         sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64 qemu-user
