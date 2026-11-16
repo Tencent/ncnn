@@ -6,6 +6,7 @@
 
 #include <arm_neon.h>
 
+#include "arm_usability.h"
 #include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"

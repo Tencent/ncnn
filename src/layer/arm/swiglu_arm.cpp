@@ -7,10 +7,10 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #include "swiglu_arm_math.h"
 #endif // __ARM_NEON
 
-#include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
