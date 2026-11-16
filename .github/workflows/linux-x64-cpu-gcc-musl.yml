@@ -41,18 +41,18 @@ permissions:
 jobs:
   linux-gcc-musl:
     runs-on: ubuntu-latest
+    container: alpine:3.24
     steps:
+    - name: install dependencies
+      run: apk add --no-cache git cmake make gcc g++ libc-dev linux-headers
     - uses: actions/checkout@v7
-    - name: build and test with musl
+    - name: build
       run: |
-        docker run --rm --volume "$GITHUB_WORKSPACE:/src:ro" alpine:3.24 sh -ec '
-          apk add --no-cache cmake make gcc g++ libc-dev linux-headers
-          cmake -S /src -B /build -DNCNN_BUILD_TESTS=ON
-          cmake --build /build -j "$(nproc)"
-          ctest --test-dir /build --output-on-failure -j "$(nproc)"
-        '
+        cmake -S . -B build -DNCNN_BUILD_TESTS=ON
+        cmake --build build -j "$(nproc)"
+    - name: test
+      run: ctest --test-dir build --output-on-failure -j "$(nproc)"
     - name: build-shared
       run: |
-        mkdir build-shared && cd build-shared
-        cmake -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
+        cmake -S . -B build-shared -DNCNN_SHARED_LIB=ON
+        cmake --build build-shared -j "$(nproc)"
