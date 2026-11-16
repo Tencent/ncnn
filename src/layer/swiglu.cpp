@@ -43,8 +43,8 @@ int SwiGLU::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const float climit = activation_limit > 0.f ? activation_limit : FLT_MAX;
     const float mlimit = -climit;
 
-    // gather short channels into one task and split long channels, so that
-    // 2d llm tensors with c == 1 also spread over all threads
+    // split each channel into block_size chunks, so that 2d llm tensors with
+    // c == 1 also spread over all threads
     const int block_size = 1024;
     const int nn_block = (size + block_size - 1) / block_size;
 
