@@ -23,7 +23,7 @@ namespace ncnn {
 #if NCNN_VULKAN
 #define NCNN_PIPELINE_CACHE_FILE_MAGIC 0x5a545546
 // version 4: cached spirv compiled for simd32 on intel integrated gpus with mesa,
-// which now default to subgroup size 16
+// which now default to subgroup size 16, and the header gains subgroup_size
 #if NCNN_COVERAGE
 #define NCNN_PIPELINE_CACHE_FILE_VERSION 0x00010004
 #else
@@ -161,6 +161,9 @@ public:
 
         uint32_t reserved0;
 
+        // ncnn_subgroupSize is compiled into the cached spirv
+        uint32_t subgroup_size;
+
         uint32_t spirv_entry_count;
         uint32_t spirv_cache_size;
         uint32_t spirv_cache_hash;
@@ -168,7 +171,7 @@ public:
         uint32_t pipeline_cache_size;
         uint32_t pipeline_cache_hash;
 
-        uint32_t reserved[8];
+        uint32_t reserved[7];
     };
 
     struct spirv_cache_entry_header
@@ -302,6 +305,8 @@ static void fill_cache_file_header(PipelineCachePrivate::cache_file_header& head
     memcpy(header.pipeline_cache_uuid, vkdev->info.pipeline_cache_uuid(), VK_UUID_SIZE);
 
     header.reserved0 = 0;
+
+    header.subgroup_size = vkdev->info.subgroup_size();
 }
 
 static bool validate_cache_file_header(const PipelineCachePrivate::cache_file_header& header, const VulkanDevice* vkdev)
@@ -334,6 +339,8 @@ static bool validate_cache_file_header(const PipelineCachePrivate::cache_file_he
     if (header.driver_name_hash != hash_string(vkdev->info.driver_name()))
         return false;
     if (memcmp(header.pipeline_cache_uuid, vkdev->info.pipeline_cache_uuid(), VK_UUID_SIZE) != 0)
+        return false;
+    if (header.subgroup_size != vkdev->info.subgroup_size())
         return false;
 
     return true;

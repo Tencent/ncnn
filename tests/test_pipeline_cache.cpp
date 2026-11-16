@@ -9,6 +9,7 @@
 #include "testutil.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #if NCNN_STDIO
 #if defined(_WIN32)
@@ -153,6 +154,30 @@ static int test_pipeline_cache_memory()
         if (pipeline_cache.load_cache(corrupted) == 0)
         {
             fprintf(stderr, "load_cache accepted corrupted header\n");
+            return -1;
+        }
+    }
+
+    // subgroup_size follows the pipeline cache uuid and reserved0 in the header
+    corrupted = cache_data;
+    corrupted[72] ^= 0xff;
+    {
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = true;
+        net.load_param_mem(test_param);
+
+        uint32_t saved_subgroup_size;
+        memcpy(&saved_subgroup_size, cache_data.data() + 72, sizeof(saved_subgroup_size));
+        if (saved_subgroup_size != net.vulkan_device()->info.subgroup_size())
+        {
+            fprintf(stderr, "save_cache wrote subgroup size %u, expected %u\n", saved_subgroup_size, net.vulkan_device()->info.subgroup_size());
+            return -1;
+        }
+
+        ncnn::PipelineCache pipeline_cache(net.vulkan_device());
+        if (pipeline_cache.load_cache(corrupted) == 0)
+        {
+            fprintf(stderr, "load_cache accepted mismatched subgroup size\n");
             return -1;
         }
     }
