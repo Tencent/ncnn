@@ -41,6 +41,9 @@ permissions:
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest
+    env:
+      CFLAGS: -march=x86-64
+      CXXFLAGS: -march=x86-64
     steps:
     - uses: actions/checkout@v7
     - name: update
