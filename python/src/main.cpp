@@ -31,7 +31,7 @@ static const int batch_index_none = 233;
 
 // Allocator that keeps the Python object exporting the wrapped buffer alive.
 // It owns the ncnn::Mat refcount of that buffer, so every shallow copy of the
-// Mat (reshape / channel / range / extractor input) shares it, and the Python
+// Mat (reshape / extractor input) shares it, and the Python
 // object is released when the last of them is destroyed.
 class PyBufferOwnerAllocator : public Allocator
 {
@@ -93,6 +93,19 @@ static void attach_buffer_owner(Mat* m, py::object owner)
     PyBufferOwnerAllocator* a = new PyBufferOwnerAllocator(std::move(owner), m->data);
     m->refcount = &a->refcount;
     m->allocator = a;
+}
+
+// Native subviews have no refcount. Retain a shallow C++ copy of the parent
+// in a separate owner so even Extractor copies keep the buffer alive. Each
+// owner releases its own offset pointer without passing it to fastFree.
+static Mat retain_buffer_view(const Mat& parent, Mat view)
+{
+    if (dynamic_cast<PyBufferOwnerAllocator*>(parent.allocator))
+    {
+        py::object owner = py::cast(std::unique_ptr<Mat>(new Mat(parent)));
+        attach_buffer_owner(&view, std::move(owner));
+    }
+    return view;
 }
 
 static bool buffer_is_c_contiguous(const py::buffer_info& info)
@@ -582,10 +595,10 @@ PYBIND11_MODULE(ncnn, m)
     .def("total", &Mat::total)
     .def("elembits", &Mat::elembits)
     .def("shape", &Mat::shape)
-    .def("batch", (Mat(Mat::*)(int)) & Mat::batch, py::arg("b"))
-    .def("channel", (Mat(Mat::*)(int)) & Mat::channel, py::arg("c"))
+    .def("batch", [](Mat& m, int b) { return retain_buffer_view(m, m.batch(b)); }, py::arg("b"))
+    .def("channel", [](Mat& m, int c) { return retain_buffer_view(m, m.channel(c)); }, py::arg("c"))
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
-    .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
+    .def("depth", [](Mat& m, int z) { return retain_buffer_view(m, m.depth(z)); }, py::arg("z"))
     //.def("depth", (const Mat (Mat::*)(int) const) & Mat::depth, py::arg("z"))
     .def(
     "row", [](Mat& m, int y) {
@@ -612,13 +625,13 @@ PYBIND11_MODULE(ncnn, m)
         return py::memoryview::from_buffer(m.row<float>(y), {m.w}, {sizeof(float)});
     },
     py::arg("y"))
-    .def("channel_range", (Mat(Mat::*)(int, int)) & Mat::channel_range, py::arg("c"), py::arg("channels"))
+    .def("channel_range", [](Mat& m, int c, int channels) { return retain_buffer_view(m, m.channel_range(c, channels)); }, py::arg("c"), py::arg("channels"))
     //.def("channel_range", (const Mat (Mat::*)(int, int) const) & Mat::channel_range, py::arg("c"), py::arg("channels"))
-    .def("depth_range", (Mat(Mat::*)(int, int)) & Mat::depth_range, py::arg("z"), py::arg("depths"))
+    .def("depth_range", [](Mat& m, int z, int depths) { return retain_buffer_view(m, m.depth_range(z, depths)); }, py::arg("z"), py::arg("depths"))
     //.def("depth_range", (const Mat (Mat::*)(int, int) const) & Mat::depth_range, py::arg("z"), py::arg("depths"))
-    .def("row_range", (Mat(Mat::*)(int, int)) & Mat::row_range, py::arg("y"), py::arg("rows"))
+    .def("row_range", [](Mat& m, int y, int rows) { return retain_buffer_view(m, m.row_range(y, rows)); }, py::arg("y"), py::arg("rows"))
     //.def("row_range", (const Mat (Mat::*)(int, int) const) & Mat::row_range, py::arg("y"), py::arg("rows"))
-    .def("range", (Mat(Mat::*)(int, int)) & Mat::range, py::arg("x"), py::arg("n"))
+    .def("range", [](Mat& m, int x, int n) { return retain_buffer_view(m, m.range(x, n)); }, py::arg("x"), py::arg("n"))
     //.def("range", (const Mat (Mat::*)(int, int) const) & Mat::range, py::arg("x"), py::arg("n"))
     .def(
     "__getitem__", [](const Mat& m, size_t i) {
@@ -699,6 +712,8 @@ PYBIND11_MODULE(ncnn, m)
         return m.allocator;
     },
     [](Mat& m, Allocator* allocator) {
+        if (dynamic_cast<PyBufferOwnerAllocator*>(m.allocator))
+            throw py::value_error("cannot replace the allocator of a Python-buffer-backed Mat");
         m.allocator = allocator;
     })
     .def_readwrite("dims", &Mat::dims)

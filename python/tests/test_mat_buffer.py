@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 import gc
+import weakref
 import pytest
 import numpy as np
 
@@ -60,3 +61,125 @@ def test_mat_rejects_zero_dim_array():
 
     with pytest.raises(RuntimeError, match="dims >= 1"):
         ncnn.Mat(np.float32(1.5))
+
+
+@pytest.mark.parametrize(
+    "shape,make_view,expected",
+    [
+        ((3, 4, 5), lambda m: m.channel(1), lambda a: a[1]),
+        ((3, 4, 5), lambda m: m.channel_range(1, 2), lambda a: a[1:3]),
+        ((1, 3, 4, 5), lambda m: m.channel(0).depth(1), lambda a: a[0, 1]),
+        ((1, 3, 4, 5), lambda m: m.channel(0).depth_range(1, 2), lambda a: a[0, 1:3]),
+        ((4, 5), lambda m: m.row_range(1, 2), lambda a: a[1:3]),
+        ((10,), lambda m: m.range(2, 5), lambda a: a[2:7]),
+        ((3, 4, 5), lambda m: m.batch(0), lambda a: a),
+    ],
+    ids=["channel", "channel_range", "depth", "depth_range", "row_range", "range", "batch"],
+)
+def test_buffer_subview_retains_owner(shape, make_view, expected):
+    array = np.arange(np.prod(shape), dtype=np.float32).reshape(shape).copy()
+    owner = weakref.ref(array)
+    values = expected(array).copy().ravel()
+    parent = ncnn.Mat(array)
+    view = make_view(parent)
+    shallow = ncnn.Mat(view)
+    del array, parent, view
+    gc.collect()
+
+    assert owner() is not None
+    assert shallow.allocator is None
+    np.testing.assert_array_equal(np.array(shallow).ravel(), values)
+    del shallow
+    gc.collect()
+    assert owner() is None
+
+
+def test_buffer_view_chain_survives_parent_release():
+    array = np.arange(60, dtype=np.float32).reshape(3, 4, 5).copy()
+    owner = weakref.ref(array)
+    values = array[1, 1:3].copy()
+    parent = ncnn.Mat(array)
+    view = parent.channel(1).row_range(1, 2)
+    parent.release()
+    del array, parent
+    gc.collect()
+    assert owner() is not None
+    np.testing.assert_array_equal(np.array(view), values)
+    view.release()
+    gc.collect()
+    assert owner() is None
+
+
+@pytest.mark.parametrize("subview", [False, True])
+def test_buffer_allocator_cannot_be_replaced(subview):
+    array = np.arange(20, dtype=np.float32).reshape(4, 5).copy()
+    owner = weakref.ref(array)
+    mat = ncnn.Mat(array)
+    if subview:
+        mat = mat.row_range(1, 2)
+    for allocator in (mat.allocator, ncnn.PoolAllocator()):
+        with pytest.raises(ValueError, match="cannot replace the allocator"):
+            mat.allocator = allocator
+    del array
+    gc.collect()
+    assert owner() is not None
+    mat.release()
+    gc.collect()
+    assert owner() is None
+
+
+def test_contiguous_buffer_is_zero_copy_and_released():
+    array = np.arange(20, dtype=np.float32).reshape(4, 5).copy()
+    owner = weakref.ref(array)
+    mat = ncnn.Mat(array)
+    assert np.shares_memory(np.asarray(mat), array)
+    array[1, 2] = 42
+    assert np.asarray(mat)[1, 2] == 42
+    mat[0] = 99
+    assert array[0, 0] == 99
+    del array
+    gc.collect()
+    assert owner() is not None
+    mat.release()
+    gc.collect()
+    assert owner() is None
+
+
+def test_strided_buffer_is_independent_copy():
+    array = np.arange(20, dtype=np.float32).reshape(4, 5)
+    view = array[:, ::2]
+    expected = view.copy()
+    mat = ncnn.Mat(view)
+    assert not np.shares_memory(np.asarray(mat), array)
+    array.fill(-1)
+    np.testing.assert_array_equal(np.array(mat), expected)
+
+
+@pytest.mark.parametrize("subview", [False, True])
+def test_extractor_retains_buffer_after_python_objects_die(subview):
+    net = ncnn.Net()
+    net.opt.use_packing_layout = False
+    assert net.load_param_mem("""7767517
+2 2
+Input input 0 1 data
+ReLU relu 1 1 data output
+""") == 0
+    assert net.load_model(ncnn.DataReaderFromEmpty()) == 0
+    array = np.arange(20, dtype=np.float32).reshape(4, 5).copy()
+    owner = weakref.ref(array)
+    values = array[1:3].copy() if subview else array.copy()
+    mat = ncnn.Mat(array)
+    if subview:
+        mat = mat.row_range(1, 2)
+    ex = net.create_extractor()
+    assert ex.input("data", mat) == 0
+    del array, mat
+    gc.collect()
+    assert owner() is not None
+    ret, output = ex.extract("output")
+    assert ret == 0
+    np.testing.assert_array_equal(np.array(output), values)
+    ex.clear()
+    del output
+    gc.collect()
+    assert owner() is None
