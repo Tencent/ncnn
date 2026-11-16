@@ -6562,16 +6562,16 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
         {
             uint32_t capability = p[1];
             if ((capability >= 61 && capability <= 68) // GroupNonUniform*
-                    || capability == 4423              // SubgroupBallotKHR
-                    || capability == 4431              // SubgroupVoteKHR
-                    || capability == 5297              // GroupNonUniformPartitionedNV
-                    || capability == 5568              // SubgroupShuffleINTEL
-                    || capability == 5569              // SubgroupBufferBlockIOINTEL
-                    || capability == 5570              // SubgroupImageBlockIOINTEL
-                    || capability == 5579              // SubgroupImageMediaBlockIOINTEL
-                    || capability == 5357              // CooperativeMatrixNV
-                    || capability == 6022              // CooperativeMatrixKHR
-                    || capability == 6026)             // GroupNonUniformRotateKHR
+                    || capability == 4423                  // SubgroupBallotKHR
+                    || capability == 4431                  // SubgroupVoteKHR
+                    || capability == 5297                  // GroupNonUniformPartitionedNV
+                    || capability == 5568                  // SubgroupShuffleINTEL
+                    || capability == 5569                  // SubgroupBufferBlockIOINTEL
+                    || capability == 5570                  // SubgroupImageBlockIOINTEL
+                    || capability == 5579                  // SubgroupImageMediaBlockIOINTEL
+                    || capability == 5357                  // CooperativeMatrixNV
+                    || capability == 6022                  // CooperativeMatrixKHR
+                    || capability == 6026)                 // GroupNonUniformRotateKHR
             {
                 subgroup_ops = 1;
             }
