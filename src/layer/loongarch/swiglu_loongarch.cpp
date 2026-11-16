@@ -29,29 +29,25 @@ SwiGLU_loongarch::SwiGLU_loongarch()
 }
 
 #if __loongarch_sx
-static inline __m128 swiglu_f32x4(__m128 _g, __m128 _u, __m128 _scale, __m128 _offset, __m128 _limit, __m128 _mlimit, __m128 _one)
+static inline __m128 swiglu_f32x4(__m128 _g, __m128 _u, __m128 _nscale, __m128 _offset, __m128 _limit, __m128 _mlimit, __m128 _one)
 {
     _g = __lsx_vfmin_s(_g, _limit);
     _u = __lsx_vfmin_s(__lsx_vfmax_s(_u, _mlimit), _limit);
 
-    // silu(scale * g) = g / (1 + exp(-scale * g))
-    __m128 _z = __lsx_vfmul_s(_g, _scale);
-    _z = (__m128)__lsx_vbitrevi_w((__m128i)_z, 31);
-    _g = __lsx_vfdiv_s(_g, __lsx_vfadd_s(_one, exp_ps(_z)));
+    // g / (1 + exp(-scale * g)) = silu(scale * g) / scale
+    _g = __lsx_vfdiv_s(_g, __lsx_vfadd_s(_one, exp_ps(__lsx_vfmul_s(_g, _nscale))));
 
     return __lsx_vfmul_s(_g, __lsx_vfadd_s(_u, _offset));
 }
 
 #if __loongarch_asx
-static inline __m256 swiglu_f32x8(__m256 _g, __m256 _u, __m256 _scale, __m256 _offset, __m256 _limit, __m256 _mlimit, __m256 _one)
+static inline __m256 swiglu_f32x8(__m256 _g, __m256 _u, __m256 _nscale, __m256 _offset, __m256 _limit, __m256 _mlimit, __m256 _one)
 {
     _g = __lasx_xvfmin_s(_g, _limit);
     _u = __lasx_xvfmin_s(__lasx_xvfmax_s(_u, _mlimit), _limit);
 
-    // silu(scale * g) = g / (1 + exp(-scale * g))
-    __m256 _z = __lasx_xvfmul_s(_g, _scale);
-    _z = (__m256)__lasx_xvbitrevi_w((__m256i)_z, 31);
-    _g = __lasx_xvfdiv_s(_g, __lasx_xvfadd_s(_one, exp256_ps(_z)));
+    // g / (1 + exp(-scale * g)) = silu(scale * g) / scale
+    _g = __lasx_xvfdiv_s(_g, __lasx_xvfadd_s(_one, exp256_ps(__lasx_xvfmul_s(_g, _nscale))));
 
     return __lasx_xvfmul_s(_g, __lasx_xvfadd_s(_u, _offset));
 }
@@ -106,7 +102,7 @@ int SwiGLU_loongarch::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob
         int i = 0;
 #if __loongarch_sx
 #if __loongarch_asx
-        __m256 _scale8 = (__m256)__lasx_xvreplfr2vr_s(sigmoid_scale);
+        __m256 _nscale8 = (__m256)__lasx_xvreplfr2vr_s(-sigmoid_scale);
         __m256 _offset8 = (__m256)__lasx_xvreplfr2vr_s(up_offset);
         __m256 _limit8 = (__m256)__lasx_xvreplfr2vr_s(climit);
         __m256 _mlimit8 = (__m256)__lasx_xvreplfr2vr_s(mlimit);
@@ -115,14 +111,14 @@ int SwiGLU_loongarch::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob
         {
             __m256 _g = (__m256)__lasx_xvld(gateptr, 0);
             __m256 _u = (__m256)__lasx_xvld(upptr, 0);
-            __lasx_xvst(swiglu_f32x8(_g, _u, _scale8, _offset8, _limit8, _mlimit8, _one8), outptr, 0);
+            __lasx_xvst(swiglu_f32x8(_g, _u, _nscale8, _offset8, _limit8, _mlimit8, _one8), outptr, 0);
 
             gateptr += 8;
             upptr += 8;
             outptr += 8;
         }
 #endif // __loongarch_asx
-        __m128 _scale4 = (__m128)__lsx_vreplfr2vr_s(sigmoid_scale);
+        __m128 _nscale4 = (__m128)__lsx_vreplfr2vr_s(-sigmoid_scale);
         __m128 _offset4 = (__m128)__lsx_vreplfr2vr_s(up_offset);
         __m128 _limit4 = (__m128)__lsx_vreplfr2vr_s(climit);
         __m128 _mlimit4 = (__m128)__lsx_vreplfr2vr_s(mlimit);
@@ -131,7 +127,7 @@ int SwiGLU_loongarch::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob
         {
             __m128 _g = (__m128)__lsx_vld(gateptr, 0);
             __m128 _u = (__m128)__lsx_vld(upptr, 0);
-            __lsx_vst(swiglu_f32x4(_g, _u, _scale4, _offset4, _limit4, _mlimit4, _one4), outptr, 0);
+            __lsx_vst(swiglu_f32x4(_g, _u, _nscale4, _offset4, _limit4, _mlimit4, _one4), outptr, 0);
 
             gateptr += 4;
             upptr += 4;
@@ -178,13 +174,13 @@ int SwiGLU_loongarch::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blo
 
         int i = 0;
 #if __loongarch_sx
-        __m128 _scale4 = (__m128)__lsx_vreplfr2vr_s(sigmoid_scale);
+        __m128 _nscale4 = (__m128)__lsx_vreplfr2vr_s(-sigmoid_scale);
         __m128 _offset4 = (__m128)__lsx_vreplfr2vr_s(up_offset);
         __m128 _limit4 = (__m128)__lsx_vreplfr2vr_s(climit);
         __m128 _mlimit4 = (__m128)__lsx_vreplfr2vr_s(mlimit);
         __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
 #if __loongarch_asx
-        __m256 _scale8 = (__m256)__lasx_xvreplfr2vr_s(sigmoid_scale);
+        __m256 _nscale8 = (__m256)__lasx_xvreplfr2vr_s(-sigmoid_scale);
         __m256 _offset8 = (__m256)__lasx_xvreplfr2vr_s(up_offset);
         __m256 _limit8 = (__m256)__lasx_xvreplfr2vr_s(climit);
         __m256 _mlimit8 = (__m256)__lasx_xvreplfr2vr_s(mlimit);
@@ -193,7 +189,7 @@ int SwiGLU_loongarch::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blo
         {
             __m256 _g = bfloat2float_lasx((const __m128i*)gateptr);
             __m256 _u = bfloat2float_lasx((const __m128i*)upptr);
-            __lsx_vst(float2bfloat_lasx(swiglu_f32x8(_g, _u, _scale8, _offset8, _limit8, _mlimit8, _one8)), outptr, 0);
+            __lsx_vst(float2bfloat_lasx(swiglu_f32x8(_g, _u, _nscale8, _offset8, _limit8, _mlimit8, _one8)), outptr, 0);
 
             gateptr += 8;
             upptr += 8;
@@ -209,8 +205,8 @@ int SwiGLU_loongarch::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blo
             __m128 _g1 = (__m128)__lsx_vilvh_h(_g16, _zero);
             __m128 _u0 = (__m128)__lsx_vilvl_h(_u16, _zero);
             __m128 _u1 = (__m128)__lsx_vilvh_h(_u16, _zero);
-            __m128 _out0 = swiglu_f32x4(_g0, _u0, _scale4, _offset4, _limit4, _mlimit4, _one4);
-            __m128 _out1 = swiglu_f32x4(_g1, _u1, _scale4, _offset4, _limit4, _mlimit4, _one4);
+            __m128 _out0 = swiglu_f32x4(_g0, _u0, _nscale4, _offset4, _limit4, _mlimit4, _one4);
+            __m128 _out1 = swiglu_f32x4(_g1, _u1, _nscale4, _offset4, _limit4, _mlimit4, _one4);
             __lsx_vst(float2bfloat_lsx(_out0, _out1), outptr, 0);
 
             gateptr += 8;
@@ -222,7 +218,7 @@ int SwiGLU_loongarch::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blo
         {
             __m128 _g = bfloat2float_lsx(__lsx_vldrepl_d(gateptr, 0));
             __m128 _u = bfloat2float_lsx(__lsx_vldrepl_d(upptr, 0));
-            __m128 _out = swiglu_f32x4(_g, _u, _scale4, _offset4, _limit4, _mlimit4, _one4);
+            __m128 _out = swiglu_f32x4(_g, _u, _nscale4, _offset4, _limit4, _mlimit4, _one4);
             __lsx_vstelm_d(float2bfloat_lsx(_out), outptr, 0, 0);
 
             gateptr += 4;

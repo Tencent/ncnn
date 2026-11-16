@@ -1,8 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <float.h>
-
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
 void swiglu_bf16s_zvfbfmin(const Mat& gate, const Mat& up, Mat& top_blob, const Option& opt, float scale, float offset, float limit);
 #endif
@@ -56,8 +54,8 @@ static void swiglu_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, const Op
             _u = __riscv_vfmax_vf_f32m4(_u, mlimit, vl);
             _u = __riscv_vfmin_vf_f32m4(_u, climit, vl);
 
-            // silu(scale * g) = g * sigmoid(scale * g)
-            _g = __riscv_vfmul_vv_f32m4(_g, sigmoid_ps(__riscv_vfmul_vf_f32m4(_g, scale, vl), vl), vl);
+            // g / (1 + exp(-scale * g)) = silu(scale * g) / scale
+            _g = __riscv_vfdiv_vv_f32m4(_g, __riscv_vfadd_vf_f32m4(exp_ps(__riscv_vfmul_vf_f32m4(_g, -scale, vl), vl), 1.f, vl), vl);
             _u = __riscv_vfadd_vf_f32m4(_u, offset, vl);
 
             __riscv_vse16_v_u16m2(outptr, float2bfloat_rvv(__riscv_vfmul_vv_f32m4(_g, _u, vl), vl), vl);

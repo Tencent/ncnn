@@ -3,6 +3,8 @@
 
 #include "swiglu_x86.h"
 
+#include <float.h>
+
 #if __SSE2__
 #include <emmintrin.h>
 #include "sse_mathfun.h"

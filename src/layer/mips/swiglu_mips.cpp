@@ -24,15 +24,13 @@ SwiGLU_mips::SwiGLU_mips()
 }
 
 #if __mips_msa
-static inline v4f32 swiglu_f32x4(v4f32 _g, v4f32 _u, v4f32 _scale, v4f32 _offset, v4f32 _limit, v4f32 _mlimit, v4f32 _one)
+static inline v4f32 swiglu_f32x4(v4f32 _g, v4f32 _u, v4f32 _nscale, v4f32 _offset, v4f32 _limit, v4f32 _mlimit, v4f32 _one)
 {
     _g = __msa_fmin_w(_g, _limit);
     _u = __msa_fmin_w(__msa_fmax_w(_u, _mlimit), _limit);
 
-    // silu(scale * g) = g / (1 + exp(-scale * g))
-    v4f32 _z = __msa_fmul_w(_g, _scale);
-    _z = (v4f32)__msa_bnegi_w((v4u32)_z, 31);
-    _g = __msa_fdiv_w(_g, __msa_fadd_w(_one, exp_ps(_z)));
+    // g / (1 + exp(-scale * g)) = silu(scale * g) / scale
+    _g = __msa_fdiv_w(_g, __msa_fadd_w(_one, exp_ps(__msa_fmul_w(_g, _nscale))));
 
     return __msa_fmul_w(_g, __msa_fadd_w(_u, _offset));
 }
@@ -85,7 +83,7 @@ int SwiGLU_mips::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob, con
 
         int i = 0;
 #if __mips_msa
-        v4f32 _scale = (v4f32)__msa_fill_w_f32(sigmoid_scale);
+        v4f32 _nscale = (v4f32)__msa_fill_w_f32(-sigmoid_scale);
         v4f32 _offset = (v4f32)__msa_fill_w_f32(up_offset);
         v4f32 _limit = (v4f32)__msa_fill_w_f32(climit);
         v4f32 _mlimit = (v4f32)__msa_fill_w_f32(mlimit);
@@ -94,7 +92,7 @@ int SwiGLU_mips::forward_fp32(const Mat& gate, const Mat& up, Mat& top_blob, con
         {
             v4f32 _g = (v4f32)__msa_ld_w((void*)gateptr, 0);
             v4f32 _u = (v4f32)__msa_ld_w((void*)upptr, 0);
-            __msa_st_w((v4i32)swiglu_f32x4(_g, _u, _scale, _offset, _limit, _mlimit, _one), outptr, 0);
+            __msa_st_w((v4i32)swiglu_f32x4(_g, _u, _nscale, _offset, _limit, _mlimit, _one), outptr, 0);
 
             gateptr += 4;
             upptr += 4;
@@ -141,7 +139,7 @@ int SwiGLU_mips::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, co
 
         int i = 0;
 #if __mips_msa
-        v4f32 _scale = (v4f32)__msa_fill_w_f32(sigmoid_scale);
+        v4f32 _nscale = (v4f32)__msa_fill_w_f32(-sigmoid_scale);
         v4f32 _offset = (v4f32)__msa_fill_w_f32(up_offset);
         v4f32 _limit = (v4f32)__msa_fill_w_f32(climit);
         v4f32 _mlimit = (v4f32)__msa_fill_w_f32(mlimit);
@@ -155,8 +153,8 @@ int SwiGLU_mips::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, co
             v4f32 _g1 = (v4f32)__msa_ilvl_h(_g16, _zero);
             v4f32 _u0 = (v4f32)__msa_ilvr_h(_u16, _zero);
             v4f32 _u1 = (v4f32)__msa_ilvl_h(_u16, _zero);
-            v4f32 _out0 = swiglu_f32x4(_g0, _u0, _scale, _offset, _limit, _mlimit, _one);
-            v4f32 _out1 = swiglu_f32x4(_g1, _u1, _scale, _offset, _limit, _mlimit, _one);
+            v4f32 _out0 = swiglu_f32x4(_g0, _u0, _nscale, _offset, _limit, _mlimit, _one);
+            v4f32 _out1 = swiglu_f32x4(_g1, _u1, _nscale, _offset, _limit, _mlimit, _one);
             __msa_st_w(float2bfloat_msa(_out0, _out1), outptr, 0);
 
             gateptr += 8;
@@ -167,7 +165,7 @@ int SwiGLU_mips::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, co
         {
             v4f32 _g = bfloat2float_msa(gateptr);
             v4f32 _u = bfloat2float_msa(upptr);
-            v4f32 _out = swiglu_f32x4(_g, _u, _scale, _offset, _limit, _mlimit, _one);
+            v4f32 _out = swiglu_f32x4(_g, _u, _nscale, _offset, _limit, _mlimit, _one);
             *(int64_t*)outptr = __msa_copy_s_d((v2i64)float2bfloat_msa(_out), 0);
 
             gateptr += 4;

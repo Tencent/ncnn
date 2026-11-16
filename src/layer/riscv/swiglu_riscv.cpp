@@ -53,8 +53,8 @@ static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* o
         _u = __riscv_vfmax_vf_f32m4(_u, mlimit, vl);
         _u = __riscv_vfmin_vf_f32m4(_u, climit, vl);
 
-        // silu(scale * g) = g * sigmoid(scale * g)
-        _g = __riscv_vfmul_vv_f32m4(_g, sigmoid_ps(__riscv_vfmul_vf_f32m4(_g, scale, vl), vl), vl);
+        // g / (1 + exp(-scale * g)) = silu(scale * g) / scale
+        _g = __riscv_vfdiv_vv_f32m4(_g, __riscv_vfadd_vf_f32m4(exp_ps(__riscv_vfmul_vf_f32m4(_g, -scale, vl), vl), 1.f, vl), vl);
         _u = __riscv_vfadd_vf_f32m4(_u, offset, vl);
 
         __riscv_vse32_v_f32m4(outptr, __riscv_vfmul_vv_f32m4(_g, _u, vl), vl);
@@ -89,7 +89,12 @@ int SwiGLU_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
 #if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
-        return forward_fp16s(gate, up, top_blob, opt);
+    {
+        if (opt.use_fp16_arithmetic)
+            return forward_fp16sa(gate, up, top_blob, opt);
+        else
+            return forward_fp16s(gate, up, top_blob, opt);
+    }
 #endif
 
 #if NCNN_BF16

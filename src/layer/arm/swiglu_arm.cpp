@@ -35,7 +35,7 @@ static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* o
     const float mlimit = -climit;
 
     int i = 0;
-    float32x4_t _scale = vdupq_n_f32(scale);
+    float32x4_t _nscale = vdupq_n_f32(-scale);
     float32x4_t _offset = vdupq_n_f32(offset);
     float32x4_t _limit = vdupq_n_f32(climit);
     float32x4_t _mlimit = vdupq_n_f32(mlimit);
@@ -50,10 +50,10 @@ static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* o
         float32x4_t _u1 = vld1q_f32(upptr + 4);
         float32x4_t _u2 = vld1q_f32(upptr + 8);
         float32x4_t _u3 = vld1q_f32(upptr + 12);
-        vst1q_f32(outptr, swiglu_f32x4(_g0, _u0, _scale, _offset, _limit, _mlimit));
-        vst1q_f32(outptr + 4, swiglu_f32x4(_g1, _u1, _scale, _offset, _limit, _mlimit));
-        vst1q_f32(outptr + 8, swiglu_f32x4(_g2, _u2, _scale, _offset, _limit, _mlimit));
-        vst1q_f32(outptr + 12, swiglu_f32x4(_g3, _u3, _scale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr, swiglu_f32x4(_g0, _u0, _nscale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr + 4, swiglu_f32x4(_g1, _u1, _nscale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr + 8, swiglu_f32x4(_g2, _u2, _nscale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr + 12, swiglu_f32x4(_g3, _u3, _nscale, _offset, _limit, _mlimit));
         gateptr += 16;
         upptr += 16;
         outptr += 16;
@@ -64,8 +64,8 @@ static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* o
         float32x4_t _g1 = vld1q_f32(gateptr + 4);
         float32x4_t _u0 = vld1q_f32(upptr);
         float32x4_t _u1 = vld1q_f32(upptr + 4);
-        vst1q_f32(outptr, swiglu_f32x4(_g0, _u0, _scale, _offset, _limit, _mlimit));
-        vst1q_f32(outptr + 4, swiglu_f32x4(_g1, _u1, _scale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr, swiglu_f32x4(_g0, _u0, _nscale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr + 4, swiglu_f32x4(_g1, _u1, _nscale, _offset, _limit, _mlimit));
         gateptr += 8;
         upptr += 8;
         outptr += 8;
@@ -75,7 +75,7 @@ static void swiglu_vector_f32(const float* gateptr, const float* upptr, float* o
     {
         float32x4_t _g = vld1q_f32(gateptr);
         float32x4_t _u = vld1q_f32(upptr);
-        vst1q_f32(outptr, swiglu_f32x4(_g, _u, _scale, _offset, _limit, _mlimit));
+        vst1q_f32(outptr, swiglu_f32x4(_g, _u, _nscale, _offset, _limit, _mlimit));
         gateptr += 4;
         upptr += 4;
         outptr += 4;
@@ -194,7 +194,7 @@ int SwiGLU_arm::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, con
 
         int i = 0;
 #if __ARM_NEON
-        float32x4_t _scale = vdupq_n_f32(sigmoid_scale);
+        float32x4_t _nscale = vdupq_n_f32(-sigmoid_scale);
         float32x4_t _offset = vdupq_n_f32(up_offset);
         float32x4_t _limit = vdupq_n_f32(climit);
         float32x4_t _mlimit = vdupq_n_f32(mlimit);
@@ -203,8 +203,8 @@ int SwiGLU_arm::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, con
         {
             uint16x8_t _g = vld1q_u16(gateptr);
             uint16x8_t _u = vld1q_u16(upptr);
-            float32x4_t _g0 = swiglu_f32x4(bfloat2float(vget_low_u16(_g)), bfloat2float(vget_low_u16(_u)), _scale, _offset, _limit, _mlimit);
-            float32x4_t _g1 = swiglu_f32x4(bfloat2float(vget_high_u16(_g)), bfloat2float(vget_high_u16(_u)), _scale, _offset, _limit, _mlimit);
+            float32x4_t _g0 = swiglu_f32x4(bfloat2float(vget_low_u16(_g)), bfloat2float(vget_low_u16(_u)), _nscale, _offset, _limit, _mlimit);
+            float32x4_t _g1 = swiglu_f32x4(bfloat2float(vget_high_u16(_g)), bfloat2float(vget_high_u16(_u)), _nscale, _offset, _limit, _mlimit);
             vst1q_u16(outptr, vcombine_u16(float2bfloat(_g0), float2bfloat(_g1)));
             gateptr += 8;
             upptr += 8;
@@ -213,7 +213,7 @@ int SwiGLU_arm::forward_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, con
 #endif // __aarch64__
         for (; i + 3 < len; i += 4)
         {
-            float32x4_t _g = swiglu_f32x4(bfloat2float(vld1_u16(gateptr)), bfloat2float(vld1_u16(upptr)), _scale, _offset, _limit, _mlimit);
+            float32x4_t _g = swiglu_f32x4(bfloat2float(vld1_u16(gateptr)), bfloat2float(vld1_u16(upptr)), _nscale, _offset, _limit, _mlimit);
             vst1_u16(outptr, float2bfloat(_g));
             gateptr += 4;
             upptr += 4;

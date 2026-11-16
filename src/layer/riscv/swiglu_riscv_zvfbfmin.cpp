@@ -1,6 +1,8 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <float.h>
+
 #include "cpu.h"
 #include "mat.h"
 #include "riscv_usability.h"

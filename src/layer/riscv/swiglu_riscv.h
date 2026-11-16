@@ -22,6 +22,7 @@ protected:
 #endif
 #if NCNN_ZFH
     int forward_fp16s(const Mat& gate, const Mat& up, Mat& top_blob, const Option& opt) const;
+    int forward_fp16sa(const Mat& gate, const Mat& up, Mat& top_blob, const Option& opt) const;
 #endif
 };
 
