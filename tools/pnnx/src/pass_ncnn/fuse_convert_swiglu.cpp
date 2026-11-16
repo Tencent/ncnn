@@ -44,6 +44,17 @@ pnnx.Output             output      1 0 out
         if (silu_gate->consumers.size() != 1)
             return false;
 
+        // only the plain silu form maps to the default SwiGLU parameters
+        const std::map<std::string, Parameter>::const_iterator it = op_swish->params.find("0");
+        if (it != op_swish->params.end())
+        {
+            const Parameter& alpha = it->second;
+            if (alpha.type == 2 && alpha.i != 1)
+                return false;
+            if (alpha.type == 3 && alpha.f != 1.f)
+                return false;
+        }
+
         const Operand* gate = op_swish->inputs[0];
         const Operand* up = op_mul->inputs[0] == silu_gate ? op_mul->inputs[1] : op_mul->inputs[0];
 
@@ -51,7 +62,26 @@ pnnx.Output             output      1 0 out
         if (gate->shape.empty() || up->shape.empty())
             return false;
 
+        if (gate->shape.size() != up->shape.size())
+            return false;
+
+        // -1 and -233 are unknown dims, equality there does not prove the runtime shapes match
+        for (size_t i = 0; i < gate->shape.size(); i++)
+        {
+            if (gate->shape[i] <= 0 || up->shape[i] <= 0)
+                return false;
+        }
+
         return gate->shape == up->shape;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        // spell out the defaults, so the fused node does not silently follow
+        // future changes of the SwiGLU layer defaults
+        op->params["0"] = 1.f;
+        op->params["1"] = 0.f;
+        op->params["2"] = 0.f;
     }
 };
 

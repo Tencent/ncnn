@@ -129,10 +129,10 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
         }
     }
 
+    ncnn::eliminate_noop(g);
+
     // swish + mul -> swiglu
     ncnn::fuse_convert_swiglu(g);
-
-    ncnn::eliminate_noop(g);
 
     ncnn::eliminate_reshape_binaryop_broadcast(g);
 

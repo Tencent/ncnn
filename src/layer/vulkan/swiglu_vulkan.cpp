@@ -48,23 +48,12 @@ int SwiGLU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         return -100;
 
     const VkMat& gate = bottom_blobs[0];
-    VkMat up = bottom_blobs[1];
+    const VkMat& up = bottom_blobs[1];
 
     if (gate.elembits() != up.elembits())
         return -100;
 
-    // normalize the packing first, otherwise equal logical shapes report mismatched packed dims
-    if (gate.elempack != up.elempack)
-    {
-        VkMat up_unpacked;
-        vkdev->convert_packing(up, up_unpacked, gate.elempack, cmd, opt);
-        if (up_unpacked.empty())
-            return -100;
-
-        up = up_unpacked;
-    }
-
-    if (gate.dims != up.dims || gate.w != up.w || gate.h != up.h || gate.d != up.d || gate.c != up.c)
+    if (gate.dims != up.dims || gate.w != up.w || gate.h != up.h || gate.d != up.d || gate.c != up.c || gate.elempack != up.elempack)
         return -100;
 
     VkMat& top_blob = top_blobs[0];
