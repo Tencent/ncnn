@@ -42,28 +42,15 @@ jobs:
   linux-gcc-musl:
     runs-on: ubuntu-latest
     steps:
-    - uses: jirutka/setup-alpine@v1
-      with:
-        packages: >
-          cmake
-          clang
-          clang-dev
-          make
-          gcc
-          g++
-          libc-dev
-          linux-headers
-
     - uses: actions/checkout@v7
-    - name: build
-      shell: alpine.sh {0}
+    - name: build and test with musl
       run: |
-        mkdir build && cd build
-        cmake -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
-    - name: test
-      shell: alpine.sh {0}
-      run: cd build && ctest --output-on-failure -j $(nproc)
+        docker run --rm --volume "$GITHUB_WORKSPACE:/src:ro" alpine:3.24 sh -ec '
+          apk add --no-cache cmake make gcc g++ libc-dev linux-headers
+          cmake -S /src -B /build -DNCNN_BUILD_TESTS=ON
+          cmake --build /build -j "$(nproc)"
+          ctest --test-dir /build --output-on-failure -j "$(nproc)"
+        '
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
