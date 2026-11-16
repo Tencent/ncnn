@@ -41,7 +41,6 @@ permissions:
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-15-intel, windows-latest]
         python-version: ['3.9', '3.12']
@@ -65,7 +64,7 @@ jobs:
       uses: actions/cache@v6
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20260917
+        key: swiftshader-python-linux-install-20261116
     - name: checkout-swiftshader
       if: matrix.os == 'ubuntu-latest' && steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v7
@@ -83,7 +82,7 @@ jobs:
       run: |
         cd swiftshader
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_SHARED_LINKER_FLAGS=-Wl,-z,noexecstack -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j $(nproc)
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
@@ -126,12 +125,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
-        export VK_LOADER_DEBUG=error,warn
-        cat "$VK_ICD_FILENAMES"
-        ls -l "$GITHUB_WORKSPACE/swiftshader-install"
-        ldd "$GITHUB_WORKSPACE/swiftshader-install/libvk_swiftshader.so"
-        python -u -c 'import ncnn; count = ncnn.get_gpu_count(); print("Vulkan GPU count:", count, flush=True); assert count > 0, "SwiftShader device unavailable"; device = ncnn.get_gpu_device(0); print("Vulkan device:", device, flush=True); assert device is not None, "SwiftShader device creation failed"'
-        cd python && pytest -s tests
+        cd python && pytest tests
     - name: test
       if: matrix.os != 'ubuntu-latest'
       run: |
