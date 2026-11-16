@@ -222,3 +222,32 @@ def test_parent_release_keeps_subview_alive():
     view.release()
     gc.collect()
     assert owner() is None
+
+@pytest.mark.parametrize("subview", [False, True])
+def test_refcount_is_read_only(subview):
+    mat = ncnn.Mat(np.arange(20, dtype=np.float32).reshape(4, 5).copy())
+    if subview:
+        mat = mat.row_range(1, 2)
+    assert mat.refcount == 1
+
+    # the refcount of a buffer-backed Mat lives inside the allocator that owns
+    # the numpy buffer; writing it would rebind the pointer to a temporary
+    with pytest.raises(AttributeError):
+        mat.refcount = mat.refcount
+
+    mat.addref()
+    assert mat.refcount == 2
+    mat.release()
+    assert mat.refcount is None
+    assert mat.allocator is None
+
+
+def test_native_refcount_is_read_only():
+    mat = ncnn.Mat(1)
+    assert mat.refcount == 1
+    with pytest.raises(AttributeError):
+        mat.refcount = 1
+    mat.addref()
+    assert mat.refcount == 2
+    mat.release()
+    assert mat.refcount is None

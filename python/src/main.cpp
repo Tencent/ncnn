@@ -713,7 +713,15 @@ PYBIND11_MODULE(ncnn, m)
         return mat.substract_mean_normalize(mean.size() > 0 ? &mean[0] : 0, norm.size() > 0 ? &norm[0] : 0);
     },
     py::arg("mean"), py::arg("norm"))
-    .def_readwrite("refcount", &Mat::refcount)
+    // the refcount of a Mat wrapping a python buffer points into the internal
+    // allocator that owns that buffer; assigning to the field would replace the
+    // pointer with the address of a temporary, so a later addref()/release()
+    // would run NCNN_XADD on a dangling int and corrupt the bookkeeping
+    .def_property_readonly("refcount", [](const Mat& m) -> py::object {
+        if (!m.refcount)
+            return py::none();
+        return py::int_(*m.refcount);
+    })
     .def_readwrite("elemsize", &Mat::elemsize)
     .def_readwrite("elempack", &Mat::elempack)
     // the allocator of a Mat wrapping a python buffer is an internal detail,
