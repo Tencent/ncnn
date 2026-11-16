@@ -95,12 +95,20 @@ static void attach_buffer_owner(Mat* m, py::object owner)
     m->allocator = a;
 }
 
+// A Mat only points at a live allocator while it still holds the buffer. After
+// Mat::release() the buffer is gone and, for a buffer-backed Mat, the allocator
+// has deleted itself, so the stored pointer must not be dereferenced any more.
+static bool is_buffer_backed(const Mat& m)
+{
+    return m.data && m.allocator && dynamic_cast<PyBufferOwnerAllocator*>(m.allocator) != 0;
+}
+
 // Native subviews have no refcount. Retain a shallow C++ copy of the parent
 // in a separate owner so even Extractor copies keep the buffer alive. Each
 // owner releases its own offset pointer without passing it to fastFree.
 static Mat retain_buffer_view(const Mat& parent, Mat view)
 {
-    if (dynamic_cast<PyBufferOwnerAllocator*>(parent.allocator))
+    if (is_buffer_backed(parent))
     {
         py::object owner = py::cast(std::unique_ptr<Mat>(new Mat(parent)));
         attach_buffer_owner(&view, std::move(owner));
@@ -590,7 +598,13 @@ PYBIND11_MODULE(ncnn, m)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, int, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("n"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
-    .def("release", &Mat::release)
+    // Mat::release() frees the buffer but leaves Mat::allocator untouched. For a
+    // buffer-backed Mat that allocator deletes itself in fastFree(), so the stored
+    // pointer would dangle; clear it on the way out.
+    .def("release", [](Mat& m) {
+        m.release();
+        m.allocator = 0;
+    })
     .def("empty", &Mat::empty)
     .def("total", &Mat::total)
     .def("elembits", &Mat::elembits)
@@ -707,12 +721,14 @@ PYBIND11_MODULE(ncnn, m)
     // does not own its memory" still holds
     .def_property("allocator",
     [](const Mat& m) -> Allocator* {
-        if (m.allocator && dynamic_cast<PyBufferOwnerAllocator*>(m.allocator))
+        if (!m.data)
+            return 0;
+        if (is_buffer_backed(m))
             return 0;
         return m.allocator;
     },
     [](Mat& m, Allocator* allocator) {
-        if (dynamic_cast<PyBufferOwnerAllocator*>(m.allocator))
+        if (is_buffer_backed(m))
             throw py::value_error("cannot replace the allocator of a Python-buffer-backed Mat");
         m.allocator = allocator;
     })

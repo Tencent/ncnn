@@ -183,3 +183,42 @@ ReLU relu 1 1 data output
     del output
     gc.collect()
     assert owner() is None
+
+@pytest.mark.parametrize("subview", [False, True])
+def test_release_clears_allocator(subview):
+    array = np.arange(20, dtype=np.float32).reshape(4, 5).copy()
+    mat = ncnn.Mat(array)
+    if subview:
+        mat = mat.row_range(1, 2)
+    assert mat.allocator is None
+    mat.release()
+    # the buffer owner deletes itself in fastFree(), so a released Mat must clear
+    # the stored allocator instead of leaving a dangling pointer behind
+    assert mat.allocator is None
+    assert mat.empty()
+
+
+def test_allocator_assignment_after_release_is_safe():
+    mat = ncnn.Mat(np.arange(6, dtype=np.float32).reshape(2, 3).copy())
+    mat.release()
+    mat.allocator = None
+    assert mat.allocator is None
+
+
+def test_parent_release_keeps_subview_alive():
+    array = np.arange(20, dtype=np.float32).reshape(4, 5).copy()
+    owner = weakref.ref(array)
+    parent = ncnn.Mat(array)
+    view = parent.row_range(1, 2)
+    del array
+    gc.collect()
+    assert owner() is not None
+
+    parent.release()
+    gc.collect()
+    assert owner() is not None
+    np.testing.assert_array_equal(np.array(view), np.arange(20, dtype=np.float32).reshape(4, 5)[1:3])
+
+    view.release()
+    gc.collect()
+    assert owner() is None
