@@ -22,10 +22,12 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 #define NCNN_PIPELINE_CACHE_FILE_MAGIC 0x5a545546
+// version 4: cached spirv compiled for simd32 on intel integrated gpus with mesa,
+// which now default to subgroup size 16
 #if NCNN_COVERAGE
-#define NCNN_PIPELINE_CACHE_FILE_VERSION 0x00010003
+#define NCNN_PIPELINE_CACHE_FILE_VERSION 0x00010004
 #else
-#define NCNN_PIPELINE_CACHE_FILE_VERSION 3
+#define NCNN_PIPELINE_CACHE_FILE_VERSION 4
 #endif
 #define NCNN_PIPELINE_CACHE_FILE_ENDIAN  0x12345678
 #define NCNN_PIPELINE_CACHE_NCNN_VERSION NCNN_VERSION_NUMBER
