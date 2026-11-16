@@ -30,14 +30,14 @@ permissions:
 
 jobs:
   ppc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
 
     - name: powerpc-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-powerpc-linux-gnu qemu-user-static
+        sudo apt-get install g++-powerpc-linux-gnu qemu-user
 
     - name: build
       run: |
@@ -48,17 +48,17 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   ppc64le:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
 
     - name: powerpc64le-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
+        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user
 
     - name: build
       run: |
@@ -69,17 +69,17 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   power8le-vsx:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
 
     - name: powerpc64le-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
+        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user
 
     - name: build
       run: |
@@ -90,17 +90,17 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu" ctest --output-on-failure -j $(nproc)
 
   power9le-vsx:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
     - uses: actions/checkout@v7
 
     - name: powerpc64le-gnu-toolchain
       run: |
         sudo apt-get update
-        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user-static
+        sudo apt-get install g++-powerpc64le-linux-gnu qemu-user
 
     - name: build
       run: |
@@ -111,4 +111,4 @@ jobs:
     - name: test
       run: |
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc64le-static TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power9_v2.0" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-ppc64le TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc64le-linux-gnu;-cpu;power9_v2.0" ctest --output-on-failure -j $(nproc)
