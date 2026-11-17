@@ -15,6 +15,10 @@
 #extension GL_GOOGLE_include_directive : enable
 #include "vulkan_activation.comp"
 
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
+#endif
+
 layout(constant_id = 0) const int bias_term = 0;
 layout(constant_id = 1) const int activation_type = 0;
 layout(constant_id = 2) const float activation_param_0 = 0;
@@ -43,7 +47,7 @@ layout(constant_id = shape_constant_id_offset + 5 + 8) const uint UNROLL_WG_N = 
 layout(binding = 0) readonly buffer bottom_blob { sint8vec4 bottom_blob_int8_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
 layout(binding = 2) writeonly buffer top_blob_int8 { sint8vec4 top_blob_int8_data[]; };
-layout(binding = 3) readonly buffer weight_blob { uvec4 weight_data[]; };
+layout(binding = 3) readonly buffer weight_blob { uint weight_data[]; };
 layout(binding = 4) readonly buffer bias_blob { vec4 bias_data[]; };
 layout(binding = 5) readonly buffer weight_descales_blob { vec4 weight_descales_data[]; };
 layout(binding = 6) readonly buffer top_scales_blob { sfp top_scales_data[]; };
@@ -129,18 +133,7 @@ void main()
             const uint w_offset = wgni * kk_padded * UNROLL_WG_N * K * Nd4p * UNROLL_SG_N
                                   + ((kt / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K * Nd4p * UNROLL_SG_N * UNROLL_SG_K
                                   + ((kt % UNROLL_SG_K) * UNROLL_SG_N + zn) * K * Nd4p;
-            uint col[8];
-            [[unroll]] for (uint quad = 0; quad < 2; quad++)
-            {
-                uvec4 packed = uvec4(0u);
-                if (si < N)
-                    packed = weight_data[(w_offset * 4 + si * K + quad * 16) / 16];
-                col[quad * 4] = packed.x;
-                col[quad * 4 + 1] = packed.y;
-                col[quad * 4 + 2] = packed.z;
-                col[quad * 4 + 3] = packed.w;
-            }
-            vectorToCoopmatQCOM(col, B[zn]);
+            coopMatLoad(B[zn], weight_data, w_offset, K / 4, gl_CooperativeMatrixLayoutColumnMajor);
         }
         [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
             [[unroll]]
