@@ -361,7 +361,7 @@ jobs:
         submodules: true
     - name: build
       env:
-        # Vulkan coverage tests use native threads even with OpenMP disabled.
+        # vulkan coverage tests use native threads even with OpenMP disabled
         CXXFLAGS: -fprofile-update=atomic
       run: |
         mkdir build && cd build
@@ -428,7 +428,7 @@ jobs:
 
     - name: build
       env:
-        # Vulkan coverage tests use native threads even with OpenMP disabled.
+        # vulkan coverage tests use native threads even with OpenMP disabled
         CXXFLAGS: -fprofile-update=atomic
       run: |
         mkdir build && cd build
