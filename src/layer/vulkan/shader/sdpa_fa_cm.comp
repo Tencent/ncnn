@@ -19,22 +19,16 @@
 #endif
 
 // cooperative matrix conversions and reductions
-#if ncnn_VK_EXT_cooperative_matrix_maintenance1
-#define coopmat_conversions (ncnn_VK_KHR_cooperative_matrix && GL_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixConversions)
-#define coopmat_reductions  (ncnn_VK_KHR_cooperative_matrix && GL_EXT_cooperative_matrix_maintenance1 && ncnn_cooperativeMatrixReductions && ncnn_cooperativeMatrixPerElementOperations)
-#elif ncnn_VK_NV_cooperative_matrix2
-// maintenance4 selects the spirv-1.6 target required by cooperative_matrix2
-#define coopmat_conversions (ncnn_VK_KHR_cooperative_matrix && GL_NV_cooperative_matrix2 && ncnn_maintenance4 && ncnn_cooperativeMatrixConversions)
-#define coopmat_reductions  (ncnn_VK_KHR_cooperative_matrix && GL_NV_cooperative_matrix2 && ncnn_maintenance4 && ncnn_cooperativeMatrixReductions && ncnn_cooperativeMatrixPerElementOperations)
-#else
-#define coopmat_conversions 0
-#define coopmat_reductions  0
-#endif
+#if ncnn_VK_KHR_cooperative_matrix && ((ncnn_VK_EXT_cooperative_matrix_maintenance1 && GL_EXT_cooperative_matrix_maintenance1) || (!ncnn_VK_EXT_cooperative_matrix_maintenance1 && ncnn_VK_NV_cooperative_matrix2 && GL_NV_cooperative_matrix2 && ncnn_maintenance4))
+#define coopmat_conversions ncnn_cooperativeMatrixConversions
+#define coopmat_reductions  (ncnn_cooperativeMatrixReductions && ncnn_cooperativeMatrixPerElementOperations)
+
 #if coopmat_conversions || coopmat_reductions
 #if ncnn_VK_EXT_cooperative_matrix_maintenance1
 #extension GL_EXT_cooperative_matrix_maintenance1 : require
 #elif ncnn_VK_NV_cooperative_matrix2
 #extension GL_NV_cooperative_matrix2 : require
+#endif
 #endif
 #endif
 
