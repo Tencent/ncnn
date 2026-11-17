@@ -78,41 +78,10 @@ static inline int8x8_t float2int8relu(float32x4_t _vlow, float32x4_t _vhigh)
 
 static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh, float32x4_t _slope)
 {
-    float32x4_t _vlow_leaky = vmulq_f32(_vlow, _slope);
-    float32x4_t _vhigh_leaky = vmulq_f32(_vhigh, _slope);
-#if __aarch64__
-    int32x4_t _vlow32 = vcvtaq_s32_f32(_vlow);
-    int32x4_t _vhigh32 = vcvtaq_s32_f32(_vhigh);
-    int32x4_t _vlow32_leaky = vcvtaq_s32_f32(_vlow_leaky);
-    int32x4_t _vhigh32_leaky = vcvtaq_s32_f32(_vhigh_leaky);
-#else
-    // vcvtq_s32_f32 is round to zero
-    // simulate round to nearest via +/-0.5
-    float32x4_t _p5 = vdupq_n_f32(0.5f);
-    int32x4_t _signmask = vdupq_n_s32(1 << 31);
-    int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
-    int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
-    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
-    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
-    float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
-    float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
-    int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
-    int32x4_t _vhigh32 = vcvtq_s32_f32(_vhigh5);
-
-    int32x4_t _signlow_leaky = vandq_s32(vreinterpretq_s32_f32(_vlow_leaky), _signmask);
-    int32x4_t _signhigh_leaky = vandq_s32(vreinterpretq_s32_f32(_vhigh_leaky), _signmask);
-    float32x4_t _p5low_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow_leaky));
-    float32x4_t _p5high_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh_leaky));
-    float32x4_t _vlow5_leaky = vaddq_f32(_vlow_leaky, _p5low_leaky);
-    float32x4_t _vhigh5_leaky = vaddq_f32(_vhigh_leaky, _p5high_leaky);
-    int32x4_t _vlow32_leaky = vcvtq_s32_f32(_vlow5_leaky);
-    int32x4_t _vhigh32_leaky = vcvtq_s32_f32(_vhigh5_leaky);
-#endif
-    int16x8_t _v16 = vcombine_s16(vqmovn_s32(_vlow32), vqmovn_s32(_vhigh32));
-    int16x8_t _v16_leaky = vcombine_s16(vqmovn_s32(_vlow32_leaky), vqmovn_s32(_vhigh32_leaky));
-    int8x8_t _v8 = vqmovn_s16(_v16);
-    int8x8_t _v8_leaky = vqmovn_s16(_v16_leaky);
-    return vmax_s8(vmax_s8(_v8, _v8_leaky), vdup_n_s8(-127));
+    // leakyrelu(v) = max(v, v * slope) for 0 < slope <= 1
+    _vlow = vmaxq_f32(_vlow, vmulq_f32(_vlow, _slope));
+    _vhigh = vmaxq_f32(_vhigh, vmulq_f32(_vhigh, _slope));
+    return float2int8(_vlow, _vhigh);
 }
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
