@@ -1,0 +1,294 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_EXT_control_flow_attributes : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_memory_scope_semantics : require
+#extension GL_EXT_shader_explicit_arithmetic_types : require
+#extension GL_EXT_shader_explicit_arithmetic_types_float16 : require
+#if ncnn_VK_KHR_cooperative_matrix
+#extension GL_KHR_cooperative_matrix : require
+#elif ncnn_VK_NV_cooperative_matrix
+#extension GL_NV_cooperative_matrix : require
+#endif
+
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+// adreno and mali need stride * 2 for packed fp16 loads
+#define coopmat_fp16_stride(v) ((v) * 2)
+#else
+#define coopmat_fp16_stride(v) (v)
+#endif
+
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int transA = 0;
+layout(constant_id = 3) const int transB = 0;
+layout(constant_id = 4) const int output_transpose = 0;
+layout(constant_id = 5) const uint M = 16;
+layout(constant_id = 6) const uint N = 8;
+layout(constant_id = 7) const uint K = 8;
+layout(constant_id = 8) const uint subgroup_size = 32;
+layout(constant_id = 9) const uint UNROLL_SG_M = 2;
+layout(constant_id = 10) const uint UNROLL_SG_N = 2;
+
+layout(binding = 0) buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 1) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 2) readonly buffer B_blob { sfp B_blob_data[]; };
+layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 4) readonly buffer A_scales_blob { int A_scales_data[]; };
+layout(binding = 5) readonly buffer B_scales_blob { int B_scales_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int GM;
+    int GN;
+    int GK;
+    int broadcast_type_C;
+    int A_hstep;
+    int B_hstep;
+    int A_elempack;
+    int B_elempack;
+    int outhstep;
+    int out_elempack;
+} p;
+
+shared uint tmp_a[UNROLL_SG_M * M * K / 2];
+shared uint tmp_b[UNROLL_SG_N * K * N / 2];
+shared float tmp_o[UNROLL_SG_M * UNROLL_SG_N * M * N];
+shared int tmp_a_scales[UNROLL_SG_M * M];
+shared int tmp_b_scales[UNROLL_SG_N * N];
+shared int unsafe_tile;
+
+float load_a(int i, int k)
+{
+    const int row = transA == 0 ? i : k;
+    const int col = transA == 0 ? k : i;
+    const int offset = (row / p.A_elempack * p.A_hstep + col) * p.A_elempack + row % p.A_elempack;
+    return float(buffer_ld1(A_blob_data, offset));
+}
+
+float load_b(int k, int j)
+{
+    const int row = transB == 0 ? k : j;
+    const int col = transB == 0 ? j : k;
+    const int offset = (row / p.B_elempack * p.B_hstep + col) * p.B_elempack + row % p.B_elempack;
+    return float(buffer_ld1(B_blob_data, offset));
+}
+
+float load_c(int i, int j)
+{
+    float v = 0.f;
+    if (p.broadcast_type_C == 0)
+        v = float(buffer_ld1(C_blob_data, 0));
+    if (p.broadcast_type_C == 1 || p.broadcast_type_C == 2)
+        v = float(buffer_ld1(C_blob_data, i));
+    if (p.broadcast_type_C == 3)
+        v = float(buffer_ld1(C_blob_data, i * p.GN + j));
+    if (p.broadcast_type_C == 4)
+        v = float(buffer_ld1(C_blob_data, j));
+    return v * beta;
+}
+
+float gemm_fp32(int i, int j)
+{
+    float sum = load_c(i, j);
+    for (int k = 0; k < p.GK; k++)
+        sum = fma(load_a(i, k), load_b(k, j), sum);
+    return sum;
+}
+
+void store_output(int i, int j, float v)
+{
+    const int row = output_transpose == 0 ? i : j;
+    const int col = output_transpose == 0 ? j : i;
+    const int offset = (row / p.out_elempack * p.outhstep + col) * p.out_elempack + row % p.out_elempack;
+    buffer_st1(top_blob_data, offset, v * alpha);
+}
+
+float scale_pow2(int s)
+{
+    return uintBitsToFloat(uint(clamp(s, -112, 112) + 127) << 23);
+}
+
+float restore_scale(float v, int s)
+{
+    const int s0 = clamp(s, -112, 112);
+    // Apply the remainder first to avoid double rounding near underflow.
+    if (s != s0)
+        v *= scale_pow2(s - s0);
+    return v * scale_pow2(s0);
+}
+
+void main()
+{
+    const uint li = gl_LocalInvocationID.x;
+    const uint block_m = M * UNROLL_SG_M;
+    const uint block_n = N * UNROLL_SG_N;
+    const uint mi = gl_WorkGroupID.x * block_m;
+    const uint ni = gl_WorkGroupID.y * block_n;
+
+    if (mi >= uint(p.GM) || ni >= uint(p.GN))
+        return;
+
+    if (li == 0)
+        unsafe_tile = 0;
+    barrier();
+
+    for (uint i = li; i < block_m; i += subgroup_size)
+    {
+        const int s = mi + i < uint(p.GM) ? A_scales_data[mi + i] : 0;
+        tmp_a_scales[i] = s;
+        if (s == 256)
+            atomicOr(unsafe_tile, 1);
+    }
+    for (uint j = li; j < block_n; j += subgroup_size)
+    {
+        const int s = ni + j < uint(p.GN) ? B_scales_data[ni + j] : 0;
+        tmp_b_scales[j] = s;
+        if (s == 256)
+            atomicOr(unsafe_tile, 1);
+    }
+    barrier();
+
+    if (unsafe_tile != 0)
+    {
+        for (uint idx = li; idx < block_m * block_n; idx += subgroup_size)
+        {
+            const int i = int(mi + idx / block_n);
+            const int j = int(ni + idx % block_n);
+            if (i >= p.GM || j >= p.GN)
+                continue;
+
+            store_output(i, j, gemm_fp32(i, j));
+        }
+        return;
+    }
+
+#if ncnn_VK_KHR_cooperative_matrix
+    coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator> sum[UNROLL_SG_N][UNROLL_SG_M];
+#elif ncnn_VK_NV_cooperative_matrix
+    fcoopmatNV<32, gl_ScopeSubgroup, M, N> sum[UNROLL_SG_N][UNROLL_SG_M];
+#endif
+
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+    {
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+#if ncnn_VK_KHR_cooperative_matrix
+            sum[zn][zm] = coopmat<float, gl_ScopeSubgroup, M, N, gl_MatrixUseAccumulator>(0.f);
+#elif ncnn_VK_NV_cooperative_matrix
+            sum[zn][zm] = fcoopmatNV<32, gl_ScopeSubgroup, M, N>(0.f);
+#endif
+        }
+    }
+
+    for (uint k = 0; k < uint(p.GK); k += K)
+    {
+        for (uint idx = li; idx < block_m * K / 2; idx += subgroup_size)
+        {
+            const uint row = idx / (K / 2);
+            const uint col = (idx % (K / 2)) * 2;
+            vec2 v = vec2(0.f);
+            if (mi + row < uint(p.GM))
+            {
+                if (k + col < uint(p.GK)) v.x = load_a(int(mi + row), int(k + col));
+                if (k + col + 1 < uint(p.GK)) v.y = load_a(int(mi + row), int(k + col + 1));
+                v *= scale_pow2(-tmp_a_scales[row]);
+            }
+            tmp_a[idx] = packHalf2x16(v);
+        }
+
+        for (uint idx = li; idx < UNROLL_SG_N * K * N / 2; idx += subgroup_size)
+        {
+            const uint zn = idx / (K * N / 2);
+            const uint ij = idx % (K * N / 2);
+            const uint row = ij / (N / 2);
+            const uint col = (ij % (N / 2)) * 2;
+            const uint j = zn * N + col;
+            vec2 v = vec2(0.f);
+            if (k + row < uint(p.GK))
+            {
+                if (ni + j < uint(p.GN)) v.x = load_b(int(k + row), int(ni + j));
+                if (ni + j + 1 < uint(p.GN)) v.y = load_b(int(k + row), int(ni + j + 1));
+                v *= vec2(scale_pow2(-tmp_b_scales[j]), scale_pow2(-tmp_b_scales[j + 1]));
+            }
+            tmp_b[idx] = packHalf2x16(v);
+        }
+        barrier();
+
+#if ncnn_VK_KHR_cooperative_matrix
+        coopmat<float16_t, gl_ScopeSubgroup, M, K, gl_MatrixUseA> A[UNROLL_SG_M];
+        coopmat<float16_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B[UNROLL_SG_N];
+#elif ncnn_VK_NV_cooperative_matrix
+        fcoopmatNV<16, gl_ScopeSubgroup, M, K> A[UNROLL_SG_M];
+        fcoopmatNV<16, gl_ScopeSubgroup, K, N> B[UNROLL_SG_N];
+#endif
+
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+#if ncnn_VK_KHR_cooperative_matrix
+            coopMatLoad(A[zm], tmp_a, zm * M * K / 2, coopmat_fp16_stride(K / 2), gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+            coopMatLoadNV(A[zm], tmp_a, zm * M * K / 2, K / 2, false);
+#endif
+        }
+        [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        {
+#if ncnn_VK_KHR_cooperative_matrix
+            coopMatLoad(B[zn], tmp_b, zn * K * N / 2, coopmat_fp16_stride(N / 2), gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+            coopMatLoadNV(B[zn], tmp_b, zn * K * N / 2, N / 2, false);
+#endif
+        }
+        [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+        {
+            [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+            {
+#if ncnn_VK_KHR_cooperative_matrix
+                sum[zn][zm] = coopMatMulAdd(A[zm], B[zn], sum[zn][zm]);
+#elif ncnn_VK_NV_cooperative_matrix
+                sum[zn][zm] = coopMatMulAddNV(A[zm], B[zn], sum[zn][zm]);
+#endif
+            }
+        }
+        barrier();
+    }
+
+    [[unroll]] for (uint zn = 0; zn < UNROLL_SG_N; zn++)
+    {
+        [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
+        {
+#if ncnn_VK_KHR_cooperative_matrix
+            coopMatStore(sum[zn][zm], tmp_o, (zn * UNROLL_SG_M + zm) * M * N, N, gl_CooperativeMatrixLayoutRowMajor);
+#elif ncnn_VK_NV_cooperative_matrix
+            coopMatStoreNV(sum[zn][zm], tmp_o, (zn * UNROLL_SG_M + zm) * M * N, N, false);
+#endif
+        }
+    }
+    barrier();
+
+    for (uint idx = li; idx < UNROLL_SG_N * UNROLL_SG_M * M * N; idx += subgroup_size)
+    {
+        const uint zn = idx / (UNROLL_SG_M * M * N);
+        const uint zmij = idx % (UNROLL_SG_M * M * N);
+        const uint zm = zmij / (M * N);
+        const uint ij = zmij % (M * N);
+        const uint row = zm * M + ij / N;
+        const uint col = zn * N + ij % N;
+        const int i = int(mi + row);
+        const int j = int(ni + col);
+        if (i >= p.GM || j >= p.GN)
+            continue;
+
+        const float c = load_c(i, j);
+        float v = restore_scale(tmp_o[idx], tmp_a_scales[row] + tmp_b_scales[col]);
+        // A finite bias can prevent overflow when accumulated before the products.
+        if (isnan(c) || isinf(c) || isnan(v) || isinf(v))
+            v = gemm_fp32(i, j);
+        else
+            v += c;
+        store_output(i, j, v);
+    }
+}
