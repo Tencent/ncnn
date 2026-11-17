@@ -11,6 +11,11 @@
 #extension GL_KHR_cooperative_matrix : require
 #extension GL_QCOM_cooperative_matrix_conversion : require
 
+// match the packed-buffer stride workaround in the existing cooperative shaders
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+#define coopMatLoad(m, buf, element, stride, layout) coopMatLoad(m, buf, element, (stride) * 4, layout)
+#endif
+
 layout(constant_id = 0) const uint batch = 1;
 layout(constant_id = 1) const uint M = 1;
 layout(constant_id = 2) const uint N = 1;
@@ -37,7 +42,7 @@ layout(binding = 1) readonly buffer bottom_tm_high_blob { sint8vec4 bottom_tm_hi
 layout(binding = 2) readonly buffer bottom_tm_low_high_blob { ivec2 bottom_tm_low_high_data[]; };
 layout(binding = 3) writeonly buffer top_tm_blob { int top_tm_blob_data[]; };
 layout(binding = 4) writeonly buffer top_tm_blob_4 { ivec4 top_tm_blob_data_4[]; };
-layout(binding = 5) readonly buffer weight_tm_blob { ivec2 weight_tm_data[]; };
+layout(binding = 5) readonly buffer weight_tm_blob { uint weight_tm_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -92,23 +97,6 @@ void main()
             const uint w_offset = gz * wbstep + wgni * kk_padded * UNROLL_WG_N * K * Nd4p * UNROLL_SG_N
                                   + ((kt / UNROLL_SG_K) * UNROLL_WG_N + sgni) * K * Nd4p * UNROLL_SG_N * UNROLL_SG_K
                                   + ((kt % UNROLL_SG_K) * UNROLL_SG_N + zn) * K * Nd4p;
-            uint col0[8];
-            uint col1[8];
-            [[unroll]] for (uint word = 0; word < 8; word++)
-            {
-                uvec2 packed_word = uvec2(0u);
-                if (si < N)
-                {
-                    [[unroll]] for (uint component = 0; component < 4; component++)
-                    {
-                        const uint j = word * 4 + component;
-                        const uvec2 v = uvec2(weight_tm_data[w_offset + j * Nd4p + si / 4]);
-                        packed_word |= ((v >> ((si % 4) * 8)) & 255u) << (component * 8);
-                    }
-                }
-                col0[word] = packed_word.x;
-                col1[word] = packed_word.y;
-            }
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
             {
                 const uint gm = (mi + zm) * M + si;
@@ -120,22 +108,18 @@ void main()
                     uvec2 packed_word = uvec2(0u);
                     if (elempack == 4)
                     {
-                        if (si < M && gm < psc(size) && gk < inch)
-                        {
-                            const uint gi = (gz * (inch / 4) + gk / 4) * (psc(cstep) / 2) + gm;
-                            packed_word = uvec2(bottom_tm_low_high_data[gi]);
-                        }
+                        const uint load_mask = -uint(si < M && gm < psc(size) && gk < inch);
+                        const uint gi = ((gz * (inch / 4) + gk / 4) * (psc(cstep) / 2) + gm) & load_mask;
+                        packed_word = uvec2(bottom_tm_low_high_data[gi]) & uvec2(load_mask);
                     }
                     else
                     {
                         [[unroll]] for (uint component = 0; component < 4; component++)
                         {
-                            if (si < M && gm < psc(size) && gk + component < inch)
-                            {
-                                const uint gi = (gz * inch + gk + component) * (psc(cstep) / 4) + gm / 4;
-                                const uvec2 v = uvec2(uint(i8buffer_sm4(bottom_tm_low_data, gi)), uint(i8buffer_sm4(bottom_tm_high_data, gi)));
-                                packed_word |= ((v >> ((gm % 4) * 8)) & 255u) << (component * 8);
-                            }
+                            const uint load_mask = -uint(si < M && gm < psc(size) && gk + component < inch);
+                            const uint gi = ((gz * inch + gk + component) * (psc(cstep) / 4) + gm / 4) & load_mask;
+                            const uvec2 v = uvec2(uint(i8buffer_sm4(bottom_tm_low_data, gi)), uint(i8buffer_sm4(bottom_tm_high_data, gi)));
+                            packed_word |= (((v >> ((gm % 4) * 8)) & 255u) & load_mask) << (component * 8);
                         }
                     }
                     row0[word] = packed_word.x;
@@ -159,18 +143,18 @@ void main()
                 coopmat<int8_t, gl_ScopeSubgroup, K, N, gl_MatrixUseB> B;
 
                 vectorToCoopmatQCOM(row1, A);
-                vectorToCoopmatQCOM(col1, B);
+                coopMatLoad(B, weight_tm_data, w_offset * 2 + K * Nd4p, K / 4, gl_CooperativeMatrixLayoutColumnMajor);
                 sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
                 sum[zn][zm] *= 256;
                 vectorToCoopmatQCOM(row1, A);
-                vectorToCoopmatQCOM(col0, B);
+                coopMatLoad(B, weight_tm_data, w_offset * 2, K / 4, gl_CooperativeMatrixLayoutColumnMajor);
                 sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
                 vectorToCoopmatQCOM(row0, A);
-                vectorToCoopmatQCOM(col1, B);
+                coopMatLoad(B, weight_tm_data, w_offset * 2 + K * Nd4p, K / 4, gl_CooperativeMatrixLayoutColumnMajor);
                 sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
                 sum[zn][zm] *= 256;
                 vectorToCoopmatQCOM(row0, A);
-                vectorToCoopmatQCOM(col0, B);
+                coopMatLoad(B, weight_tm_data, w_offset * 2, K / 4, gl_CooperativeMatrixLayoutColumnMajor);
                 sum[zn][zm] = coopMatMulAdd(A, B, sum[zn][zm]);
 
                 if (kk == 1 && N == 16)

@@ -3403,37 +3403,82 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                     if (weight_winograd43_data_int8_packed_cm.empty())
                         return -100;
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int b = 0; b < 36; b++)
+                    if (use_qcom_cooperative_matrix)
                     {
-                        for (int bn = 0; bn < blocks_n; bn++)
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int b = 0; b < 36; b++)
                         {
-                            signed char* p0 = weight_winograd43_data_int8_packed_cm.channel(b).row<signed char>(bn);
-
-                            for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
+                            for (int bn = 0; bn < blocks_n; bn++)
                             {
-                                for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                                signed char* p0 = weight_winograd43_data_int8_packed_cm.channel(b).row<signed char>(bn);
+
+                                for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
                                 {
-                                    for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
                                     {
-                                        for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
                                         {
-                                            for (int i = 0; i < coopmat_K; i++)
+                                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
                                             {
+                                                signed char* p1 = p0 + coopmat_Nd4p * 4 * coopmat_K;
                                                 for (int j = 0; j < coopmat_Nd4p; j++)
                                                 {
                                                     for (int jj = 0; jj < 4; jj++)
                                                     {
                                                         const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j * 4 + jj;
-                                                        const int gki = (k + zk) * coopmat_K + i;
-
-                                                        const int v = j < coopmat_Nd4 && gni < num_output && gki < num_input ? weight_data_tm.channel(gni).row<const int>(gki)[b] : 0;
-                                                        int vlow = v & 255;
-                                                        if (vlow >= 128) vlow -= 256;
-                                                        p0[jj] = (signed char)vlow;
-                                                        p0[4 + jj] = (signed char)((v - vlow) >> 8);
+                                                        for (int i = 0; i < coopmat_K; i++)
+                                                        {
+                                                            const int gki = (k + zk) * coopmat_K + i;
+                                                            const int v = j < coopmat_Nd4 && gni < num_output && gki < num_input ? weight_data_tm.channel(gni).row<const int>(gki)[b] : 0;
+                                                            int vlow = v & 255;
+                                                            if (vlow >= 128) vlow -= 256;
+                                                            *p0++ = (signed char)vlow;
+                                                            *p1++ = (signed char)((v - vlow) >> 8);
+                                                        }
                                                     }
-                                                    p0 += 8;
+                                                }
+                                                p0 = p1;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int b = 0; b < 36; b++)
+                        {
+                            for (int bn = 0; bn < blocks_n; bn++)
+                            {
+                                signed char* p0 = weight_winograd43_data_int8_packed_cm.channel(b).row<signed char>(bn);
+
+                                for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
+                                {
+                                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                                    {
+                                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                        {
+                                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                            {
+                                                for (int i = 0; i < coopmat_K; i++)
+                                                {
+                                                    for (int j = 0; j < coopmat_Nd4p; j++)
+                                                    {
+                                                        for (int jj = 0; jj < 4; jj++)
+                                                        {
+                                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j * 4 + jj;
+                                                            const int gki = (k + zk) * coopmat_K + i;
+
+                                                            const int v = j < coopmat_Nd4 && gni < num_output && gki < num_input ? weight_data_tm.channel(gni).row<const int>(gki)[b] : 0;
+                                                            int vlow = v & 255;
+                                                            if (vlow >= 128) vlow -= 256;
+                                                            p0[jj] = (signed char)vlow;
+                                                            p0[4 + jj] = (signed char)((v - vlow) >> 8);
+                                                        }
+                                                        p0 += 8;
+                                                    }
                                                 }
                                             }
                                         }
@@ -3666,37 +3711,82 @@ int Convolution_vulkan::create_pipeline_int8(const Option& opt)
                     if (weight_winograd23_data_int8_packed_cm.empty())
                         return -100;
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int b = 0; b < 16; b++)
+                    if (use_qcom_cooperative_matrix)
                     {
-                        for (int bn = 0; bn < blocks_n; bn++)
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int b = 0; b < 16; b++)
                         {
-                            signed char* p0 = weight_winograd23_data_int8_packed_cm.channel(b).row<signed char>(bn);
-
-                            for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
+                            for (int bn = 0; bn < blocks_n; bn++)
                             {
-                                for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                                signed char* p0 = weight_winograd23_data_int8_packed_cm.channel(b).row<signed char>(bn);
+
+                                for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
                                 {
-                                    for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
                                     {
-                                        for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
                                         {
-                                            for (int i = 0; i < coopmat_K; i++)
+                                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
                                             {
+                                                signed char* p1 = p0 + coopmat_Nd4p * 4 * coopmat_K;
                                                 for (int j = 0; j < coopmat_Nd4p; j++)
                                                 {
                                                     for (int jj = 0; jj < 4; jj++)
                                                     {
                                                         const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j * 4 + jj;
-                                                        const int gki = (k + zk) * coopmat_K + i;
-
-                                                        const int v = j < coopmat_Nd4 && gni < num_output && gki < num_input ? weight_data_tm.channel(gni).row<const int>(gki)[b] : 0;
-                                                        int vlow = v & 255;
-                                                        if (vlow >= 128) vlow -= 256;
-                                                        p0[jj] = (signed char)vlow;
-                                                        p0[4 + jj] = (signed char)((v - vlow) >> 8);
+                                                        for (int i = 0; i < coopmat_K; i++)
+                                                        {
+                                                            const int gki = (k + zk) * coopmat_K + i;
+                                                            const int v = j < coopmat_Nd4 && gni < num_output && gki < num_input ? weight_data_tm.channel(gni).row<const int>(gki)[b] : 0;
+                                                            int vlow = v & 255;
+                                                            if (vlow >= 128) vlow -= 256;
+                                                            *p0++ = (signed char)vlow;
+                                                            *p1++ = (signed char)((v - vlow) >> 8);
+                                                        }
                                                     }
-                                                    p0 += 8;
+                                                }
+                                                p0 = p1;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int b = 0; b < 16; b++)
+                        {
+                            for (int bn = 0; bn < blocks_n; bn++)
+                            {
+                                signed char* p0 = weight_winograd23_data_int8_packed_cm.channel(b).row<signed char>(bn);
+
+                                for (int k = 0; k < kk_padded; k += UNROLL_SG_K)
+                                {
+                                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                                    {
+                                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                                        {
+                                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                            {
+                                                for (int i = 0; i < coopmat_K; i++)
+                                                {
+                                                    for (int j = 0; j < coopmat_Nd4p; j++)
+                                                    {
+                                                        for (int jj = 0; jj < 4; jj++)
+                                                        {
+                                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j * 4 + jj;
+                                                            const int gki = (k + zk) * coopmat_K + i;
+
+                                                            const int v = j < coopmat_Nd4 && gni < num_output && gki < num_input ? weight_data_tm.channel(gni).row<const int>(gki)[b] : 0;
+                                                            int vlow = v & 255;
+                                                            if (vlow >= 128) vlow -= 256;
+                                                            p0[jj] = (signed char)vlow;
+                                                            p0[4 + jj] = (signed char)((v - vlow) >> 8);
+                                                        }
+                                                        p0 += 8;
+                                                    }
                                                 }
                                             }
                                         }
