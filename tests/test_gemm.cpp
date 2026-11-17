@@ -5,7 +5,16 @@
 
 #include "layer_type.h"
 
-#include <math.h>
+static float test_gemm_pow2(int exponent)
+{
+    union
+    {
+        unsigned int u;
+        float f;
+    } tmp;
+    tmp.u = (unsigned int)(exponent + 127) << 23;
+    return tmp.f;
+}
 
 static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, int output_transpose, int constantA, int constantB, int constantC, int broadcast_type_C, int data_type)
 {
@@ -23,16 +32,16 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
             {
                 // Neither row fits in fp16 with one scale. Both reciprocal
                 // products contribute one; dropping small inputs gives zero.
-                v = k == 0 ? ldexpf(1.f, 40) : k == 1 ? ldexpf(1.f, -40) : 0.f;
+                v = k == 0 ? test_gemm_pow2(40) : k == 1 ? test_gemm_pow2(-40) : 0.f;
             }
             else if (data_type == 3)
             {
                 // AB alone overflows, but accumulating from C stays finite.
-                v = k < 2 ? ldexpf(1.f, 127) : 0.f;
+                v = k < 2 ? test_gemm_pow2(127) : 0.f;
             }
             else
             {
-                v = ldexpf((128 + (i * 11 + k * 3) % 64) / 128.f, (data_type == 0 ? 20 : -20) + i % 5 - 2);
+                v = (128 + (i * 11 + k * 3) % 64) / 128.f * test_gemm_pow2((data_type == 0 ? 20 : -20) + i % 5 - 2);
             }
             if (i == M - 1) v = 0.f;
 
@@ -50,7 +59,7 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
             float v;
             if (data_type == 2)
             {
-                v = k == 0 ? ldexpf(1.f, -40) : k == 1 ? ldexpf(1.f, 40) : 0.f;
+                v = k == 0 ? test_gemm_pow2(-40) : k == 1 ? test_gemm_pow2(40) : 0.f;
             }
             else if (data_type == 3)
             {
@@ -58,7 +67,7 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
             }
             else
             {
-                v = ldexpf((128 + (j * 13 + k * 5) % 64) / 128.f, (data_type == 0 ? -20 : 20) + j % 5 - 2);
+                v = (128 + (j * 13 + k * 5) % 64) / 128.f * test_gemm_pow2((data_type == 0 ? -20 : 20) + j % 5 - 2);
                 if (data_type == 1) v = -v;
             }
             if (j == N - 1) v = 0.f;
@@ -78,7 +87,7 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
     if (broadcast_type_C == 4) C.create(N, 1);
     for (int i = 0; i < C.w * C.h; i++)
     {
-        ((float*)C)[i] = data_type == 3 ? -ldexpf(1.f, 127) : (data_type == 1 ? -1.f : 1.f) * (8 + i % 13);
+        ((float*)C)[i] = data_type == 3 ? -test_gemm_pow2(127) : (data_type == 1 ? -1.f : 1.f) * (8 + i % 13);
     }
 
     ncnn::ParamDict pd;
@@ -130,7 +139,7 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
         {
             for (int j = 0; j < N; j++)
             {
-                const float v = ldexpf(i == M - 1 || j == N - 1 ? -1.f : 1.f, 127);
+                const float v = (i == M - 1 || j == N - 1 ? -1.f : 1.f) * test_gemm_pow2(127);
                 if (output_transpose)
                     expected[0].row(j)[i] = v;
                 else
