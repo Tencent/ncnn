@@ -453,6 +453,8 @@ public:
 
     // extension properties
     void* queryExtensionProperties;
+    VkPhysicalDeviceMaintenance3PropertiesKHR queryMaintenance3Properties;
+    VkPhysicalDeviceMaintenance4PropertiesKHR queryMaintenance4Properties;
     VkPhysicalDeviceFloatControlsPropertiesKHR queryFloatControlsProperties;
     VkPhysicalDeviceRobustness2PropertiesKHR queryRobustness2Properties;
     VkPhysicalDeviceShaderIntegerDotProductProperties queryShaderIntegerDotProductProperties;
@@ -1428,6 +1430,26 @@ void GpuInfoPrivate::query_extension_properties()
 {
     queryExtensionProperties = 0;
 
+    // query maintenance3
+    memset(&queryMaintenance3Properties, 0, sizeof(queryMaintenance3Properties));
+    queryMaintenance3Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES;
+    queryMaintenance3Properties.pNext = 0;
+    if (support_VK_KHR_maintenance3 || (g_instance.instance_api_version >= VK_MAKE_VERSION(1, 1, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 1, 0)))
+    {
+        queryMaintenance3Properties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryMaintenance3Properties;
+    }
+
+    // query maintenance4
+    memset(&queryMaintenance4Properties, 0, sizeof(queryMaintenance4Properties));
+    queryMaintenance4Properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES_KHR;
+    queryMaintenance4Properties.pNext = 0;
+    if (g_instance.instance_api_version >= VK_MAKE_VERSION(1, 3, 0) && physicalDeviceProperties.apiVersion >= VK_MAKE_VERSION(1, 3, 0))
+    {
+        queryMaintenance4Properties.pNext = queryExtensionProperties;
+        queryExtensionProperties = &queryMaintenance4Properties;
+    }
+
     // query float controls
     memset(&queryFloatControlsProperties, 0, sizeof(queryFloatControlsProperties));
     queryFloatControlsProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES;
@@ -1969,6 +1991,16 @@ uint32_t GpuInfo::max_workgroup_size_y() const
 uint32_t GpuInfo::max_workgroup_size_z() const
 {
     return d->physicalDeviceProperties.limits.maxComputeWorkGroupSize[2];
+}
+
+VkDeviceSize GpuInfo::max_memory_allocation_size() const
+{
+    return d->queryMaintenance3Properties.maxMemoryAllocationSize;
+}
+
+VkDeviceSize GpuInfo::max_buffer_size() const
+{
+    return d->queryMaintenance4Properties.maxBufferSize;
 }
 
 size_t GpuInfo::memory_map_alignment() const
@@ -5843,9 +5875,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features = info.queryCooperativeMatrix2FeaturesNV();
             DD_APPEND_FEATURE(cooperativeMatrixWorkgroupScope)
             DD_APPEND_FEATURE(cooperativeMatrixFlexibleDimensions)
-            DD_APPEND_FEATURE(cooperativeMatrixReductions)
-            DD_APPEND_FEATURE(cooperativeMatrixConversions)
-            DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            if (!info.support_VK_EXT_cooperative_matrix_maintenance1())
+            {
+                DD_APPEND_FEATURE(cooperativeMatrixReductions)
+                DD_APPEND_FEATURE(cooperativeMatrixConversions)
+                DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            }
             DD_APPEND_FEATURE(cooperativeMatrixTensorAddressing)
             DD_APPEND_FEATURE(cooperativeMatrixBlockLoads)
         }

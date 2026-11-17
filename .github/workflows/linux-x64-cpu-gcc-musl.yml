@@ -41,31 +41,18 @@ permissions:
 jobs:
   linux-gcc-musl:
     runs-on: ubuntu-latest
+    container: alpine:3.24
     steps:
-    - uses: jirutka/setup-alpine@v1
-      with:
-        packages: >
-          cmake
-          clang
-          clang-dev
-          make
-          gcc
-          g++
-          libc-dev
-          linux-headers
-
+    - name: install dependencies
+      run: apk add --no-cache git cmake make gcc g++ libc-dev linux-headers
     - uses: actions/checkout@v7
     - name: build
-      shell: alpine.sh {0}
       run: |
-        mkdir build && cd build
-        cmake -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
+        cmake -S . -B build -DNCNN_BUILD_TESTS=ON
+        cmake --build build -j "$(nproc)"
     - name: test
-      shell: alpine.sh {0}
-      run: cd build && ctest --output-on-failure -j $(nproc)
+      run: ctest --test-dir build --output-on-failure -j "$(nproc)"
     - name: build-shared
       run: |
-        mkdir build-shared && cd build-shared
-        cmake -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j $(nproc)
+        cmake -S . -B build-shared -DNCNN_SHARED_LIB=ON
+        cmake --build build-shared -j "$(nproc)"
