@@ -681,7 +681,6 @@ int Deconvolution_x86::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int elempack = bottom_blob.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
