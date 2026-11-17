@@ -141,7 +141,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
     }
 
     use_bf16_cooperative_matrix_emulation = !use_bf16_cooperative_matrix && vkdev->info.support_cooperative_matrix()
-                                           && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed);
+                                            && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed);
     if (use_bf16_cooperative_matrix_emulation)
         use_cooperative_matrix = true;
 
