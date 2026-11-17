@@ -5793,10 +5793,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             const VkPhysicalDeviceCooperativeMatrixMaintenance1FeaturesEXT& features = info.queryCooperativeMatrixMaintenance1Features();
             DD_APPEND_FEATURE(cooperativeMatrixProperties2)
-            // EXT suffix avoids redefining the same named cooperative_matrix2 NV features
-            device_defines.append("cooperativeMatrixReductionsEXT", features.cooperativeMatrixReductions ? 1 : 0);
-            device_defines.append("cooperativeMatrixConversionsEXT", features.cooperativeMatrixConversions ? 1 : 0);
-            device_defines.append("cooperativeMatrixPerElementOperationsEXT", features.cooperativeMatrixPerElementOperations ? 1 : 0);
+            DD_APPEND_FEATURE(cooperativeMatrixReductions)
+            DD_APPEND_FEATURE(cooperativeMatrixConversions)
+            DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
             DD_APPEND_FEATURE(cooperativeMatrixGetCoordinate)
         }
         if (info.support_VK_NV_cooperative_matrix2())
@@ -5804,9 +5803,12 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& features = info.queryCooperativeMatrix2FeaturesNV();
             DD_APPEND_FEATURE(cooperativeMatrixWorkgroupScope)
             DD_APPEND_FEATURE(cooperativeMatrixFlexibleDimensions)
-            DD_APPEND_FEATURE(cooperativeMatrixReductions)
-            DD_APPEND_FEATURE(cooperativeMatrixConversions)
-            DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            if (!info.support_VK_EXT_cooperative_matrix_maintenance1())
+            {
+                DD_APPEND_FEATURE(cooperativeMatrixReductions)
+                DD_APPEND_FEATURE(cooperativeMatrixConversions)
+                DD_APPEND_FEATURE(cooperativeMatrixPerElementOperations)
+            }
             DD_APPEND_FEATURE(cooperativeMatrixTensorAddressing)
             DD_APPEND_FEATURE(cooperativeMatrixBlockLoads)
         }
