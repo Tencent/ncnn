@@ -126,13 +126,16 @@ float coopmat_reduce_add(const in float a, const in float b)
 
 float coopmat_apply_mask(const in uint row, const in uint col, const in float value, const in uint row_base, const in uint col_base, const in int head)
 {
-    const uint gm = row_base + row;
     const uint gn = col_base + col;
-    if (gm >= p.src_seqlen || gn >= p.dst_seqlen)
+    if (gn >= p.dst_seqlen)
         return -3.402823e+38f;
 
     if (attn_mask != 0)
     {
+        const uint gm = row_base + row;
+        if (gm >= p.src_seqlen)
+            return -3.402823e+38f;
+
         const uint mask_head = (p.attn_mask_dims == 3) ? head : 0;
         const uint mmi = mask_head * p.mask_cstep + gm * p.dst_seqlen + gn;
         return value + buffer_ld1(mask_blob_data, mmi);
