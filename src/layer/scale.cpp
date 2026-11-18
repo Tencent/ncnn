@@ -58,15 +58,15 @@ int Scale::validate_inputs(const std::vector<Mat>& bottom_top_blobs, const Optio
     const Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
     if (bottom_top_blob.empty() || bottom_top_blob.dims < 1 || bottom_top_blob.dims > 4
-        || bottom_top_blob.w <= 0 || bottom_top_blob.h <= 0 || bottom_top_blob.d <= 0 || bottom_top_blob.c <= 0
-        || bottom_top_blob.elempack <= 0 || bottom_top_blob.elempack > INT_MAX / 4)
+            || bottom_top_blob.w <= 0 || bottom_top_blob.h <= 0 || bottom_top_blob.d <= 0 || bottom_top_blob.c <= 0
+            || bottom_top_blob.elempack <= 0 || bottom_top_blob.elempack > INT_MAX / 4)
         return -1;
 
     const int elempack = bottom_top_blob.elempack;
     // The kernels use int loop bounds, including packed spatial sizes.
     if (bottom_top_blob.w > INT_MAX / bottom_top_blob.h
-        || bottom_top_blob.w * bottom_top_blob.h > INT_MAX / bottom_top_blob.d
-        || bottom_top_blob.w * bottom_top_blob.h * bottom_top_blob.d > INT_MAX / elempack)
+            || bottom_top_blob.w * bottom_top_blob.h > INT_MAX / bottom_top_blob.d
+            || bottom_top_blob.w * bottom_top_blob.h * bottom_top_blob.d > INT_MAX / elempack)
         return -1;
 
     const int channels = bottom_top_blob.dims == 1 ? bottom_top_blob.w : bottom_top_blob.dims == 2 ? bottom_top_blob.h : bottom_top_blob.c;
@@ -81,20 +81,16 @@ int Scale::validate_inputs(const std::vector<Mat>& bottom_top_blobs, const Optio
 
     // Scale coefficients are a contiguous vector, possibly packed or stored in 16 bits.
     if (scale_blob.empty() || scale_blob.dims != 1 || scale_blob.w <= 0
-        || scale_blob.elempack <= 0 || scale_blob.elempack > INT_MAX / 4
-        || scale_blob.w > INT_MAX / scale_blob.elempack
-        || scale_blob.w * scale_blob.elempack < required)
+            || scale_blob.elempack <= 0 || scale_blob.elempack > INT_MAX / 4
+            || scale_blob.w > INT_MAX / scale_blob.elempack
+            || scale_blob.w * scale_blob.elempack < required)
         return -1;
     if (scale_blob.elemsize != (size_t)scale_blob.elempack * 4
-        && !(input_16bit && scale_blob.elemsize == (size_t)scale_blob.elempack * 2))
+            && !(input_16bit && scale_blob.elemsize == (size_t)scale_blob.elempack * 2))
         return -1;
 
     // Bias coefficients always remain fp32, including the 16-bit input paths.
-    if (bias_term && (bias_data.empty() || bias_data.dims != 1 || bias_data.w <= 0
-                      || bias_data.elempack <= 0 || bias_data.elempack > INT_MAX / 4
-                      || bias_data.w > INT_MAX / bias_data.elempack
-                      || bias_data.w * bias_data.elempack < required
-                      || bias_data.elemsize != (size_t)bias_data.elempack * 4))
+    if (bias_term && (bias_data.empty() || bias_data.dims != 1 || bias_data.w <= 0 || bias_data.elempack <= 0 || bias_data.elempack > INT_MAX / 4 || bias_data.w > INT_MAX / bias_data.elempack || bias_data.w * bias_data.elempack < required || bias_data.elemsize != (size_t)bias_data.elempack * 4))
         return -1;
 
     return 0;
