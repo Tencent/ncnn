@@ -8,8 +8,11 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "rvv_mathfun.h"
-#include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
+
+#if __riscv_zvfh
+#include "rvv_mathfun_fp16s.h"
+#endif // __riscv_zvfh
 
 namespace ncnn {
 
@@ -105,20 +108,20 @@ int SwiGLU_riscv::forward_fp16sa(const Mat& gate, const Mat& up, Mat& top_blob, 
         int n = len;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m8(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat16m8_t _g = __riscv_vle16_v_f16m8(gateptr, vl);
-            vfloat16m8_t _u = __riscv_vle16_v_f16m8(upptr, vl);
+            vfloat16m4_t _g = __riscv_vle16_v_f16m4(gateptr, vl);
+            vfloat16m4_t _u = __riscv_vle16_v_f16m4(upptr, vl);
 
-            _g = __riscv_vfmin_vf_f16m8(_g, (__fp16)climit, vl);
-            _u = __riscv_vfmax_vf_f16m8(_u, (__fp16)mlimit, vl);
-            _u = __riscv_vfmin_vf_f16m8(_u, (__fp16)climit, vl);
+            _g = __riscv_vfmin_vf_f16m4(_g, (__fp16)climit, vl);
+            _u = __riscv_vfmax_vf_f16m4(_u, (__fp16)mlimit, vl);
+            _u = __riscv_vfmin_vf_f16m4(_u, (__fp16)climit, vl);
 
             // g / (1 + exp(-scale * g)) = silu(scale * g) / scale
-            _g = __riscv_vfdiv_vv_f16m8(_g, __riscv_vfadd_vf_f16m8(exp_ps(__riscv_vfmul_vf_f16m8(_g, (__fp16)(-sigmoid_scale), vl), vl), (__fp16)1.f, vl), vl);
-            _u = __riscv_vfadd_vf_f16m8(_u, (__fp16)up_offset, vl);
+            _g = __riscv_vfdiv_vv_f16m4(_g, __riscv_vfadd_vf_f16m4(exp_ps(__riscv_vfmul_vf_f16m4(_g, (__fp16)(-sigmoid_scale), vl), vl), (__fp16)1.f, vl), vl);
+            _u = __riscv_vfadd_vf_f16m4(_u, (__fp16)up_offset, vl);
 
-            __riscv_vse16_v_f16m8(outptr, __riscv_vfmul_vv_f16m8(_g, _u, vl), vl);
+            __riscv_vse16_v_f16m4(outptr, __riscv_vfmul_vv_f16m4(_g, _u, vl), vl);
 
             gateptr += vl;
             upptr += vl;

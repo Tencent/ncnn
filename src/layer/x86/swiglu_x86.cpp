@@ -17,7 +17,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-#include "x86_activation.h"
 #include "x86_usability.h"
 
 #include "cpu.h"
