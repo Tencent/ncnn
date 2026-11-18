@@ -5551,10 +5551,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    5b                          \n"
 
                 "6:                                 \n"
-                "rshrn  v30.4h, v30.4s, #16         \n"
-                "rshrn  v31.4h, v31.4s, #16         \n"
                 "tst    %w11, #255                  \n"
                 "beq    9f                          \n"
+
+                "rshrn  v30.4h, v30.4s, #16         \n"
+                "rshrn  v31.4h, v31.4s, #16         \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
