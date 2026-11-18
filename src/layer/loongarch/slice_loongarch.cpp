@@ -22,6 +22,12 @@ Slice_loongarch::Slice_loongarch()
 
 int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    // slices_ptr[i] / indices_ptr[i] are read for every top blob
+    if (!indices.empty() ? indices.w < (int)top_blobs.size() - 1 : slices.w < (int)top_blobs.size())
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& bottom_blob = bottom_blobs[0];
 
 #if NCNN_BF16
@@ -55,6 +61,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -66,6 +76,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = 1;
 #if __loongarch_sx
@@ -113,6 +127,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -124,6 +142,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = 1;
 #if __loongarch_sx
@@ -286,6 +308,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -297,6 +323,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(slice, h, elemsize, elempack, opt.blob_allocator);
@@ -344,6 +374,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? channels + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > channels)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -355,6 +389,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > channels)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = 1;
 #if __loongarch_sx
@@ -528,6 +566,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -539,6 +581,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(w, slice, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -594,6 +640,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -605,6 +655,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(slice, h, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -660,6 +714,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? d + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > d)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -671,6 +729,10 @@ int Slice_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
                     slice = static_cast<int>((d - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > d)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(w, h, slice, channels, elemsize, elempack, opt.blob_allocator);
@@ -730,6 +792,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -741,6 +807,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = 1;
 #if __loongarch_sx
@@ -784,6 +854,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -795,6 +869,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = 1;
 #if __loongarch_sx
@@ -998,6 +1076,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -1009,6 +1091,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(slice, h, elemsize, elempack, opt.blob_allocator);
@@ -1056,6 +1142,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? channels + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > channels)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -1067,6 +1157,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > channels)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = 1;
 #if __loongarch_sx
@@ -1281,6 +1375,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -1292,6 +1390,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(w, slice, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -1347,6 +1449,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -1358,6 +1464,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(slice, h, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -1413,6 +1523,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? d + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > d)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -1424,6 +1538,10 @@ int Slice_loongarch::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, s
                     slice = static_cast<int>((d - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > d)
+                return -1;
+#endif // NCNN_VALIDATION
 
             Mat& top_blob = top_blobs[i];
             top_blob.create(w, h, slice, channels, elemsize, elempack, opt.blob_allocator);

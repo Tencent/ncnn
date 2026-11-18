@@ -18,6 +18,11 @@ Scale_arm::Scale_arm()
 
 int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (validate_inputs(bottom_top_blobs, opt) != 0)
+        return -1;
+#endif
+
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 

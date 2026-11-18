@@ -329,6 +329,166 @@ static int test_slice_load_param_axis()
 }
 #endif // NCNN_VALIDATION
 
+#if NCNN_VALIDATION
+static ncnn::Mat slice_int_array(int n, const int* v)
+{
+    ncnn::Mat m(n);
+    int* p = m;
+    for (int i = 0; i < n; i++)
+        p[i] = v[i];
+    return m;
+}
+
+// forward() reads slices[i] for every top blob, or indices[i] for all but the last one
+static int test_slice_short(int naive, int slices_count, int indices_count, int top_count, int expected_ret)
+{
+    const int slices_v[] = {4, 4, -233, 4};
+    const int indices_v[] = {4, 8, 12};
+
+    ncnn::ParamDict pd;
+    if (slices_count)
+        pd.set(0, slice_int_array(slices_count, slices_v));
+    if (indices_count)
+        pd.set(2, slice_int_array(indices_count, indices_v));
+    pd.set(1, 0);
+
+    ncnn::Layer* op = naive ? ncnn::create_layer_naive("Slice") : ncnn::create_layer_cpu("Slice");
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = false;
+
+    int ret = op->load_param(pd);
+    if (ret == 0)
+    {
+        op->create_pipeline(opt);
+
+        std::vector<ncnn::Mat> bottom_blobs(1);
+        bottom_blobs[0] = RandomMat(12);
+        std::vector<ncnn::Mat> top_blobs(top_count);
+        ret = op->forward(bottom_blobs, top_blobs, opt);
+
+        op->destroy_pipeline(opt);
+    }
+    delete op;
+
+    if (ret != expected_ret)
+    {
+        fprintf(stderr, "test_slice_short failed naive=%d slices=%d indices=%d tops=%d ret=%d expected=%d\n", naive, slices_count, indices_count, top_count, ret, expected_ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_slice_bounds_case(int naive, bool packing, const ncnn::Mat& bottom, int axis, const int* slices_v, int slices_count, const int* indices_v, int indices_count, int top_count, int expected_ret)
+{
+    ncnn::ParamDict pd;
+    if (slices_count)
+        pd.set(0, slice_int_array(slices_count, slices_v));
+    if (indices_count)
+        pd.set(2, slice_int_array(indices_count, indices_v));
+    pd.set(1, axis);
+
+    ncnn::Layer* op = naive ? ncnn::create_layer_naive("Slice") : ncnn::create_layer_cpu("Slice");
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    opt.use_packing_layout = packing;
+
+    int ret = op->load_param(pd);
+    if (ret == 0)
+    {
+        op->create_pipeline(opt);
+
+        ncnn::Mat bottom_packed = bottom;
+        if (packing && op->support_packing)
+        {
+            ncnn::convert_packing(bottom, bottom_packed, 4, opt);
+        }
+
+        std::vector<ncnn::Mat> bottom_blobs(1);
+        bottom_blobs[0] = bottom_packed;
+        std::vector<ncnn::Mat> top_blobs(top_count);
+        ret = op->forward(bottom_blobs, top_blobs, opt);
+
+        op->destroy_pipeline(opt);
+    }
+    delete op;
+
+    if (ret != expected_ret)
+    {
+        fprintf(stderr, "test_slice_bounds_case failed naive=%d packing=%d dims=%d axis=%d slices=%d indices=%d tops=%d ret=%d expected=%d\n",
+                naive, (int)packing, bottom.dims, axis, slices_count, indices_count, top_count, ret, expected_ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_slice_short()
+{
+    for (int naive = 0; naive < 2; naive++)
+    {
+        if (test_slice_short(naive, 3, 0, 3, 0)
+                || test_slice_short(naive, 0, 2, 3, 0)
+                || test_slice_short(naive, 0, 0, 3, -1)
+                || test_slice_short(naive, 1, 0, 3, -1)
+                || test_slice_short(naive, 2, 0, 3, -1)
+                || test_slice_short(naive, 0, 1, 3, -1))
+            return -1;
+
+        for (int packing = 0; packing < 2; packing++)
+        {
+            const ncnn::Mat shapes[] = {
+                RandomMat(4),
+                RandomMat(4, 4),
+                RandomMat(4, 4, 4),
+                RandomMat(4, 4, 4, 4),
+            };
+            for (int s = 0; s < 4; s++)
+            {
+                const ncnn::Mat& m = shapes[s];
+                for (int axis = 0; axis < m.dims; axis++)
+                {
+                    const int slices_ok_exact[] = {2, 2};
+                    const int slices_ok_rem[] = {2, -233};
+                    const int indices_ok_pos[] = {2};
+                    const int indices_ok_neg[] = {-2};
+
+                    const int slices_oob_big[] = {4, 256};
+                    const int slices_oob_sum[] = {4, 4};
+                    const int slices_oob_rem[] = {6, -233};
+                    const int slices_neg[] = {2, -1};
+                    const int indices_oob_pos[] = {5};
+                    const int indices_oob_big[] = {256};
+                    const int indices_oob_neg[] = {-5};
+                    const int indices_nonmono_pos[] = {3, 1};
+                    const int indices_nonmono_neg[] = {3, -3};
+
+                    if (test_slice_bounds_case(naive, packing != 0, m, axis, slices_ok_exact, 2, 0, 0, 2, 0)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, slices_ok_rem, 2, 0, 0, 2, 0)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_ok_pos, 1, 2, 0)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_ok_neg, 1, 2, 0)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, slices_oob_big, 2, 0, 0, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, slices_oob_sum, 2, 0, 0, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, slices_oob_rem, 2, 0, 0, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, slices_neg, 2, 0, 0, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_oob_pos, 1, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_oob_big, 1, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_oob_neg, 1, 2, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_nonmono_pos, 2, 3, -1)
+                            || test_slice_bounds_case(naive, packing != 0, m, axis, 0, 0, indices_nonmono_neg, 2, 3, -1))
+                        return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     SRAND(7767517);
@@ -342,6 +502,7 @@ int main()
 #if NCNN_VALIDATION
            || test_slice_load_param()
            || test_slice_load_param_axis()
+           || test_slice_short()
 #endif // NCNN_VALIDATION
            ;
 }
