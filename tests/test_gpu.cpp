@@ -1,8 +1,10 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "datareader.h"
 #include "gpu.h"
 #include "layer_shader_type.h"
+#include "net.h"
 #include "testutil.h"
 
 #include <stdio.h>
@@ -195,6 +197,98 @@ static int test_compile_spirv_module_cooperative_matrix_conversion()
     return 0;
 }
 
+static int test_cooperative_matrix_conversion_bias()
+{
+#if NCNN_STDIO && NCNN_STRING && (NCNN_TEST_LAYER_convolution || NCNN_TEST_LAYER_convolution1d)
+    struct
+    {
+        const char* type;
+        int dims;
+        int kernel;
+        int channels;
+    } cases[] = {
+#if NCNN_TEST_LAYER_convolution
+        {"Convolution", 3, 1, 256},
+        {"Convolution", 3, 3, 64},
+#endif
+#if NCNN_TEST_LAYER_convolution1d
+        {"Convolution1D", 2, 1, 256},
+        {"Convolution1D", 2, 3, 64},
+#endif
+    };
+
+    for (int device_index = 0; device_index < ncnn::get_gpu_count(); device_index++)
+    {
+        const ncnn::GpuInfo& info = ncnn::get_gpu_info(device_index);
+        if (!info.support_cooperative_matrix_conversion() || !info.support_fp16_storage() || !info.support_fp16_arithmetic())
+            continue;
+
+        for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+        {
+            // 48 output channels select N=16 on Adreno; 196 rows also exercise the M tail.
+            const int num_output = 48;
+            const int maxk = cases[i].dims == 3 ? cases[i].kernel * cases[i].kernel : cases[i].kernel;
+            const int weight_size = num_output * cases[i].channels * maxk;
+            char param[256];
+            sprintf(param, "7767517\n1 2\n%s conv 1 1 in out 0=%d 1=%d 4=%d 5=1 6=%d\n",
+                    cases[i].type, num_output, cases[i].kernel, cases[i].kernel / 2, weight_size);
+
+            std::vector<float> model(1 + weight_size + num_output);
+            model[0] = 0.f;
+            for (int j = 0; j < weight_size + num_output; j++)
+                model[1 + j] = (j * 13 % 7 - 3) * 0.0625f;
+
+            ncnn::Mat input = cases[i].dims == 3 ? ncnn::Mat(14, 14, cases[i].channels) : ncnn::Mat(196, cases[i].channels);
+            for (int q = 0; q < input.c; q++)
+            {
+                float* p = input.channel(q);
+                for (int j = 0; j < input.w * input.h; j++)
+                    p[j] = ((j * 17 + q * 3) % 13 - 6) * 0.0625f;
+            }
+
+            ncnn::Mat expected;
+            for (int gpu = 0; gpu < 2; gpu++)
+            {
+                ncnn::Net net;
+                net.opt.num_threads = 1;
+                net.opt.vulkan_device_index = device_index;
+                net.opt.use_vulkan_compute = gpu;
+                net.opt.use_packing_layout = gpu;
+                net.opt.use_fp16_packed = gpu;
+                net.opt.use_fp16_storage = gpu;
+                net.opt.use_fp16_arithmetic = gpu;
+                net.opt.use_bf16_packed = false;
+                net.opt.use_bf16_storage = false;
+                net.opt.use_cooperative_matrix = true;
+                net.opt.use_sgemm_convolution = true;
+                net.opt.use_winograd_convolution = false;
+
+                const unsigned char* mem = (const unsigned char*)model.data();
+                ncnn::DataReaderFromMemory dr(mem, model.size() * sizeof(float));
+                if (net.load_param_mem(param) != 0 || net.load_model(dr) != 0)
+                    return -1;
+
+                ncnn::Extractor ex = net.create_extractor();
+                ncnn::Mat output;
+                if (ex.input("in", input) != 0 || ex.extract("out", output) != 0)
+                    return -1;
+
+                if (!gpu)
+                {
+                    expected = output;
+                }
+                else if (CompareMat(expected, output, 0.01f) != 0)
+                {
+                    fprintf(stderr, "test_cooperative_matrix_conversion_bias failed gpu=%d type=%s kernel=%d channels=%d\n", device_index, cases[i].type, cases[i].kernel, cases[i].channels);
+                    return -1;
+                }
+            }
+        }
+    }
+#endif
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -206,5 +300,6 @@ int main()
            || test_compile_spirv_module_0()
            || test_compile_spirv_module_1()
            || test_cooperative_matrix_conversion_features()
-           || test_compile_spirv_module_cooperative_matrix_conversion();
+           || test_compile_spirv_module_cooperative_matrix_conversion()
+           || test_cooperative_matrix_conversion_bias();
 }

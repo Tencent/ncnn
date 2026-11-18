@@ -114,17 +114,19 @@ void main()
         }
         else
         {
+            // Mask inactive rows to avoid the Adreno fp16 N=16 bias conversion miscompile.
+            const uint gm = mi * M + si;
             uint initial[qcom_accumulator_words];
             [[unroll]] for (uint word = 0; word < qcom_accumulator_words; word++)
             {
 #if NCNN_fp16_arithmetic
                 const uint gn = (ni + zn) * N + word * 2;
-                const uint lo = gn < outch ? qcom_half_bits(bias_data[gn / 4], gn % 4) : 0u;
-                const uint hi = gn + 1 < outch ? qcom_half_bits(bias_data[(gn + 1) / 4], (gn + 1) % 4) : 0u;
+                const uint lo = si < M && gm < output_size && gn < outch ? qcom_half_bits(bias_data[gn / 4], gn % 4) : 0u;
+                const uint hi = si < M && gm < output_size && gn + 1 < outch ? qcom_half_bits(bias_data[(gn + 1) / 4], (gn + 1) % 4) : 0u;
                 initial[word] = lo | (hi << 16);
 #else
                 const uint gn = (ni + zn) * N + word;
-                initial[word] = floatBitsToUint(gn < outch ? unpack_scalar(bias_data[gn / 4], gn % 4) : 0.f);
+                initial[word] = floatBitsToUint(si < M && gm < output_size && gn < outch ? unpack_scalar(bias_data[gn / 4], gn % 4) : 0.f);
 #endif
             }
             [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
