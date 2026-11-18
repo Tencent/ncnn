@@ -61,7 +61,7 @@ float unpack_scalar(uvec2 v, uint i)
 }
 
 // each invocation supplies one row of a and one column of b
-// Adreno requires a direct specialization constant for packed array lengths.
+// adreno requires a direct specialization constant for packed array lengths
 layout(constant_id = 20) const uint qcom_accumulator_words = 32;
 
 uint qcom_half_bits(uvec2 value, uint index)
@@ -108,7 +108,7 @@ void main()
         }
         else
         {
-            // Mask inactive rows to avoid the Adreno fp16 N=16 bias conversion miscompile.
+            // mask inactive rows to avoid the Adreno fp16 N=16 bias conversion miscompile
             const uint gm = mi * M + si;
             uint initial[qcom_accumulator_words];
             [[unroll]] for (uint word = 0; word < qcom_accumulator_words; word++)

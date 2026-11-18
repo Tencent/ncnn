@@ -225,7 +225,7 @@ static int test_cooperative_matrix_conversion_bias()
 
         for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
         {
-            // 48 output channels select N=16 on Adreno; 196 rows also exercise the M tail.
+            // 48 output channels select N=16 on Adreno; 196 rows also exercise the M tail
             const int num_output = 48;
             const int maxk = cases[i].dims == 3 ? cases[i].kernel * cases[i].kernel : cases[i].kernel;
             const int weight_size = num_output * cases[i].channels * maxk;

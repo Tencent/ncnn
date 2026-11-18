@@ -245,8 +245,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
                 if (vkdev->info.vendor_id() == 0x5143)
                 {
-                    // Reuse B across packed QCOM M tiles without K tails or N unrolling.
-                    // Keep the shared-memory path and smaller tiles on the existing grouping.
+                    // reuse B across packed QCOM M tiles without K tails or N unrolling
+                    // keep the shared-memory path and smaller tiles on the existing grouping
                     if (!use_qcom_cooperative_matrix || !opt_cm.use_fp16_arithmetic
                             || elempack != 4 || out_elempack != 4 || num_input % coopmat_K != 0
                             || coopmat_N != coopmat_subgroup_size || UNROLL_SG_N != 1)

@@ -68,7 +68,7 @@ uint load_b_bits(uint i)
     return (B_blob_data[i / 4][(i % 4) / 2] >> ((i % 2) * 16)) & 65535u;
 }
 
-// Adreno requires a direct specialization constant for packed array lengths.
+// adreno requires a direct specialization constant for packed array lengths
 layout(constant_id = 22) const uint qcom_accumulator_words = 32;
 #if NCNN_fp16_arithmetic
 #define qcom_accumulator_value(words, index) unpackHalf2x16(words[(index) / 2])[(index) % 2]
@@ -185,8 +185,8 @@ void main()
     {
         [[unroll]] for (uint zm = 0; zm < UNROLL_SG_M; zm++)
         {
-            // Adreno rejects runtime matrix scaling followed by packed extraction.
-            // Apply the scale to the invocation values below instead.
+            // adreno rejects runtime matrix scaling followed by packed extraction
+            // apply the scale to the invocation values below instead
             uint row[qcom_accumulator_words];
             coopmatToVectorQCOM(sum[zn][zm], row);
             const uint gm = (mi + zm) * M + si;

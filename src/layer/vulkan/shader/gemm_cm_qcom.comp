@@ -45,7 +45,7 @@ layout(constant_id = 18 + 6) const uint UNROLL_SG_K = 2;
 layout(constant_id = 18 + 7) const uint UNROLL_WG_M = 2;
 layout(constant_id = 18 + 8) const uint UNROLL_WG_N = 2;
 
-// TODO psc more
+// todo psc more
 
 layout(binding = 0) writeonly buffer top_blob { sfp top_blob_data[]; };
 layout(binding = 1) readonly buffer A_blob { uvec2 A_blob_data[]; };
@@ -82,7 +82,7 @@ uint load_b_bits(uint i)
     return (B_blob_data[i / 4][(i % 4) / 2] >> ((i % 2) * 16)) & 65535u;
 }
 
-// Adreno requires a direct specialization constant for packed array lengths.
+// adreno requires a direct specialization constant for packed array lengths
 layout(constant_id = 27) const uint qcom_accumulator_words = 32;
 #if NCNN_fp16_arithmetic
 #define qcom_accumulator_value(words, index) unpackHalf2x16(words[(index) / 2])[(index) % 2]

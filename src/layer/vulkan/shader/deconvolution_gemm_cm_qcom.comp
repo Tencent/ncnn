@@ -43,7 +43,7 @@ layout(push_constant) uniform parameter
 } p;
 
 // each invocation supplies one row of a and one column of b
-// Adreno requires a direct specialization constant for packed array lengths.
+// adreno requires a direct specialization constant for packed array lengths
 layout(constant_id = 16) const uint qcom_accumulator_words = 32;
 
 uint qcom_half_bits(uvec2 value, uint index)

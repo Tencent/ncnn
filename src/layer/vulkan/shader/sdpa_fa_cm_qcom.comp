@@ -176,7 +176,7 @@ void main()
             row_max[zm] = maximum;
             float total = 0.f;
             uint probability_row[8];
-            // The flash attention pipeline requires N == K == 16.
+            // the flash attention pipeline requires N == K == 16
             [[unroll]] for (uint word = 0; word < 8; word++)
             {
                 vec2 values_pair = vec2(0.f);
