@@ -2101,6 +2101,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v8.4s, #16           \n"
                     "rshrn2 v0.8h, v9.4s, #16           \n"
                     "rshrn  v1.4h, v10.4s, #16          \n"
@@ -2125,8 +2128,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v10.8h, v29.4s, #16         \n"
                     "rshrn  v11.4h, v30.4s, #16         \n"
                     "rshrn2 v11.8h, v31.4s, #16         \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -2591,6 +2592,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v8.4s, #16           \n"
                     "rshrn2 v0.8h, v9.4s, #16           \n"
                     "rshrn  v1.4h, v10.4s, #16          \n"
@@ -2615,8 +2619,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v10.8h, v29.4s, #16         \n"
                     "rshrn  v11.4h, v30.4s, #16         \n"
                     "rshrn2 v11.8h, v31.4s, #16         \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -2977,6 +2979,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v8.4s, #16           \n"
                     "rshrn2 v0.8h, v9.4s, #16           \n"
                     "rshrn  v1.4h, v10.4s, #16          \n"
@@ -3001,8 +3006,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v10.8h, v29.4s, #16         \n"
                     "rshrn  v11.4h, v30.4s, #16         \n"
                     "rshrn2 v11.8h, v31.4s, #16         \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -3785,6 +3788,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v16.4s, #16          \n"
                     "rshrn2 v0.8h, v17.4s, #16          \n"
                     "rshrn  v1.4h, v18.4s, #16          \n"
@@ -3801,8 +3807,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v6.8h, v29.4s, #16          \n"
                     "rshrn  v7.4h, v30.4s, #16          \n"
                     "rshrn2 v7.8h, v31.4s, #16          \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -4052,6 +4056,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v16.4s, #16          \n"
                     "rshrn2 v0.8h, v17.4s, #16          \n"
                     "rshrn  v1.4h, v18.4s, #16          \n"
@@ -4068,8 +4075,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v6.8h, v29.4s, #16          \n"
                     "rshrn  v7.4h, v30.4s, #16          \n"
                     "rshrn2 v7.8h, v31.4s, #16          \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -4634,6 +4639,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v24.4s, #16          \n"
                     "rshrn2 v0.8h, v25.4s, #16          \n"
                     "rshrn  v1.4h, v26.4s, #16          \n"
@@ -4642,8 +4650,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v2.8h, v29.4s, #16          \n"
                     "rshrn  v3.4h, v30.4s, #16          \n"
                     "rshrn2 v3.8h, v31.4s, #16          \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -4828,6 +4834,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "bne    6b                          \n"
 
                     "7:                                 \n"
+                    "tst    %w11, #255                  \n"
+                    "beq    10f                         \n"
+
                     "rshrn  v0.4h, v24.4s, #16          \n"
                     "rshrn2 v0.8h, v25.4s, #16          \n"
                     "rshrn  v1.4h, v26.4s, #16          \n"
@@ -4836,8 +4845,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                     "rshrn2 v2.8h, v29.4s, #16          \n"
                     "rshrn  v3.4h, v30.4s, #16          \n"
                     "rshrn2 v3.8h, v31.4s, #16          \n"
-                    "tst    %w11, #255                  \n"
-                    "beq    10f                         \n"
 
                     // if out_elempack == 4
                     "cmp    %w12, #4                    \n"
@@ -5226,12 +5233,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    6b                          \n"
 
                 "7:                                 \n"
+                "tst    %w11, #255                  \n"
+                "beq    10f                         \n"
+
                 "rshrn  v0.4h, v28.4s, #16          \n"
                 "rshrn2 v0.8h, v29.4s, #16          \n"
                 "rshrn  v1.4h, v30.4s, #16          \n"
                 "rshrn2 v1.8h, v31.4s, #16          \n"
-                "tst    %w11, #255                  \n"
-                "beq    10f                         \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
@@ -5897,6 +5905,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    6b                          \n"
 
                 "7:                                 \n"
+                "tst    %w11, #255                  \n"
+                "beq    10f                         \n"
+
                 "rshrn  v0.4h, v20.4s, #16          \n"
                 "rshrn2 v0.8h, v21.4s, #16          \n"
                 "rshrn  v1.4h, v22.4s, #16          \n"
@@ -5909,8 +5920,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "rshrn2 v4.8h, v29.4s, #16          \n"
                 "rshrn  v5.4h, v30.4s, #16          \n"
                 "rshrn2 v5.8h, v31.4s, #16          \n"
-                "tst    %w11, #255                  \n"
-                "beq    10f                         \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
@@ -6388,6 +6397,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    6b                          \n"
 
                 "7:                                 \n"
+                "tst    %w11, #255                  \n"
+                "beq    10f                         \n"
+
                 "rshrn  v0.4h, v24.4s, #16          \n"
                 "rshrn2 v0.8h, v25.4s, #16          \n"
                 "rshrn  v1.4h, v26.4s, #16          \n"
@@ -6396,8 +6408,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "rshrn2 v2.8h, v29.4s, #16          \n"
                 "rshrn  v3.4h, v30.4s, #16          \n"
                 "rshrn2 v3.8h, v31.4s, #16          \n"
-                "tst    %w11, #255                  \n"
-                "beq    10f                         \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
@@ -6565,6 +6575,9 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne        6b                  \n"
 
                 "7:                             \n"
+                "cmp        %11, #0             \n"
+                "beq        10f                 \n"
+
                 "vrshrn.u32 d16, q8, #16        \n"
                 "vrshrn.u32 d17, q9, #16        \n"
                 "vrshrn.u32 d18, q10, #16       \n"
@@ -6573,8 +6586,6 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "vrshrn.u32 d21, q13, #16       \n"
                 "vrshrn.u32 d22, q14, #16       \n"
                 "vrshrn.u32 d23, q15, #16       \n"
-                "cmp        %11, #0             \n"
-                "beq        10f                 \n"
 
                 // if out_elempack == 4
                 "cmp        %12, #4             \n"
@@ -6945,12 +6956,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    6b                          \n"
 
                 "7:                                 \n"
+                "tst    %w11, #255                  \n"
+                "beq    10f                         \n"
+
                 "rshrn  v0.4h, v28.4s, #16          \n"
                 "rshrn2 v0.8h, v29.4s, #16          \n"
                 "rshrn  v1.4h, v30.4s, #16          \n"
                 "rshrn2 v1.8h, v31.4s, #16          \n"
-                "tst    %w11, #255                  \n"
-                "beq    10f                         \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
@@ -7080,12 +7092,13 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne        6b                  \n"
 
                 "7:                             \n"
+                "cmp        %11, #0             \n"
+                "beq        10f                 \n"
+
                 "vrshrn.u32 d24, q12, #16       \n"
                 "vrshrn.u32 d25, q13, #16       \n"
                 "vrshrn.u32 d26, q14, #16       \n"
                 "vrshrn.u32 d27, q15, #16       \n"
-                "cmp        %11, #0             \n"
-                "beq        10f                 \n"
 
                 // if out_elempack == 4
                 "cmp        %12, #4             \n"
@@ -7370,10 +7383,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    6b                          \n"
 
                 "7:                                 \n"
-                "rshrn  v0.4h, v30.4s, #16          \n"
-                "rshrn  v1.4h, v31.4s, #16          \n"
                 "tst    %w11, #255                  \n"
                 "beq    10f                         \n"
+
+                "rshrn  v0.4h, v30.4s, #16          \n"
+                "rshrn  v1.4h, v31.4s, #16          \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
@@ -7490,10 +7504,11 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne        6b                  \n"
 
                 "7:                             \n"
-                "vrshrn.u32 d28, q14, #16       \n"
-                "vrshrn.u32 d29, q15, #16       \n"
                 "cmp        %11, #0             \n"
                 "beq        10f                 \n"
+
+                "vrshrn.u32 d28, q14, #16       \n"
+                "vrshrn.u32 d29, q15, #16       \n"
 
                 // if out_elempack == 4
                 "cmp        %12, #4             \n"
@@ -7744,9 +7759,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne    5b                          \n"
 
                 "6:                                 \n"
-                "rshrn  v0.4h, v31.4s, #16          \n"
                 "tst    %w11, #255                  \n"
                 "beq    9f                          \n"
+
+                "rshrn  v0.4h, v31.4s, #16          \n"
 
                 // if out_elempack == 4
                 "cmp    %w12, #4                    \n"
@@ -7852,9 +7868,10 @@ static void convolution_gemm_transB_packed_tile_bf16s(const Mat& AT_tile, const 
                 "bne        5b                  \n"
 
                 "6:                             \n"
-                "vrshrn.u32 d30, q15, #16       \n"
                 "cmp        %11, #0             \n"
                 "beq        9f                  \n"
+
+                "vrshrn.u32 d30, q15, #16       \n"
 
                 // if out_elempack == 4
                 "cmp        %12, #4             \n"

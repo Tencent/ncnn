@@ -199,9 +199,9 @@ static int test_convolution_0()
 static int test_convolution_sgemm_split_k(int outch)
 {
     // reduction depth 4096x8x8 exceeds the sgemm k tile for l2 caches below 6M, partial sums carry across k tiles
-    // three output columns leave the two-column and one-column tails
+    // seven output columns leave the four-column, two-column and one-column tails
     // small integers keep fp16 partial sums exact
-    const int w = 10;
+    const int w = 14;
     const int h = 8;
     const int c = 4096;
     const int kernel = 8;
