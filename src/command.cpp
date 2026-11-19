@@ -26,7 +26,7 @@ static void record_image_barriers(VkCommandBuffer command_buffer, VkPipelineStag
     {
         if (barriers[i].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED)
         {
-            // Retired accesses may belong to another image sharing this memory.
+            // the previous owner may have accessed this memory through another image
             memory_barrier.srcAccessMask |= barriers[i].srcAccessMask;
             memory_barrier.dstAccessMask |= barriers[i].dstAccessMask;
         }
@@ -1038,6 +1038,7 @@ void VkComputePrivate::barrier_transfer_write(const VkMat& binding)
 {
     if (binding.data->access_flags)
     {
+        // barrier device any @ any to transfer-write @ compute
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
         barriers[0].pNext = 0;
@@ -1066,6 +1067,7 @@ void VkComputePrivate::barrier_transfer_write(const VkMat& binding)
         }
     }
 
+    // mark device transfer-write @ transfer
     binding.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
     binding.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 }
@@ -1725,14 +1727,14 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
-    // image layout transform any @ any to transfer-dst-optimal @ compute
+    // image layout transform undefined @ any to transfer-dst-optimal @ compute
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barriers[0].pNext = 0;
         barriers[0].srcAccessMask = dst.data->access_flags;
         barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barriers[0].oldLayout = dst.data->image_layout;
+        barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
@@ -1877,14 +1879,14 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
-    // image layout transform any @ any to transfer-dst-optimal @ compute
+    // image layout transform undefined @ any to transfer-dst-optimal @ compute
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barriers[0].pNext = 0;
         barriers[0].srcAccessMask = dst.data->access_flags;
         barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barriers[0].oldLayout = dst.data->image_layout;
+        barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
         barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;

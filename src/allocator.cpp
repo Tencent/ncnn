@@ -603,7 +603,7 @@ public:
     std::vector<std::list<std::pair<size_t, size_t> > > buffer_budgets;
     std::vector<VkBufferMemory*> buffer_blocks;
     std::vector<std::list<std::pair<size_t, size_t> > > image_memory_budgets;
-    std::vector<VkImageMemory*> image_memory_blocks;
+    std::vector<VkDeviceMemory> image_memory_blocks;
 };
 
 VkBlobAllocator::VkBlobAllocator(const VulkanDevice* _vkdev, size_t preferred_block_size)
@@ -677,8 +677,7 @@ void VkBlobAllocator::clear()
 
     for (size_t i = 0; i < d->image_memory_blocks.size(); i++)
     {
-        VkImageMemory* block = d->image_memory_blocks[i];
-        VkDeviceMemory memory = block->memory;
+        VkDeviceMemory memory = d->image_memory_blocks[i];
 
         //         std::list< std::pair<size_t, size_t> >::iterator it = d->image_memory_budgets[i].begin();
         //         while (it != d->image_memory_budgets[i].end())
@@ -688,8 +687,6 @@ void VkBlobAllocator::clear()
         //         }
 
         vkFreeMemory(vkdev->vkdevice(), memory, 0);
-
-        delete block;
     }
     d->image_memory_blocks.clear();
 
@@ -724,8 +721,9 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
             ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
-            ptr->access_flags = d->buffer_blocks[i]->access_flags;
-            ptr->stage_flags = d->buffer_blocks[i]->stage_flags;
+            // the spare range may still be accessed by recorded commands of its previous owner
+            ptr->access_flags = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+            ptr->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
             ptr->storage_type = 0;
 
             // adjust buffer_budgets
@@ -806,9 +804,6 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
 
     block->memory_type_index = buffer_memory_type_index;
     block->storage_type = 0;
-    block->access_flags = 0;
-    // keep TOP_OF_PIPE so inherited read-only states get a first-use barrier
-    block->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
     d->buffer_blocks.push_back(block);
 
@@ -862,9 +857,6 @@ void VkBlobAllocator::fastFree(VkBufferMemory* ptr)
 
         return;
     }
-
-    d->buffer_blocks[block_index]->access_flags |= ptr->access_flags;
-    d->buffer_blocks[block_index]->stage_flags |= ptr->stage_flags;
 
     // merge
     std::list<std::pair<size_t, size_t> >::iterator it_merge_left = d->buffer_budgets[block_index].end();
@@ -1001,7 +993,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
             }
 
             // bind at memory offset
-            ptr->memory = d->image_memory_blocks[i]->memory;
+            ptr->memory = d->image_memory_blocks[i];
             ptr->bind_offset = bind_offset;
             ptr->bind_capacity = aligned_size;
 
@@ -1013,9 +1005,10 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
             ptr->imageview = create_imageview(ptr->image, format);
 
-            ptr->access_flags = d->image_memory_blocks[i]->access_flags;
+            // the spare range may still be accessed by recorded commands of its previous owner
+            ptr->access_flags = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-            ptr->stage_flags = d->image_memory_blocks[i]->stage_flags;
+            ptr->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
             ptr->command_refcount = 0;
 
             if (bind_base_offset != bind_offset)
@@ -1110,12 +1103,7 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
     ptr->command_refcount = 0;
 
     // adjust image_memory_budgets
-    VkImageMemory* block = new VkImageMemory;
-    block->memory = ptr->memory;
-    block->access_flags = 0;
-    // keep TOP_OF_PIPE so inherited read-only states get a first-use barrier
-    block->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-    d->image_memory_blocks.push_back(block);
+    d->image_memory_blocks.push_back(ptr->memory);
 
     std::list<std::pair<size_t, size_t> > budget;
     if (new_block_size > aligned_size)
@@ -1138,7 +1126,7 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
     int block_index = -1;
     for (int i = 0; i < image_memory_block_count; i++)
     {
-        if (d->image_memory_blocks[i]->memory == ptr->memory)
+        if (d->image_memory_blocks[i] == ptr->memory)
         {
             block_index = i;
             break;
@@ -1159,9 +1147,6 @@ void VkBlobAllocator::fastFree(VkImageMemory* ptr)
 
         return;
     }
-
-    d->image_memory_blocks[block_index]->access_flags |= ptr->access_flags;
-    d->image_memory_blocks[block_index]->stage_flags |= ptr->stage_flags;
 
     // merge
     std::list<std::pair<size_t, size_t> >::iterator it_merge_left = d->image_memory_budgets[block_index].end();
