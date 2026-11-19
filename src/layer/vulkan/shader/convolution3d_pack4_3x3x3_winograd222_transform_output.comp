@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #version 450
@@ -42,6 +42,32 @@ layout(push_constant) uniform parameter
     int outcstep;
 } p;
 
+// A^T t A of one depth-transformed 4x4 tile, t index = x * 4 + y
+void transform_tile(const afpvec4 t[16], out afpvec4 o00, out afpvec4 o01, out afpvec4 o10, out afpvec4 o11)
+{
+    // const float itm[2][4] = {
+    //     {1.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f,  1.0f, -1.0f,  1.0f}
+    // };
+
+    // implicit transpose
+    afpvec4 m00 = t[0] + t[1] + t[2];
+    afpvec4 m01 = t[4] + t[5] + t[6];
+    afpvec4 m02 = t[8] + t[9] + t[10];
+    afpvec4 m03 = t[12] + t[13] + t[14];
+
+    afpvec4 m10 = t[1] - t[2] + t[3];
+    afpvec4 m11 = t[5] - t[6] + t[7];
+    afpvec4 m12 = t[9] - t[10] + t[11];
+    afpvec4 m13 = t[13] - t[14] + t[15];
+
+    o00 = m00 + m01 + m02;
+    o10 = m10 + m11 + m12;
+
+    o01 = m01 - m02 + m03;
+    o11 = m11 - m12 + m13;
+}
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
@@ -51,96 +77,82 @@ void main()
     if (gx >= psc(block_x) || gy >= psc(block_y) * psc(block_z) || gz >= c)
         return;
 
-    const int by = gy % psc(block_y);
-    const int bz = gy / psc(block_y);
-
-    // load 64, coef = (i*4+j)*4+k
+    // load 64, coefficient index = (x * 4 + y) * 4 + z
     int v_tm_offset = gz * psc(cstep) + gy * psc(block_x) + gx;
 
-    afpvec4 v[4][4][4];
-    for (int i = 0; i < 4; i++)
+    // transform along d first
+    // z0 = k0 + k1 + k2    z1 = k1 - k2 + k3
+    afpvec4 t0[16];
+    afpvec4 t1[16];
+
+    for (int i = 0; i < 16; i++)
     {
-        for (int j = 0; j < 4; j++)
-        {
-            for (int k = 0; k < 4; k++)
-            {
-                v[i][j][k] = buffer_ld4(top_tm_blob_data, v_tm_offset + ((i * 4 + j) * 4 + k) * psc(cstep) * c);
-            }
-        }
+        afpvec4 v0 = buffer_ld4(top_tm_blob_data, v_tm_offset + (i * 4 + 0) * psc(cstep) * c);
+        afpvec4 v1 = buffer_ld4(top_tm_blob_data, v_tm_offset + (i * 4 + 1) * psc(cstep) * c);
+        afpvec4 v2 = buffer_ld4(top_tm_blob_data, v_tm_offset + (i * 4 + 2) * psc(cstep) * c);
+        afpvec4 v3 = buffer_ld4(top_tm_blob_data, v_tm_offset + (i * 4 + 3) * psc(cstep) * c);
+
+        t0[i] = v0 + v1 + v2;
+        t1[i] = v1 - v2 + v3;
     }
 
-    // A^T along z (k)
-    afpvec4 m1[4][4][2];
-    for (int i = 0; i < 4; i++)
-    {
-        for (int j = 0; j < 4; j++)
-        {
-            m1[i][j][0] = v[i][j][0] + v[i][j][1] + v[i][j][2];
-            m1[i][j][1] = v[i][j][1] - v[i][j][2] + v[i][j][3];
-        }
-    }
+    // sum index = z y x
+    afpvec4 sum000;
+    afpvec4 sum001;
+    afpvec4 sum010;
+    afpvec4 sum011;
+    afpvec4 sum100;
+    afpvec4 sum101;
+    afpvec4 sum110;
+    afpvec4 sum111;
 
-    // A^T along y (j)
-    afpvec4 m2[4][2][2];
-    for (int i = 0; i < 4; i++)
-    {
-        for (int k = 0; k < 2; k++)
-        {
-            m2[i][0][k] = m1[i][0][k] + m1[i][1][k] + m1[i][2][k];
-            m2[i][1][k] = m1[i][1][k] - m1[i][2][k] + m1[i][3][k];
-        }
-    }
-
-    // A^T along x (i)
-    afpvec4 outv[2][2][2];
-    for (int j = 0; j < 2; j++)
-    {
-        for (int k = 0; k < 2; k++)
-        {
-            outv[0][j][k] = m2[0][j][k] + m2[1][j][k] + m2[2][j][k];
-            outv[1][j][k] = m2[1][j][k] - m2[2][j][k] + m2[3][j][k];
-        }
-    }
+    transform_tile(t0, sum000, sum001, sum010, sum011);
+    transform_tile(t1, sum100, sum101, sum110, sum111);
 
     if (bias_term == 1)
     {
         const afpvec4 bias_value = buffer_ld4(bias_data, gz);
-        outv[0][0][0] += bias_value;
-        outv[0][0][1] += bias_value;
-        outv[0][1][0] += bias_value;
-        outv[0][1][1] += bias_value;
-        outv[1][0][0] += bias_value;
-        outv[1][0][1] += bias_value;
-        outv[1][1][0] += bias_value;
-        outv[1][1][1] += bias_value;
+
+        sum000 += bias_value;
+        sum001 += bias_value;
+        sum010 += bias_value;
+        sum011 += bias_value;
+        sum100 += bias_value;
+        sum101 += bias_value;
+        sum110 += bias_value;
+        sum111 += bias_value;
     }
 
-    outv[0][0][0] = activation_afpvec4(outv[0][0][0], activation_type, activation_param_0, activation_param_1);
-    outv[0][0][1] = activation_afpvec4(outv[0][0][1], activation_type, activation_param_0, activation_param_1);
-    outv[0][1][0] = activation_afpvec4(outv[0][1][0], activation_type, activation_param_0, activation_param_1);
-    outv[0][1][1] = activation_afpvec4(outv[0][1][1], activation_type, activation_param_0, activation_param_1);
-    outv[1][0][0] = activation_afpvec4(outv[1][0][0], activation_type, activation_param_0, activation_param_1);
-    outv[1][0][1] = activation_afpvec4(outv[1][0][1], activation_type, activation_param_0, activation_param_1);
-    outv[1][1][0] = activation_afpvec4(outv[1][1][0], activation_type, activation_param_0, activation_param_1);
-    outv[1][1][1] = activation_afpvec4(outv[1][1][1], activation_type, activation_param_0, activation_param_1);
+    sum000 = activation_afpvec4(sum000, activation_type, activation_param_0, activation_param_1);
+    sum001 = activation_afpvec4(sum001, activation_type, activation_param_0, activation_param_1);
+    sum010 = activation_afpvec4(sum010, activation_type, activation_param_0, activation_param_1);
+    sum011 = activation_afpvec4(sum011, activation_type, activation_param_0, activation_param_1);
+    sum100 = activation_afpvec4(sum100, activation_type, activation_param_0, activation_param_1);
+    sum101 = activation_afpvec4(sum101, activation_type, activation_param_0, activation_param_1);
+    sum110 = activation_afpvec4(sum110, activation_type, activation_param_0, activation_param_1);
+    sum111 = activation_afpvec4(sum111, activation_type, activation_param_0, activation_param_1);
 
     // store 2x2x2
     int x = gx * 2;
-    int y = by * 2;
-    int z = bz * 2;
+    int y = gy % psc(block_y) * 2;
+    int z = gy / psc(block_y) * 2;
 
-    const int outbase = gz * psc(outcstep) + z * (psc(outh) * psc(outw)) + y * psc(outw) + x;
+    int v_offset_0 = gz * psc(outcstep) + (z * psc(outh) + y) * psc(outw) + x;
+    int v_offset_1 = v_offset_0 + psc(outw);
 
-    buffer_st4(top_blob_data, outbase, outv[0][0][0]);
-    if (x + 1 < psc(outw)) buffer_st4(top_blob_data, outbase + 1, outv[1][0][0]);
-    if (y + 1 < psc(outh)) buffer_st4(top_blob_data, outbase + psc(outw), outv[0][1][0]);
-    if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st4(top_blob_data, outbase + psc(outw) + 1, outv[1][1][0]);
+    buffer_st4(top_blob_data, v_offset_0 + 0, sum000);
+    if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_0 + 1, sum001);
+    if (y + 1 < psc(outh)) buffer_st4(top_blob_data, v_offset_1 + 0, sum010);
+    if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_1 + 1, sum011);
+
     if (z + 1 < psc(outd))
     {
-        const int outbase1 = outbase + psc(outh) * psc(outw);
-        buffer_st4(top_blob_data, outbase1, outv[0][0][1]);
-        if (x + 1 < psc(outw)) buffer_st4(top_blob_data, outbase1 + 1, outv[1][0][1]);
-        if (y + 1 < psc(outh)) buffer_st4(top_blob_data, outbase1 + psc(outw), outv[0][1][1]);
-        if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st4(top_blob_data, outbase1 + psc(outw) + 1, outv[1][1][1]);
+        v_offset_0 += psc(outh) * psc(outw);
+        v_offset_1 += psc(outh) * psc(outw);
+
+        buffer_st4(top_blob_data, v_offset_0 + 0, sum100);
+        if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_0 + 1, sum101);
+        if (y + 1 < psc(outh)) buffer_st4(top_blob_data, v_offset_1 + 0, sum110);
+        if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_1 + 1, sum111);
     }
 }

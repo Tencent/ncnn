@@ -272,6 +272,7 @@ static int test_convolution3d_1()
               || test_convolution3d(7, 6, 5, 20, 16, 3, 1, 1, 1, 1)
               || test_convolution3d(7, 6, 5, 17, 16, 3, 1, 1, 1, 0)
               || test_convolution3d(7, 6, 5, 16, 17, 3, 1, 1, 1, 1)
+              || test_convolution3d(7, 6, 5, 17, 17, 3, 1, 1, 1, 0)
               || test_convolution3d(7, 6, 5, 32, 32, 3, 1, 1, 1, 0)
               || test_convolution3d(5, 5, 5, 16, 16, 3, 1, 1, 0, 1);
 

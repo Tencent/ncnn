@@ -1,4 +1,4 @@
-﻿// Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Futz12 <pchar.cn>
 // SPDX-License-Identifier: BSD-3-Clause
 
 #ifndef LAYER_CONVOLUTION3D_VULKAN_H
@@ -12,8 +12,6 @@ class Convolution3D_vulkan : public Convolution3D
 {
 public:
     Convolution3D_vulkan();
-
-    virtual int load_param(const ParamDict& pd);
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
