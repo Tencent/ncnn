@@ -1,0 +1,239 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_EXT_control_flow_attributes : require
+
+// scale four logical rows of a bf16 operand into exact normal fp16 and pack them
+// into the tile layout that gemm_bf16s_cm loads, zero padding included
+
+#define LOCAL_SIZE 256
+
+layout(constant_id = 0) const int trans = 0;
+layout(constant_id = 1) const int kmajor = 0;
+layout(constant_id = 2) const uint R = 16;
+layout(constant_id = 3) const uint K = 16;
+layout(constant_id = 4) const uint UNROLL_SG_R = 2;
+layout(constant_id = 5) const uint UNROLL_SG_K = 2;
+layout(constant_id = 6) const uint UNROLL_WG_R = 2;
+
+layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
+layout(binding = 1) readonly buffer bottom_blob_4 { sfpvec4 bottom_blob_data_4[]; };
+layout(binding = 2) writeonly buffer packed_blob { uvec2 packed_blob_data[]; };
+layout(binding = 3) writeonly buffer scales_blob { int scales_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int outer_size;
+    int K;
+    int hstep;
+    int elempack;
+} p;
+
+shared int tmp_emin[4][LOCAL_SIZE];
+shared int tmp_emax[4][LOCAL_SIZE];
+shared int tmp_scales[4];
+
+float load(int r, int k)
+{
+    const int row = trans == 0 ? r : k;
+    const int col = trans == 0 ? k : r;
+    const int offset = p.elempack == 4 ? ((row >> 2) * p.hstep + col) * 4 + (row & 3) : row * p.hstep + col;
+    return float(buffer_ld1(bottom_blob_data, offset));
+}
+
+// v[q][e] receives row r0 + q at depth k0 + e, zero outside the operand
+void load_block(int r0, int k0, out vec4 v[4])
+{
+    // rows r0 .. r0 + 3 are adjacent at each depth
+    const bool rows_adjacent = (trans == 0 && p.elempack == 4) || (trans == 1 && p.elempack == 1 && p.hstep % 4 == 0 && r0 + 3 < p.outer_size);
+    // depths k0 .. k0 + 3 are adjacent in each row
+    const bool depths_adjacent = (trans == 1 && p.elempack == 4) || (trans == 0 && p.elempack == 1 && p.hstep % 4 == 0 && k0 + 3 < p.K);
+
+    if (rows_adjacent)
+    {
+        [[unroll]] for (int e = 0; e < 4; e++)
+        {
+            vec4 w = vec4(0.f);
+            if (k0 + e < p.K)
+            {
+                const int offset = trans == 0 ? (r0 >> 2) * p.hstep + k0 + e : ((k0 + e) * p.hstep + r0) >> 2;
+                w = buffer_ld4(bottom_blob_data_4, offset);
+            }
+            v[0][e] = w.r;
+            v[1][e] = w.g;
+            v[2][e] = w.b;
+            v[3][e] = w.a;
+        }
+    }
+    else if (depths_adjacent)
+    {
+        [[unroll]] for (int q = 0; q < 4; q++)
+        {
+            v[q] = vec4(0.f);
+            if (r0 + q < p.outer_size && k0 < p.K)
+            {
+                const int offset = trans == 1 ? (k0 >> 2) * p.hstep + r0 + q : ((r0 + q) * p.hstep + k0) >> 2;
+                v[q] = buffer_ld4(bottom_blob_data_4, offset);
+            }
+        }
+    }
+    else
+    {
+        [[unroll]] for (int q = 0; q < 4; q++)
+        {
+            [[unroll]] for (int e = 0; e < 4; e++)
+            {
+                v[q][e] = r0 + q < p.outer_size && k0 + e < p.K ? load(r0 + q, k0 + e) : 0.f;
+            }
+        }
+    }
+}
+
+float scale_pow2(int s)
+{
+    return uintBitsToFloat(uint(clamp(s, -112, 112) + 127) << 23);
+}
+
+// same layout as packed_offset in gemm_bf16s_cm
+uint packed_offset(uint r, uint k)
+{
+    const uint kk = (uint(p.K) + K - 1) / K;
+    const uint kfull = kk / UNROLL_SG_K * UNROLL_SG_K;
+
+    const uint rr = r % (R * UNROLL_SG_R * UNROLL_WG_R);
+    const uint wr = rr / (R * UNROLL_SG_R);
+    const uint zr = (rr / R) % UNROLL_SG_R;
+    const uint ri = rr % R;
+    const uint kb = k / K;
+    const uint kj = k % K;
+    const uint zk = kb % UNROLL_SG_K;
+
+    const uint g = kb < kfull ? (kb - zk) * UNROLL_WG_R + wr * UNROLL_SG_K + zk : kb * UNROLL_WG_R + wr;
+    const uint tile = kmajor == 1 ? (zr * K + kj) * R + ri : (zr * R + ri) * K + kj;
+
+    return ((r / (R * UNROLL_SG_R * UNROLL_WG_R)) * kk * UNROLL_WG_R + g) * (UNROLL_SG_R * R * K) + tile;
+}
+
+void main()
+{
+    const int r0 = int(gl_WorkGroupID.x) * 4;
+    const int li = int(gl_LocalInvocationID.x);
+
+    // biased bf16 exponent range of the nonzero values, emin = 0 marks subnormal or nonfinite inputs
+    int emin[4];
+    int emax[4];
+    [[unroll]] for (int q = 0; q < 4; q++)
+    {
+        emin[q] = 255;
+        emax[q] = 0;
+    }
+
+    if (r0 < p.outer_size)
+    {
+        for (int k0 = li * 4; k0 < p.K; k0 += LOCAL_SIZE * 4)
+        {
+            vec4 v[4];
+            load_block(r0, k0, v);
+
+            [[unroll]] for (int q = 0; q < 4; q++)
+            {
+                [[unroll]] for (int e = 0; e < 4; e++)
+                {
+                    const uint bits = floatBitsToUint(v[q][e]) & 0x7fffffffu;
+                    if (bits != 0)
+                    {
+                        const int be = int(bits >> 23);
+                        const int eb = be == 255 ? 0 : be;
+                        emin[q] = min(emin[q], eb);
+                        emax[q] = max(emax[q], eb);
+                    }
+                }
+            }
+        }
+    }
+
+    [[unroll]] for (int q = 0; q < 4; q++)
+    {
+        tmp_emin[q][li] = emin[q];
+        tmp_emax[q][li] = emax[q];
+    }
+
+    barrier();
+
+    for (int stride = LOCAL_SIZE / 2; stride > 0; stride /= 2)
+    {
+        if (li < stride)
+        {
+            [[unroll]] for (int q = 0; q < 4; q++)
+            {
+                tmp_emin[q][li] = min(tmp_emin[q][li], tmp_emin[q][li + stride]);
+                tmp_emax[q][li] = max(tmp_emax[q][li], tmp_emax[q][li + stride]);
+            }
+        }
+        barrier();
+    }
+
+    if (li < 4)
+    {
+        const int e0 = tmp_emin[li][0];
+        const int e1 = tmp_emax[li][0];
+
+        // Keep scaled values normal in fp16 and power-of-two factors normal in fp32.
+        const int scale = e1 == 0 ? 0 : max(e1 - 127 - 15, -112);
+        const bool fits = e0 != 0 && (e1 == 0 || e0 - 127 - scale >= -14);
+        // 256 marks a row that uses the fp32 fallback in gemm_bf16s_cm
+        const int s = fits ? scale : 256;
+
+        tmp_scales[li] = s;
+        if (r0 + li < p.outer_size)
+            scales_data[r0 + li] = s;
+    }
+
+    barrier();
+
+    vec4 f;
+    [[unroll]] for (int q = 0; q < 4; q++)
+    {
+        // rows that do not fit are packed as zero and recomputed by the fallback
+        f[q] = tmp_scales[q] == 256 ? 0.f : scale_pow2(-tmp_scales[q]);
+    }
+
+    const int Kp = (p.K + int(K) - 1) / int(K) * int(K);
+
+    for (int k0 = li * 4; k0 < Kp; k0 += LOCAL_SIZE * 4)
+    {
+        vec4 v[4];
+        if (r0 < p.outer_size)
+        {
+            load_block(r0, k0, v);
+        }
+        else
+        {
+            [[unroll]] for (int q = 0; q < 4; q++)
+            {
+                v[q] = vec4(0.f);
+            }
+        }
+
+        if (kmajor == 0)
+        {
+            // A tiles are row-major, one uvec2 holds four depths of one row
+            [[unroll]] for (int q = 0; q < 4; q++)
+            {
+                const vec4 w = v[q] * f[q];
+                packed_blob_data[packed_offset(uint(r0 + q), uint(k0)) / 4] = uvec2(packHalf2x16(w.rg), packHalf2x16(w.ba));
+            }
+        }
+        else
+        {
+            // B tiles are depth-major, one uvec2 holds the four rows at one depth
+            [[unroll]] for (int e = 0; e < 4; e++)
+            {
+                const vec4 w = vec4(v[0][e], v[1][e], v[2][e], v[3][e]) * f;
+                packed_blob_data[packed_offset(uint(r0), uint(k0 + e)) / 4] = uvec2(packHalf2x16(w.rg), packHalf2x16(w.ba));
+            }
+        }
+    }
+}

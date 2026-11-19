@@ -41,7 +41,12 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
             }
             else
             {
-                v = (128 + (i * 11 + k * 3) % 64) / 128.f * test_gemm_pow2((data_type == 0 ? 20 : -20) + i % 5 - 2);
+                v = (128 + (i * 11 + k * 3) % 64) / 128.f * test_gemm_pow2((data_type == 1 ? -20 : 20) + i % 5 - 2);
+
+                // A few rows (data_type 4) or the first half of the rows (data_type 5) do not fit one fp16 scale.
+                const bool unsafe_row = (data_type == 4 && i % 23 == 7) || (data_type == 5 && i < M / 2);
+                if (unsafe_row && k == 0) v = test_gemm_pow2(40);
+                if (unsafe_row && k == 1) v = test_gemm_pow2(-40);
             }
             if (i == M - 1) v = 0.f;
 
@@ -67,8 +72,12 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
             }
             else
             {
-                v = (128 + (j * 13 + k * 5) % 64) / 128.f * test_gemm_pow2((data_type == 0 ? -20 : 20) + j % 5 - 2);
+                v = (128 + (j * 13 + k * 5) % 64) / 128.f * test_gemm_pow2((data_type == 1 ? 20 : -20) + j % 5 - 2);
                 if (data_type == 1) v = -v;
+
+                // A few columns (data_type 4) or the first half of the columns (data_type 6) do not fit one fp16 scale.
+                const bool unsafe_column = (data_type == 4 && j % 19 == 4) || (data_type == 6 && j < N / 2);
+                if (unsafe_column && k == 1) v = test_gemm_pow2(50);
             }
             if (j == N - 1) v = 0.f;
 
@@ -126,7 +135,7 @@ static int test_gemm_bf16_coopmat(int M, int N, int K, int transA, int transB, i
 
     // Bypass test_layer_opt's widened bf16 tolerance. The reciprocal case has
     // exact zero/two outputs, and the other cases only need final bf16 rounding.
-    const float epsilon = data_type >= 2 ? 0.000001f : 0.008f;
+    const float epsilon = data_type == 2 || data_type == 3 ? 0.000001f : 0.008f;
     int ret = 0;
     if (data_type == 3)
     {
@@ -179,7 +188,14 @@ static int test_gemm_bf16_coopmat()
            || test_gemm_bf16_coopmat(16, 12, 19, 0, 1, 0, 0, 0, 1, -1, 2)
            || test_gemm_bf16_coopmat(13, 11, 17, 1, 0, 1, 1, 0, 1, -1, 2)
            || test_gemm_bf16_coopmat(12, 9, 20, 0, 0, 0, 0, 1, 1, -1, 2)
-           || test_gemm_bf16_coopmat(16, 12, 19, 0, 1, 0, 1, 0, 1, 0, 3);
+           || test_gemm_bf16_coopmat(16, 12, 19, 0, 1, 0, 1, 0, 1, 0, 3)
+           // many workgroups with sparse and dense fallback tiles next to cooperative matrix tiles
+           || test_gemm_bf16_coopmat(150, 130, 45, 0, 1, 0, 0, 0, 0, 3, 4)
+           || test_gemm_bf16_coopmat(136, 100, 37, 1, 0, 1, 0, 0, 1, 1, 4)
+           || test_gemm_bf16_coopmat(150, 130, 45, 0, 1, 0, 0, 1, 1, 4, 5)
+           || test_gemm_bf16_coopmat(120, 140, 33, 1, 1, 1, 0, 1, 0, -1, 5)
+           || test_gemm_bf16_coopmat(130, 150, 45, 0, 0, 0, 1, 0, 1, 2, 6)
+           || test_gemm_bf16_coopmat(100, 136, 70, 1, 1, 0, 1, 0, 0, 0, 0);
 }
 
 #if NCNN_VALIDATION
