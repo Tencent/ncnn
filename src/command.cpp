@@ -15,27 +15,6 @@ static bool is_deferred_buffer(const VkBufferMemory* memory)
     return memory && memory->storage_type != 0;
 }
 
-static void record_image_barriers(VkCommandBuffer command_buffer, VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage, uint32_t count, const VkImageMemoryBarrier* barriers)
-{
-    VkMemoryBarrier memory_barrier;
-    memory_barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-    memory_barrier.pNext = 0;
-    memory_barrier.srcAccessMask = 0;
-    memory_barrier.dstAccessMask = 0;
-    for (uint32_t i = 0; i < count; i++)
-    {
-        if (barriers[i].oldLayout == VK_IMAGE_LAYOUT_UNDEFINED)
-        {
-            // the previous owner may have accessed this memory through another image
-            memory_barrier.srcAccessMask |= barriers[i].srcAccessMask;
-            memory_barrier.dstAccessMask |= barriers[i].dstAccessMask;
-        }
-    }
-
-    const uint32_t memory_barrier_count = memory_barrier.srcAccessMask ? 1 : 0;
-    vkCmdPipelineBarrier(command_buffer, src_stage, dst_stage, 0, memory_barrier_count, memory_barrier_count ? &memory_barrier : 0, 0, 0, count, barriers);
-}
-
 class VkComputeWeightAllocator : public VkBlobAllocator
 {
 public:
@@ -73,8 +52,6 @@ public:
     int wait_upload_command_buffer();
 
     int resolve_weights(const std::vector<VkMat>& weights, std::vector<VkMat>& resolved);
-
-    void barrier_transfer_write(const VkMat& binding);
 
     void flush_records();
     void clear_records(bool all);
@@ -1034,44 +1011,6 @@ int VkComputePrivate::resolve_weights(const std::vector<VkMat>& weights, std::ve
     return 0;
 }
 
-void VkComputePrivate::barrier_transfer_write(const VkMat& binding)
-{
-    if (binding.data->access_flags)
-    {
-        // barrier device any @ any to transfer-write @ compute
-        VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
-        barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = binding.data->access_flags;
-        barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barriers[0].buffer = binding.buffer();
-        barriers[0].offset = binding.data->offset;
-        barriers[0].size = binding.data->capacity;
-
-        if (vkdev->info.support_VK_KHR_push_descriptor())
-        {
-            vkCmdPipelineBarrier(compute_command_buffer, binding.data->stage_flags, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, 0, 1, barriers, 0, 0);
-            delete[] barriers;
-        }
-        else
-        {
-            record r;
-            r.type = record::TYPE_buffer_barrers;
-            r.buffer_barrers.src_stage = binding.data->stage_flags;
-            r.buffer_barrers.dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            r.buffer_barrers.barrier_count = 1;
-            r.buffer_barrers.barriers = barriers;
-            delayed_records.push_back(r);
-        }
-    }
-
-    // mark device transfer-write @ transfer
-    binding.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
-    binding.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-}
-
 void VkComputePrivate::flush_records()
 {
     for (size_t i = 0; i < delayed_records.size(); i++)
@@ -1135,7 +1074,7 @@ void VkComputePrivate::flush_records()
         }
         case VkComputePrivate::record::TYPE_image_barrers:
         {
-            record_image_barriers(compute_command_buffer, r.image_barrers.src_stage, r.image_barrers.dst_stage, r.image_barrers.barrier_count, r.image_barrers.barriers);
+            vkCmdPipelineBarrier(compute_command_buffer, r.image_barrers.src_stage, r.image_barrers.dst_stage, 0, 0, 0, 0, 0, r.image_barrers.barrier_count, r.image_barrers.barriers);
             break;
         }
 #if NCNN_BENCHMARK
@@ -1647,7 +1586,45 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
-    d->barrier_transfer_write(dst);
+    {
+        // barrier device any @ any to transfer-write @ compute
+        if (dst.data->access_flags)
+        {
+            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            barriers[0].pNext = 0;
+            barriers[0].srcAccessMask = dst.data->access_flags;
+            barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].buffer = dst.buffer();
+            barriers[0].offset = dst.data->offset;
+            barriers[0].size = dst.data->capacity;
+
+            VkPipelineStageFlags src_stage = dst.data->stage_flags;
+            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+            if (vkdev->info.support_VK_KHR_push_descriptor())
+            {
+                vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+                delete[] barriers;
+            }
+            else
+            {
+                VkComputePrivate::record r;
+                r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+                r.buffer_barrers.src_stage = src_stage;
+                r.buffer_barrers.dst_stage = dst_stage;
+                r.buffer_barrers.barrier_count = 1;
+                r.buffer_barrers.barriers = barriers;
+                d->delayed_records.push_back(r);
+            }
+        }
+
+        // mark device transfer-write @ transfer
+        dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
 
     // record device to staging
     {
@@ -1707,7 +1684,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
@@ -1750,7 +1727,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
@@ -1902,7 +1879,7 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
@@ -2022,7 +1999,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
@@ -2042,7 +2019,45 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
-    d->barrier_transfer_write(dst);
+    {
+        // barrier device any @ any to transfer-write @ compute
+        if (dst.data->access_flags)
+        {
+            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            barriers[0].pNext = 0;
+            barriers[0].srcAccessMask = dst.data->access_flags;
+            barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].buffer = dst.buffer();
+            barriers[0].offset = dst.data->offset;
+            barriers[0].size = dst.data->capacity;
+
+            VkPipelineStageFlags src_stage = dst.data->stage_flags;
+            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+            if (vkdev->info.support_VK_KHR_push_descriptor())
+            {
+                vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+                delete[] barriers;
+            }
+            else
+            {
+                VkComputePrivate::record r;
+                r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+                r.buffer_barrers.src_stage = src_stage;
+                r.buffer_barrers.dst_stage = dst_stage;
+                r.buffer_barrers.barrier_count = 1;
+                r.buffer_barrers.barriers = barriers;
+                d->delayed_records.push_back(r);
+            }
+        }
+
+        // mark device transfer-write @ transfer
+        dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dst.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
 
     // record image to device
     {
@@ -2547,7 +2562,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
@@ -3215,7 +3230,7 @@ void VkCompute::barrier_readwrite(const VkImageMat& binding)
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
@@ -3262,7 +3277,7 @@ void VkCompute::barrier_readonly(const VkImageMat& binding)
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
-            record_image_barriers(d->compute_command_buffer, src_stage, dst_stage, 1, barriers);
+            vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 0, 0, 1, barriers);
             delete[] barriers;
         }
         else
