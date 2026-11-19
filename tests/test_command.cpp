@@ -228,8 +228,5 @@ int main()
 {
     SRAND(7767517);
 
-    ncnn::create_gpu_instance();
-    int ret = ncnn::get_gpu_count() == 0 ? 0 : test_command_0() || test_command_1() || test_command_2();
-    ncnn::destroy_gpu_instance();
-    return ret;
+    return test_command_0() || test_command_1() || test_command_2();
 }
