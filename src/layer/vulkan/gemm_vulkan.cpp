@@ -9,6 +9,146 @@
 
 namespace ncnn {
 
+// Per logical row, the power-of-two exponent that makes its bf16 values exact normal fp16 values.
+// 256 marks a row that does not fit. Returns 1 when any row does not fit.
+static int compute_gemm_bf16_scales(const Mat& data_bf16, Mat& scales, int rows, int K, int trans, const Option& opt)
+{
+    scales.create(rows, (size_t)4u, 1);
+    if (scales.empty())
+        return -100;
+
+    const unsigned short* ptr = data_bf16;
+    int* scale_ptr = scales;
+
+    // blocks of rows keep the strided layout cache friendly
+    const int nn_rows = (rows + 63) / 64;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int ii = 0; ii < nn_rows; ii++)
+    {
+        const int i0 = ii * 64;
+        const int n = std::min(64, rows - i0);
+
+        // biased exponent range of the nonzero values, emin = 0 marks subnormal or nonfinite inputs
+        int emin[64];
+        int emax[64];
+        for (int i = 0; i < n; i++)
+        {
+            emin[i] = 255;
+            emax[i] = 0;
+        }
+
+        if (trans)
+        {
+            for (int k = 0; k < K; k++)
+            {
+                const unsigned short* p = ptr + (size_t)k * rows + i0;
+                for (int i = 0; i < n; i++)
+                {
+                    const int v = p[i] & 0x7fff;
+                    const int e = v >> 7;
+                    const int eb = e == 255 ? 0 : e;
+                    emin[i] = std::min(emin[i], v ? eb : 255);
+                    emax[i] = std::max(emax[i], v ? eb : 0);
+                }
+            }
+        }
+        else
+        {
+            for (int i = 0; i < n; i++)
+            {
+                const unsigned short* p = ptr + (size_t)(i0 + i) * K;
+                int e0 = 255;
+                int e1 = 0;
+                for (int k = 0; k < K; k++)
+                {
+                    const int v = p[k] & 0x7fff;
+                    const int e = v >> 7;
+                    const int eb = e == 255 ? 0 : e;
+                    e0 = std::min(e0, v ? eb : 255);
+                    e1 = std::max(e1, v ? eb : 0);
+                }
+                emin[i] = e0;
+                emax[i] = e1;
+            }
+        }
+
+        for (int i = 0; i < n; i++)
+        {
+            // Keep scaled values normal in fp16 and power-of-two factors normal in fp32.
+            const int scale = emax[i] == 0 ? 0 : std::max(emax[i] - 127 - 15, -112);
+            const bool fits = emin[i] != 0 && (emax[i] == 0 || emin[i] - 127 - scale >= -14);
+            scale_ptr[i0 + i] = fits ? scale : 256;
+        }
+    }
+
+    for (int i = 0; i < rows; i++)
+    {
+        if (scale_ptr[i] == 256)
+            return 1;
+    }
+
+    return 0;
+}
+
+// Write the scaled fp16 bits of rows that fit into the tile layout loaded by gemm_bf16s_cm,
+// the same layout as the fp32 tiles packed for gemm_cm and as packed_offset() in the shaders.
+static void pack_gemm_bf16_tiles(const Mat& data_bf16, const Mat& scales, Mat& packed, int rows, int K, int trans, int R, int coopmat_K, int UNROLL_SG_R, int UNROLL_SG_K, int UNROLL_WG_R, int kmajor, const Option& opt)
+{
+    const int block_r = R * UNROLL_SG_R * UNROLL_WG_R;
+    const int blocks = (rows + block_r - 1) / block_r;
+    const int kk = (K + coopmat_K - 1) / coopmat_K;
+    const int kfull = kk / UNROLL_SG_K * UNROLL_SG_K;
+
+    packed.create(block_r * coopmat_K * kk, blocks, (size_t)2u);
+    if (packed.empty())
+        return;
+
+    const unsigned short* ptr = data_bf16;
+    const int* scale_ptr = scales;
+
+    // each group of R rows owns whole tile rows, so every element including the zero padding is written once
+    const int nn_groups = blocks * block_r / R;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int rg = 0; rg < nn_groups; rg++)
+    {
+        const int r0 = rg * R;
+        const int rr = r0 % block_r;
+        const int wr = rr / (R * UNROLL_SG_R);
+        const int zr = rr / R % UNROLL_SG_R;
+
+        unsigned short* outptr = packed.row<unsigned short>(r0 / block_r);
+
+        for (int kb = 0; kb < kk; kb++)
+        {
+            // full UNROLL_SG_K groups first, then single k steps
+            const int zk = kb % UNROLL_SG_K;
+            const int g = kb < kfull ? (kb - zk) * UNROLL_WG_R + wr * UNROLL_SG_K + zk : kb * UNROLL_WG_R + wr;
+            unsigned short* p = outptr + ((size_t)g * UNROLL_SG_R + zr) * R * coopmat_K;
+
+            for (int ri = 0; ri < R; ri++)
+            {
+                const int r = r0 + ri;
+                const int s = r < rows ? scale_ptr[r] : 0;
+
+                for (int kj = 0; kj < coopmat_K; kj++)
+                {
+                    const int k = kb * coopmat_K + kj;
+                    const unsigned short v = r < rows && k < K ? ptr[trans ? (size_t)k * rows + r : (size_t)r * K + k] : 0;
+
+                    // exact for rows that fit, the exponent lands in [1, 30]
+                    unsigned short h = v & 0x8000;
+                    if (v & 0x7fff)
+                        h |= (unsigned short)((((v >> 7) & 0xff) - 127 - s + 15) << 10) | ((v & 0x7f) << 3);
+
+                    p[kmajor ? kj * R + ri : ri * coopmat_K + kj] = h;
+                }
+            }
+        }
+    }
+}
+
 #if NCNN_INT8
 static inline signed char float2int8(float v)
 {
@@ -27,6 +167,8 @@ Gemm_vulkan::Gemm_vulkan()
 
     pipeline_gemm = 0;
     pipeline_gemm_pack4 = 0;
+    pipeline_gemm_bf16_pack_A = 0;
+    pipeline_gemm_bf16_pack_B = 0;
 #if NCNN_INT8
     pipeline_gemm_quantize_A_int8 = 0;
     pipeline_gemm_quantize_B_absmax_int8 = 0;
@@ -37,6 +179,7 @@ Gemm_vulkan::Gemm_vulkan()
     use_subgroup_ops = false;
 
     use_cooperative_matrix = false;
+    use_bf16_cooperative_matrix_emulation = false;
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
@@ -87,6 +230,11 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         use_bf16_cooperative_matrix = true;
     }
 
+    use_bf16_cooperative_matrix_emulation = !use_bf16_cooperative_matrix && vkdev->info.support_cooperative_matrix()
+                                            && opt.use_cooperative_matrix && (opt.use_bf16_storage || opt.use_bf16_packed);
+    if (use_bf16_cooperative_matrix_emulation)
+        use_cooperative_matrix = true;
+
     if (vkdev->info.vendor_id() == 0x5143)
     {
         // adreno produces incorrect results even for complete cooperative matrix tiles
@@ -129,7 +277,8 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         }
         else
         {
-            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
+            const VkComponentTypeKHR acctype = opt.use_fp16_arithmetic && !use_bf16_cooperative_matrix_emulation ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(M, N, K, VK_COMPONENT_TYPE_FLOAT16_KHR, acctype, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
         }
 
         // the selected tile may use fp32 accumulation even when fp16 arithmetic was requested
@@ -163,13 +312,16 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             const int Kd4 = coopmat_K / 4;
             const size_t shared_a = 8 * std::max(coopmat_M * Kd4, coopmat_K * Md4);
             const size_t shared_b = 8 * std::max(coopmat_K * Nd4, coopmat_N * Kd4);
-            const size_t shared_o = 2 * coopmat_M * coopmat_N;
+            const size_t shared_o = (use_bf16_cooperative_matrix_emulation ? 4 : 2) * coopmat_M * coopmat_N;
+            // the bf16 emulation also stages one int scale per tile row and column, and a fallback list of two outputs per invocation
+            const size_t shared_s = use_bf16_cooperative_matrix_emulation ? 4 : 0;
 
             for (;;)
             {
                 const size_t shared_bytes = shared_a * UNROLL_WG_M * UNROLL_SG_M * UNROLL_SG_K
                                             + shared_b * UNROLL_WG_N * UNROLL_SG_N * UNROLL_SG_K
-                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N;
+                                            + shared_o * UNROLL_WG_M * UNROLL_WG_N * UNROLL_SG_M * UNROLL_SG_N
+                                            + shared_s * (coopmat_M * UNROLL_SG_M * UNROLL_WG_M + coopmat_N * UNROLL_SG_N * UNROLL_WG_N + coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N * 2 + 1);
                 const uint32_t invocations = coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N;
                 if (shared_bytes <= vkdev->info.max_shared_memory_size() && invocations <= vkdev->info.max_workgroup_invocations()
                         && invocations <= vkdev->info.max_workgroup_size_x() && (uint32_t)(UNROLL_WG_M * UNROLL_WG_N) <= vkdev->info.max_compute_workgroup_subgroups())
@@ -195,9 +347,61 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         }
     }
 
+    if (!use_cooperative_matrix)
+        use_bf16_cooperative_matrix_emulation = false;
+
+    Mat A_data_bf16;
+    Mat B_data_bf16;
+    if (use_bf16_cooperative_matrix_emulation)
+    {
+        // Constant operands are converted once into exact fp16 tiles.
+        // A weight row that does not fit keeps the whole layer on the fp32 shader.
+        int unsafe = 0;
+        if (constantA)
+        {
+            // Match the bf16 conversion performed by record_upload().
+            cast_float32_to_bfloat16(A_data, A_data_bf16, opt);
+            int ret = compute_gemm_bf16_scales(A_data_bf16, A_data_bf16_scales, constantM, constantK, transA, opt);
+            if (ret < 0)
+                return ret;
+            unsafe |= ret;
+        }
+        if (constantB)
+        {
+            cast_float32_to_bfloat16(B_data, B_data_bf16, opt);
+            int ret = compute_gemm_bf16_scales(B_data_bf16, B_data_bf16_scales, constantN, constantK, !transB, opt);
+            if (ret < 0)
+                return ret;
+            unsafe |= ret;
+        }
+
+        if (unsafe)
+        {
+            use_bf16_cooperative_matrix_emulation = false;
+            use_cooperative_matrix = false;
+            A_data_bf16_scales.release();
+            B_data_bf16_scales.release();
+        }
+    }
+
     if (use_cooperative_matrix)
     {
-        if (constantA == 1)
+        if (use_bf16_cooperative_matrix_emulation)
+        {
+            if (constantA == 1)
+            {
+                pack_gemm_bf16_tiles(A_data_bf16, A_data_bf16_scales, A_data_packed, M, K, transA, coopmat_M, coopmat_K, UNROLL_SG_M, UNROLL_SG_K, UNROLL_WG_M, 0, opt);
+                if (A_data_packed.empty())
+                    return -100;
+            }
+            if (constantB == 1)
+            {
+                pack_gemm_bf16_tiles(B_data_bf16, B_data_bf16_scales, B_data_packed, N, K, !transB, coopmat_N, coopmat_K, UNROLL_SG_N, UNROLL_SG_K, UNROLL_WG_N, 1, opt);
+                if (B_data_packed.empty())
+                    return -100;
+            }
+        }
+        else if (constantA == 1)
         {
             //        +-K-+
             //        M   |
@@ -364,7 +568,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             }
         }
 
-        if (constantB == 1)
+        if (constantB == 1 && !use_bf16_cooperative_matrix_emulation)
         {
             //        +-N-+
             //        K   |
@@ -534,54 +738,120 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         int outh = output_transpose ? constantN : constantM;
         int out_elempack = outh ? (outh % 4 == 0 ? 4 : 1) : 0;
 
-        std::vector<vk_specialization_type> specializations(18 + 9);
-        specializations[0].f = alpha;
-        specializations[1].f = beta;
-        specializations[2].i = transA;
-        specializations[3].i = transB;
-        specializations[4].i = constantA;
-        specializations[5].i = constantB;
-        specializations[6].i = constantC;
-        specializations[7].i = constantM;
-        specializations[8].i = constantN;
-        specializations[9].i = constantK;
-        specializations[10].i = constant_broadcast_type_C;
-        specializations[11].i = output_N1M;
-        specializations[12].i = output_elempack;
-        specializations[13].i = output_elemtype;
-        specializations[14].i = output_transpose;
-        specializations[15].i = A_data_packed.elempack;
-        specializations[16].i = B_data_packed.elempack;
-        specializations[17].i = output_elempack ? output_elempack : out_elempack;
-
-        specializations[18 + 0].u32 = coopmat_M;
-        specializations[18 + 1].u32 = coopmat_N;
-        specializations[18 + 2].u32 = coopmat_K;
-        specializations[18 + 3].u32 = coopmat_subgroup_size;
-        specializations[18 + 4].u32 = UNROLL_SG_M;
-        specializations[18 + 5].u32 = UNROLL_SG_N;
-        specializations[18 + 6].u32 = UNROLL_SG_K;
-        specializations[18 + 7].u32 = UNROLL_WG_M;
-        specializations[18 + 8].u32 = UNROLL_WG_N;
-
-        // specialize dynamic output packing to avoid adreno store layout branches
-        const bool use_output_pack_variants = vkdev->info.vendor_id() == 0x5143 && specializations[17].i == 0;
-        if (use_output_pack_variants)
-            specializations[17].i = 1;
-
-        pipeline_gemm = new Pipeline(vkdev);
-        pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
-        pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-        pipeline_gemm->create(LayerShaderType::gemm_cm, opt_cm, specializations);
-
-        if (use_output_pack_variants)
+        if (use_bf16_cooperative_matrix_emulation)
         {
-            specializations[17].i = 4;
+            // dynamic operands are scaled and packed into the same fp16 tiles before the matrix kernel
+            if (!constantA)
+            {
+                std::vector<vk_specialization_type> specializations(7);
+                specializations[0].i = transA;
+                specializations[1].i = 0;
+                specializations[2].u32 = coopmat_M;
+                specializations[3].u32 = coopmat_K;
+                specializations[4].u32 = UNROLL_SG_M;
+                specializations[5].u32 = UNROLL_SG_K;
+                specializations[6].u32 = UNROLL_WG_M;
 
-            pipeline_gemm_pack4 = new Pipeline(vkdev);
-            pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
-            pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt_cm, specializations);
+                pipeline_gemm_bf16_pack_A = new Pipeline(vkdev);
+                pipeline_gemm_bf16_pack_A->set_local_size_xyz(256, 1, 1);
+                pipeline_gemm_bf16_pack_A->create(LayerShaderType::gemm_bf16s_cm_pack, opt_cm, specializations);
+            }
+
+            if (!constantB)
+            {
+                std::vector<vk_specialization_type> specializations(7);
+                specializations[0].i = !transB;
+                specializations[1].i = 1;
+                specializations[2].u32 = coopmat_N;
+                specializations[3].u32 = coopmat_K;
+                specializations[4].u32 = UNROLL_SG_N;
+                specializations[5].u32 = UNROLL_SG_K;
+                specializations[6].u32 = UNROLL_WG_N;
+
+                pipeline_gemm_bf16_pack_B = new Pipeline(vkdev);
+                pipeline_gemm_bf16_pack_B->set_local_size_xyz(256, 1, 1);
+                pipeline_gemm_bf16_pack_B->create(LayerShaderType::gemm_bf16s_cm_pack, opt_cm, specializations);
+            }
+
+            std::vector<vk_specialization_type> specializations(11 + 9);
+            specializations[0].f = alpha;
+            specializations[1].f = beta;
+            specializations[2].i = transA;
+            specializations[3].i = transB;
+            specializations[4].i = constantA;
+            specializations[5].i = constantB;
+            specializations[6].i = output_transpose;
+            specializations[7].i = constantM;
+            specializations[8].i = constantN;
+            specializations[9].i = constantK;
+            specializations[10].i = output_elempack ? output_elempack : out_elempack;
+
+            specializations[11 + 0].u32 = coopmat_M;
+            specializations[11 + 1].u32 = coopmat_N;
+            specializations[11 + 2].u32 = coopmat_K;
+            specializations[11 + 3].u32 = coopmat_subgroup_size;
+            specializations[11 + 4].u32 = UNROLL_SG_M;
+            specializations[11 + 5].u32 = UNROLL_SG_N;
+            specializations[11 + 6].u32 = UNROLL_SG_K;
+            specializations[11 + 7].u32 = UNROLL_WG_M;
+            specializations[11 + 8].u32 = UNROLL_WG_N;
+
+            pipeline_gemm = new Pipeline(vkdev);
+            pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_gemm->create(LayerShaderType::gemm_bf16s_cm, opt_cm, specializations);
+        }
+        else
+        {
+            std::vector<vk_specialization_type> specializations(18 + 9);
+            specializations[0].f = alpha;
+            specializations[1].f = beta;
+            specializations[2].i = transA;
+            specializations[3].i = transB;
+            specializations[4].i = constantA;
+            specializations[5].i = constantB;
+            specializations[6].i = constantC;
+            specializations[7].i = constantM;
+            specializations[8].i = constantN;
+            specializations[9].i = constantK;
+            specializations[10].i = constant_broadcast_type_C;
+            specializations[11].i = output_N1M;
+            specializations[12].i = output_elempack;
+            specializations[13].i = output_elemtype;
+            specializations[14].i = output_transpose;
+            specializations[15].i = A_data_packed.elempack;
+            specializations[16].i = B_data_packed.elempack;
+            specializations[17].i = output_elempack ? output_elempack : out_elempack;
+
+            specializations[18 + 0].u32 = coopmat_M;
+            specializations[18 + 1].u32 = coopmat_N;
+            specializations[18 + 2].u32 = coopmat_K;
+            specializations[18 + 3].u32 = coopmat_subgroup_size;
+            specializations[18 + 4].u32 = UNROLL_SG_M;
+            specializations[18 + 5].u32 = UNROLL_SG_N;
+            specializations[18 + 6].u32 = UNROLL_SG_K;
+            specializations[18 + 7].u32 = UNROLL_WG_M;
+            specializations[18 + 8].u32 = UNROLL_WG_N;
+
+            // specialize dynamic output packing to avoid adreno store layout branches
+            const bool use_output_pack_variants = vkdev->info.vendor_id() == 0x5143 && specializations[17].i == 0;
+            if (use_output_pack_variants)
+                specializations[17].i = 1;
+
+            pipeline_gemm = new Pipeline(vkdev);
+            pipeline_gemm->set_subgroup_size(coopmat_subgroup_size);
+            pipeline_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+            pipeline_gemm->create(LayerShaderType::gemm_cm, opt_cm, specializations);
+
+            if (use_output_pack_variants)
+            {
+                specializations[17].i = 4;
+
+                pipeline_gemm_pack4 = new Pipeline(vkdev);
+                pipeline_gemm_pack4->set_subgroup_size(coopmat_subgroup_size);
+                pipeline_gemm_pack4->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
+                pipeline_gemm_pack4->create(LayerShaderType::gemm_cm, opt_cm, specializations);
+            }
         }
     }
     else if (opt.use_shader_local_memory)
@@ -715,6 +985,12 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gemm_pack4;
     pipeline_gemm_pack4 = 0;
 
+    delete pipeline_gemm_bf16_pack_A;
+    pipeline_gemm_bf16_pack_A = 0;
+
+    delete pipeline_gemm_bf16_pack_B;
+    pipeline_gemm_bf16_pack_B = 0;
+
 #if NCNN_INT8
     delete pipeline_gemm_quantize_A_int8;
     pipeline_gemm_quantize_A_int8 = 0;
@@ -732,6 +1008,7 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     use_subgroup_ops = false;
 
     use_cooperative_matrix = false;
+    use_bf16_cooperative_matrix_emulation = false;
     coopmat_M = 0;
     coopmat_N = 0;
     coopmat_K = 0;
@@ -759,6 +1036,27 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         return upload_model_int8(cmd, opt);
     }
 #endif
+
+    // the bf16 emulation uploads int32 scales, its packed fp16 tiles are uploaded as they are
+    if (use_bf16_cooperative_matrix_emulation)
+    {
+        Option opt_scale = opt;
+        opt_scale.use_fp16_packed = false;
+        opt_scale.use_fp16_storage = false;
+        opt_scale.use_bf16_packed = false;
+        opt_scale.use_bf16_storage = false;
+
+        if (constantA)
+        {
+            cmd.record_upload(A_data_bf16_scales, A_data_bf16_scales_gpu, opt_scale);
+            A_data_bf16_scales.release();
+        }
+        if (constantB)
+        {
+            cmd.record_upload(B_data_bf16_scales, B_data_bf16_scales_gpu, opt_scale);
+            B_data_bf16_scales.release();
+        }
+    }
 
     if (constantA)
     {
@@ -903,7 +1201,109 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
     if (top_blob.empty())
         return -100;
 
-    if (use_cooperative_matrix)
+    if (use_bf16_cooperative_matrix_emulation)
+    {
+        const int A_hstep = A.dims == 3 ? A.cstep : A.dims == 2 ? A.w : transA ? M : K;
+        const int B_hstep = B.dims == 3 ? B.cstep : B.dims == 2 ? B.w : transB ? K : N;
+        const int kk = (K + coopmat_K - 1) / coopmat_K;
+
+        VkMat A_packed = A_data_gpu;
+        VkMat A_scales = A_data_bf16_scales_gpu;
+        if (!constantA)
+        {
+            const int block_m = coopmat_M * UNROLL_SG_M * UNROLL_WG_M;
+            const int blocks_m = (M + block_m - 1) / block_m;
+
+            A_packed.create(block_m * coopmat_K * kk * blocks_m, (size_t)2u, 1, opt.workspace_vkallocator);
+            A_scales.create(M, (size_t)4u, 1, opt.workspace_vkallocator);
+            if (A_packed.empty() || A_scales.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(4);
+            bindings[0] = A;
+            bindings[1] = A;
+            bindings[2] = A_packed;
+            bindings[3] = A_scales;
+
+            std::vector<vk_constant_type> constants(4);
+            constants[0].i = M;
+            constants[1].i = K;
+            constants[2].i = A_hstep;
+            constants[3].i = A_elempack;
+
+            // one workgroup scales and packs four rows, including the zero padding
+            VkMat dispatcher;
+            dispatcher.w = blocks_m * block_m / 4 * 256;
+            dispatcher.h = 1;
+            dispatcher.c = 1;
+            cmd.record_pipeline(pipeline_gemm_bf16_pack_A, bindings, constants, dispatcher);
+        }
+
+        VkMat B_packed = B_data_gpu;
+        VkMat B_scales = B_data_bf16_scales_gpu;
+        if (!constantB)
+        {
+            const int block_n = coopmat_N * UNROLL_SG_N * UNROLL_WG_N;
+            const int blocks_n = (N + block_n - 1) / block_n;
+
+            B_packed.create(block_n * coopmat_K * kk * blocks_n, (size_t)2u, 1, opt.workspace_vkallocator);
+            B_scales.create(N, (size_t)4u, 1, opt.workspace_vkallocator);
+            if (B_packed.empty() || B_scales.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(4);
+            bindings[0] = B;
+            bindings[1] = B;
+            bindings[2] = B_packed;
+            bindings[3] = B_scales;
+
+            std::vector<vk_constant_type> constants(4);
+            constants[0].i = N;
+            constants[1].i = K;
+            constants[2].i = B_hstep;
+            constants[3].i = B_elempack;
+
+            VkMat dispatcher;
+            dispatcher.w = blocks_n * block_n / 4 * 256;
+            dispatcher.h = 1;
+            dispatcher.c = 1;
+            cmd.record_pipeline(pipeline_gemm_bf16_pack_B, bindings, constants, dispatcher);
+        }
+
+        // the original bf16 inputs serve the fp32 fallback of rows and columns that do not fit
+        std::vector<VkMat> bindings(9);
+        bindings[0] = top_blob;
+        bindings[1] = top_blob;
+        bindings[2] = A_packed;
+        bindings[3] = B_packed;
+        bindings[4] = C;
+        bindings[5] = A_scales;
+        bindings[6] = B_scales;
+        bindings[7] = constantA ? VkMat() : A;
+        bindings[8] = constantB ? VkMat() : B;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = M;
+        constants[1].i = N;
+        constants[2].i = K;
+        constants[3].i = broadcast_type_C;
+        constants[4].i = A_hstep;
+        constants[5].i = B_hstep;
+        constants[6].i = A_elempack;
+        constants[7].i = B_elempack;
+        constants[8].i = top_blob.dims == 3 ? top_blob.cstep : top_blob.w;
+        constants[9].i = out_elempack;
+
+        const int blocks_x = (M + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
+        const int blocks_y = (N + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+
+        VkMat dispatcher;
+        dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
+        dispatcher.h = 1;
+        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline_gemm, bindings, constants, dispatcher);
+    }
+    else if (use_cooperative_matrix)
     {
         std::vector<VkMat> bindings(5);
         bindings[0] = top_blob;

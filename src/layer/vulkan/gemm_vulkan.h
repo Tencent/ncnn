@@ -41,11 +41,20 @@ public:
     Pipeline* pipeline_gemm;
     Pipeline* pipeline_gemm_pack4;
 
+    // bf16 emulation keeps A and B as prescaled fp16 tiles with per-row scales
+    Mat A_data_bf16_scales;
+    Mat B_data_bf16_scales;
+    VkMat A_data_bf16_scales_gpu;
+    VkMat B_data_bf16_scales_gpu;
+    Pipeline* pipeline_gemm_bf16_pack_A;
+    Pipeline* pipeline_gemm_bf16_pack_B;
+
     // subgroup
     bool use_subgroup_ops;
 
     // cooperative matrix
     bool use_cooperative_matrix;
+    bool use_bf16_cooperative_matrix_emulation;
     int coopmat_M;
     int coopmat_N;
     int coopmat_K;
