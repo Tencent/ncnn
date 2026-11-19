@@ -94,9 +94,9 @@ const uint tmp_a_row = UNROLL_SG_K * UNROLL_SG_M * M * Kd4;
 const uint tmp_b_row = UNROLL_SG_K * UNROLL_SG_N * K * Nd4;
 
 #define store_fallback_a(f2, v) tmp_a[(f2) / tmp_a_row][(f2) % tmp_a_row] = floatBitsToUint(v)
-#define load_fallback_a(f2) uintBitsToFloat(tmp_a[(f2) / tmp_a_row][(f2) % tmp_a_row])
+#define load_fallback_a(f2)     uintBitsToFloat(tmp_a[(f2) / tmp_a_row][(f2) % tmp_a_row])
 #define store_fallback_b(f2, v) tmp_b[(f2) / tmp_b_row][(f2) % tmp_b_row] = floatBitsToUint(v)
-#define load_fallback_b(f2) uintBitsToFloat(tmp_b[(f2) / tmp_b_row][(f2) % tmp_b_row])
+#define load_fallback_b(f2)     uintBitsToFloat(tmp_b[(f2) / tmp_b_row][(f2) % tmp_b_row])
 
 float scale_pow2(int s)
 {
