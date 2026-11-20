@@ -481,24 +481,7 @@ public:
 
         FILE_ALLOCATION_INFO allocation;
         allocation.AllocationSize.QuadPart = end;
-        if (!SetFileInformationByHandle(file, FileAllocationInfo, &allocation, sizeof(allocation)))
-        {
-            if (GetLastError() != ERROR_CALL_NOT_IMPLEMENTED) return -1;
-
-            // Reserve actual backing storage on implementations without FileAllocationInfo.
-            LARGE_INTEGER offset;
-            offset.QuadPart = file_size;
-            if (!SetFilePointerEx(file, offset, NULL, FILE_BEGIN)) return -1;
-
-            static const unsigned char zeros[64 * 1024] = {0};
-            for (uint64_t remaining = end - file_size; remaining > 0;)
-            {
-                const DWORD size = (DWORD)(remaining < sizeof(zeros) ? remaining : sizeof(zeros));
-                DWORD written = 0;
-                if (!WriteFile(file, zeros, size, &written, NULL) || written != size) return -1;
-                remaining -= written;
-            }
-        }
+        if (!SetFileInformationByHandle(file, FileAllocationInfo, &allocation, sizeof(allocation))) return -1;
 
         file_size = end;
         return 0;
