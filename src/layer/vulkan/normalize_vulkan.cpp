@@ -181,7 +181,6 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h * bottom_top_blob.d;
     int size = w * h;
-    size_t elemsize = bottom_top_blob.elemsize;
     int elempack = bottom_top_blob.elempack;
 
     // reduce square sum
@@ -290,7 +289,7 @@ int Normalize_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
 
     // coeffs
     VkMat coeffs_workspace;
-    coeffs_workspace.create(sqsum_workspace.w * sqsum_workspace.h * sqsum_workspace.c, elemsize, elempack, opt.workspace_vkallocator);
+    coeffs_workspace.create(sqsum_workspace.w * sqsum_workspace.h * sqsum_workspace.c, 4u * elempack, elempack, opt.workspace_vkallocator);
     {
         std::vector<VkMat> bindings(2);
         bindings[0] = sqsum_workspace;
