@@ -864,14 +864,11 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
     // negative_mask_y = magic_negative_zero && y;
     __m512 negative_mask_y = _mm512_and_ps(magic_negative_zero, y);
 
-    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
-    __m512 pi_additions = _mm512_mask_mov_ps(
-                              magic_zero,
+    // pi_additions = ((x < 0.0f) ? copysign(PI, y) : 0.0f);
+    // Avoid MSVC 2019 misencoding the broadcast of a constant-folded -PI.
+    __m512 pi_additions = _mm512_maskz_mov_ps(
                               _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
-                              _mm512_mask_mov_ps(
-                                  magic_pi,
-                                  _mm512_cmp_ps_mask(y, magic_zero, _CMP_LT_OQ),
-                                  _mm512_or_ps(magic_negative_zero, magic_pi)));
+                              _mm512_or_ps(negative_mask_y, magic_pi));
 
     // normal_result = (atan(y / x) + pi_additions);
     __m512 normal_result = _mm512_add_ps(
