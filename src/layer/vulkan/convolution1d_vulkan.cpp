@@ -47,7 +47,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
     const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix
-                                             && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
+            && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
     Option opt_cm = opt;
     bool use_qcom_cooperative_matrix = false;
 
