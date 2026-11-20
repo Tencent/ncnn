@@ -40,6 +40,8 @@ Convolution3D_vulkan::Convolution3D_vulkan()
 
 int Convolution3D_vulkan::create_pipeline(const Option& opt)
 {
+    const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix
+                                             && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
     Option opt_cm = opt;
     bool use_qcom_cooperative_matrix = false;
 
@@ -127,7 +129,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
 
     if (opt.use_winograd_convolution && opt.use_winograd23_convolution && is_conv3x3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = use_fp16_cooperative_matrix;
 
         if (use_cooperative_matrix)
         {
@@ -149,7 +151,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -634,7 +636,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = use_fp16_cooperative_matrix;
 
         if (use_cooperative_matrix)
         {
@@ -650,7 +652,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -903,7 +905,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const int num_input_packed = (num_input + 3) / 4 * 4;
             const int num_output_packed = (num_output + 3) / 4 * 4;
 
-            std::vector<vk_specialization_type> specializations(15 + 12);
+            std::vector<vk_specialization_type> specializations(15 + 12 + 1);
             specializations[0].i = kernel_w;
             specializations[1].i = kernel_h;
             specializations[2].i = kernel_d;
@@ -948,12 +950,13 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_convolution3d_gemm->set_optimal_local_size_xyz(local_size_xyz);
             }
+            specializations[15 + 12].u32 = pipeline_convolution3d_gemm->local_size_x();
             pipeline_convolution3d_gemm->create(LayerShaderType::convolution3d_packed_gemm, opt, specializations);
         }
     }
     else if (is_conv1x1x1s1d1)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = use_fp16_cooperative_matrix && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -969,7 +972,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -1472,6 +1475,7 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int outd = (d - kernel_extent_d) / stride_d + 1;
+    const uint64_t outsize = (uint64_t)outw * outh * outd;
     int out_elempack = num_output % 4 == 0 ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -1536,12 +1540,19 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 constants[1].i = bottom_tm_blob.cstep;
                 constants[2].i = top_tm_blob.cstep;
 
-                const int blocks_x = (bottom_tm_blob.w + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
-                const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+                const int blocks_x = (bottom_tm_blob.w - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M) + 1;
+                const int blocks_y = (num_output - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N) + 1;
+
+                // split the M/N tiles across x and y
+                const uint32_t local_size_x = pipeline_convolution3d_3x3x3_winograd222_gemm->local_size_x();
+                const uint32_t max_groups_x = std::min(vkdev->info.max_workgroup_count_x(), (uint32_t)INT_MAX / local_size_x);
+                const uint64_t groups = (uint64_t)blocks_x * blocks_y;
+                const uint64_t groups_y = (groups - 1) / max_groups_x + 1;
+                const uint64_t groups_x = (groups - 1) / groups_y + 1;
 
                 VkMat dispatcher;
-                dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
-                dispatcher.h = 1;
+                dispatcher.w = (int)(groups_x * local_size_x);
+                dispatcher.h = (int)groups_y;
                 dispatcher.c = 64;
 
                 cmd.record_pipeline(pipeline_convolution3d_3x3x3_winograd222_gemm, bindings, constants, dispatcher);
@@ -1623,12 +1634,19 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             constants[6].u32 = top_blob.d;
             constants[7].u32 = top_blob.cstep;
 
-            const int blocks_x = (top_blob.w * top_blob.h * top_blob.d + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
-            const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            const int blocks_x = (outsize - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M) + 1;
+            const int blocks_y = (num_output - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N) + 1;
+
+            // split the M/N tiles across x and y
+            const uint32_t local_size_x = pipeline_convolution3d_gemm->local_size_x();
+            const uint32_t max_groups_x = std::min(vkdev->info.max_workgroup_count_x(), (uint32_t)INT_MAX / local_size_x);
+            const uint64_t groups = (uint64_t)blocks_x * blocks_y;
+            const uint64_t groups_y = (groups - 1) / max_groups_x + 1;
+            const uint64_t groups_x = (groups - 1) / groups_y + 1;
 
             VkMat dispatcher;
-            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
-            dispatcher.h = 1;
+            dispatcher.w = (int)(groups_x * local_size_x);
+            dispatcher.h = (int)groups_y;
             dispatcher.c = 1;
 
             cmd.record_pipeline(pipeline_convolution3d_gemm, bindings, constants, dispatcher);
@@ -1637,6 +1655,8 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         {
             const int num_input_packed = (num_input + 3) / 4 * 4;
             const int num_output_packed = (num_output + 3) / 4 * 4;
+            const int outc_pack4 = num_output_packed / 4;
+            const int size = (outsize - 1) / 4 + 1;
 
             std::vector<VkMat> bindings(6);
             bindings[0] = bottom_blob_bordered;
@@ -1655,15 +1675,29 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             constants[5].i = top_blob.w;
             constants[6].i = top_blob.h;
             constants[7].i = top_blob.d;
-            constants[8].i = num_output_packed / 4;
+            constants[8].i = outc_pack4;
             constants[9].i = top_blob.cstep;
             constants[10].i = num_output;
             constants[11].i = num_input;
 
             VkMat dispatcher;
-            dispatcher.w = (top_blob.w * top_blob.h * top_blob.d + 3) / 4;
-            dispatcher.h = num_output_packed / 4;
+            dispatcher.w = size;
+            dispatcher.h = outc_pack4;
             dispatcher.c = 1;
+
+            const uint32_t local_size_x = pipeline_convolution3d_gemm->local_size_x();
+            const uint32_t max_groups_x = vkdev->info.max_workgroup_count_x();
+            const uint64_t groups = ((uint64_t)size + local_size_x - 1) / local_size_x;
+
+            // split the spatial workgroups across x and z
+            if (groups > max_groups_x)
+            {
+                const uint64_t groups_z = (groups + max_groups_x - 1) / max_groups_x;
+                const uint64_t groups_x = (groups + groups_z - 1) / groups_z;
+
+                dispatcher.w = (int)(groups_x * local_size_x);
+                dispatcher.c = (int)groups_z;
+            }
 
             cmd.record_pipeline(pipeline_convolution3d_gemm, bindings, constants, dispatcher);
         }
@@ -1685,16 +1719,23 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             bindings[3] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(3);
-            constants[0].u32 = bottom_blob_bordered.w * bottom_blob_bordered.h * bottom_blob_bordered.d;
+            constants[0].u32 = outsize;
             constants[1].u32 = bottom_blob_bordered.cstep;
             constants[2].u32 = top_blob.cstep;
 
-            const int blocks_x = (top_blob.w * top_blob.h * top_blob.d + coopmat_M * UNROLL_SG_M * UNROLL_WG_M - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M);
-            const int blocks_y = (num_output + coopmat_N * UNROLL_SG_N * UNROLL_WG_N - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N);
+            const int blocks_x = (outsize - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M) + 1;
+            const int blocks_y = (num_output - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N) + 1;
+
+            // split the M/N tiles across x and y
+            const uint32_t local_size_x = pipeline_convolution3d_1x1x1->local_size_x();
+            const uint32_t max_groups_x = std::min(vkdev->info.max_workgroup_count_x(), (uint32_t)INT_MAX / local_size_x);
+            const uint64_t groups = (uint64_t)blocks_x * blocks_y;
+            const uint64_t groups_y = (groups - 1) / max_groups_x + 1;
+            const uint64_t groups_x = (groups - 1) / groups_y + 1;
 
             VkMat dispatcher;
-            dispatcher.w = (blocks_x * blocks_y) * (coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N);
-            dispatcher.h = 1;
+            dispatcher.w = (int)(groups_x * local_size_x);
+            dispatcher.h = (int)groups_y;
             dispatcher.c = 1;
 
             cmd.record_pipeline(pipeline_convolution3d_1x1x1, bindings, constants, dispatcher);
@@ -1706,7 +1747,7 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             const int outc_pack4 = num_output_packed / 4;
             const int c_packed = num_input_packed / 4;
             const int cstep_vec4 = (elempack == 4) ? bottom_blob_bordered.cstep : (bottom_blob_bordered.cstep / 4);
-            const int size = (top_blob.w * top_blob.h * top_blob.d + 3) / 4;
+            const int size = (outsize - 1) / 4 + 1;
 
             // outcstep: for out_elempack=4, vec4 cstep; for out_elempack=1, scalar cstep as vec4 count
             const int outcstep_vec4 = (out_elempack == 4) ? top_blob.cstep : (top_blob.cstep / 4);
@@ -1734,29 +1775,16 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             dispatcher.c = 1;
 
             const uint32_t local_size_x = pipeline_convolution3d_1x1x1->local_size_x();
-            const uint32_t local_size_y = pipeline_convolution3d_1x1x1->local_size_y();
             const uint32_t max_groups_x = vkdev->info.max_workgroup_count_x();
             const uint64_t groups = ((uint64_t)size + local_size_x - 1) / local_size_x;
-            const uint64_t groups_y = ((uint64_t)outc_pack4 + local_size_y - 1) / local_size_y;
-            if (groups_y > vkdev->info.max_workgroup_count_y())
-            {
-                NCNN_LOGE("convolution3d 1x1x1 dispatch exceeds device limits");
-                return -1;
-            }
 
             // split the spatial workgroups across x and z
             if (groups > max_groups_x)
             {
                 const uint64_t groups_z = (groups + max_groups_x - 1) / max_groups_x;
                 const uint64_t groups_x = (groups + groups_z - 1) / groups_z;
-                const uint64_t dispatch_w = groups_x * local_size_x;
-                if (groups_z > vkdev->info.max_workgroup_count_z() || dispatch_w > INT_MAX)
-                {
-                    NCNN_LOGE("convolution3d 1x1x1 dispatch exceeds device limits");
-                    return -1;
-                }
 
-                dispatcher.w = (int)dispatch_w;
+                dispatcher.w = (int)(groups_x * local_size_x);
                 dispatcher.c = (int)groups_z;
             }
 

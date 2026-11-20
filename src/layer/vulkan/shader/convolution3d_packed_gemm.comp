@@ -38,6 +38,7 @@ layout(constant_id = shape_constant_id_offset + 8) const int outc = 0;
 layout(constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 layout(constant_id = shape_constant_id_offset + 10) const int num_output = 0;
 layout(constant_id = shape_constant_id_offset + 11) const int num_input = 0;
+layout(constant_id = shape_constant_id_offset + 12) const uint local_size_x = 1u;
 
 // scalar view (for pack1 input/output access)
 layout(binding = 0) readonly buffer bottom_blob_1 { sfp bottom_blob_data_1[]; };
@@ -73,10 +74,16 @@ shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x) * 4;
-    int gy = int(gl_GlobalInvocationID.y);
-
     const int outsize = psc(outw) * psc(outh) * psc(outd);
+    const uint group_x = gl_WorkGroupID.z * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    const uint base_x = group_x * local_size_x * 4u;
+
+    // Skip empty workgroups without diverging at the barriers.
+    if (base_x >= uint(outsize))
+        return;
+
+    int gx = int(base_x + gl_LocalInvocationID.x * 4u);
+    int gy = int(gl_GlobalInvocationID.y);
 
 #if !NCNN_shader_local_memory
     if (gx >= outsize || gy >= psc(outc))
