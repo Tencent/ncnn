@@ -2701,6 +2701,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::RotaryEmbed* op_default = (ncnn::RotaryEmbed*)layer_default;
 
             fprintf_param_value(" 0=%d", interleaved)
+            fprintf_param_value(" 1=%d", input_hc_swapped)
         }
         else if (layer->type == "Scale")
         {
