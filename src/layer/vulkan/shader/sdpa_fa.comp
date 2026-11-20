@@ -5,6 +5,15 @@
 
 #extension GL_EXT_control_flow_attributes : require
 
+// the row reduction below runs one row per subgroup, which needs threads_per_row ==
+// subgroup_size: local_size is subgroup_size * UNROLL_WG_M and M == UNROLL_WG_M for the non
+// coopmat path, and the subgroup size must be one the device can pin down
+#if ncnn_subgroup_basic && ncnn_subgroup_arithmetic && (ncnn_maintenance4 || ncnn_subgroupSizeControl)
+#define ncnn_sdpa_fa_row_subgroup 1
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+#endif
+
 layout(constant_id = 0) const int attn_mask = 0;
 
 layout(constant_id = 1 + 0) const uint M = 4;
@@ -52,8 +61,10 @@ shared uvec4 tmp_k[N * Kd8p];
 
 shared float tmp_s[M * Np];
 
-// parallel reduction
+// parallel reduction, only used when the row reduction cannot run on subgroups
+#if !ncnn_sdpa_fa_row_subgroup
 shared float tmp_scratch[M * (subgroup_size * UNROLL_WG_M / M)];
+#endif
 
 shared float smem_row_max[M];
 shared float smem_row_sum[M];
@@ -260,9 +271,15 @@ void main()
                         local_max = max(local_max, tmp_s[row_id * Np + col]);
                     }
                 }
+#if ncnn_sdpa_fa_row_subgroup
+                // one subgroup is exactly one row, reduce with shuffles instead of a barrier tree
+                local_max = subgroupMax(local_max);
+#else
                 tmp_scratch[row_id * threads_per_row + lane] = local_max;
+#endif
             }
 
+#if !ncnn_sdpa_fa_row_subgroup
             barrier();
 
             // tree reduce max
@@ -274,11 +291,16 @@ void main()
                 }
                 barrier();
             }
+#endif
 
             // update row stats
             if (row_id < M && lane == 0)
             {
+#if ncnn_sdpa_fa_row_subgroup
+                const float tile_max = local_max;
+#else
                 const float tile_max = tmp_scratch[row_id * threads_per_row];
+#endif
                 const float old_max = smem_row_max[row_id];
                 const float new_max = max(old_max, tile_max);
                 smem_correction[row_id] = exp(old_max - new_max);
@@ -304,9 +326,14 @@ void main()
                     tmp_s[row_id * Np + col] = val;
                     local_sum += val;
                 }
+#if ncnn_sdpa_fa_row_subgroup
+                local_sum = subgroupAdd(local_sum);
+#else
                 tmp_scratch[row_id * threads_per_row + lane] = local_sum;
+#endif
             }
 
+#if !ncnn_sdpa_fa_row_subgroup
             barrier();
 
             // tree reduce sum
@@ -318,10 +345,15 @@ void main()
                 }
                 barrier();
             }
+#endif
 
             if (row_id < M && lane == 0)
             {
+#if ncnn_sdpa_fa_row_subgroup
+                smem_row_sum[row_id] = smem_row_sum[row_id] * smem_correction[row_id] + local_sum;
+#else
                 smem_row_sum[row_id] = smem_row_sum[row_id] * smem_correction[row_id] + tmp_scratch[row_id * threads_per_row];
+#endif
             }
 
             barrier();
