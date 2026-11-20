@@ -11,7 +11,68 @@ namespace tnn2pnnx {
 
 void fuse_shape_list_construct(Graph& graph)
 {
-    // TODO unpool tnn.Unsqueeze
+    while (1)
+    {
+        bool matched = false;
+
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            if (op->type != "tnn.Unsqueeze")
+                continue;
+
+            Operand* op_out = op->outputs[0];
+            if (op_out->consumers.size() < 2)
+                continue;
+
+            matched = true;
+
+            // create shadow node for all consumers
+            // rewire in reverse order so repeated inputs keep the first use
+            for (size_t j = op_out->consumers.size() - 1; j > 0; j--)
+            {
+                Operator* op1 = op_out->consumers[j];
+
+                Operator* op0 = graph.new_operator_before(op->type, op->name + "_pnnxshadow" + std::to_string(j), op1);
+                op0->inputnames = op->inputnames;
+                op0->params = op->params;
+                op0->attrs = op->attrs;
+
+                Operand* op0_out = graph.new_operand(op_out->name + "_pnnxshadow" + std::to_string(j));
+                op0_out->type = op_out->type;
+                op0_out->shape = op_out->shape;
+                op0_out->params = op_out->params;
+
+                op0->inputs = op->inputs;
+                for (Operand* r : op0->inputs)
+                {
+                    r->consumers.push_back(op0);
+                }
+
+                op0_out->producer = op0;
+                op0->outputs.push_back(op0_out);
+
+                for (size_t k = op1->inputs.size(); k > 0; k--)
+                {
+                    if (op1->inputs[k - 1] == op_out)
+                    {
+                        op1->inputs[k - 1] = op0_out;
+                        break;
+                    }
+                }
+
+                op0_out->consumers.push_back(op1);
+            }
+
+            op_out->consumers.resize(1);
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
 
     // a0 = pnnx.Attribute @data=(1)i32
     // a1 = tnn.Unsqueeze(..., arg0=1, arg1=0)
