@@ -1587,7 +1587,39 @@ void VkCompute::record_clone(const VkMat& _src, VkMat& dst, const Option& opt)
     }
 
     {
-        // barrier device any @ null to transfer-write @ compute
+        // barrier device any @ any to transfer-write @ compute
+        if (dst.data->access_flags)
+        {
+            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            barriers[0].pNext = 0;
+            barriers[0].srcAccessMask = dst.data->access_flags;
+            barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].buffer = dst.buffer();
+            barriers[0].offset = dst.data->offset;
+            barriers[0].size = dst.data->capacity;
+
+            VkPipelineStageFlags src_stage = dst.data->stage_flags;
+            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+            if (vkdev->info.support_VK_KHR_push_descriptor())
+            {
+                vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+                delete[] barriers;
+            }
+            else
+            {
+                VkComputePrivate::record r;
+                r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+                r.buffer_barrers.src_stage = src_stage;
+                r.buffer_barrers.dst_stage = dst_stage;
+                r.buffer_barrers.barrier_count = 1;
+                r.buffer_barrers.barriers = barriers;
+                d->delayed_records.push_back(r);
+            }
+        }
 
         // mark device transfer-write @ transfer
         dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -1672,12 +1704,12 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
-    // image layout transform undefined @ null to transfer-dst-optimal @ compute
+    // image layout transform undefined @ any to transfer-dst-optimal @ compute
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = 0;
+        barriers[0].srcAccessMask = dst.data->access_flags;
         barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1690,7 +1722,7 @@ void VkCompute::record_clone(const VkImageMat& src, VkImageMat& dst, const Optio
         barriers[0].subresourceRange.baseArrayLayer = 0;
         barriers[0].subresourceRange.layerCount = 1;
 
-        VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        VkPipelineStageFlags src_stage = dst.data->stage_flags;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
@@ -1787,7 +1819,7 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         return;
 
     // barrier device any @ any to transfer-read @ compute
-    if (src.data->access_flags & VK_ACCESS_SHADER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+    if (src.data->access_flags & VK_ACCESS_TRANSFER_WRITE_BIT || src.data->stage_flags != VK_PIPELINE_STAGE_TRANSFER_BIT)
     {
         VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
@@ -1824,12 +1856,12 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         src.data->stage_flags = VK_PIPELINE_STAGE_TRANSFER_BIT;
     }
 
-    // image layout transform undefined @ null to transfer-dst-optimal @ compute
+    // image layout transform undefined @ any to transfer-dst-optimal @ compute
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barriers[0].pNext = 0;
-        barriers[0].srcAccessMask = 0;
+        barriers[0].srcAccessMask = dst.data->access_flags;
         barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
         barriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         barriers[0].newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1842,7 +1874,7 @@ void VkCompute::record_clone(const VkMat& _src, VkImageMat& dst, const Option& o
         barriers[0].subresourceRange.baseArrayLayer = 0;
         barriers[0].subresourceRange.layerCount = 1;
 
-        VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        VkPipelineStageFlags src_stage = dst.data->stage_flags;
         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         if (vkdev->info.support_VK_KHR_push_descriptor())
@@ -1988,7 +2020,39 @@ void VkCompute::record_clone(const VkImageMat& src, VkMat& dst, const Option& op
     }
 
     {
-        // barrier device any @ null to transfer-write @ compute
+        // barrier device any @ any to transfer-write @ compute
+        if (dst.data->access_flags)
+        {
+            VkBufferMemoryBarrier* barriers = new VkBufferMemoryBarrier[1];
+            barriers[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+            barriers[0].pNext = 0;
+            barriers[0].srcAccessMask = dst.data->access_flags;
+            barriers[0].dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barriers[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+            barriers[0].buffer = dst.buffer();
+            barriers[0].offset = dst.data->offset;
+            barriers[0].size = dst.data->capacity;
+
+            VkPipelineStageFlags src_stage = dst.data->stage_flags;
+            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
+            if (vkdev->info.support_VK_KHR_push_descriptor())
+            {
+                vkCmdPipelineBarrier(d->compute_command_buffer, src_stage, dst_stage, 0, 0, 0, 1, barriers, 0, 0);
+                delete[] barriers;
+            }
+            else
+            {
+                VkComputePrivate::record r;
+                r.type = VkComputePrivate::record::TYPE_buffer_barrers;
+                r.buffer_barrers.src_stage = src_stage;
+                r.buffer_barrers.dst_stage = dst_stage;
+                r.buffer_barrers.barrier_count = 1;
+                r.buffer_barrers.barriers = barriers;
+                d->delayed_records.push_back(r);
+            }
+        }
 
         // mark device transfer-write @ transfer
         dst.data->access_flags = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -2433,6 +2497,15 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         uint32_t group_count_y = (dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
         uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
+        const uint32_t max_group_count_x = vkdev->info.max_workgroup_count_x();
+        const uint32_t max_group_count_y = vkdev->info.max_workgroup_count_y();
+        const uint32_t max_group_count_z = vkdev->info.max_workgroup_count_z();
+        if (group_count_x > max_group_count_x || group_count_y > max_group_count_y || group_count_z > max_group_count_z)
+        {
+            NCNN_LOGE("warning: vkCmdDispatch workgroup count (%u, %u, %u) exceeds device limits (%u, %u, %u)",
+                      group_count_x, group_count_y, group_count_z, max_group_count_x, max_group_count_y, max_group_count_z);
+        }
+
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
             vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
@@ -2473,6 +2546,8 @@ void VkCompute::record_write_timestamp(uint32_t query)
 #if __ANDROID_API__ >= 26
 void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwareBufferPipeline* pipeline, const VkImageMat& src, const VkMat& dst)
 {
+    barrier_readwrite(dst);
+
     // image layout transform undefined @ null to general @ compute
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[1];
