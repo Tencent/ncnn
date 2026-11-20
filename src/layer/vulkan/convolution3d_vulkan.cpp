@@ -3,6 +3,8 @@
 
 #include "convolution3d_vulkan.h"
 
+#include <limits.h>
+
 #include "layer_shader_type.h"
 #include "layer_type.h"
 #include "modelbin.h"
@@ -1187,7 +1189,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const int cstep_vec4 = (elempack == 4) ? (shape_bordered.dims != 0 ? shape_bordered.cstep : 0)
                                    : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
 
-            std::vector<vk_specialization_type> specializations(6 + 8);
+            std::vector<vk_specialization_type> specializations(6 + 8 + 1);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1214,6 +1216,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_convolution3d_1x1x1->set_local_size_xyz(8, std::min(8, outc_pack4), 1);
             }
+            specializations[6 + 8].u32 = pipeline_convolution3d_1x1x1->local_size_x();
             pipeline_convolution3d_1x1x1->create(LayerShaderType::convolution_packed_1x1s1d1, opt, specializations);
         }
     }
@@ -1729,6 +1732,33 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             dispatcher.w = size;
             dispatcher.h = outc_pack4;
             dispatcher.c = 1;
+
+            const uint32_t local_size_x = pipeline_convolution3d_1x1x1->local_size_x();
+            const uint32_t local_size_y = pipeline_convolution3d_1x1x1->local_size_y();
+            const uint32_t max_groups_x = vkdev->info.max_workgroup_count_x();
+            const uint64_t groups = ((uint64_t)size + local_size_x - 1) / local_size_x;
+            const uint64_t groups_y = ((uint64_t)outc_pack4 + local_size_y - 1) / local_size_y;
+            if (groups_y > vkdev->info.max_workgroup_count_y())
+            {
+                NCNN_LOGE("convolution3d 1x1x1 dispatch exceeds device limits");
+                return -1;
+            }
+
+            // split the spatial workgroups across x and z
+            if (groups > max_groups_x)
+            {
+                const uint64_t groups_z = (groups + max_groups_x - 1) / max_groups_x;
+                const uint64_t groups_x = (groups + groups_z - 1) / groups_z;
+                const uint64_t dispatch_w = groups_x * local_size_x;
+                if (groups_z > vkdev->info.max_workgroup_count_z() || dispatch_w > INT_MAX)
+                {
+                    NCNN_LOGE("convolution3d 1x1x1 dispatch exceeds device limits");
+                    return -1;
+                }
+
+                dispatcher.w = (int)dispatch_w;
+                dispatcher.c = (int)groups_z;
+            }
 
             cmd.record_pipeline(pipeline_convolution3d_1x1x1, bindings, constants, dispatcher);
         }
