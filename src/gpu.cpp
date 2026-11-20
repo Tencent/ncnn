@@ -1841,6 +1841,20 @@ void GpuInfoPrivate::query_extension_properties()
         // turnip crash when compiling large shader with full subgroup
         querySubgroupSizeControlFeatures.computeFullSubgroups = VK_FALSE;
     }
+
+    if (queryDriverProperties.driverID == VK_DRIVER_ID_IMAGINATION_PROPRIETARY
+            && querySubgroupProperties.subgroupSize < 4)
+    {
+        // Some PowerVR proprietary drivers report subgroupSize = 1, which
+        // passes the power-of-two check but collapses compute occupancy
+        // when used as the workgroup size
+        querySubgroupProperties.subgroupSize = get_vendor_default_subgroup_size(physicalDeviceProperties.vendorID);
+        // The misreporting drivers also report min/max subgroup size 1/1
+        // via VK_EXT_subgroup_size_control, which would clamp the corrected
+        // value back down in Pipeline::set_subgroup_size()
+        querySubgroupSizeControlProperties.minSubgroupSize = querySubgroupProperties.subgroupSize;
+        querySubgroupSizeControlProperties.maxSubgroupSize = querySubgroupProperties.subgroupSize;
+    }
 }
 
 GpuInfo::GpuInfo()
