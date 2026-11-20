@@ -19,6 +19,11 @@ public:
     using Concat::forward;
     virtual int forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
 
+#if NCNN_BATCH
+protected:
+    int forward_batch(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+#endif
+
 public:
     Pipeline* pipeline_concat[2];
     Pipeline* pipeline_concat_pack4[2];

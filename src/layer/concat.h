@@ -17,6 +17,12 @@ public:
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
+#if NCNN_BATCH
+protected:
+    static bool same_shape_except_axis(const Mat& a, const Mat& b, int axis);
+    int forward_batch(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+
 public:
     int axis;
 };

@@ -24,7 +24,10 @@ int Concat_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
-    int positive_axis = axis < 0 ? shape.dims + axis : axis;
+    int positive_axis = axis < 0 && shape.dims > 0 ? shape.dims + axis : axis;
+
+    if (axis == -233 || axis < -4 || (shape.dims > 0 && positive_axis == -1))
+        return 0;
 
     int elempack = 1;
     if (positive_axis == 0)
@@ -156,10 +159,149 @@ int Concat_vulkan::destroy_pipeline(const Option& /*opt*/)
     return 0;
 }
 
+#if NCNN_BATCH
+int Concat_vulkan::forward_batch(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    int dims = bottom_blobs[0].dims;
+    const bool axis_is_batch = axis == -233;
+    int positive_axis = axis_is_batch ? -1 : (axis < 0 ? dims + axis : axis);
+
+    if (axis_is_batch)
+    {
+        size_t elemsize = bottom_blobs[0].elemsize;
+        int elempack = bottom_blobs[0].elempack;
+        int w = bottom_blobs[0].w;
+        int h = bottom_blobs[0].h;
+        int d = bottom_blobs[0].d;
+        int c = bottom_blobs[0].c;
+
+        int top_n = 0;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            const VkMat& bottom_blob = bottom_blobs[b];
+            if (bottom_blob.dims != dims || bottom_blob.w != w || bottom_blob.h != h || bottom_blob.d != d || bottom_blob.c != c || bottom_blob.elemsize != elemsize || bottom_blob.elempack != elempack || bottom_blob.cstep != bottom_blobs[0].cstep)
+            {
+                NCNN_LOGE("concat along batch axis with mismatched shape or storage layout");
+                return -100;
+            }
+            top_n += bottom_blob.n;
+        }
+
+        VkMat& top_blob = top_blobs[0];
+        top_blob.create_like(bottom_blobs[0], top_n, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        int out_b = 0;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            const VkMat& bottom_blob = bottom_blobs[b];
+            for (int j = 0; j < bottom_blob.n; j++)
+            {
+                const VkMat bottom_slice = bottom_blob.batch(j);
+                VkMat top_slice = top_blob.batch(out_b + j);
+                cmd.record_clone(bottom_slice, top_slice, opt);
+            }
+            out_b += bottom_blob.n;
+        }
+
+        return 0;
+    }
+
+    if (positive_axis < 0 || positive_axis >= dims)
+        return -100;
+
+    const Mat bottom_shape = bottom_blobs[0].shape();
+    for (size_t b = 1; b < bottom_blobs.size(); b++)
+    {
+        if (!same_shape_except_axis(bottom_shape, bottom_blobs[b].shape(), positive_axis))
+        {
+            NCNN_LOGE("concat with mismatched shape on non-concat axis");
+            return -100;
+        }
+    }
+
+    int B = 1;
+    for (size_t b = 0; b < bottom_blobs.size(); b++)
+    {
+        B = std::max(B, bottom_blobs[b].n);
+    }
+    for (size_t b = 0; b < bottom_blobs.size(); b++)
+    {
+        if (bottom_blobs[b].n != 1 && bottom_blobs[b].n != B)
+        {
+            NCNN_LOGE("concat batch size mismatch: expected batch 1 or %d but bottom %d has batch %d", B, (int)b, bottom_blobs[b].n);
+            return -1;
+        }
+    }
+
+    std::vector<VkMat> bottom_b(bottom_blobs.size());
+    for (size_t i = 0; i < bottom_blobs.size(); i++)
+    {
+        bottom_b[i] = bottom_blobs[i].n > 1 ? bottom_blobs[i].batch(0) : bottom_blobs[i];
+    }
+    std::vector<VkMat> top_b(1);
+    int ret = forward(bottom_b, top_b, cmd, opt);
+    if (ret != 0)
+        return ret;
+
+    VkMat& top_blob = top_blobs[0];
+    top_blob.create_like(top_b[0], B, opt.blob_vkallocator);
+    if (top_blob.empty())
+        return -100;
+
+    VkMat top_batch_slot = top_blob.batch(0);
+    cmd.record_clone(top_b[0], top_batch_slot, opt);
+
+    for (int b = 1; b < B; b++)
+    {
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_b[i] = bottom_blobs[i].n > 1 ? bottom_blobs[i].batch(b) : bottom_blobs[i];
+        }
+        top_b[0].release();
+        ret = forward(bottom_b, top_b, cmd, opt);
+        if (ret != 0)
+            return ret;
+
+        top_batch_slot = top_blob.batch(b);
+        cmd.record_clone(top_b[0], top_batch_slot, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_BATCH
+
 int Concat_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blobs[0].dims;
-    int positive_axis = axis < 0 ? dims + axis : axis;
+    int positive_axis = axis == -233 ? -1 : (axis < 0 ? dims + axis : axis);
+
+#if NCNN_BATCH
+    if (support_batch)
+    {
+        int B = 1;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            if (bottom_blobs[b].n > 1)
+            {
+                B = bottom_blobs[b].n;
+                break;
+            }
+        }
+        if (axis == -233 || B > 1)
+            return forward_batch(bottom_blobs, top_blobs, cmd, opt);
+    }
+#else
+    if (axis == -233)
+    {
+        NCNN_LOGE("please build ncnn with NCNN_BATCH enabled for batch concat");
+        return -1;
+    }
+#endif
+
+    if (positive_axis < 0 || positive_axis >= dims)
+        return -100;
 
     if (dims == 1) // positive_axis == 0
     {
