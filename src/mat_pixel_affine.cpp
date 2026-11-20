@@ -6,6 +6,7 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 #include <limits.h>
+#include <stdint.h>
 
 #include "platform.h"
 
@@ -1575,6 +1576,11 @@ void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, 
     // assert w % 2 == 0
     // assert h % 2 == 0
 
+    if (srcw <= 0 || srch <= 0 || w <= 0 || h <= 0 || srcw % 2 != 0 || srch % 2 != 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)srcw * (int64_t)srch > (int64_t)INT_MAX / 4 || (int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* border_color = (const unsigned char*)&v;
 
     unsigned int v_y;
@@ -1598,8 +1604,8 @@ void warpaffine_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, 
         tm[5] / 2.0f,
     };
 
-    const unsigned char* srcUV = src + srcw * srch;
-    unsigned char* dstUV = dst + w * h;
+    const unsigned char* srcUV = src + (size_t)srcw * (size_t)srch;
+    unsigned char* dstUV = dst + (size_t)w * (size_t)h;
     warpaffine_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2, tm_uv, type, v_uv);
 }
 #endif // NCNN_PIXEL_AFFINE
