@@ -1,0 +1,141 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_KHR_shader_subgroup_basic : enable
+#extension GL_KHR_shader_subgroup_arithmetic : enable
+
+layout(constant_id = 0) const int axis = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout(constant_id = shape_constant_id_offset + 5) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout(constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout(constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout(constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer bottom_top_blob { sfp bottom_top_blob_data[]; };
+layout(binding = 1) writeonly buffer max_workspace { sfp max_workspace_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int dims;
+    int w;
+    int h;
+    int d;
+    int c;
+    int cstep;
+
+    int outdims;
+    int outw;
+    int outh;
+    int outd;
+    int outc;
+    int outcstep;
+} p;
+
+// the host dispatches this shader only for the innermost contiguous axis, i.e. dims == 1 or
+// positive_axis == dims - 1, and reduces one output element per workgroup
+// spirv-1.6 with a required subgroup size guarantees one full subgroup per workgroup, below
+// that the subgroups of the workgroup are merged through shared memory
+#if !ncnn_maintenance4 || !ncnn_subgroupSizeControl
+shared float max_workspace_shared[ncnn_subgroupSize];
+#endif
+
+void main()
+{
+    const uint OW = uint(psc(outw));
+    const uint OH = uint(psc(outh));
+    const uint OC = uint(psc(outc));
+    const uint gid = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+
+    if (gid >= OW * OH * OC)
+        return;
+
+    const int tid = int(gl_LocalInvocationID.x);
+    const int gx = int(gid % OW);
+    const int gy = int((gid / OW) % OH);
+    const int gz = int(gid / (OW * OH));
+
+    const int positive_axis = axis < 0 ? psc(dims) + axis : axis;
+
+    float max_value = -99999999.f;
+    int out_index = 0;
+
+    if (psc(dims) == 1)
+    {
+        for (int i = tid; i < psc(w); i += ncnn_subgroupSize)
+        {
+            const int v_offset = i;
+            const float v = float(buffer_ld1(bottom_top_blob_data, v_offset));
+            max_value = max(max_value, v);
+        }
+        out_index = 0;
+    }
+
+    else if (psc(dims) == 2 && positive_axis == 1)
+    {
+        for (int i = tid; i < psc(w); i += ncnn_subgroupSize)
+        {
+            const int v_offset = gx * psc(w) + i;
+            const float v = float(buffer_ld1(bottom_top_blob_data, v_offset));
+            max_value = max(max_value, v);
+        }
+        out_index = gx;
+    }
+
+    else if (psc(dims) == 3 && positive_axis == 2)
+    {
+        for (int i = tid; i < psc(w); i += ncnn_subgroupSize)
+        {
+            const int v_offset = gy * psc(cstep) + gx * psc(w) + i;
+            const float v = float(buffer_ld1(bottom_top_blob_data, v_offset));
+            max_value = max(max_value, v);
+        }
+        out_index = gy * psc(h) + gx;
+    }
+
+    else if (psc(dims) == 4 && positive_axis == 3)
+    {
+        for (int i = tid; i < psc(w); i += ncnn_subgroupSize)
+        {
+            const int v_offset = gz * psc(cstep) + gy * psc(h) * psc(w) + gx * psc(w) + i;
+            const float v = float(buffer_ld1(bottom_top_blob_data, v_offset));
+            max_value = max(max_value, v);
+        }
+        out_index = gz * psc(outcstep) + gy * psc(h) + gx;
+    }
+
+    max_value = subgroupMax(max_value);
+
+#if !ncnn_maintenance4 || !ncnn_subgroupSizeControl
+    if (gl_NumSubgroups > 1)
+    {
+        max_workspace_shared[tid] = subgroupElect() ? max_value : -99999999.f;
+        barrier();
+
+        if (tid == 0)
+        {
+            max_value = -99999999.f;
+            for (int i = 0; i < ncnn_subgroupSize; i++)
+                max_value = max(max_value, max_workspace_shared[i]);
+            buffer_st1(max_workspace_data, out_index, afp(max_value));
+        }
+        return;
+    }
+#endif
+
+    if (subgroupElect())
+    {
+        buffer_st1(max_workspace_data, out_index, afp(max_value));
+    }
+}

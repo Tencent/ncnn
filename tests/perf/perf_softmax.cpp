@@ -23,5 +23,9 @@ int main()
     perf_softmax(PerfMat(56, 56, 64), 2);
     perf_softmax(PerfMat(1, 1, 1000), 2);
 
+    // attention shaped rows, the innermost axis is the one the subgroup reduce splits
+    perf_softmax(PerfMat(4096, 512), 1);
+    perf_softmax(PerfMat(4096, 1, 32), 2);
+
     return 0;
 }
