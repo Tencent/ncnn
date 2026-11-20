@@ -128,6 +128,29 @@ public:
     int custom_layer_registry_size;
 };
 
+// The C++ accessors used below (channel, row, range, operator[], ...) do not check their arguments.
+// From Python an index out of range must not reach memory outside the Mat, so check it here. The
+// bounds are the Mat's data (total()), so views that step across channels keep working as before.
+static void check_index(const char* what, int i, size_t count)
+{
+    if (i < 0 || (size_t)i >= count)
+    {
+        std::stringstream ss;
+        ss << what << " " << i << " out of range [0, " << count << ")";
+        throw py::index_error(ss.str());
+    }
+}
+
+static void check_range(const char* what, int start, int length, size_t count)
+{
+    if (start < 0 || length < 0 || (size_t)start + (size_t)length > count)
+    {
+        std::stringstream ss;
+        ss << what << " [" << start << ", " << start << " + " << length << ") out of range [0, " << count << ")";
+        throw py::index_error(ss.str());
+    }
+}
+
 PYBIND11_MODULE(ncnn, m)
 {
     py::class_<Allocator, PyAllocator<> >(m, "Allocator");
@@ -481,13 +504,33 @@ PYBIND11_MODULE(ncnn, m)
     .def("total", &Mat::total)
     .def("elembits", &Mat::elembits)
     .def("shape", &Mat::shape)
-    .def("batch", (Mat(Mat::*)(int)) & Mat::batch, py::arg("b"))
-    .def("channel", (Mat(Mat::*)(int)) & Mat::channel, py::arg("c"))
+    .def(
+    "batch", [](Mat& m, int b) {
+#if NCNN_BATCH
+        check_index("batch", b, m.n);
+#else
+        check_index("batch", b, 1);
+#endif
+        return m.batch(b);
+    },
+    py::arg("b"))
+    .def(
+    "channel", [](Mat& m, int c) {
+        check_index("channel", c, m.c);
+        return m.channel(c);
+    },
+    py::arg("c"))
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
-    .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
+    .def(
+    "depth", [](Mat& m, int z) {
+        check_index("depth", z, m.w > 0 && m.h > 0 ? m.total() / ((size_t)m.w * m.h) : 0);
+        return m.depth(z);
+    },
+    py::arg("z"))
     //.def("depth", (const Mat (Mat::*)(int) const) & Mat::depth, py::arg("z"))
     .def(
     "row", [](Mat& m, int y) {
+        check_index("row", y, m.w > 0 ? m.total() / m.w : 0);
         if (m.elempack != 1)
         {
             std::stringstream ss;
@@ -511,21 +554,47 @@ PYBIND11_MODULE(ncnn, m)
         return py::memoryview::from_buffer(m.row<float>(y), {m.w}, {sizeof(float)});
     },
     py::arg("y"))
-    .def("channel_range", (Mat(Mat::*)(int, int)) & Mat::channel_range, py::arg("c"), py::arg("channels"))
+    .def(
+    "channel_range", [](Mat& m, int c, int channels) {
+        check_range("channel_range", c, channels, m.c);
+        return m.channel_range(c, channels);
+    },
+    py::arg("c"), py::arg("channels"))
     //.def("channel_range", (const Mat (Mat::*)(int, int) const) & Mat::channel_range, py::arg("c"), py::arg("channels"))
-    .def("depth_range", (Mat(Mat::*)(int, int)) & Mat::depth_range, py::arg("z"), py::arg("depths"))
+    .def(
+    "depth_range", [](Mat& m, int z, int depths) {
+        check_range("depth_range", z, depths, m.w > 0 && m.h > 0 ? m.total() / ((size_t)m.w * m.h) : 0);
+        return m.depth_range(z, depths);
+    },
+    py::arg("z"), py::arg("depths"))
     //.def("depth_range", (const Mat (Mat::*)(int, int) const) & Mat::depth_range, py::arg("z"), py::arg("depths"))
-    .def("row_range", (Mat(Mat::*)(int, int)) & Mat::row_range, py::arg("y"), py::arg("rows"))
+    .def(
+    "row_range", [](Mat& m, int y, int rows) {
+        check_range("row_range", y, rows, m.w > 0 ? m.total() / m.w : 0);
+        return m.row_range(y, rows);
+    },
+    py::arg("y"), py::arg("rows"))
     //.def("row_range", (const Mat (Mat::*)(int, int) const) & Mat::row_range, py::arg("y"), py::arg("rows"))
-    .def("range", (Mat(Mat::*)(int, int)) & Mat::range, py::arg("x"), py::arg("n"))
+    .def(
+    "range", [](Mat& m, int x, int n) {
+        check_range("range", x, n, m.total());
+        return m.range(x, n);
+    },
+    py::arg("x"), py::arg("n"))
     //.def("range", (const Mat (Mat::*)(int, int) const) & Mat::range, py::arg("x"), py::arg("n"))
     .def(
     "__getitem__", [](const Mat& m, size_t i) {
+        // element i as float; IndexError past the data also ends a Python for loop over the Mat.
+        // Compare i itself (not (i + 1) * sizeof(float)) so that huge indices cannot wrap around.
+        if (i >= m.total() * m.elemsize / sizeof(float))
+            throw py::index_error("ncnn.Mat index out of range");
         return m[i];
     },
     py::arg("i"))
     .def(
     "__setitem__", [](Mat& m, size_t i, float v) {
+        if (i >= m.total() * m.elemsize / sizeof(float))
+            throw py::index_error("ncnn.Mat index out of range");
         m[i] = v;
     },
     py::arg("i"), py::arg("v"))
@@ -582,6 +651,13 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("array"), py::arg("type"), py::arg("w"), py::arg("h"), py::arg("stride"), py::arg("roix"), py::arg("roiy"), py::arg("roiw"), py::arg("roih"), py::arg("target_width"), py::arg("target_height"), py::arg("allocator") = nullptr)
     .def(
     "substract_mean_normalize", [](Mat& mat, std::vector<float>& mean, std::vector<float>& norm) {
+        // ncnn reads one mean and one norm value per channel
+        if ((!mean.empty() && (int)mean.size() < mat.c) || (!norm.empty() && (int)norm.size() < mat.c))
+        {
+            std::stringstream ss;
+            ss << "mean and norm need one value per channel (" << mat.c << "), but given " << mean.size() << " and " << norm.size();
+            pybind11::pybind11_fail(ss.str());
+        }
         return mat.substract_mean_normalize(mean.size() > 0 ? &mean[0] : 0, norm.size() > 0 ? &norm[0] : 0);
     },
     py::arg("mean"), py::arg("norm"))
