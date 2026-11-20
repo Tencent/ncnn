@@ -185,8 +185,9 @@ pnnx.Output             output      1 0 out
         return "F.gelu";
     }
 
-    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
+        op->params["approximate"] = "tanh";
     }
 };
 
@@ -240,8 +241,9 @@ pnnx.Output             output      1 0 out
         return "F.gelu";
     }
 
-    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
+        op->params["approximate"] = "tanh";
     }
 };
 
