@@ -12,6 +12,11 @@
 #include "cpu.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "instancenorm_bf16s.h"
+#endif
+
 InstanceNorm_riscv::InstanceNorm_riscv()
 {
 #if __riscv_vector
@@ -24,19 +29,30 @@ InstanceNorm_riscv::InstanceNorm_riscv()
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_top_blob.elembits();
+#endif
 
+#if NCNN_ZFH
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_inplace_fp16sa(bottom_top_blob, opt);
         else
             return forward_inplace_fp16s(bottom_top_blob, opt);
+    }
+#endif
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+    {
+        return forward_inplace_bf16s(bottom_top_blob, opt);
     }
 #endif
 
@@ -208,5 +224,71 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
 #endif // __riscv_vector
     return 0;
 }
+
+#if NCNN_BF16
+int InstanceNorm_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
+
+    int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int c = bottom_top_blob.c;
+    int size = w * h * d;
+    int elempack = bottom_top_blob.elempack;
+
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+    if (elempack == packn)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; q++)
+        {
+            unsigned short* ptr = bottom_top_blob.channel(q);
+
+            const float* gamma = affine ? (const float*)gamma_data + q * elempack : (const float*)0;
+            const float* beta = affine ? (const float*)beta_data + q * elempack : (const float*)0;
+
+            instancenorm_bf16s_packn(ptr, size, elempack, gamma, beta, eps, affine);
+        }
+        return 0;
+    }
+#endif // __riscv_vector
+
+    if (elempack != 1)
+        return 0;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < c; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel(q);
+
+        // mean and var
+        float mean = 0.f;
+        float var = 0.f;
+        instancenorm_bf16s_compute_mean_var(ptr, size, mean, var);
+
+        float a;
+        float b;
+        if (affine)
+        {
+            float gamma = gamma_data[q];
+            float beta = beta_data[q];
+
+            a = gamma / (sqrtf(var + eps));
+            b = -mean * a + beta;
+        }
+        else
+        {
+            a = 1.f / (sqrtf(var + eps));
+            b = -mean * a;
+        }
+
+        instancenorm_bf16s(ptr, size, a, b);
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
