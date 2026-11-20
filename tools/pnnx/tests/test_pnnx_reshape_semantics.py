@@ -4,6 +4,7 @@
 import os
 import torch
 import torch.nn as nn
+from packaging import version
 
 
 class InferDimension(nn.Module):
@@ -64,6 +65,31 @@ def run_case(name, model, shapes):
             print(name, "pnnx inputs", [tuple(x.shape) for x in data])
             return False
 
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    dynamic_shapes = tuple({i: torch.export.Dim("arg%d_dim%d" % (j, i), min=min(data[j].shape[i] for data in inputs)) for i in range(x.dim())
+                            if any(data[j].shape[i] != x.shape[i] for data in inputs[1:])}
+                           for j, x in enumerate(inputs[0]))
+    try:
+        ep = torch.export.export(model, inputs[0], dynamic_shapes=dynamic_shapes)
+    except torch._dynamo.exc.UserError as e:
+        if name.endswith("_static_infer") and "specialized it to be a constant (2)" in str(e):
+            print("pt2 export skipped: PyTorch specializes the second dimension of reshape(-1, 12):", e)
+            return True
+        raise
+    torch.export.save(ep, name + "_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx " + name + "_export.pt2 fp16=0 inputshape=" + shape0 + " inputshape2=" + shape1)
+
+    # pnnx inference
+    pnnx_export = __import__(name + "_export_pnnx")
+    converted_export = pnnx_export.Model().eval()
+    for data in inputs:
+        if not compare(model(*data), converted_export(*data)):
+            return False
     return True
 
 

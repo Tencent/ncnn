@@ -114,8 +114,30 @@ def test():
     import test_nn_MultiheadAttention_pnnx
     b = test_nn_MultiheadAttention_pnnx.test_inference()
 
+    if len(a) != len(b):
+        return False
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (xq, xk, xv, z, zmask, yq, yk, yv, ymask, ymask2))
+    torch.export.save(ep, "test_nn_MultiheadAttention_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_nn_MultiheadAttention_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_nn_MultiheadAttention_export_pnnx
+    c = test_nn_MultiheadAttention_export_pnnx.test_inference()
+
+    if len(a) != len(c):
+        return False
+    for a0, c0 in zip(a, c):
+        if not torch.allclose(a0, c0, 1e-4, 1e-4):
             return False
     return True
 

@@ -747,6 +747,24 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact2d_1, 110)
 
+class F_interpolate_nearest_exact2d_2 : public F_interpolate_nearest_exact1d_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 size value=%size
+prim::Constant          op_1        0 1 scale_factor value=None
+aten::_upsample_nearest_exact2d op_2 3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact2d_2, 110)
+
 class F_interpolate_nearest_exact3d : public F_interpolate_nearest_exact1d
 {
 public:
@@ -784,6 +802,24 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact3d_1, 110)
+
+class F_interpolate_nearest_exact3d_2 : public F_interpolate_nearest_exact1d_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 size value=%size
+prim::Constant          op_1        0 1 scale_factor value=None
+aten::_upsample_nearest_exact3d op_2 3 1 input size scale_factor out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_nearest_exact3d_2, 110)
 
 class F_interpolate_onnx : public GraphRewriterPass
 {

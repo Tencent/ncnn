@@ -556,7 +556,7 @@ static NCNN_FORCEINLINE __m512 pow512_ps(const __m512& a, const __m512& b)
 
 static NCNN_FORCEINLINE __m512 asin512_ps(const __m512& x)
 {
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_half_one = _mm512_set1_ps(0.5f);
     const __m512 magic_one = _mm512_set1_ps(1.0f);
     const __m512 magic_a4 = _mm512_set1_ps(0.023994016f);
@@ -643,7 +643,7 @@ static NCNN_FORCEINLINE __m512 asin512_ps(const __m512& x)
 
 static NCNN_FORCEINLINE __m512 acos512_ps(const __m512& x)
 {
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_zero = _mm512_set1_ps(0.0f);
     const __m512 magic_half_one = _mm512_set1_ps(0.5f);
     const __m512 magic_one = _mm512_set1_ps(1.0f);
@@ -739,7 +739,7 @@ static NCNN_FORCEINLINE __m512 acos512_ps(const __m512& x)
 
 static NCNN_FORCEINLINE __m512 atan512_ps(const __m512& x)
 {
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_one = _mm512_set1_ps(1.0f);
     const __m512 magic_negative_one = _mm512_set1_ps(-1.0f);
     const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
@@ -839,7 +839,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
 
     const __m512 magic_zero = _mm512_set1_ps(0.0f);
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_pi = _mm512_set1_ps(3.1415927f);
     const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
 
@@ -965,7 +965,7 @@ static NCNN_FORCEINLINE __m512 asinh512_ps(const __m512& x)
     __m512 y_large = _mm512_add_ps(log512_ps(ax), _mm512_set1_ps(0.6931471805599453f));
     __mmask16 mask = _mm512_cmp_ps_mask(ax, _mm512_set1_ps(1e19f), _CMP_GT_OQ);
     y = _mm512_mask_blend_ps(mask, y, y_large);
-    return _mm512_or_ps(y, _mm512_and_ps(x, _mm512_set1_ps(-0.f)));
+    return _mm512_or_ps(y, _mm512_and_ps(x, _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN))));
 }
 
 static NCNN_FORCEINLINE __m512 cosh512_ps(const __m512& x)
