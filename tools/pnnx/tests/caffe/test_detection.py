@@ -140,6 +140,22 @@ def test(args):
     detection_case('detection_nms_equality', boxes, [[.1] * 4] * 2, [[0.] * 4] * 2,
                    [[.1, .9], [.2, .8]], [[0., 1., .9] + boxes[0], [0., 1., .8] + boxes[1]],
                    'confidence_threshold: 0.5 keep_top_k: 10 nms_param { top_k: 10 nms_threshold: 0.5 }')
+    # ncnn pads small channel planes; both inputs must reach DetectionOutput
+    # as contiguous vectors, including when only one input has channel padding
+    for location_rank, confidence_rank in [(3, 3), (4, 2), (2, 4), (4, 4), (5, 5)]:
+        location_shape = (1, 8) + (1,) * (location_rank - 2)
+        confidence_shape = (1, 4) + (1,) * (confidence_rank - 2)
+        values = [torch.tensor([.5, -.5, 0., 0., -.5, .5, 0., 0.]).reshape(location_shape),
+                  torch.tensor([.1, .9, .2, .8]).reshape(confidence_shape),
+                  torch.tensor([[[0., 0., .25, .25, .5, .5, .75, .75], [.1] * 8]])]
+        proto = inputs([value.shape for value in values])
+        proto += layer('detection', 'DetectionOutput', ['data0', 'data1', 'data2'], ['out'],
+            'detection_output_param { num_classes: 2 code_type: CENTER_SIZE confidence_threshold: 0.5 '
+            'keep_top_k: 10 nms_param { nms_threshold: 0.3 top_k: 10 } }')
+        expected = torch.tensor([[[[0., 1., .9, .0125, -.0125, .2625, .2375],
+                                   [0., 1., .8, .4875, .5125, .7375, .7625]]]])
+        name = 'detection_layout_rank%d_rank%d' % (location_rank, confidence_rank)
+        cases.append((name, proto, values, expected, expected[0, 0, :, 1:]))
     results = []
     runtime_warnings = 0
     for name, proto, values, ref_torch, ref_ncnn in cases:

@@ -13,7 +13,7 @@ namespace pnnx {
 
 namespace caffe2pnnx {
 
-int prepare_detection(Operator* op)
+int prepare_detection(Graph& graph, Operator* op)
 {
     if (!op->attrs.empty() || op->outputs.size() != 1)
     {
@@ -248,6 +248,31 @@ int prepare_detection(Operator* op)
         }
         for (Operand* r : op->inputs)
             r->params["__batch_index"] = 0;
+
+        // native DetectionOutput reads contiguous location and confidence data
+        // flatten higher-rank inputs to remove ncnn channel alignment padding
+        for (int i = 0; i < 2; i++)
+        {
+            Operand* input = op->inputs[i];
+            if (input->shape.size() == 2)
+                continue;
+
+            Operator* flatten = graph.new_operator_before("torch.flatten", op->name + "_flatten" + std::to_string(i), op);
+            flatten->params["start_dim"] = 1;
+            flatten->params["end_dim"] = -1;
+            Operand* r = graph.new_operand(flatten->name);
+            input->remove_consumer(op);
+            input->consumers.push_back(flatten);
+            flatten->inputs.push_back(input);
+            flatten->outputs.push_back(r);
+            r->producer = flatten;
+            r->consumers.push_back(op);
+            r->type = input->type;
+            r->shape = {1, num_prior * (i == 0 ? 4 : classes)};
+            r->params = input->params;
+            op->inputs[i] = r;
+        }
+
         fprintf(stderr, "warning: caffe layer %s (%s): existing ncnn DetectionOutput assumes normalized class probabilities; unnormalized scores with background >= 1-confidence_threshold and foreground > confidence_threshold are unsupported.\n", op->name.c_str(), op->type.c_str());
         op->params.clear();
         op->params["num_classes"] = classes;

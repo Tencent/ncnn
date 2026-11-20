@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace caffe2pnnx {
 
-int prepare_detection(Operator* op);
+int prepare_detection(Graph& graph, Operator* op);
 
 } // namespace caffe2pnnx
 

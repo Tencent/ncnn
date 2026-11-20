@@ -35,8 +35,7 @@ int prepare_power(Operator* op)
     op->params["shift"] = shift;
     // fixed integer powers are rewritten after source shape propagation
     // other exponents retain the native Power path for negative-base powf
-    if (power == 1.f || power == 2.f || power == 3.f)
-        op->outputs[0]->params = op->inputs[0]->params;
+    op->outputs[0]->params = op->inputs[0]->params;
     return 0;
 }
 

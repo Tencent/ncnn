@@ -5,13 +5,14 @@
 
 #include "parameter.h"
 
+#include <cmath>
 #include <stdio.h>
 
 namespace pnnx {
 
 namespace caffe2pnnx {
 
-int prepare_batch_norm(Operator* op)
+int prepare_batch_norm(Graph& graph, Operator* op)
 {
     if (op->inputs.size() != 1 || op->outputs.size() != 1)
     {
@@ -25,6 +26,7 @@ int prepare_batch_norm(Operator* op)
     }
     const std::vector<int>& shape = op->inputs[0]->shape;
     op->outputs[0]->shape = shape;
+    op->outputs[0]->params = op->inputs[0]->params;
     if (shape.size() < 2 || shape.size() > 5)
     {
         fprintf(stderr, "caffe layer %s (%s): expected input rank 2 through 5, got %zu\n", op->name.c_str(), op->type.c_str(), shape.size());
@@ -81,6 +83,52 @@ int prepare_batch_norm(Operator* op)
     op->attrs.clear();
     op->attrs["0"] = Attribute({channels}, mean);
     op->attrs["1"] = Attribute({channels}, var);
+    Operand* input = op->inputs[0];
+    if (input->params.count("__batch_index") && input->params.at("__batch_index").i != 0)
+    {
+        // use broadcast affine values when the leading dimension is not a batch
+        std::vector<float> weight(channels);
+        std::vector<float> bias(channels);
+        for (int i = 0; i < channels; i++)
+        {
+            weight[i] = 1.f / sqrtf(var[i] + eps);
+            bias[i] = -mean[i] * weight[i];
+        }
+        std::vector<int> broadcast(shape.size(), 1);
+        broadcast[1] = channels;
+        Operand* values[2];
+        for (int i = 0; i < 2; i++)
+        {
+            Operator* attr = graph.new_operator_before("pnnx.Attribute", op->name + (i == 0 ? "_weight" : "_bias"), op);
+            attr->attrs["data"] = Attribute({channels}, i == 0 ? weight : bias);
+            attr->attrs["data"].shape = broadcast;
+            Operand* r = graph.new_operand(attr->name);
+            attr->outputs.push_back(r);
+            r->producer = attr;
+            r->shape = broadcast;
+            r->type = 1;
+            r->params = input->params;
+            values[i] = r;
+        }
+        Operator* mul = graph.new_operator_before("aten::mul", op->name + "_scaled", op);
+        mul->inputs = {input, values[0]};
+        input->consumers.push_back(mul);
+        values[0]->consumers.push_back(mul);
+        Operand* scaled = graph.new_operand(mul->name);
+        mul->outputs.push_back(scaled);
+        scaled->producer = mul;
+        scaled->shape = shape;
+        scaled->type = 1;
+        scaled->params = input->params;
+
+        input->remove_consumer(op);
+        op->inputs = {scaled, values[1]};
+        scaled->consumers.push_back(op);
+        values[1]->consumers.push_back(op);
+        op->type = "aten::add";
+        op->params.clear();
+        op->attrs.clear();
+    }
     return 0;
 }
 

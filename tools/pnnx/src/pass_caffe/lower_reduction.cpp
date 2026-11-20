@@ -73,7 +73,7 @@ int lower_reduction(Graph& graph, Operator* op)
     }
     if (batch_index != 233 && shape[batch_index] != 1)
     {
-        fprintf(stderr, "Caffe Reduction %s: ncnn export requires singleton batch or an unbatched input\n", op->name.c_str());
+        fprintf(stderr, "caffe layer %s (%s): ncnn export requires singleton batch or an unbatched input\n", op->name.c_str(), op->type.c_str());
         return -1;
     }
 

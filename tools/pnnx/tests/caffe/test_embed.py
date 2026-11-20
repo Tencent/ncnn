@@ -14,6 +14,90 @@ from test_utils import blob, input_layer, layer, inference
 from test_utils import compare, run
 
 
+def test_consumers(pnnx, protoc, schema):
+    weight = torch.tensor([[-1., .5, 2.], [.25, -2., 1.5], [1., -.25, -1.]])
+    results = []
+    for batched in (False, True):
+        x = torch.tensor([0, 2], dtype=torch.int32)
+        if batched:
+            x = x.unsqueeze(0)
+        value = weight[x.long()]
+        base = input_layer(x.shape) + layer('embed', 'Embed', ['data'], ['embedding'],
+            'embed_param { input_dim: 3 num_output: 3 bias_term: false }')
+        weights = layer('embed', 'Embed', [], [], blob(weight))
+        tail = layer('reduce', 'Reduction', ['embedding'], ['out'], 'reduction_param { axis: 1 }')
+        cases = [('reduce', tail, '', value.sum(tuple(range(1, value.ndim))), False)]
+        # preserve the source batch axis through pointwise layers and Split
+        # before Reduction inspects it
+        for kind, params, expected in [
+            ('ReLU', '', value.relu()),
+            ('Dropout', '', value),
+            ('Split', '', value),
+            ('ELU', 'elu_param { alpha: 0.5 }', torch.where(value >= 0, value, .5 * (value.exp() - 1))),
+            ('Sigmoid', '', value.sigmoid()),
+            ('TanH', '', value.tanh()),
+            ('AbsVal', '', value.abs()),
+            ('ReLU6', '', value.clamp(0, 6)),
+            ('Power', 'power_param { power: 0.5 shift: 2 }', (value + 2).sqrt()),
+            ('Softmax', 'softmax_param { axis: 1 }', value.softmax(1)),
+        ]:
+            tops = ['intermediate', 'unused'] if kind == 'Split' else ['intermediate']
+            tail = layer('pointwise', kind, ['embedding'], tops, params)
+            if kind == 'Split':
+                tail += layer('silence', 'Silence', ['unused'], [])
+            tail += layer('reduce', 'Reduction', ['intermediate'], ['out'], 'reduction_param { axis: 1 }')
+            cases.append(('reduce_' + kind, tail, '', expected.sum(tuple(range(1, value.ndim))), False))
+
+        channels = value.shape[1]
+        broadcast = [1] * value.ndim
+        broadcast[1] = channels
+        for shared in (False, True):
+            slope = torch.linspace(.1, .6, 1 if shared else channels)
+            expected = value.clamp(min=0) + value.clamp(max=0) * slope.reshape([1] * value.ndim if shared else broadcast)
+            tail = layer('prelu', 'PReLU', ['embedding'], ['out'],
+                'prelu_param { channel_shared: %s }' % str(shared).lower())
+            cases.append(('prelu_shared%d' % shared, tail, layer('prelu', 'PReLU', [], [], blob(slope)), expected, batched))
+        mean = torch.linspace(.1, .3, channels)
+        variance = torch.linspace(.5, 1.5, channels)
+        for factor in (0., 2.):
+            scale = 0. if factor == 0. else 1. / factor
+            expected = (value - (mean * scale).reshape(broadcast)) / (variance * scale + .001).sqrt().reshape(broadcast)
+            tail = layer('bn', 'BatchNorm', ['embedding'], ['out'], 'batch_norm_param { eps: 0.001 }')
+            data = blob(mean) + blob(variance) + blob(torch.tensor([factor]))
+            cases.append(('batch_norm_factor%d' % factor, tail, layer('bn', 'BatchNorm', [], [], data), expected, batched))
+        dims = tuple(range(1, value.ndim))
+        centered = value - value.mean(dims, keepdim=True)
+        for normalize_variance in (False, True):
+            expected = centered
+            if normalize_variance:
+                expected = centered / (centered.square().mean(dims, keepdim=True).sqrt() + .001)
+            tail = layer('mvn', 'MVN', ['embedding'], ['out'],
+                'mvn_param { across_channels: true normalize_variance: %s eps: 0.001 }' % str(normalize_variance).lower())
+            cases.append(('mvn_variance%d' % normalize_variance, tail, '', expected, batched))
+        tail = layer('normalize', 'Normalize', ['embedding'], ['out'],
+            'norm_param { across_spatial: true channel_shared: true eps: 0.001 }')
+        expected = value / (value.square().sum(dims, keepdim=True) + .001).sqrt() * 2
+        cases.append(('normalize', tail, layer('normalize', 'Normalize', [], [], blob(torch.tensor([2.]))), expected, batched))
+
+        for name, tail, data, expected, output_batched in cases:
+            name = 'embed_consumer_%d_%s' % (batched, name)
+            Path(name + '.prototxt').write_text(base + tail)
+            encoded = subprocess.run([protoc, '--proto_path=' + str(schema.parent), '--encode=caffe.NetParameter', str(schema)],
+                                     input=(weights + data).encode(), stdout=subprocess.PIPE, check=True).stdout
+            Path(name + '.caffemodel').write_bytes(encoded)
+            for fp16 in (0, 1):
+                prefix = name + '_fp%d' % fp16
+                run([pnnx, name + '.prototxt', 'optlevel=2', 'fp16=%d' % fp16,
+                     'pnnxparam=' + prefix + '.pnnx.param', 'pnnxbin=' + prefix + '.pnnx.bin',
+                     'pnnxpy=' + prefix + '_pnnx.py', 'ncnnparam=' + prefix + '.ncnn.param',
+                     'ncnnbin=' + prefix + '.ncnn.bin', 'ncnnpy=' + prefix + '_ncnn.py'])
+                pytorch, actual = inference(prefix, x, [0 if batched else None])
+                assert len(pytorch) == len(actual) == 1
+                results.append(compare(prefix + '/torch', pytorch[0], expected, 0))
+                results.append(compare(prefix + '/ncnn', actual[0], expected[0] if output_batched else expected, fp16))
+    return results
+
+
 def test(args):
     pnnx = shutil.which(args.pnnx)
     protoc = shutil.which(args.protoc)
@@ -115,6 +199,7 @@ def test(args):
         assert result.returncode != 0, (name, result.stdout, result.stderr)
         assert 'indices' in result.stderr and 'floating' in result.stderr, (name, result.stderr)
         results.append(dict(name=name, passed=True))
+    results += test_consumers(pnnx, protoc, schema)
     report = dict(results=results, passed=sum(r['passed'] for r in results),
                   failed=sum(not r['passed'] for r in results), skipped=0)
     Path('results.json').write_text(json.dumps(report, indent=2) + '\n')

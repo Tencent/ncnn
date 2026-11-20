@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace caffe2pnnx {
 
-int prepare_batch_norm(Operator* op);
+int prepare_batch_norm(Graph& graph, Operator* op);
 
 } // namespace caffe2pnnx
 

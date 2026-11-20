@@ -28,7 +28,7 @@ int prepare_embed_indices(Graph& graph)
             input = input->producer->inputs[0];
         if (input->producer->type != "pnnx.Input")
         {
-            fprintf(stderr, "Caffe Embed %s: indices must come from an Input through only Split layers, not %s (%s)\n", op->name.c_str(), input->producer->name.c_str(), input->producer->type.c_str());
+            fprintf(stderr, "caffe layer %s (%s): indices must come from an Input through only Split layers, not %s (%s)\n", op->name.c_str(), op->type.c_str(), input->producer->name.c_str(), input->producer->type.c_str());
             return -1;
         }
         roots.insert(input);
@@ -53,7 +53,7 @@ int prepare_embed_indices(Graph& graph)
                 pending.insert(pending.end(), op->outputs.begin(), op->outputs.end());
                 continue;
             }
-            fprintf(stderr, "Caffe Embed indices %s are also consumed by %s (%s); only Split and Embed layers preserve integer index storage\n", input->name.c_str(), op->name.c_str(), op->type.c_str());
+            fprintf(stderr, "caffe layer %s (%s): input %s contains Embed indices; only Split and Embed layers preserve integer index storage\n", op->name.c_str(), op->type.c_str(), input->name.c_str());
             return -1;
         }
     }

@@ -25,6 +25,7 @@ int prepare_dropout(Operator* op)
     }
     const std::vector<int> shape = op->inputs[0]->shape;
     op->outputs[0]->shape = shape;
+    op->outputs[0]->params = op->inputs[0]->params;
     const float ratio = get_float(op, "dropout_ratio", .5f);
     if (ratio < 0.f || ratio >= 1.f)
     {

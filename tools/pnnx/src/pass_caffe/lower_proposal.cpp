@@ -105,7 +105,7 @@ int lower_proposal(Operator* op)
         {
             if (consumer->type == "pnnx.Output")
                 continue;
-            fprintf(stderr, "caffe layer %s (%s): dynamic Proposal output %zu cannot feed %s (%s); existing ncnn ROI layers consume only one box, so Proposal-to-ROI requires unsupported runtime multi-ROI support\n", op->name.c_str(), op->type.c_str(), i, consumer->name.c_str(), consumer->type.c_str());
+            fprintf(stderr, "caffe layer %s (%s): dynamic Proposal output %zu cannot feed %s (%s); ncnn ROI layers consume only one box, so Proposal-to-ROI requires unsupported runtime multi-ROI support\n", op->name.c_str(), op->type.c_str(), i, consumer->name.c_str(), consumer->type.c_str());
             return -1;
         }
     }
@@ -138,7 +138,7 @@ int lower_proposal(Operator* op)
         fprintf(stderr, "caffe layer %s (%s): invalid Proposal param_str; expected unique feat_stride (positive integer) and/or scales [8,16,32], with optional mapping braces\n", op->name.c_str(), op->type.c_str());
         return -1;
     }
-    fprintf(stderr, "warning: caffe layer %s (%s): existing ncnn Proposal uses exclusive NMS, non-stable tie ordering and fixed min_size=16; empty candidates may fail, and these boundary cases are not guaranteed equivalent to Caffe\n", op->name.c_str(), op->type.c_str());
+    fprintf(stderr, "warning: caffe layer %s (%s): ncnn Proposal uses exclusive NMS, non-stable tie ordering and fixed min_size=16; empty candidates may fail, and these boundary cases may differ from Caffe\n", op->name.c_str(), op->type.c_str());
     op->type = "caffe.Proposal";
     op->params.clear();
     op->params["feat_stride"] = feat_stride;

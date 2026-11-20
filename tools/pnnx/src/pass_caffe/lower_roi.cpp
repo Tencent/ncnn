@@ -23,10 +23,10 @@ int lower_roi(Graph& graph, Operator* op)
     const bool dynamic = rois->producer && rois->producer->type == "caffe.Proposal" && rois == rois->producer->outputs[0];
     if (dynamic)
     {
-        fprintf(stderr, "caffe layer %s (%s): dynamic Proposal-to-ROI requires runtime multi-ROI support; the existing ncnn ROI layer consumes only one box\n", op->name.c_str(), op->type.c_str());
+        fprintf(stderr, "caffe layer %s (%s): dynamic Proposal-to-ROI requires runtime multi-ROI support; ncnn ROI layers consume only one box\n", op->name.c_str(), op->type.c_str());
         return -1;
     }
-    fprintf(stderr, "warning: caffe layer %s (%s): existing ncnn ROI runtime is preserved; out-of-range ROIAlign samples, clipped ROIPooling bins and negative-half-integer PSROI endpoints are not guaranteed equivalent to Caffe\n", op->name.c_str(), op->type.c_str());
+    fprintf(stderr, "warning: caffe layer %s (%s): out-of-range ROIAlign samples, clipped ROIPooling bins and negative-half-integer PSROI endpoints may differ between Caffe and ncnn\n", op->name.c_str(), op->type.c_str());
     if (feature->shape.size() != 4 || feature->shape[0] != 1)
     {
         fprintf(stderr, "caffe layer %s (%s): feature input requires rank 4 with batch 1; rank=%zu batch=%d\n", op->name.c_str(), op->type.c_str(), feature->shape.size(), feature->shape.empty() ? -1 : feature->shape[0]);

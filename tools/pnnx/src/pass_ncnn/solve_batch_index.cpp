@@ -131,6 +131,11 @@ static int get_known_operator_batch_index(const Operator* op)
 
     const int input_rank = op->inputs[0]->shape.size();
 
+    if (op->type == "F.embedding" || op->type == "nn.Embedding")
+    {
+        if (input_rank == 1)
+            return 233;
+    }
     if (op->type.find("pool1d") != std::string::npos || op->type.find("Pool1d") != std::string::npos)
     {
         if (input_rank == 2)

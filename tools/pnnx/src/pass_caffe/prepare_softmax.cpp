@@ -30,12 +30,15 @@ int prepare_softmax(Operator* op)
     }
     const std::vector<int> shape = op->inputs[0]->shape;
     op->outputs[0]->shape = shape;
+    op->outputs[0]->params = op->inputs[0]->params;
     const int axis = normalize_axis(get_int(op, "axis", 1), shape.size());
     if (axis <= 0 || axis >= (int)shape.size())
     {
         fprintf(stderr, "caffe layer %s (%s): Softmax axis must select a non-batch dimension; normalized axis=%d rank=%zu\n", op->name.c_str(), op->type.c_str(), axis, shape.size());
         return -1;
     }
+    op->params.clear();
+    op->params["axis"] = axis;
     return 0;
 }
 

@@ -93,6 +93,7 @@ int pass_caffe(Graph& graph)
                 output->producer = identity;
                 output->shape = op->inputs[0]->shape;
                 output->type = op->inputs[0]->type;
+                output->params = op->inputs[0]->params;
                 if (caffe2pnnx::has_known_shape(op->inputs[0]))
                     output->params["__caffe_shape_known"] = true;
             }
@@ -109,7 +110,7 @@ int pass_caffe(Graph& graph)
         else if (type == "caffe.Pooling")
             ret = caffe2pnnx::prepare_pooling(op);
         else if (type == "caffe.PriorBox" || type == "caffe.DetectionOutput")
-            ret = caffe2pnnx::prepare_detection(op);
+            ret = caffe2pnnx::prepare_detection(graph, op);
         else if (type == "caffe.MVN" || type == "caffe.Normalize")
             ret = caffe2pnnx::lower_normalization(graph, op);
         else if (type == "caffe.Crop")
@@ -121,7 +122,7 @@ int pass_caffe(Graph& graph)
         else if (type == "caffe.InnerProduct")
             ret = caffe2pnnx::prepare_inner_product(graph, op);
         else if (type == "caffe.BatchNorm")
-            ret = caffe2pnnx::prepare_batch_norm(op);
+            ret = caffe2pnnx::prepare_batch_norm(graph, op);
         else if (type == "caffe.Scale" || type == "caffe.BN")
             ret = caffe2pnnx::lower_scale(graph, op);
         else if (type == "caffe.Tile")
@@ -146,6 +147,7 @@ int pass_caffe(Graph& graph)
                 return -1;
             }
             op->outputs[0]->shape = op->inputs[0]->shape;
+            op->outputs[0]->params = op->inputs[0]->params;
             if (type == "caffe.AbsVal")
                 op->type = "aten::abs";
             if (type == "caffe.Sigmoid")
@@ -183,7 +185,7 @@ int pass_caffe(Graph& graph)
         else if (type == "caffe.Concat")
             ret = caffe2pnnx::lower_concat(graph, op);
         else if (type == "caffe.PReLU")
-            ret = caffe2pnnx::prepare_prelu(op);
+            ret = caffe2pnnx::prepare_prelu(graph, op);
         else if (type == "caffe.Softmax")
             ret = caffe2pnnx::prepare_softmax(op);
         else if (type == "caffe.Dropout")

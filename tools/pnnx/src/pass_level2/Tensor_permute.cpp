@@ -109,25 +109,9 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-caffe.Permute           op_0        1 1 input out %*=%*
+caffe.Permute           op_0        1 1 input out order=%dims
 pnnx.Output             output      1 0 out
 )PNNXIR";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-    {
-        auto it = captured_params.find("op_0.order");
-        std::vector<int> order = it == captured_params.end() ? std::vector<int>() : it->second.ai;
-        const int rank = op->inputs[0]->shape.size();
-        std::vector<bool> used(rank, false);
-        for (int dim : order)
-            used[dim] = true;
-        for (int i = 0; i < rank; i++)
-        {
-            if (!used[i])
-                order.push_back(i);
-        }
-        op->params["dims"] = order;
     }
 };
 

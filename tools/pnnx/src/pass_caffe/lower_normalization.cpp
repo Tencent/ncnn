@@ -22,7 +22,10 @@ static Operand* intermediate(Graph& graph, Operator* before, const char* type, c
     r->producer = op;
     r->shape = shape;
     r->type = 1;
-    r->params["__batch_index"] = 0;
+    if (inputs.empty())
+        r->params["__batch_index"] = 233;
+    else
+        r->params = inputs[0]->params;
     return r;
 }
 
@@ -86,6 +89,7 @@ int lower_normalization(Graph& graph, Operator* op)
             scale.shape = std::vector<int>(shape.size(), 1);
     }
     Operand* input = op->inputs[0];
+    op->outputs[0]->params = input->params;
     Operand* centered = input;
     if (mvn)
     {
@@ -132,6 +136,7 @@ int lower_normalization(Graph& graph, Operator* op)
         Operand* normalized = intermediate(graph, op, "aten::div", "_normalized", inputs, shape);
         Operand* weight = intermediate(graph, op, "pnnx.Attribute", "_scale", {}, scale.shape);
         weight->producer->attrs["data"] = scale;
+        weight->params = input->params;
         inputs = {normalized, weight};
     }
     input->remove_consumer(op);

@@ -84,12 +84,12 @@ int lower_argmax(Operator* op)
         // view is equivalent only when all other dimensions are singleton
         if (has_axis && count != length)
         {
-            fprintf(stderr, "Caffe ArgMax %s: per-axis indices or top-k values with multiple slices are not supported\n", op->name.c_str());
+            fprintf(stderr, "caffe layer %s (%s): per-axis indices or top-k values with multiple slices are not supported\n", op->name.c_str(), op->type.c_str());
             return -1;
         }
         if (count % 4 != 0)
         {
-            fprintf(stderr, "caffe layer %s (%s): existing ncnn ArgMax includes allocation padding in its input length; %lld float32 elements are not aligned to four elements and cannot be converted safely\n", op->name.c_str(), op->type.c_str(), (long long)count);
+            fprintf(stderr, "caffe layer %s (%s): ncnn ArgMax includes allocation padding in its input length; %lld float32 elements are not aligned to four elements and cannot be converted safely\n", op->name.c_str(), op->type.c_str(), (long long)count);
             return -1;
         }
         op->params.clear();

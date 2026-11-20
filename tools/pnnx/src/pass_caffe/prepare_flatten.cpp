@@ -51,6 +51,9 @@ int prepare_flatten(Operator* op)
     }
     out.push_back(count);
     out.insert(out.end(), shape.begin() + end + 1, shape.end());
+    op->params.clear();
+    op->params["axis"] = axis;
+    op->params["end_axis"] = end;
     op->outputs[0]->shape = out;
 
     return 0;

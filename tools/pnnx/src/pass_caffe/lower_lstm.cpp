@@ -30,12 +30,12 @@ int lower_lstm(Graph& graph, Operator* op)
 {
     if (op->inputs.size() == 2)
     {
-        fprintf(stderr, "caffe layer %s (%s): continuation input is unsupported by the existing ncnn LSTM; conversion refused\n", op->name.c_str(), op->type.c_str());
+        fprintf(stderr, "caffe layer %s (%s): continuation input is unsupported by ncnn LSTM\n", op->name.c_str(), op->type.c_str());
         return -1;
     }
     if (op->inputs.size() != 1 || op->outputs.size() != 1 || get_bool(op, "expose_hidden", false))
     {
-        fprintf(stderr, "Caffe LSTM %s: expected one data input, one output, and no exposed state\n", op->name.c_str());
+        fprintf(stderr, "caffe layer %s (%s): expected one data input, one output, and no exposed state\n", op->name.c_str(), op->type.c_str());
         return -1;
     }
     const std::vector<int> shape = op->inputs[0]->shape;
@@ -46,7 +46,7 @@ int lower_lstm(Graph& graph, Operator* op)
     }
     if (shape.size() == 3 && shape[1] != 1)
     {
-        fprintf(stderr, "Caffe LSTM %s: ncnn export requires sequence batch size 1\n", op->name.c_str());
+        fprintf(stderr, "caffe layer %s (%s): ncnn export requires sequence batch size 1\n", op->name.c_str(), op->type.c_str());
         return -1;
     }
     const int input_size = shape.back();

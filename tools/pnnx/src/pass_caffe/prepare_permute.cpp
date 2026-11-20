@@ -49,6 +49,8 @@ int prepare_permute(Operator* op)
     std::vector<int> out;
     for (int dim : order)
         out.push_back(shape[dim]);
+    op->params.clear();
+    op->params["order"] = order;
     op->outputs[0]->shape = out;
 
     return 0;
