@@ -15,8 +15,12 @@ class Model(nn.Module):
         self.pool_3 = nn.AvgPool2d(kernel_size=(4,5), stride=(1,2), padding=(1,2), ceil_mode=True, count_include_pad=False)
         self.pool_4 = nn.AvgPool2d(kernel_size=(5,3), stride=(2,1), padding=1, ceil_mode=False, count_include_pad=True)
         self.pool_5 = nn.AvgPool2d(kernel_size=2, stride=1, padding=0, ceil_mode=True, count_include_pad=True)
+        # ceil_mode drops the last window on one axis only, a single pooling
+        # layer cannot express that so the converter emits pooling and crop
+        self.pool_6 = nn.AvgPool2d(kernel_size=2, stride=3, padding=0, ceil_mode=True, count_include_pad=False)
 
     def forward(self, x, q):
+        x0 = x
         y = x.reshape(12, 128, 128)
 
         x = self.pool_0(x)
@@ -35,7 +39,12 @@ class Model(nn.Module):
 
         q = self.pool_0(q)
         q = self.pool_4(q)
-        return x, y, q
+
+        # the height window is out of range but the width window still overlaps
+        m = self.pool_6(x0[:, :, :3, :4])
+        # the width window is out of range but the height window still overlaps
+        n = self.pool_6(x0[:, :, :4, :3])
+        return x, y, q, m, n
 
 def test():
     net = Model()
