@@ -211,4 +211,31 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_prelu_onnx_3, 100)
 
+class F_prelu_caffe : public F_prelu_onnx_1
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.PReLU             op_0        1 1 input out %*=%* @0
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* replace_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input       0 1 input
+pnnx.Attribute          slope       0 1 weight @data=%op_0.0
+F.prelu                 prelu       2 1 input weight out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_prelu_caffe, 100)
+
 } // namespace pnnx

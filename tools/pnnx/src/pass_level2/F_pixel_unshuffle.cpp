@@ -48,4 +48,25 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pixel_unshuffle_onnx, 110)
 
+class F_pixel_unshuffle_caffe : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Reorg             op_0        1 1 input out downscale_factor=%downscale_factor
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.pixel_unshuffle";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pixel_unshuffle_caffe, 110)
+
 } // namespace pnnx

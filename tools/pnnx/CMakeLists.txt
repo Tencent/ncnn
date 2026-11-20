@@ -45,6 +45,17 @@ set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
 find_package(Python3 COMPONENTS Interpreter Development)
 
+option(PNNX_CAFFE2PNNX "build caffe2pnnx" ON)
+
+if(PNNX_CAFFE2PNNX)
+    # Torch packages with bundled protobuf create a dummy protobuf::libprotobuf
+    # target. Import the complete external protobuf targets before loading Torch.
+    find_package(protobuf CONFIG QUIET)
+    if(NOT protobuf_FOUND)
+        find_package(Protobuf QUIET)
+    endif()
+endif()
+
 PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
 
@@ -97,6 +108,8 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     check_cxx_source_compiles("#include <cxxabi.h>\n#if _GLIBCXX_USE_CXX11_ABI\nint main() { return 0; }\n#endif" PNNX_COMPILER_USE_CXX11_ABI)
 endif()
 
+# Only enable protobuf frontends after checking compatibility with Torch.
+set(PROTOBUF_FOUND FALSE)
 if((PNNX_TORCH_USE_CXX11_ABI AND PNNX_COMPILER_USE_CXX11_ABI) OR (NOT PNNX_TORCH_USE_CXX11_ABI AND NOT PNNX_COMPILER_USE_CXX11_ABI))
     find_package(protobuf CONFIG)
 
@@ -127,6 +140,34 @@ else()
 endif()
 
 option(PNNX_TNN2PNNX "build tnn2pnnx" ON)
+
+if(PNNX_CAFFE2PNNX AND NOT PROTOBUF_FOUND)
+    message(FATAL_ERROR "Caffe support requires protobuf with a compatible C++ ABI and protoc. Install protobuf or configure with -DPNNX_CAFFE2PNNX=OFF.")
+endif()
+if(PNNX_CAFFE2PNNX)
+    set(PNNX_CAFFE_PROTOC_EXECUTABLE "${PROTOBUF_PROTOC_EXECUTABLE}")
+    if(NOT PNNX_CAFFE_PROTOC_EXECUTABLE AND TARGET protobuf::protoc)
+        get_target_property(PNNX_CAFFE_PROTOC_EXECUTABLE protobuf::protoc IMPORTED_LOCATION)
+        if(NOT PNNX_CAFFE_PROTOC_EXECUTABLE)
+            get_target_property(PNNX_CAFFE_PROTOC_CONFIGURATIONS protobuf::protoc IMPORTED_CONFIGURATIONS)
+            foreach(config ${PNNX_CAFFE_PROTOC_CONFIGURATIONS})
+                string(TOUPPER "${config}" config)
+                get_target_property(PNNX_CAFFE_PROTOC_EXECUTABLE protobuf::protoc IMPORTED_LOCATION_${config})
+                if(PNNX_CAFFE_PROTOC_EXECUTABLE)
+                    break()
+                endif()
+            endforeach()
+        endif()
+    endif()
+    if(NOT EXISTS "${PNNX_CAFFE_PROTOC_EXECUTABLE}")
+        message(FATAL_ERROR "Caffe support requires protoc. Install the protobuf compiler or configure with -DPNNX_CAFFE2PNNX=OFF.")
+    endif()
+    execute_process(COMMAND "${PNNX_CAFFE_PROTOC_EXECUTABLE}" --version
+        RESULT_VARIABLE PNNX_CAFFE_PROTOC_RESULT OUTPUT_QUIET ERROR_VARIABLE PNNX_CAFFE_PROTOC_ERROR)
+    if(NOT PNNX_CAFFE_PROTOC_RESULT EQUAL 0)
+        message(FATAL_ERROR "Cannot run protoc for Caffe: ${PNNX_CAFFE_PROTOC_ERROR}. Install a working protobuf compiler or configure with -DPNNX_CAFFE2PNNX=OFF.")
+    endif()
+endif()
 
 add_subdirectory(src)
 

@@ -60,4 +60,31 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_leaky_relu_onnx, 100)
 
+class F_leaky_relu_caffe : public F_leaky_relu
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.ReLU              op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        auto it = captured_params.find("op_0.negative_slope");
+        return it != captured_params.end() && it->second.f != 0.f;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["negative_slope"] = captured_params.at("op_0.negative_slope");
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_leaky_relu_caffe, 100)
+
 } // namespace pnnx

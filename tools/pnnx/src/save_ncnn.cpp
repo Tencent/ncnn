@@ -83,7 +83,7 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
     FILE* binfp = fopen(binpath.c_str(), "wb");
     if (!binfp)
     {
-        fprintf(stderr, "fopen %s failed\n", binpath.c_str());
+        fprintf(stderr, "fopen %s failed; output files may be incomplete\n", binpath.c_str());
         fclose(paramfp);
         return -1;
     }
@@ -342,8 +342,16 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(paramfp, "\n");
     }
 
-    fclose(paramfp);
-    fclose(binfp);
+    int ret = ferror(paramfp) || ferror(binfp) ? -1 : 0;
+    if (fclose(paramfp) != 0)
+        ret = -1;
+    if (fclose(binfp) != 0)
+        ret = -1;
+    if (ret != 0)
+    {
+        fprintf(stderr, "write or close %s / %s failed; output files may be incomplete\n", parampath.c_str(), binpath.c_str());
+        return -1;
+    }
 
     FILE* pyfp = fopen(pypath.c_str(), "wb");
     if (!pyfp)
@@ -472,9 +480,13 @@ int save_ncnn(const Graph& g, const std::string& parampath, const std::string& b
         fprintf(pyfp, "    print(test_inference())\n");
     }
 
-    fclose(pyfp);
+    ret = ferror(pyfp) ? -1 : 0;
+    if (fclose(pyfp) != 0)
+        ret = -1;
+    if (ret != 0)
+        fprintf(stderr, "write or close %s failed; output file may be incomplete\n", pypath.c_str());
 
-    return 0;
+    return ret;
 }
 
 } // namespace pnnx

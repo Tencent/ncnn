@@ -131,6 +131,11 @@ static int get_known_operator_batch_index(const Operator* op)
 
     const int input_rank = op->inputs[0]->shape.size();
 
+    if (op->type == "F.embedding" || op->type == "nn.Embedding")
+    {
+        if (input_rank == 1)
+            return 233;
+    }
     if (op->type.find("pool1d") != std::string::npos || op->type.find("Pool1d") != std::string::npos)
     {
         if (input_rank == 2)
@@ -1385,8 +1390,11 @@ void solve_batch_index(Graph& graph)
                 batch_first = op->params["batch_first"].b;
             }
 
-            op->inputs[0]->params["__batch_index"] = batch_first ? 0 : 1;
-            op->outputs[0]->params["__batch_index"] = batch_first ? 0 : 1;
+            // unbatched recurrent inputs are T,I even when batch_first is true
+            const bool unbatched = op->type != "nn.MultiheadAttention" && op->inputs[0]->shape.size() == 2;
+            const int batch_index = unbatched ? 233 : batch_first ? 0 : 1;
+            op->inputs[0]->params["__batch_index"] = batch_index;
+            op->outputs[0]->params["__batch_index"] = batch_index;
 
             for (size_t j = 1; j < op->inputs.size(); j++)
             {
@@ -1405,12 +1413,12 @@ void solve_batch_index(Graph& graph)
                     continue;
                 }
 
-                op->inputs[j]->params["__batch_index"] = 1;
+                op->inputs[j]->params["__batch_index"] = unbatched ? 233 : 1;
             }
 
             for (size_t j = 1; j < op->outputs.size(); j++)
             {
-                op->outputs[j]->params["__batch_index"] = 1;
+                op->outputs[j]->params["__batch_index"] = unbatched ? 233 : 1;
             }
         }
     }
