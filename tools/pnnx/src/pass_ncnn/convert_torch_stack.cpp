@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "convert_torch_stack.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -100,6 +101,18 @@ void convert_torch_stack(Graph& graph)
                         reshape->params["shape"] = std::vector<int> {-1, 1};
                     }
                     reshape_out->shape = shape;
+
+                    if (!in->shape.empty())
+                    {
+                        auto target = get_logical_shape_expr(in, 0);
+                        target.push_back("1");
+                        std::map<std::string, Parameter> params;
+                        if (resolve_reshape_params(reshape, target, params))
+                        {
+                            reshape->type = "Reshape";
+                            write_reshape_params(reshape, params);
+                        }
+                    }
                 }
             }
             else
@@ -134,6 +147,23 @@ void convert_torch_stack(Graph& graph)
                     reshape->params["shape"] = out->shape;
                 else
                     reshape->params["shape"] = std::vector<int> {-1};
+
+                if (axis0 >= 0 && axis0 < (int)shape.size())
+                {
+                    auto target = get_logical_shape_expr(reshape_in, 0);
+                    // Split the concatenated dimension into the stack count and the original extent.
+                    if (shape[axis0] > 0)
+                        target[axis0] = std::to_string(shape[axis0] / op->inputs.size());
+                    else
+                        target[axis0] = "//(" + target[axis0] + "," + std::to_string(op->inputs.size()) + ")";
+                    target.insert(target.begin() + axis0, std::to_string(op->inputs.size()));
+                    std::map<std::string, Parameter> params;
+                    if (resolve_reshape_params(reshape, target, params))
+                    {
+                        reshape->type = "Reshape";
+                        write_reshape_params(reshape, params);
+                    }
+                }
             }
 
             op->params.erase("dim");
