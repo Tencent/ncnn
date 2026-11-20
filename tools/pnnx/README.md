@@ -104,6 +104,21 @@ Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
               pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect
 ```
 
+### Optimize an existing ncnn model
+
+The pnnx executable can also optimize an existing ncnn param/bin model.  The
+native files are adapted to pnnx's graph representation and then run through
+the same `pass_ncnn` rewrites used by the normal PyTorch conversion flow:
+
+```shell
+pnnx ncnnoptimize model.param model.bin model-opt.param model-opt.bin 0
+pnnx ncnnoptimize model.param model.bin model-opt.param model-opt.bin 65536 cutstart cutend
+```
+
+The storage flag is `0` for fp32, `1` (or legacy `65536`) for fp16, and `2`
+for bf16. The `ncnnoptimize` subcommand may be omitted when the first argument
+is an ncnn param file.
+
 Parameters:
 
 `pnnxparam` (default="*.pnnx.param", * is the model name): PNNX graph definition file
