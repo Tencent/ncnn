@@ -562,9 +562,9 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fmsubadd_ps(const __m128& _a, const __m1
 #else
     __m128 _ab = _mm_mul_ps(_a, _b);
 #if __SSE3__
-    return _mm_addsub_ps(_ab, _mm_xor_ps(_c, _mm_set1_ps(-0.f)));
+    return _mm_addsub_ps(_ab, _mm_xor_ps(_c, _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN))));
 #else
-    const __m128 _sign = _mm_set_ps(-0.f, 0.f, -0.f, 0.f);
+    const __m128 _sign = _mm_castsi128_ps(_mm_set_epi32(INT32_MIN, 0, INT32_MIN, 0));
     return _mm_add_ps(_ab, _mm_xor_ps(_c, _sign));
 #endif
 #endif
@@ -684,7 +684,7 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fmsubadd_ps(const __m256& _a, const _
 #elif __FMA4__
     return _mm256_msubadd_ps(_a, _b, _c);
 #else
-    return _mm256_addsub_ps(_mm256_mul_ps(_a, _b), _mm256_xor_ps(_c, _mm256_set1_ps(-0.f)));
+    return _mm256_addsub_ps(_mm256_mul_ps(_a, _b), _mm256_xor_ps(_c, _mm256_castsi256_ps(_mm256_set1_epi32(INT32_MIN))));
 #endif
 }
 
