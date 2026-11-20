@@ -46,6 +46,7 @@
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
 #include "pass_ncnn/legalize_global_pooling_layout.h"
+#include "pass_ncnn/torch_repeat_interleave.h"
 
 #include "pass_level4/attribute_pooling.h"
 #include "pass_level4/dead_code_elimination.h"
@@ -127,6 +128,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+
+    ncnn::expand_repeat_interleave(g);
 
     ncnn::eliminate_noop(g);
 
