@@ -3,6 +3,11 @@
 
 #include "testutil.h"
 
+#if NCNN_VULKAN
+#include "command.h"
+#include "gpu.h"
+#endif // NCNN_VULKAN
+
 static int test_concat(const std::vector<ncnn::Mat>& a, int axis, int flag = 0)
 {
     ncnn::ParamDict pd;
@@ -283,11 +288,140 @@ static int test_concat_9()
     return 0;
 }
 
+// #7025: mismatched non-concat dims must fail cleanly instead of heap-overflow.
+static int test_concat_shape_mismatch_case(const ncnn::Mat& a, const ncnn::Mat& b, int axis)
+{
+    std::vector<ncnn::Mat> bottom_blobs(2);
+    bottom_blobs[0] = a;
+    bottom_blobs[1] = b;
+    std::vector<ncnn::Mat> top_blobs(1);
+
+    ncnn::ParamDict pd;
+    pd.set(0, axis);
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    ncnn::Layer* op = ncnn::create_layer("Concat");
+    if (!op)
+    {
+        fprintf(stderr, "test_concat_shape_mismatch create_layer failed\n");
+        return -1;
+    }
+
+    op->load_param(pd);
+    op->create_pipeline(opt);
+
+    const int ret = op->forward(bottom_blobs, top_blobs, opt);
+
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != -1 || !top_blobs[0].empty())
+    {
+        fprintf(stderr, "test_concat_shape_mismatch expected failure, got success\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static int test_concat_shape_mismatch()
+{
+    const ncnn::Mat a[] = {
+        RandomMat(12, 7, 128),
+        RandomMat(5, 3), RandomMat(5, 3),
+        RandomMat(5, 3, 4), RandomMat(5, 3, 4),
+        RandomMat(5, 3, 2, 4), RandomMat(5, 3, 2, 4),
+        RandomMat(5, 3, 2, 4), RandomMat(5, 3, 2, 4)
+    };
+    const ncnn::Mat b[] = {
+        RandomMat(7, 12, 128),
+        RandomMat(6, 3), RandomMat(5, 4),
+        RandomMat(6, 3, 4), RandomMat(5, 4, 4),
+        RandomMat(5, 3, 3, 4), RandomMat(6, 3, 2, 4),
+        RandomMat(5, 3, 2, 5), RandomMat(5, 4, 2, 4)
+    };
+    const int axes[] = {0, 0, 1, 1, 2, 0, 1, 2, 3};
+    for (size_t i = 0; i < sizeof(axes) / sizeof(axes[0]); i++)
+    {
+        if (test_concat_shape_mismatch_case(a[i], b[i], axes[i])
+                || test_concat_shape_mismatch_case(a[i], b[i], axes[i] - a[i].dims))
+            return -1;
+    }
+    // Different ranks and out-of-range axes must also fail before allocation.
+    return test_concat_shape_mismatch_case(RandomMat(5), RandomMat(5, 3), 0)
+           || test_concat_shape_mismatch_case(a[0], a[0], 3)
+           || test_concat_shape_mismatch_case(a[0], a[0], -4);
+}
+
+// No malformed dispatch is submitted to the device.
+#if NCNN_VULKAN
+static int test_concat_vulkan_shape_mismatch()
+{
+    if (ncnn::get_gpu_count() == 0)
+        return 0;
+
+    ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::Layer* op = ncnn::create_layer_vulkan("Concat");
+    if (!op)
+        return -1;
+
+    op->vkdev = vkdev;
+    ncnn::ParamDict pd;
+    pd.set(0, 0);
+    op->load_param(pd);
+
+    ncnn::VkBlobAllocator allocator(vkdev);
+    ncnn::Option opt;
+    opt.blob_vkallocator = &allocator;
+    opt.workspace_vkallocator = &allocator;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_packed = false;
+    if (op->create_pipeline(opt) != 0)
+    {
+        op->destroy_pipeline(opt);
+        delete op;
+        return -1;
+    }
+
+    int ret;
+    bool output_empty;
+    {
+        std::vector<ncnn::VkMat> bottom_blobs(2);
+        bottom_blobs[0].create(12, 7, 128, 4u, 1, &allocator);
+        bottom_blobs[1].create(7, 12, 128, 4u, 1, &allocator);
+        if (bottom_blobs[0].empty() || bottom_blobs[1].empty())
+        {
+            op->destroy_pipeline(opt);
+            delete op;
+            return -1;
+        }
+        std::vector<ncnn::VkMat> top_blobs(1);
+        ncnn::VkCompute cmd(vkdev);
+        ret = op->forward(bottom_blobs, top_blobs, cmd, opt);
+        output_empty = top_blobs[0].empty();
+    }
+    op->destroy_pipeline(opt);
+    delete op;
+
+    if (ret != -1 || !output_empty)
+    {
+        fprintf(stderr, "test_concat_vulkan_shape_mismatch expected rejection before output allocation\n");
+        return -1;
+    }
+    return 0;
+}
+#endif // NCNN_VULKAN
+
 int main()
 {
     SRAND(7767517);
 
     return 0
+#if NCNN_VULKAN
+           || test_concat_vulkan_shape_mismatch()
+#endif // NCNN_VULKAN
            || test_concat_0()
            || test_concat_1()
            || test_concat_2()
@@ -297,5 +431,6 @@ int main()
            || test_concat_6()
            || test_concat_7()
            || test_concat_8()
-           || test_concat_9();
+           || test_concat_9()
+           || test_concat_shape_mismatch();
 }
