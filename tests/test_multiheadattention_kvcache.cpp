@@ -572,6 +572,75 @@ static int test_multiheadattention_shared_kv_kvcache_boundaries()
            || test_multiheadattention_shared_kv_kvcache(masked, 1);
 }
 
+// Cross attention with a past cache appends nothing, so the key and value
+// projections never run and their Mats carry an element size of 0. A cache that
+// was not allocated by opt.kvcache_allocator cannot be reused in place - a cache
+// that came through convert_packing looks exactly like that, and so does one
+// handed over from another session - so the layer reallocates it, and that
+// allocation used to divide by the zero element size.
+static int test_multiheadattention_cross_kvcache_foreign_cache()
+{
+    const int embed_dim = 16;
+    const int num_heads = 4;
+    const int head_dim = embed_dim / num_heads;
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, num_heads);
+    pd.set(2, embed_dim * embed_dim);
+    pd.set(3, embed_dim);
+    pd.set(4, embed_dim);
+    pd.set(5, 0); // cross attention carries no mask
+    pd.set(6, 1.f / sqrtf((float)head_dim));
+    pd.set(7, 1); // kv_cache
+
+    // identity projections keep the cache indexing numerically observable
+    std::vector<ncnn::Mat> weights(8);
+    for (int projection = 0; projection < 4; projection++)
+    {
+        weights[projection * 2] = ncnn::Mat(embed_dim * embed_dim);
+        weights[projection * 2].fill(0.f);
+        for (int i = 0; i < embed_dim; i++)
+            weights[projection * 2][i * embed_dim + i] = 1.f;
+        weights[projection * 2 + 1] = ncnn::Mat(embed_dim);
+        weights[projection * 2 + 1].fill(0.f);
+    }
+
+    ncnn::Mat q(16, 3);
+    ncnn::Mat k(16, 5);
+    ncnn::Mat v(16, 5);
+    for (size_t i = 0; i < q.total(); i++)
+        q[i] = ((int)(i % 11) - 5) * 0.0625f;
+    for (size_t i = 0; i < k.total(); i++)
+    {
+        k[i] = ((int)(i % 7) - 3) * 0.125f;
+        v[i] = ((int)(i % 5) - 2) * 0.25f;
+    }
+
+    // the cache belongs to another allocator, so it cannot be reused in place
+    ncnn::PoolAllocator cache_allocator;
+    ncnn::Mat cached_k(head_dim, k.h, num_heads, 4u, &cache_allocator);
+    ncnn::Mat cached_v(head_dim, k.h, num_heads, 4u, &cache_allocator);
+    for (size_t i = 0; i < cached_k.total(); i++)
+    {
+        cached_k[i] = ((int)(i % 9) - 4) * 0.125f;
+        cached_v[i] = ((int)(i % 13) - 6) * 0.0625f;
+    }
+
+    std::vector<ncnn::Mat> as(5);
+    as[0] = q;
+    as[1] = k;
+    as[2] = v;
+    as[3] = cached_k;
+    as[4] = cached_v;
+
+    const float epsilon = 0.005f;
+    int ret = test_layer("MultiHeadAttention", pd, weights, as, 3, epsilon);
+    if (ret != 0)
+        fprintf(stderr, "test_multiheadattention_cross_kvcache_foreign_cache failed ret=%d\n", ret);
+    return ret;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -589,5 +658,6 @@ int main()
 #if NCNN_BATCH
            || test_multiheadattention_kvcache_batch_rejected()
 #endif // NCNN_BATCH
-           || test_multiheadattention_shared_kv_kvcache_boundaries();
+           || test_multiheadattention_shared_kv_kvcache_boundaries()
+           || test_multiheadattention_cross_kvcache_foreign_cache();
 }
