@@ -805,7 +805,7 @@ static NCNN_FORCEINLINE __m128 ceil_ps(const __m128& x)
 #endif // __SSE4_1__
 
     // Use negative zero as the sign bit mask.
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
 
     // The smallest float number that have no fractional part. (2^23)
     const __m128 magic_smallest_no_fraction = _mm_set_ps1(8388608.0f);
@@ -848,7 +848,7 @@ static NCNN_FORCEINLINE __m128 floor_ps(const __m128& x)
 #endif // __SSE4_1__
 
     // Use negative zero as the sign bit mask.
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
 
     // The smallest float number that have no fractional part. (2^23)
     const __m128 magic_smallest_no_fraction = _mm_set_ps1(8388608.0f);
@@ -884,7 +884,7 @@ static NCNN_FORCEINLINE __m128 floor_ps(const __m128& x)
 
 static NCNN_FORCEINLINE __m128 asin_ps(const __m128& x)
 {
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
     const __m128 magic_half_one = _mm_set_ps1(0.5f);
     const __m128 magic_one = _mm_set_ps1(1.0f);
     const __m128 magic_a4 = _mm_set_ps1(0.023994016f);
@@ -967,7 +967,7 @@ static NCNN_FORCEINLINE __m128 asin_ps(const __m128& x)
 
 static NCNN_FORCEINLINE __m128 acos_ps(const __m128& x)
 {
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
     const __m128 magic_zero = _mm_set_ps1(0.0f);
     const __m128 magic_half_one = _mm_set_ps1(0.5f);
     const __m128 magic_one = _mm_set_ps1(1.0f);
@@ -1056,7 +1056,7 @@ static NCNN_FORCEINLINE __m128 acos_ps(const __m128& x)
 
 static NCNN_FORCEINLINE __m128 atan_ps(const __m128& x)
 {
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
     const __m128 magic_one = _mm_set_ps1(1.0f);
     const __m128 magic_negative_one = _mm_set_ps1(-1.0f);
     const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
@@ -1151,7 +1151,7 @@ static NCNN_FORCEINLINE __m128 atan2_ps(const __m128& y, const __m128& x)
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
 
     const __m128 magic_zero = _mm_set_ps1(0.0f);
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
     const __m128 magic_pi = _mm_set_ps1(3.1415927f);
     const __m128 magic_half_pi = _mm_set_ps1(1.5707964f);
 
@@ -1234,7 +1234,7 @@ static NCNN_FORCEINLINE __m128 round_ps(const __m128& x)
     return _mm_round_ps(x, _MM_FROUND_NINT);
 #endif // __SSE4_1__
 
-    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+    const __m128 magic_negative_zero = _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN));
     const __m128 magic_half = _mm_set_ps1(0.5f);
     const __m128 magic_one = _mm_set_ps1(1.0f);
 
@@ -1298,7 +1298,7 @@ static NCNN_FORCEINLINE __m128 asinh_ps(const __m128& x)
     __m128 y_large = _mm_add_ps(log_ps(ax), _mm_set1_ps(0.6931471805599453f));
     __m128 mask = _mm_cmpgt_ps(ax, _mm_set1_ps(1e19f));
     y = _mm_or_ps(_mm_and_ps(mask, y_large), _mm_andnot_ps(mask, y));
-    return _mm_or_ps(y, _mm_and_ps(x, _mm_set1_ps(-0.f)));
+    return _mm_or_ps(y, _mm_and_ps(x, _mm_castsi128_ps(_mm_set1_epi32(INT32_MIN))));
 }
 
 static NCNN_FORCEINLINE __m128 cosh_ps(const __m128& x)

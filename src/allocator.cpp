@@ -721,8 +721,9 @@ VkBufferMemory* VkBlobAllocator::fastMalloc(size_t size)
             ptr->capacity = aligned_size;
             ptr->mapped_ptr = d->buffer_blocks[i]->mapped_ptr;
             ptr->memory_type_index = d->buffer_blocks[i]->memory_type_index;
-            ptr->access_flags = 0;
-            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            // the spare range may still be accessed by recorded commands of its previous owner
+            ptr->access_flags = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
+            ptr->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
             ptr->storage_type = 0;
 
             // adjust buffer_budgets
@@ -1004,9 +1005,10 @@ VkImageMemory* VkBlobAllocator::fastMalloc(int w, int h, int c, size_t elemsize,
 
             ptr->imageview = create_imageview(ptr->image, format);
 
-            ptr->access_flags = 0;
+            // the spare range may still be accessed by recorded commands of its previous owner
+            ptr->access_flags = VK_ACCESS_SHADER_WRITE_BIT | VK_ACCESS_TRANSFER_WRITE_BIT;
             ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
-            ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            ptr->stage_flags = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT;
             ptr->command_refcount = 0;
 
             if (bind_base_offset != bind_offset)
