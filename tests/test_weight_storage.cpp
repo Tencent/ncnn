@@ -9,6 +9,21 @@
 
 #include <string>
 
+class WeightStorageModelReader : public ncnn::DataReaderFromMemory
+{
+public:
+    WeightStorageModelReader(const unsigned char*& mem, size_t size)
+        : ncnn::DataReaderFromMemory(mem, size)
+    {
+    }
+
+    virtual size_t reference(size_t /*size*/, const void** /*buf*/) const
+    {
+        // Layers must own their weights because the model buffer is temporary.
+        return 0;
+    }
+};
+
 // gemm chain with distinct per-layer weights and a memorydata bias
 // input b0 and output out are both w=16 h=8
 static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, int seed)
@@ -60,7 +75,7 @@ static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, int 
         return ret;
 
     const unsigned char* mem = (const unsigned char*)model.data();
-    ncnn::DataReaderFromMemory dr(mem, model.size() * sizeof(float));
+    WeightStorageModelReader dr(mem, model.size() * sizeof(float));
     return net.load_model(dr);
 }
 
@@ -153,9 +168,13 @@ static int extract_weight_storage_command(const ncnn::Net& net, ncnn::VkCompute&
 
         cmd.record_download(output_gpu, output, opt);
 
+        fprintf(stderr, "test_weight_storage external command submit\n");
         ret = cmd.submit_and_wait();
         if (ret == 0)
+        {
+            fprintf(stderr, "test_weight_storage external command reset\n");
             ret = cmd.reset();
+        }
     }
 
     vkdev->reclaim_blob_allocator(blob_vkallocator);
@@ -170,6 +189,7 @@ static int test_weight_storage(const ncnn::Option& opt, float epsilon)
 
     ncnn::Mat input = RandomMat(16, 8);
 
+    fprintf(stderr, "test_weight_storage reference\n");
     ncnn::Mat expected;
     if (extract_weight_storage_reference(seed, input, expected) != 0)
     {
@@ -177,6 +197,7 @@ static int test_weight_storage(const ncnn::Option& opt, float epsilon)
         return -1;
     }
 
+    fprintf(stderr, "test_weight_storage load\n");
     ncnn::Net net;
     if (load_weight_storage_net(net, opt, seed) != 0)
     {
@@ -187,6 +208,7 @@ static int test_weight_storage(const ncnn::Option& opt, float epsilon)
     // repeated extraction reuses the stored weights
     for (int i = 0; i < 3; i++)
     {
+        fprintf(stderr, "test_weight_storage extract round=%d\n", i);
         ncnn::Mat output;
         if (extract_weight_storage_net(net, input, output) != 0 || CompareMat(expected, output, epsilon) != 0)
         {
@@ -200,6 +222,7 @@ static int test_weight_storage(const ncnn::Option& opt, float epsilon)
 
         for (int i = 0; i < 2; i++)
         {
+            fprintf(stderr, "test_weight_storage external command round=%d\n", i);
             ncnn::Mat output;
             if (extract_weight_storage_command(net, cmd, input, output) != 0 || CompareMat(expected, output, epsilon) != 0)
             {
@@ -210,6 +233,7 @@ static int test_weight_storage(const ncnn::Option& opt, float epsilon)
     }
 
 #if NCNN_THREADS
+    fprintf(stderr, "test_weight_storage concurrent extract\n");
     weight_storage_task tasks[3];
     ncnn::Thread* threads[3];
     for (int i = 0; i < 3; i++)
@@ -267,6 +291,7 @@ static int test_weight_storage_0()
 
             const float epsilon = precision == 0 ? 0.001f : 0.05f;
 
+            fprintf(stderr, "test_weight_storage precision=%d host=%d disk=%d device_limit=%d host_limit=%d\n", precision, (int)storages[i][0], (int)storages[i][1], (int)storages[i][2], (int)storages[i][3]);
             int ret = test_weight_storage(opt, epsilon);
             if (ret != 0)
             {
@@ -292,6 +317,7 @@ static int test_weight_storage_1()
     ncnn::Net net;
     for (int seed = 0; seed < 3; seed++)
     {
+        fprintf(stderr, "test_weight_storage clear/reload seed=%d\n", seed);
         net.clear();
 
         ncnn::Mat expected;
@@ -311,6 +337,7 @@ static int test_weight_storage_1()
 
 static int test_weight_storage_chain(const ncnn::Option& opt0, const ncnn::Option& opt1)
 {
+    fprintf(stderr, "test_weight_storage chain host=%d,%d disk=%d,%d\n", opt0.use_weights_in_host_memory, opt1.use_weights_in_host_memory, opt0.use_weights_in_disk, opt1.use_weights_in_disk);
     ncnn::Mat input = RandomMat(16, 8);
 
     ncnn::Mat middle;
@@ -399,6 +426,7 @@ static int test_weight_storage_2()
 // weights uploaded and consumed through the allocator api
 static int test_weight_storage_allocator(size_t device_memory_limit, size_t host_memory_limit)
 {
+    fprintf(stderr, "test_weight_storage allocator device_limit=%d host_limit=%d\n", (int)device_memory_limit, (int)host_memory_limit);
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
     const bool unified = vkdev->info.type() == 1 || vkdev->info.type() == 3;
 
