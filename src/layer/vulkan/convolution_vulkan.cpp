@@ -77,6 +77,8 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     }
 #endif
 
+    const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix
+            && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
     Option opt_cm = opt;
     bool use_qcom_cooperative_matrix = false;
 
@@ -200,7 +202,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
 
     if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = use_fp16_cooperative_matrix;
 
         if (use_cooperative_matrix)
         {
@@ -223,7 +225,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -1104,7 +1106,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     }
     else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input * maxk >= 8 && num_output >= 8)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = use_fp16_cooperative_matrix;
 
         if (use_cooperative_matrix)
         {
@@ -1120,7 +1122,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -1357,7 +1359,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
     }
     else if (is_conv1x1s1d1)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = use_fp16_cooperative_matrix && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -1373,7 +1375,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -1771,7 +1773,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             const int cstep_vec4 = (elempack == 4) ? (shape_bordered.dims != 0 ? shape_bordered.cstep : 0)
                                    : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
 
-            std::vector<vk_specialization_type> specializations(6 + 8);
+            std::vector<vk_specialization_type> specializations(6 + 8 + 1);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1798,6 +1800,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_convolution_1x1s1d1->set_local_size_xyz(8, std::min(8, outc_pack4), 1);
             }
+            specializations[6 + 8].u32 = pipeline_convolution_1x1s1d1->local_size_x();
             pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_packed_1x1s1d1, opt, specializations);
         }
     }

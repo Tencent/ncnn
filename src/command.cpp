@@ -2497,6 +2497,15 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         uint32_t group_count_y = (dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
         uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
+        const uint32_t max_group_count_x = vkdev->info.max_workgroup_count_x();
+        const uint32_t max_group_count_y = vkdev->info.max_workgroup_count_y();
+        const uint32_t max_group_count_z = vkdev->info.max_workgroup_count_z();
+        if (group_count_x > max_group_count_x || group_count_y > max_group_count_y || group_count_z > max_group_count_z)
+        {
+            NCNN_LOGE("warning: vkCmdDispatch workgroup count (%u, %u, %u) exceeds device limits (%u, %u, %u)",
+                      group_count_x, group_count_y, group_count_z, max_group_count_x, max_group_count_y, max_group_count_z);
+        }
+
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
             vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);

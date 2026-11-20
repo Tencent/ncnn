@@ -46,6 +46,8 @@ int Convolution1D_vulkan::load_param(const ParamDict& pd)
 int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
+    const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix
+            && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
     Option opt_cm = opt;
     bool use_qcom_cooperative_matrix = false;
 
@@ -81,7 +83,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 
     if (use_gemm)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = use_fp16_cooperative_matrix;
 
         if (use_cooperative_matrix)
         {
@@ -95,7 +97,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
@@ -360,7 +362,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = use_fp16_cooperative_matrix && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
@@ -374,7 +376,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
             if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
                 use_qcom_cooperative_matrix = false;
-            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+            if (!vkdev->info.support_fp16_arithmetic())
                 use_qcom_cooperative_matrix = false;
 
             // qcom conversion assigns a row or column to each subgroup invocation
