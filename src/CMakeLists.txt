@@ -256,7 +256,10 @@ if(NCNN_OPENMP)
         endif()
 
         if(NCNN_SIMPLEOMP)
-            if(IOS OR APPLE)
+            if(MSVC AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+                # clang-cl ignores -fopenmp, -openmp enables the llvm openmp abi
+                target_compile_options(ncnn PRIVATE -openmp)
+            elseif(IOS OR APPLE)
                 target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
             else()
                 target_compile_options(ncnn PRIVATE -fopenmp)

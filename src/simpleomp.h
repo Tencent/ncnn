@@ -10,14 +10,31 @@
 
 #include <stdint.h>
 
-// This minimal openmp runtime implementation only supports the llvm openmp abi
-// and only supports #pragma omp parallel for num_threads(X)
+// This minimal openmp runtime implementation supports the two OpenMP compiler
+// ABIs used by ncnn:
+// - LLVM openmp abi, emitted by clang and clang-cl
+// - GNU libgomp abi, emitted by gcc
+// (msvc cl /openmp uses the incompatible vcomp abi)
+// It implements a practical subset of the OpenMP runtime ABI used by ncnn and
+// user code: parallel / parallel for (static / static,chunk / dynamic / guided
+// / runtime / auto / collapse), if clause, reduction, critical, barrier,
+// master, single, ordered, sections, atomic and flush
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 NCNN_EXPORT int omp_get_max_threads();
+
+NCNN_EXPORT int omp_get_num_procs();
+
+NCNN_EXPORT int omp_in_parallel();
+
+NCNN_EXPORT int omp_get_level();
+
+NCNN_EXPORT int omp_get_active_level();
+
+NCNN_EXPORT int omp_get_thread_limit();
 
 NCNN_EXPORT void omp_set_num_threads(int num_threads);
 
