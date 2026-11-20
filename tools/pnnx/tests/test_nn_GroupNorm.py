@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -50,7 +51,24 @@ def test():
     import test_nn_GroupNorm_pnnx
     b0, b1, b2 = test_nn_GroupNorm_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    if not (torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y, z))
+    torch.export.save(ep, "test_nn_GroupNorm_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_nn_GroupNorm_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_nn_GroupNorm_export_pnnx
+    c0, c1, c2 = test_nn_GroupNorm_export_pnnx.test_inference()
+
+    return torch.equal(a0, c0) and torch.equal(a1, c1) and torch.equal(a2, c2)
 
 if __name__ == "__main__":
     if test():

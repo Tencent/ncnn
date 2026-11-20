@@ -35,10 +35,10 @@ static void threshold_bf16s(Mat& bottom_top_blob, float threshold, const Option&
 
             vbool8_t _mask = __riscv_vmfgt_vf_f32m4_b8(_p, threshold, vl);
 
-            vfloat32m4_t _out = __riscv_vfmv_v_f_f32m4(0.f, vl);
-            _out = __riscv_vfmerge_vfm_f32m4(_out, 1.f, _mask, vl);
+            // 0x3f80 is bf16 1.0
+            vuint16m2_t _out = __riscv_vmerge_vxm_u16m2(__riscv_vmv_v_x_u16m2(0, vl), 0x3f80, _mask, vl);
 
-            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_out, vl), vl);
+            __riscv_vse16_v_u16m2(ptr, _out, vl);
             ptr += vl;
             n -= vl;
         }
@@ -48,8 +48,7 @@ static void threshold_bf16s(Mat& bottom_top_blob, float threshold, const Option&
 #else
         for (int i = 0; i < size; i++)
         {
-            float v = bfloat16_to_float32(ptr[i]);
-            ptr[i] = float32_to_bfloat16(v > threshold ? 1.f : 0.f);
+            ptr[i] = bfloat16_to_float32(ptr[i]) > threshold ? 0x3f80 : 0;
         }
 #endif
     }
