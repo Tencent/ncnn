@@ -1,0 +1,71 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#extension GL_GOOGLE_include_directive : enable
+#include "vulkan_activation.comp"
+
+layout(constant_id = 0) const int bias_term = 0;
+layout(constant_id = 1) const int activation_type = 0;
+layout(constant_id = 2) const float activation_param_0 = 0;
+layout(constant_id = 3) const float activation_param_1 = 0;
+layout(constant_id = 4) const int c = 0;
+
+#define shape_constant_id_offset 5
+layout(constant_id = shape_constant_id_offset + 0) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int outcstep = 0;
+
+layout(binding = 0) readonly buffer top_tm_blob { sfp top_tm_blob_data[]; };
+layout(binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 2) readonly buffer bias_blob { sfp bias_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int cstep;
+    int block_x;
+    int outw;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gz >= c)
+        return;
+
+    // load 4 accumulated values from transform domain
+    int v_tm_offset = gz * psc(cstep) + gx;
+
+    afp m0 = buffer_ld1(top_tm_blob_data, v_tm_offset + 0 * psc(cstep) * c);
+    afp m1 = buffer_ld1(top_tm_blob_data, v_tm_offset + 1 * psc(cstep) * c);
+    afp m2 = buffer_ld1(top_tm_blob_data, v_tm_offset + 2 * psc(cstep) * c);
+    afp m3 = buffer_ld1(top_tm_blob_data, v_tm_offset + 3 * psc(cstep) * c);
+
+    // A^T transform (2x4) - only once (1D)
+    afp y0 = m0 + m1 + m2;
+    afp y1 = m1 - m2 + m3;
+
+    // bias
+    if (bias_term == 1)
+    {
+        const afp bias_value = buffer_ld1(bias_data, gz);
+        y0 = bias_value + y0;
+        y1 = bias_value + y1;
+    }
+
+    // activation
+    y0 = activation_afp(y0, activation_type, activation_param_0, activation_param_1);
+    y1 = activation_afp(y1, activation_type, activation_param_0, activation_param_1);
+
+    // store 2 output elements
+    int x = gx * 2;
+    int v_offset = gz * psc(outcstep) + x;
+
+    buffer_st1(top_blob_data, v_offset + 0, y0);
+    if (x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset + 1, y1);
+}
