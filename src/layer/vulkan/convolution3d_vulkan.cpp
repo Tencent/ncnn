@@ -1292,13 +1292,17 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
 
         const int outc_pack4 = num_output_packed / 4;
 
+        // Smaller workgroups reduce register spilling for fp16 on NVIDIA.
+        int local_size_z = outc_pack4;
+        if (vkdev->info.vendor_id() == 0x10de && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed)
+            local_size_z = (outc_pack4 + 1) / 2;
+
         // each invocation computes a 2x2x2 output block of one pack4 output channel
-        Mat local_size_xyz(8, 8, std::min(4, outc_pack4), (void*)0);
+        Mat local_size_xyz(8, 8, std::min(4, local_size_z), (void*)0);
         if (out_shape.dims != 0)
         {
             local_size_xyz.w = std::min(8, (out_shape.w + 1) / 2);
             local_size_xyz.h = std::min(8, (out_shape.h + 1) / 2 * ((out_shape.d + 1) / 2));
-            local_size_xyz.c = std::min(4, outc_pack4);
         }
 
         pipeline_convolution3d = new Pipeline(vkdev);
