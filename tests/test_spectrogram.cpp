@@ -40,7 +40,12 @@ static int test_spectrogram_0()
            || test_spectrogram(39, 17, 0, 7, 15, 0, 0, 0, 1, 0)
            || test_spectrogram(128, 10, 0, 2, 7, 1, 1, 1, 1, 1)
            || test_spectrogram(255, 17, 1, 14, 17, 2, 0, 0, 0, 1)
-           || test_spectrogram(124, 55, 2, 12, 55, 1, 1, 2, 2, 0);
+           || test_spectrogram(124, 55, 2, 12, 55, 1, 1, 2, 2, 0)
+           // power-of-two sizes exercise the fft fast path
+           || test_spectrogram(200, 64, 0, 16, 64, 0, 0, 0, 0, 1)
+           || test_spectrogram(255, 128, 0, 32, 128, 1, 1, 2, 1, 1)
+           || test_spectrogram(300, 256, 0, 64, 100, 2, 0, 0, 2, 1)
+           || test_spectrogram(124, 32, 0, 8, 32, 0, 1, 1, 0, 0);
 }
 
 #if NCNN_VALIDATION
