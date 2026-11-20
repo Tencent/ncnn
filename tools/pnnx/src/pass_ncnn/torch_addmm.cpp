@@ -133,6 +133,18 @@ pnnx.Output             output      1 0 out
         return "addmm";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const Parameter& alpha = captured_params.at("alpha");
+        if ((alpha.type == 2 && alpha.i == 0) || (alpha.type == 3 && alpha.f == 0.f))
+        {
+            fprintf(stderr, "addmm with alpha=0 is not supported yet\n");
+            return false;
+        }
+
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         std::swap(op->inputs[0], op->inputs[1]);

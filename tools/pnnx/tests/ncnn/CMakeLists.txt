@@ -163,6 +163,7 @@ pnnx_ncnn_add_test(Tensor_view)
 pnnx_ncnn_add_test(Tensor_unflatten)
 
 pnnx_ncnn_add_test(torch_addmm)
+pnnx_ncnn_add_test(torch_addmm_zero_alpha)
 pnnx_ncnn_add_test(torch_amax)
 pnnx_ncnn_add_test(torch_amin)
 pnnx_ncnn_add_test(torch_bmm)
