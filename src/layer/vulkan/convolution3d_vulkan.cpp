@@ -40,8 +40,8 @@ Convolution3D_vulkan::Convolution3D_vulkan()
 
 int Convolution3D_vulkan::create_pipeline(const Option& opt)
 {
-    const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix
-            && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
+    const bool use_fp16 = (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
+    const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && use_fp16;
     Option opt_cm = opt;
     bool use_qcom_cooperative_matrix = false;
 
@@ -1292,10 +1292,8 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
 
         const int outc_pack4 = num_output_packed / 4;
 
-        // Smaller workgroups reduce register spilling for fp16 on NVIDIA.
-        int local_size_z = outc_pack4;
-        if (vkdev->info.vendor_id() == 0x10de && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed)
-            local_size_z = (outc_pack4 + 1) / 2;
+        // Smaller workgroups reduce register spilling for fp16.
+        const int local_size_z = use_fp16 ? (outc_pack4 + 1) / 2 : outc_pack4;
 
         // each invocation computes a 2x2x2 output block of one pack4 output channel
         Mat local_size_xyz(8, 8, std::min(4, local_size_z), (void*)0);
