@@ -18,6 +18,50 @@ class Model(nn.Module):
         q1 = torch.amax(q, dim=(2,3), keepdim=True)
         return x, y, z, q0, q1
 
+
+class ModelEmptyDims(nn.Module):
+    def forward(self, x):
+        return (
+            torch.amax(x, dim=[], keepdim=True),
+            torch.amax(x, dim=(), keepdim=True),
+            torch.amax(x, dim=[], keepdim=False),
+            torch.amax(x, dim=(), keepdim=False),
+            torch.amax(x, dim=(0, 1), keepdim=True),
+            torch.amax(x, dim=(0, 1), keepdim=False),
+        )
+
+def test_empty_dims():
+    net = ModelEmptyDims()
+    net.eval()
+
+    torch.manual_seed(0)
+    x = torch.rand(2, 3)
+    a = net(x)
+
+    mod = torch.jit.trace(net, x)
+    mod.save("test_torch_amax_empty_dims.pt")
+
+    import os
+    os.system("../../src/pnnx test_torch_amax_empty_dims.pt inputshape=[2,3]")
+
+    import test_torch_amax_empty_dims_ncnn
+    b = test_torch_amax_empty_dims_ncnn.test_inference()
+
+    if len(b) != len(a):
+        return False
+
+    for i, (a0, b0) in enumerate(zip(a, b)):
+        if i < 4:
+            control = b[4] if i < 2 else b[5]
+            if b0.shape != control.shape:
+                return False
+            if i < 2 and b0.shape != a0.shape:
+                return False
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
+
+
 def test():
     net = Model()
     net.eval()
@@ -45,7 +89,7 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-    return True
+    return test_empty_dims()
 
 if __name__ == "__main__":
     if test():
