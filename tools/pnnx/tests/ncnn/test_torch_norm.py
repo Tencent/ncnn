@@ -47,8 +47,41 @@ def test():
             return False
     return True
 
+class UnsupportedNormModel(nn.Module):
+    def __init__(self, p, method):
+        super(UnsupportedNormModel, self).__init__()
+        self.p = p
+        self.method = method
+
+    def forward(self, x):
+        if self.method:
+            return x.norm(p=self.p, dim=1, keepdim=True)
+        return torch.norm(x, p=self.p, dim=1, keepdim=True)
+
+def test_unsupported():
+    import ncnn
+    import os
+    x = torch.tensor([[-3., -4., 0.], [1., 2., 4.]])
+    cases = [(0, False), (3.0, False), (-1, False),
+             (0.0, True), (3, True), (-1.0, True)]
+    for i, (p, method) in enumerate(cases):
+        net = UnsupportedNormModel(p, method).eval()
+        mod = torch.jit.trace(net, x)
+        name = "test_torch_norm_unsupported_" + str(i)
+        mod.save(name + ".pt")
+        if os.system("../../src/pnnx " + name + ".pt inputshape=[2,3] fp16=0") != 0:
+            return False
+        with open(name + ".ncnn.param") as f:
+            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
+        if "torch.norm" not in layers or "Reduction" in layers:
+            return False
+        with ncnn.Net() as net:
+            if net.load_param(name + ".ncnn.param") == 0:
+                return False
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_unsupported():
         exit(0)
     else:
         exit(1)
