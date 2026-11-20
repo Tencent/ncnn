@@ -11,6 +11,7 @@ class Model(nn.Module):
 
         self.act_0 = nn.ELU()
         self.act_1 = nn.ELU(alpha=1.3)
+        self.act_2 = nn.ELU(alpha=2)
 
     def forward(self, x, y, z, w, q):
         x = x * 2 - 1
@@ -24,6 +25,7 @@ class Model(nn.Module):
         z = self.act_1(z)
         w = self.act_1(w)
         q = self.act_1(q)
+        q = self.act_2(q)
         return x, y, z, w, q
 
 def test():
@@ -46,6 +48,23 @@ def test():
     # torchscript to pnnx
     import os
     os.system("../../src/pnnx test_nn_ELU.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64],[2,3,5,7]")
+
+    # Float spelling is required by ncnn2mem binary parameter conversion.
+    alphas = []
+    with open("test_nn_ELU.ncnn.param") as f:
+        for line in f:
+            fields = line.split()
+            if not fields or fields[0] != "ELU":
+                continue
+            values = [field[2:] for field in fields[4:] if field.startswith("0=")]
+            if len(values) != 1:
+                return False
+            alpha = values[0]
+            if "." not in alpha and "e" not in alpha.lower():
+                return False
+            alphas.append(float(alpha))
+    if 2.0 not in alphas:
+        return False
 
     # ncnn inference
     import test_nn_ELU_ncnn
