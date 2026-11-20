@@ -38,12 +38,9 @@ int HardSigmoid::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i = 0; i < size; i++)
         {
-            if (ptr[i] < lower)
-                ptr[i] = 0.f;
-            else if (ptr[i] > upper)
-                ptr[i] = 1.f;
-            else
-                ptr[i] = ptr[i] * alpha + beta;
+            // keep this identical to the vectorized hardsigmoid helpers,
+            // the lower/upper form diverges from them when alpha <= 0
+            ptr[i] = std::min(std::max(ptr[i] * alpha + beta, 0.f), 1.f);
         }
     }
 

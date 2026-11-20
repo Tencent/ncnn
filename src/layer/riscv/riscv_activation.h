@@ -40,19 +40,55 @@
         }                                                                                                                                                                     \
         else if (activation_type == 6)                                                                                                                                        \
         {                                                                                                                                                                     \
-            const float alpha = activation_params[0];                                                                                                                         \
-            const float beta = activation_params[1];                                                                                                                          \
-            const float lower = -beta / alpha;                                                                                                                                \
-            const float upper = (1.f / alpha) + lower;                                                                                                                        \
-            vbool##MLEN##_t _lower = __riscv_vmflt_vf_f##SEW##m##LMUL##_b##MLEN(_v, (STYPE)lower, vl);                                                                        \
-            vbool##MLEN##_t _higher = __riscv_vmfgt_vf_f##SEW##m##LMUL##_b##MLEN(_v, (STYPE)upper, vl);                                                                       \
-            vbool##MLEN##_t _apply = __riscv_vmnor_mm_b##MLEN(_lower, _higher, vl);                                                                                           \
-            _v = __riscv_vfmerge_vfm_f##SEW##m##LMUL(_v, (STYPE).0f, _lower, vl);                                                                                             \
-                                                                                                                                                                              \
-            vfloat##SEW##m##LMUL##_t _p0 = __riscv_vfadd_vf_f##SEW##m##LMUL##_m(_apply, __riscv_vfmul_vf_f##SEW##m##LMUL##_m(_apply, _v, (STYPE)alpha, vl), (STYPE)beta, vl); \
-            _v = __riscv_vfmul_vv_f##SEW##m##LMUL##_mu(_apply, _v, _v, _p0, vl);                                                                                              \
+            const STYPE alpha = (STYPE)activation_params[0];                                                                                                                  \
+            const STYPE beta = (STYPE)activation_params[1];                                                                                                                   \
+            vfloat##SEW##m##LMUL##_t _p0 = __riscv_vfmul_vf_f##SEW##m##LMUL(_v, alpha, vl);                                                                                   \
+            _p0 = __riscv_vfadd_vf_f##SEW##m##LMUL(_p0, beta, vl);                                                                                                            \
+            _p0 = __riscv_vfmax_vf_f##SEW##m##LMUL(_p0, (STYPE)0.f, vl);                                                                                                      \
+            _p0 = __riscv_vfmin_vf_f##SEW##m##LMUL(_p0, (STYPE)1.f, vl);                                                                                                      \
+            _v = __riscv_vfmul_vv_f##SEW##m##LMUL(_v, _p0, vl);                                                                                                               \
         }                                                                                                                                                                     \
                                                                                                                                                                               \
+        else if (activation_type == 7)                                                                                                                                         \
+        {                                                                                                                                                                      \
+            const int fast_gelu = activation_params.row<int>(0)[0];                                                                                                            \
+            if (fast_gelu)                                                                                                                                                     \
+            {                                                                                                                                                                  \
+                vfloat##SEW##m##LMUL##_t _arg = __riscv_vfmul_vf_f##SEW##m##LMUL(__riscv_vfmul_vv_f##SEW##m##LMUL(__riscv_vfmul_vv_f##SEW##m##LMUL(_v, _v, vl), _v, vl), (STYPE)0.044715f, vl); \
+                _arg = __riscv_vfadd_vv_f##SEW##m##LMUL(_v, _arg, vl);                                                                                                         \
+                _arg = __riscv_vfmul_vf_f##SEW##m##LMUL(_arg, (STYPE)0.79788452f, vl);                                                                                         \
+                vfloat##SEW##m##LMUL##_t _tanharg = tanh_ps(_arg, vl);                                                                                                         \
+                _v = __riscv_vfmul_vf_f##SEW##m##LMUL(__riscv_vfmul_vv_f##SEW##m##LMUL(_v, __riscv_vfadd_vf_f##SEW##m##LMUL(_tanharg, (STYPE)1.f, vl), vl), (STYPE).5f, vl);   \
+            }                                                                                                                                                                  \
+            else                                                                                                                                                               \
+            {                                                                                                                                                                  \
+                vfloat##SEW##m##LMUL##_t _erf = erf_ps(__riscv_vfmul_vf_f##SEW##m##LMUL(_v, (STYPE)0.70710678f, vl), vl);                                                      \
+                _v = __riscv_vfmul_vf_f##SEW##m##LMUL(__riscv_vfmul_vv_f##SEW##m##LMUL(_v, __riscv_vfadd_vf_f##SEW##m##LMUL(_erf, (STYPE)1.f, vl), vl), (STYPE).5f, vl);       \
+            }                                                                                                                                                                  \
+        }                                                                                                                                                                      \
+        else if (activation_type == 8)                                                                                                                                         \
+        {                                                                                                                                                                      \
+            _v = __riscv_vfmul_vv_f##SEW##m##LMUL(_v, sigmoid_ps(_v, vl), vl);                                                                                                 \
+        }                                                                                                                                                                      \
+        else if (activation_type == 9)                                                                                                                                         \
+        {                                                                                                                                                                      \
+            const STYPE alpha = (STYPE)activation_params[0];                                                                                                                   \
+            vbool##MLEN##_t _lower = __riscv_vmflt_vf_f##SEW##m##LMUL##_b##MLEN(_v, (STYPE)0.f, vl);                                                                           \
+            vfloat##SEW##m##LMUL##_t _nps = __riscv_vfsub_vf_f##SEW##m##LMUL(exp_ps(_v, vl), (STYPE)1.f, vl);                                                                  \
+            _nps = __riscv_vfmul_vf_f##SEW##m##LMUL(_nps, alpha, vl);                                                                                                          \
+            _v = __riscv_vmerge_vvm_f##SEW##m##LMUL(_v, _nps, _lower, vl);                                                                                                     \
+        }                                                                                                                                                                      \
+        else if (activation_type == 10)                                                                                                                                        \
+        {                                                                                                                                                                      \
+            const STYPE alpha = (STYPE)activation_params[0];                                                                                                                   \
+            const STYPE lambda = (STYPE)activation_params[1];                                                                                                                  \
+            const STYPE alphaxlambda = alpha * lambda;                                                                                                                         \
+            vbool##MLEN##_t _lower = __riscv_vmflt_vf_f##SEW##m##LMUL##_b##MLEN(_v, (STYPE)0.f, vl);                                                                           \
+            vfloat##SEW##m##LMUL##_t _nps = __riscv_vfsub_vf_f##SEW##m##LMUL(exp_ps(_v, vl), (STYPE)1.f, vl);                                                                  \
+            _nps = __riscv_vfmul_vf_f##SEW##m##LMUL(_nps, alphaxlambda, vl);                                                                                                   \
+            vfloat##SEW##m##LMUL##_t _pos = __riscv_vfmul_vf_f##SEW##m##LMUL(_v, lambda, vl);                                                                                  \
+            _v = __riscv_vmerge_vvm_f##SEW##m##LMUL(_pos, _nps, _lower, vl);                                                                                                   \
+        }                                                                                                                                                                      \
         return _v;                                                                                                                                                            \
     }
 

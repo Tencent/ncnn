@@ -82,12 +82,8 @@ static void hardsigmoid_fp32(Mat& bottom_top_blob, float alpha, float beta, floa
 #endif // __SSE2__
         for (; i < size; i++)
         {
-            if (*ptr < lower)
-                *ptr = 0.f;
-            else if (*ptr > upper)
-                *ptr = 1.f;
-            else
-                *ptr = *ptr * alpha + beta;
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
+            *ptr = std::min(std::max(*ptr * alpha + beta, 0.f), 1.f);
             ptr++;
         }
     }

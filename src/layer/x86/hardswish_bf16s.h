@@ -151,14 +151,9 @@ static void hardswish_bf16s(Mat& a, float alpha, float beta, float lower, float 
 #endif // __SSE2__
         for (; i < size; i++)
         {
+            // keep the scalar tail identical to the vectorized body for alpha <= 0 too
             float v = bfloat16_to_float32(*ptr);
-            if (v < lower)
-                v = 0.f;
-            else if (v > upper)
-                ;
-            else
-                v = v * (v * alpha + beta);
-            *ptr = float32_to_bfloat16(v);
+            *ptr = float32_to_bfloat16(v * std::min(std::max(v * alpha + beta, 0.f), 1.f));
             ptr++;
         }
     }

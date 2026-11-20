@@ -66,6 +66,31 @@ static NCNN_FORCEINLINE v4f32 elu_msa(v4f32 inputs, v4f32 alphas)
     return __msa_fadd_w(pos, __msa_fmul_w(alphas, neg));
 }
 
+static NCNN_FORCEINLINE v4f32 gelu_msa(v4f32 inputs, int fast_gelu)
+{
+    const v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
+    const v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+
+    if (fast_gelu)
+    {
+        const v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
+        const v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f);
+        v4f32 _cube = __msa_fmul_w(inputs, inputs);
+        _cube = __msa_fmul_w(inputs, _cube);
+        v4f32 _blob = __msa_fmul_w(_fast2c, _cube);
+        _blob = __msa_fadd_w(inputs, _blob);
+        _blob = __msa_fmul_w(_fast1c, _blob);
+        _blob = tanh_ps(_blob);
+        _blob = __msa_fadd_w(_one, _blob);
+        return __msa_fmul_w(_half, __msa_fmul_w(_blob, inputs));
+    }
+
+    const v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+    v4f32 _erf = erf_ps(__msa_fmul_w(inputs, _inv_sqrt2));
+    v4f32 _blob = __msa_fadd_w(_one, _erf);
+    return __msa_fmul_w(_half, __msa_fmul_w(_blob, inputs));
+}
+
 static NCNN_FORCEINLINE v4f32 activation_msa(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     switch (activation_type)
@@ -103,6 +128,29 @@ static NCNN_FORCEINLINE v4f32 activation_msa(v4f32 _v, int activation_type, cons
         v4f32 _a = (v4f32)__msa_fill_w_f32(activation_params[0]);
         v4f32 _b = (v4f32)__msa_fill_w_f32(activation_params[1]);
         return hardswish_msa(_v, _a, _b);
+    }
+    case 7:
+    {
+        // Gelu
+        const int fast_gelu = activation_params.row<int>(0)[0];
+        return gelu_msa(_v, fast_gelu);
+    }
+    case 8:
+    {
+        // Swish
+        return swish_msa(_v);
+    }
+    case 9:
+    {
+        // Elu
+        return elu_msa(_v, (v4f32)__msa_fill_w_f32(activation_params[0]));
+    }
+    case 10:
+    {
+        // Selu
+        const float alpha = activation_params[0];
+        const float lambda = activation_params[1];
+        return __msa_fmul_w((v4f32)__msa_fill_w_f32(lambda), elu_msa(_v, (v4f32)__msa_fill_w_f32(alpha)));
     }
     }
 

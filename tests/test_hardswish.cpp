@@ -49,6 +49,19 @@ static int test_hardswish_2()
            || test_hardswish(RandomMat(127), 0.2f, 0.5f);
 }
 
+// alpha <= 0 inverts the lower/upper bounds, the clamped form must stay
+// consistent between the scalar reference and every vectorized kernel
+static int test_hardswish_3()
+{
+    return 0
+           || test_hardswish(RandomMat(5, 7, 24), -0.323907f, 0.360438f, TEST_LAYER_DISABLE_GPU_TESTING)
+           || test_hardswish(RandomMat(7, 9, 12), -0.323907f, 0.360438f)
+           || test_hardswish(RandomMat(3, 5, 13), -1.5f, 2.f)
+           || test_hardswish(RandomMat(15, 24), -0.25f, 0.5f)
+           || test_hardswish(RandomMat(128), -0.25f, 0.5f)
+           || test_hardswish(RandomMat(127), -0.25f, 0.5f);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -56,5 +69,6 @@ int main()
     return 0
            || test_hardswish_0()
            || test_hardswish_1()
-           || test_hardswish_2();
+           || test_hardswish_2()
+           || test_hardswish_3();
 }

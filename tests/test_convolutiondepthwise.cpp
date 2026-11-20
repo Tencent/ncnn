@@ -189,7 +189,7 @@ static int test_convolutiondepthwise_0()
     {
         for (int bias = 0; bias < 2; bias++)
         {
-            for (int act = 0; act < 7; act++)
+            for (int act = 0; act < 11; act++)
             {
                 const int* ch = activation_channels[i];
                 if (test_convolutiondepthwise(9, 7, ch[0], ch[1], 2, 1, 1, 1, bias, ch[2], act) != 0)

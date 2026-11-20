@@ -51,10 +51,10 @@ int ConvolutionDepthWise3D::load_param(const ParamDict& pd)
     if (group <= 0 || num_output % group != 0)
         return -1;
 
-    if (activation_type < 0 || activation_type > 6)
+    if (activation_type < 0 || activation_type > 10)
         return -1;
 
-    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2))
+    if ((activation_type == 2 && activation_params.w < 1) || ((activation_type == 3 || activation_type == 6) && activation_params.w < 2) || (activation_type == 7 && activation_params.w < 1) || (activation_type == 9 && activation_params.w < 1) || (activation_type == 10 && activation_params.w < 2))
         return -1;
 
     if (kernel_w <= 0 || dilation_w <= 0 || stride_w <= 0 || kernel_w - 1 > (INT_MAX - 1) / dilation_w || kernel_h <= 0 || dilation_h <= 0 || stride_h <= 0 || kernel_h - 1 > (INT_MAX - 1) / dilation_h || kernel_d <= 0 || dilation_d <= 0 || stride_d <= 0 || kernel_d - 1 > (INT_MAX - 1) / dilation_d || kernel_w > INT_MAX / kernel_h || kernel_w * kernel_h > INT_MAX / kernel_d)
