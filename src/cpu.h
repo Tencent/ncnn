@@ -109,6 +109,9 @@ NCNN_EXPORT int cpu_support_mips_msa();
 // mmi = loongson mmi
 NCNN_EXPORT int cpu_support_loongson_mmi();
 
+// altivec = powerpc vmx
+NCNN_EXPORT int cpu_support_powerpc_altivec();
+
 // v = riscv vector
 NCNN_EXPORT int cpu_support_riscv_v();
 // zfh = riscv half-precision float
