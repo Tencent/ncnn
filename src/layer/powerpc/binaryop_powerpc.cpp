@@ -37,24 +37,24 @@ namespace BinaryOp_powerpc_functor {
         }                                                      \
     };
 
-#define MAKE_FUNCTION_SCALAR(NAME, IMPL)                       \
-    struct NAME                                                \
-    {                                                          \
-        float operator()(const float& x, const float& y) const \
-        {                                                      \
-            return IMPL;                                       \
-        }                                                      \
+#define MAKE_FUNCTION_SCALAR(NAME, IMPL)                         \
+    struct NAME                                                  \
+    {                                                            \
+        float operator()(const float& x, const float& y) const   \
+        {                                                        \
+            return IMPL;                                         \
+        }                                                        \
         v4f32 operator()(const v4f32& _x, const v4f32& _y) const \
-        {                                                      \
-            float _r[4];                                       \
-            for (int _l = 0; _l < 4; _l++)                     \
-            {                                                  \
-                float x = vec_extract(_x, _l);                 \
-                float y = vec_extract(_y, _l);                 \
-                _r[_l] = IMPL;                                 \
-            }                                                  \
-            return __ncnn_altivec_load(_r);                    \
-        }                                                      \
+        {                                                        \
+            float _r[4];                                         \
+            for (int _l = 0; _l < 4; _l++)                       \
+            {                                                    \
+                float x = vec_extract(_x, _l);                   \
+                float y = vec_extract(_y, _l);                   \
+                _r[_l] = IMPL;                                   \
+            }                                                    \
+            return __ncnn_altivec_load(_r);                      \
+        }                                                        \
     };
 
 // clang-format off

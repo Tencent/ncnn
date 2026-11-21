@@ -172,10 +172,10 @@ int RotaryEmbed_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vect
             }
 
             return rotaryembed_forward_fp32(
-                bottom_blob.elempack != 1 ? bottom_blob_unpacked : bottom_blob,
-                cos_cache.elempack != 1 ? cos_cache_unpacked : cos_cache,
-                sin_cache.elempack != 1 ? sin_cache_unpacked : sin_cache,
-                top_blob, interleaved, opt);
+                       bottom_blob.elempack != 1 ? bottom_blob_unpacked : bottom_blob,
+                       cos_cache.elempack != 1 ? cos_cache_unpacked : cos_cache,
+                       sin_cache.elempack != 1 ? sin_cache_unpacked : sin_cache,
+                       top_blob, interleaved, opt);
         }
 
         return rotaryembed_forward_fp32(bottom_blob, cos_cache, sin_cache, top_blob, interleaved, opt);

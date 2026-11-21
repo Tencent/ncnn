@@ -49,7 +49,9 @@ static void spectrogram_forward_altivec(const Mat& bottom_blob_bordered, Mat& to
                 _v = __ncnn_altivec_mul(_v, __ncnn_altivec_load(window_data.row(0) + k));
 
                 // dft
-                const v4i32 _k = (v4i32){k, k + 1, k + 2, k + 3};
+                const v4i32 _k = (v4i32) {
+                    k, k + 1, k + 2, k + 3
+                };
                 v4f32 _angle = __ncnn_altivec_mul(__ncnn_altivec_ffint_s(_k), _freq_step);
 
                 v4f32 _c;

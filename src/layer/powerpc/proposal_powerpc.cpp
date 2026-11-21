@@ -143,7 +143,9 @@ int Proposal_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     Mat proposals;
     proposals.create(4, w * h, num_anchors);
 
-    const v4f32 _sign = (v4f32){-1.f, -1.f, 1.f, 1.f};
+    const v4f32 _sign = (v4f32) {
+        -1.f, -1.f, 1.f, 1.f
+        };
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_anchors; q++)
@@ -182,13 +184,21 @@ int Proposal_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
                 // exp of the width / height deltas, lanes {exp(dw), exp(dh), exp(dw), exp(dh)}
                 // scaled by the anchor size: pb_w = anchor_w * expf(dw), pb_h = anchor_h * expf(dh)
-                const v4f32 _dh = (v4f32){dw, dh, dw, dh};
-                const v4f32 _anchor_wh = (v4f32){anchor_w, anchor_h, anchor_w, anchor_h};
+                const v4f32 _dh = (v4f32) {
+                    dw, dh, dw, dh
+                };
+                const v4f32 _anchor_wh = (v4f32) {
+                    anchor_w, anchor_h, anchor_w, anchor_h
+                };
                 const v4f32 _pb_wh = exp_ps(_dh);
                 const v4f32 _half_wh = __ncnn_altivec_mul(_pb_wh, __ncnn_altivec_mul(_anchor_wh, vec_splats(0.5f)));
 
-                const v4f32 _base = (v4f32){cx, cy, cx, cy};
-                const v4f32 _shift = (v4f32){anchor_w * dx, anchor_h * dy, anchor_w * dx, anchor_h * dy};
+                const v4f32 _base = (v4f32) {
+                    cx, cy, cx, cy
+                };
+                const v4f32 _shift = (v4f32) {
+                    anchor_w * dx, anchor_h * dy, anchor_w * dx, anchor_h * dy
+                };
 
                 const v4f32 _center = vec_add(_shift, _base);
 
@@ -212,7 +222,9 @@ int Proposal_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     float im_w = im_info_blob[1];
     float im_h = im_info_blob[0];
 
-    const v4f32 _im_wh = (v4f32){im_w - 1, im_h - 1, im_w - 1, im_h - 1};
+    const v4f32 _im_wh = (v4f32) {
+        im_w - 1, im_h - 1, im_w - 1, im_h - 1
+    };
     const v4f32 _zero = vec_splats(0.f);
 
     #pragma omp parallel for num_threads(opt.num_threads)

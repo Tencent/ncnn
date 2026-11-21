@@ -137,7 +137,9 @@ int InverseSpectrogram_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, c
                     v4f32 _imsp;
                     deinterleave_ri(_x0, _x1, _r, _imsp);
 
-                    const v4i32 _k = (v4i32){k, k + 1, k + 2, k + 3};
+                    const v4i32 _k = (v4i32) {
+                        k, k + 1, k + 2, k + 3
+                    };
                     v4f32 _angle = __ncnn_altivec_mul(__ncnn_altivec_ffint_s(_k), _freq_step);
 
                     v4f32 _c;

@@ -21,9 +21,15 @@ PriorBox_powerpc::PriorBox_powerpc()
 // emit the 4 corner coordinates {cx - cw, cy - ch, cx + cw, cy + ch} of one prior box
 static NCNN_FORCEINLINE void priorbox_emit_box(float* box, float cx, float cy, float cw, float ch)
 {
-    const v4f32 _base = (v4f32){cx, cy, cx, cy};
-    const v4f32 _delta = (v4f32){cw, ch, cw, ch};
-    const v4f32 _sign = (v4f32){-1.f, -1.f, 1.f, 1.f};
+    const v4f32 _base = (v4f32) {
+        cx, cy, cx, cy
+    };
+    const v4f32 _delta = (v4f32) {
+        cw, ch, cw, ch
+    };
+    const v4f32 _sign = (v4f32) {
+        -1.f, -1.f, 1.f, 1.f
+        };
 
     __ncnn_altivec_store(box, vec_madd(_delta, _sign, _base));
 }
@@ -31,10 +37,14 @@ static NCNN_FORCEINLINE void priorbox_emit_box(float* box, float cx, float cy, f
 // emit the 4 corner coordinates normalized by the image size
 // box[0] = (cx - bw * 0.5f) / image_w etc, matching the generic implementation
 static NCNN_FORCEINLINE void priorbox_emit_box_norm(float* box, float cx, float cy, float bw, float bh,
-                                                    const v4f32& _image, const v4f32& _sign)
+        const v4f32& _image, const v4f32& _sign)
 {
-    const v4f32 _base = (v4f32){cx, cy, cx, cy};
-    const v4f32 _half = (v4f32){bw * 0.5f, bh * 0.5f, bw * 0.5f, bh * 0.5f};
+    const v4f32 _base = (v4f32) {
+        cx, cy, cx, cy
+    };
+    const v4f32 _half = (v4f32) {
+        bw * 0.5f, bh * 0.5f, bw * 0.5f, bh * 0.5f
+    };
 
     const v4f32 _corner = vec_madd(_half, _sign, _base);
 
@@ -168,8 +178,12 @@ int PriorBox_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     if (top_blob.empty())
         return -100;
 
-    const v4f32 _image = (v4f32){(float)image_w, (float)image_h, (float)image_w, (float)image_h};
-    const v4f32 _sign = (v4f32){-1.f, -1.f, 1.f, 1.f};
+    const v4f32 _image = (v4f32) {
+        (float)image_w, (float)image_h, (float)image_w, (float)image_h
+    };
+    const v4f32 _sign = (v4f32) {
+        -1.f, -1.f, 1.f, 1.f
+        };
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < h; i++)
@@ -239,7 +253,9 @@ int PriorBox_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     }
 
     // set variance, one vector stores the 4 variance values of one prior box
-    const v4f32 _variance = (v4f32){variances[0], variances[1], variances[2], variances[3]};
+    const v4f32 _variance = (v4f32) {
+        variances[0], variances[1], variances[2], variances[3]
+    };
     float* var = top_blob.row(1);
     for (int i = 0; i < top_blob.w / 4; i++)
     {

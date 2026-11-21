@@ -11,10 +11,9 @@
 #include <sys/thread.h>
 
 // the spe image, produced from gemm_powerpc_spu.c by spu-gcc and bin2s
-extern "C"
-{
-extern const unsigned char gemm_powerpc_spu_bin[];
-extern const unsigned int gemm_powerpc_spu_bin_size;
+extern "C" {
+    extern const unsigned char gemm_powerpc_spu_bin[];
+    extern const unsigned int gemm_powerpc_spu_bin_size;
 }
 
 namespace ncnn {
@@ -42,17 +41,17 @@ static void desc_f32(SpuGemmDesc* d, int off, float v)
     memcpy(d->raw + off, &v, 4);
 }
 
-#define DESC_EA_A 0
-#define DESC_EA_B 8
-#define DESC_EA_C 16
-#define DESC_EA_DONE 24
-#define DESC_N 36
-#define DESC_K 40
+#define DESC_EA_A      0
+#define DESC_EA_B      8
+#define DESC_EA_C      16
+#define DESC_EA_DONE   24
+#define DESC_N         36
+#define DESC_K         40
 #define DESC_ROW_BEGIN 44
-#define DESC_ROW_END 48
-#define DESC_ALPHA 52
-#define DESC_BETA 56
-#define DESC_C0 60
+#define DESC_ROW_END   48
+#define DESC_ALPHA     52
+#define DESC_BETA      56
+#define DESC_C0        60
 // A row stride in bytes: distance from the start of one K-segment of a packed
 // A row to the next. each segment is DESC_A_STRIDE/16 vec4 and the segments
 // tile the K axis; 0 means the row is contiguous.

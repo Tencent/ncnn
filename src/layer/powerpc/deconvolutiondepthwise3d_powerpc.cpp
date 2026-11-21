@@ -139,8 +139,7 @@ int DeconvolutionDepthWise3D_powerpc::forward(const Mat& bottom_blob, Mat& top_b
     const int wpf = kernel_d - 1 - pf;
     const int wpbk = kernel_d - 1 - pbk;
 
-    if (fast && (pt < 0 || pb < 0 || pl < 0 || pr < 0 || pf < 0 || pbk < 0
-                 || wpt < 0 || wpb < 0 || wpl < 0 || wpr < 0 || wpf < 0 || wpbk < 0))
+    if (fast && (pt < 0 || pb < 0 || pl < 0 || pr < 0 || pf < 0 || pbk < 0 || wpt < 0 || wpb < 0 || wpl < 0 || wpr < 0 || wpf < 0 || wpbk < 0))
         fast = false;
 
     if (fast)

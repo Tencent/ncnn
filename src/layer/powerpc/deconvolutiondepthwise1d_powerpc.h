@@ -20,7 +20,6 @@ protected:
     int forward_generic(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 

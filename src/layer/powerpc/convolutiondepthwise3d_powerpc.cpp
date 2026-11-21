@@ -241,7 +241,7 @@ int ConvolutionDepthWise3D_powerpc::forward(const Mat& bottom_blob, Mat& top_blo
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-__ncnn_altivec_store(outptr, _sum);
+                        __ncnn_altivec_store(outptr, _sum);
                         outptr += 4;
                     }
                 }

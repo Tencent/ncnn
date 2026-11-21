@@ -62,18 +62,18 @@ static unsigned long long d_u64(const desc_t* d, int off)
     return v;
 }
 
-#define D_EA_A 0
-#define D_EA_B 8
-#define D_EA_C 16
-#define D_EA_DONE 24
-#define D_M 32
-#define D_N 36
-#define D_K 40
+#define D_EA_A      0
+#define D_EA_B      8
+#define D_EA_C      16
+#define D_EA_DONE   24
+#define D_M         32
+#define D_N         36
+#define D_K         40
 #define D_ROW_BEGIN 44
-#define D_ROW_END 48
-#define D_ALPHA 52
-#define D_BETA 56
-#define D_C0 60
+#define D_ROW_END   48
+#define D_ALPHA     52
+#define D_BETA      56
+#define D_C0        60
 // A row stride in bytes, the distance from the start of one K-segment of a
 // packed A row to the next. each segment is D_A_STRIDE/16 vec4 and the
 // segments tile the K axis; 0 means the row is contiguous.
@@ -96,8 +96,8 @@ static union
 } buf __attribute__((aligned(128)));
 #define Abuf buf.s.A
 #define Bbuf buf.s.B
-#define Out buf.s.O
-#define Acc buf.s.ACC
+#define Out  buf.s.O
+#define Acc  buf.s.ACC
 
 #define EA32(x) ((unsigned int)(x))
 
@@ -258,9 +258,9 @@ static void gemm_tile(const desc_t* d, int i0, int j0, int rows, int cols)
             Acc[r][c] = spu_splats(0.f);
 
     const unsigned int ea_a0 = (unsigned int)d_u64(d, D_EA_A)
-            + (unsigned int)(i0 / 4) * K * 16u;
+                               + (unsigned int)(i0 / 4) * K * 16u;
     const unsigned int ea_b0 = (unsigned int)d_u64(d, D_EA_B)
-            + (unsigned int)(j0 / 4) * K * 16u;
+                               + (unsigned int)(j0 / 4) * K * 16u;
     const unsigned int astride = d_u32(d, D_A_STRIDE);
 
     int kb0 = 0;
@@ -321,7 +321,8 @@ static void gemm_tile(const desc_t* d, int i0, int j0, int rows, int cols)
                 Out[r][c * 4 + t] = spu_madd(spu_add(Acc[r * 4 + t][c], bias), alpha, spu_splats(0.f));
 
             const unsigned int base = (((unsigned int)(i0 / 4) + (unsigned int)r) * N
-                    + (unsigned int)j0 + (unsigned int)c * 4u) * 16u;
+                                       + (unsigned int)j0 + (unsigned int)c * 4u)
+                                      * 16u;
             dma_put(&Out[r][c * 4], ea_c + base, 64, TAG_PUT);
         }
     }
