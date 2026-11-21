@@ -52,6 +52,58 @@ static int test_instancenorm_1()
            || test_instancenorm(RandomMat(3, 3, 2, 8), 0.002f, 1);
 }
 
+#if __aarch64__
+static int test_instancenorm_fp16s(const ncnn::Mat& a, float eps, int affine)
+{
+    int channels = a.c;
+
+    ncnn::ParamDict pd;
+    pd.set(0, affine ? channels : 0);
+    pd.set(1, eps);
+    pd.set(2, affine);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = RandomMat(channels);
+    weights[1] = RandomMat(channels);
+
+    for (int pack = 0; pack < 2; pack++)
+    {
+        for (int fp16a = 0; fp16a < 2; fp16a++)
+        {
+            ncnn::Option opt;
+            opt.num_threads = 1;
+            opt.use_packing_layout = pack != 0;
+            opt.use_fp16_packed = false;
+            opt.use_fp16_storage = true;
+            opt.use_fp16_arithmetic = fp16a != 0;
+            opt.use_bf16_packed = false;
+            opt.use_bf16_storage = false;
+
+            int ret = test_layer_opt("InstanceNorm", pd, weights, opt, a, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING);
+            if (ret != 0)
+            {
+                fprintf(stderr, "test_instancenorm_fp16s failed a.dims=%d a=(%d %d %d %d) eps=%f affine=%d pack=%d fp16a=%d\n", a.dims, a.w, a.h, a.d, a.c, eps, affine, pack, fp16a);
+                return ret;
+            }
+        }
+    }
+
+    return 0;
+}
+
+static int test_instancenorm_2()
+{
+    // the mean is large compared with the variance, mean / sqrt(var + eps) does not fit fp16
+    return 0
+           || test_instancenorm_fp16s(RandomMat(6, 4, 16, 100.f, 100.f), 1e-5f, 0)
+           || test_instancenorm_fp16s(RandomMat(6, 4, 12, 100.f, 100.f), 1e-5f, 1)
+           || test_instancenorm_fp16s(RandomMat(6, 4, 3, 100.f, 100.f), 1e-6f, 0)
+           || test_instancenorm_fp16s(RandomMat(5, 7, 16, 100.f, 100.25f), 1e-5f, 1)
+           || test_instancenorm_fp16s(RandomMat(5, 7, 12, 100.f, 100.25f), 1e-5f, 0)
+           || test_instancenorm_fp16s(RandomMat(5, 7, 3, 100.f, 100.25f), 1e-5f, 1);
+}
+#endif // __aarch64__
+
 #if NCNN_VULKAN
 static ncnn::Mat instancenorm_reference(const ncnn::Mat& a, float eps)
 {
@@ -241,6 +293,9 @@ int main()
     return 0
            || test_instancenorm_0()
            || test_instancenorm_1()
+#if __aarch64__
+           || test_instancenorm_2()
+#endif // __aarch64__
 #if NCNN_VULKAN
            || test_instancenorm_gpu_numerics()
            || test_instancenorm_gpu_dispatch()
