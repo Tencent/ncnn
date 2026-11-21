@@ -32,6 +32,11 @@ Scale_x86::Scale_x86()
 
 int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (validate_inputs(bottom_top_blobs, opt) != 0)
+        return -1;
+#endif
+
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_top_blobs[0].elembits() == 16)
         return forward_inplace_bf16s(bottom_top_blobs, opt);

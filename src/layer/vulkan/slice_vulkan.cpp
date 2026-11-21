@@ -160,6 +160,12 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
     const int* indices_ptr = indices;
     int positive_axis = axis < 0 ? dims + axis : axis;
 
+#if NCNN_VALIDATION
+    // slices_ptr[i] / indices_ptr[i] are read for every top blob
+    if (indices_ptr ? indices.w < (int)top_blobs.size() - 1 : slices.w < (int)top_blobs.size())
+        return -1;
+#endif // NCNN_VALIDATION
+
     if (dims == 1) // positive_axis == 0
     {
         // slice vector
@@ -178,6 +184,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -189,6 +199,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -279,6 +293,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -290,6 +308,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -380,6 +402,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -391,6 +417,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(slice, h, elemsize, elempack, opt.blob_vkallocator);
@@ -455,6 +485,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? channels + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > channels)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -466,6 +500,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > channels)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -557,6 +595,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -568,6 +610,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(w, slice, channels, elemsize, elempack, opt.blob_vkallocator);
@@ -632,6 +678,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -643,6 +693,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(slice, h, channels, elemsize, elempack, opt.blob_vkallocator);
@@ -707,6 +761,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? channels + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > channels)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -718,6 +776,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((channels - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > channels)
+                return -1;
+#endif // NCNN_VALIDATION
 
             int out_elempack = slice % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
@@ -809,6 +871,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? d + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > d)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -820,6 +886,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((d - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > d)
+                return -1;
+#endif // NCNN_VALIDATION
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(w, h, slice, channels, elemsize, elempack, opt.blob_vkallocator);
@@ -884,6 +954,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? h + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > h)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -895,6 +969,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((h - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > h)
+                return -1;
+#endif // NCNN_VALIDATION
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(w, slice, d, channels, elemsize, elempack, opt.blob_vkallocator);
@@ -959,6 +1037,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                 {
                     int indice = indices_ptr[i];
                     int positive_indice = indice < 0 ? w + indice : indice;
+#if NCNN_VALIDATION
+                    if (positive_indice < q || positive_indice > w)
+                        return -1;
+#endif // NCNN_VALIDATION
                     slice = positive_indice - q;
                 }
             }
@@ -970,6 +1052,10 @@ int Slice_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<Vk
                     slice = static_cast<int>((w - q) / (top_blobs.size() - i));
                 }
             }
+#if NCNN_VALIDATION
+            if (slice < 0 || (long long)q + slice > w)
+                return -1;
+#endif // NCNN_VALIDATION
 
             VkMat& top_blob = top_blobs[i];
             top_blob.create(slice, h, d, channels, elemsize, elempack, opt.blob_vkallocator);

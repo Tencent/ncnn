@@ -20,6 +20,11 @@ public:
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
+protected:
+#if NCNN_VALIDATION
+    int validate_inputs(const std::vector<Mat>& bottom_top_blobs, const Option& opt) const;
+#endif
+
 public:
     // param
     int scale_data_size;
