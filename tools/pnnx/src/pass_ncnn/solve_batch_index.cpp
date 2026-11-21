@@ -467,7 +467,11 @@ static void solve_batch_index_forward(Operand* operand)
             const int batch_axis_size = batch_size > 0 ? batch_size : -1;
             bool keep_batch_index = false;
             int batch_index_reshaped = batch_index;
-            if (batch_index == 0 && ((batch_size == 1 && shape[0] == 1) || (batch_size > 1 && output_rank0 > 0 && output_shape[0] == batch_size)))
+            if (op->params.find("__legacy_softmax_prefix") != op->params.end() && batch_index < op->params.at("__legacy_softmax_prefix").i)
+            {
+                keep_batch_index = true;
+            }
+            else if (batch_index == 0 && ((batch_size == 1 && shape[0] == 1) || (batch_size > 1 && output_rank0 > 0 && output_shape[0] == batch_size)))
             {
                 keep_batch_index = true;
             }
@@ -962,7 +966,11 @@ static void solve_batch_index_backward(Operand* operand)
         const int batch_axis_size = batch_size > 0 ? batch_size : -1;
         bool keep_batch_index = false;
         int batch_index_unreshaped = batch_index;
-        if (input_rank0 > 0)
+        if (op->params.find("__legacy_softmax_prefix") != op->params.end() && batch_index < op->params.at("__legacy_softmax_prefix").i)
+        {
+            keep_batch_index = true;
+        }
+        else if (input_rank0 > 0)
         {
             if (batch_index == 0 && ((batch_size == 1 && shape[0] == 1 && op->inputs[0]->shape[0] == 1) || (batch_size > 1 && op->inputs[0]->shape[0] == batch_size)))
             {
@@ -1446,6 +1454,9 @@ void solve_batch_index(Graph& graph)
             r->params["__batch_index"] = 233;
         }
     }
+
+    for (Operator* op : graph.ops)
+        op->params.erase("__legacy_softmax_prefix");
 }
 
 } // namespace ncnn
