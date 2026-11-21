@@ -853,6 +853,12 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("op_0.mode").type != 4)
             return false;
 
+        // PyTorch nearest uses asymmetric coordinates, regardless of ONNX's requested mode.
+        if (captured_params.at("op_0.mode").s == "nearest"
+            && captured_params.find("op_0.coordinate_transformation_mode") != captured_params.end()
+            && captured_params.at("op_0.coordinate_transformation_mode").s != "asymmetric")
+            return false;
+
         if (captured_params.find("op_0.nearest_mode") != captured_params.end())
         {
             if (captured_params.at("op_0.nearest_mode").type != 4 || captured_params.at("op_0.nearest_mode").s != "floor")
@@ -1095,6 +1101,12 @@ pnnx.Output             output      1 0 out
             return false;
 
         if (captured_params.at("op_0.mode").type != 4)
+            return false;
+
+        // PyTorch nearest uses asymmetric coordinates, regardless of ONNX's requested mode.
+        if (captured_params.at("op_0.mode").s == "nearest"
+            && captured_params.find("op_0.coordinate_transformation_mode") != captured_params.end()
+            && captured_params.at("op_0.coordinate_transformation_mode").s != "asymmetric")
             return false;
 
         if (captured_params.find("op_0.nearest_mode") != captured_params.end())
