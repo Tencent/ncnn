@@ -106,6 +106,8 @@ NCNN_EXPORT int cpu_support_loongarch_lasx();
 
 // msa = mips mas
 NCNN_EXPORT int cpu_support_mips_msa();
+// msa = mips mxu2
+NCNN_EXPORT int cpu_support_mips_mxu2();
 // mmi = loongson mmi
 NCNN_EXPORT int cpu_support_loongson_mmi();
 

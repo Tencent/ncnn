@@ -2106,7 +2106,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
         int jj = 0;
         for (; jj + 7 < max_jj; jj += 8)
         {
-#if NCNN_GNU_INLINE_ASM
+#if NCNN_GNU_INLINE_ASM && !__mips_mxu2
             const signed char* pA = pAT;
             int nn = max_kk;
 

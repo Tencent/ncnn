@@ -27,12 +27,16 @@ if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=xburst2 -mtune=xburst2 -mfp64 -mnan=2008")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=xburst2 -mtune=xburst2 -mfp64 -mnan=2008")
+# Match the FP32/legacy-NaN multilib used by -mmxu2 in baseline code.
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=xburst2 -mtune=xburst2 -mfp32 -mnan=legacy")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=xburst2 -mtune=xburst2 -mfp32 -mnan=legacy")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
+
+set(NCNN_MSA OFF CACHE BOOL "optimize mips platform with msa extension")
+set(NCNN_MXU3 OFF CACHE BOOL "optimize mips platform with mxu3 extension")
 
 # export MIPS_ROOT_PATH=/home/nihui/osd/ingenic-linux-kernel4.4.94-x2000_v12-v8.0-20220125/prebuilts/toolchains/mips-gcc720-glibc229
 # export MIPS_ROOT_PATH=/home/nihui/osd/君正X2000开发板资料发布/03_SDK/sdk/prebuilts/toolchains/mips-gcc720-glibc229
