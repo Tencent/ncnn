@@ -12,6 +12,11 @@
 #include "arm_activation.h"
 #include "arm_usability.h"
 
+#if NCNN_ARM_SME
+// the tile gemm shared with the 1x1 convolution kernels
+#include "convolution_arm_sme.h"
+#endif
+
 #include "cpu.h"
 
 namespace ncnn {
@@ -116,6 +121,39 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
         weight_data_tm = weight_data;
     }
 
+#if NCNN_ARM_SME
+    // the batched gemm path runs on sme tiles, which reduce over num_input
+    // a 2d innerproduct over fewer than 16 samples stays on the dot product loops
+    //
+    // the transposed copy is only worth keeping for a weight that a batched call can
+    // amortize it with. a fc that follows a flatten has num_input = channels * height *
+    // width and always runs a single sample, so the copy would be dead weight that
+    // doubles the layer
+    if (opt.use_arm_sme && cpu_support_arm_sme_f32f32()
+        && num_input >= 16 && num_output >= 16
+        && (size_t)num_input * num_output <= (size_t)4 * 1024 * 1024)
+    {
+        // A[k][n] = weight[n][k], one num_output wide row per input channel
+        weight_data_amx.create(num_output, num_input);
+
+        if (!weight_data_amx.empty())
+        {
+            const float* weight_data_ptr = weight_data;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int k = 0; k < num_input; k++)
+            {
+                float* dst = weight_data_amx.row(k);
+
+                for (int n = 0; n < num_output; n++)
+                {
+                    dst[n] = weight_data_ptr[n * num_input + k];
+                }
+            }
+        }
+    }
+#endif // NCNN_ARM_SME
+
     if (opt.lightmode)
         weight_data.release();
 
@@ -187,6 +225,101 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             num_output_elempack = num_output % 4 == 0 ? 4 : 1;
         }
 #endif
+
+#if NCNN_ARM_SME
+        // the tile kernel puts the samples on the m axis and the output channels on the n axis.
+        // a 2d blob packs the h axis, channel k of sample m is
+        // row(m / elempack)[k * elempack + m % elempack], so the packed output is the
+        // row-major tile result repacked along h
+        const int num_samples = h * elempack;
+        if (opt.use_arm_sme && cpu_support_arm_sme_f32f32() && !weight_data_amx.empty() && num_input >= 16 && num_output >= 16 && num_samples >= 16)
+        {
+            // A[k][m] = bottom[m][k], the samples of one input channel made contiguous
+            Mat a_pack;
+            a_pack.create(num_samples, num_input, (size_t)4u, 1, opt.workspace_allocator);
+            if (a_pack.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int k = 0; k < num_input; k++)
+            {
+                float* dst = a_pack.row(k);
+
+                for (int m = 0; m < num_samples; m++)
+                {
+                    dst[m] = ((const float*)bottom_blob.row(m / elempack))[k * elempack + m % elempack];
+                }
+            }
+
+            Mat top_rows = top_blob;
+            if (elempack != 1)
+            {
+                top_rows.create(num_output, num_samples, (size_t)4u, 1, opt.workspace_allocator);
+                if (top_rows.empty())
+                    return -100;
+            }
+
+            const int mtiles = (num_samples + 15) / 16;
+            // the kernel rounds m up to a 16 row tile, a partial tile handed to a second
+            // thread recomputes the same rows, so the tiles cap the gemm thread count
+            const int gemm_threads = opt.num_threads < mtiles ? opt.num_threads : mtiles;
+
+            #pragma omp parallel for num_threads(gemm_threads)
+            for (int t = 0; t < gemm_threads; t++)
+            {
+                const int tiles_begin = mtiles * t / gemm_threads;
+                const int tiles_end = mtiles * (t + 1) / gemm_threads;
+                if (tiles_begin == tiles_end)
+                    continue;
+
+                const int m_begin = tiles_begin * 16;
+                const int m_end = num_samples < tiles_end * 16 ? num_samples : tiles_end * 16;
+
+                // the kernel adds bias along m, the channel bias is applied with the activation
+                ncnn_conv1x1s1_sme_f32((const float*)a_pack, num_samples, (const float*)weight_data_amx, num_output,
+                                        (float*)top_rows, num_output, m_begin, m_end, num_output, num_input, 0);
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < num_samples; j++)
+            {
+                float* outptr = top_rows.row(j);
+
+                int p = 0;
+#if __ARM_NEON
+                for (; p + 3 < num_output; p += 4)
+                {
+                    float32x4_t _sum = vld1q_f32(outptr + p);
+
+                    if (bias_term)
+                        _sum = vaddq_f32(_sum, vld1q_f32((const float*)bias_data + p));
+
+                    _sum = activation_ps(_sum, activation_type, activation_params);
+
+                    vst1q_f32(outptr + p, _sum);
+                }
+#endif // __ARM_NEON
+                for (; p < num_output; p++)
+                {
+                    float sum = outptr[p];
+
+                    if (bias_term)
+                        sum += bias_data[p];
+
+                    sum = activation_ss(sum, activation_type, activation_params);
+
+                    outptr[p] = sum;
+                }
+            }
+
+            if (elempack != 1)
+            {
+                convert_packing(top_rows, top_blob, elempack, opt);
+            }
+
+            return 0;
+        }
+#endif // NCNN_ARM_SME
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)

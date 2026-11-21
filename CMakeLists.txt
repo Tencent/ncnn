@@ -307,6 +307,9 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
             set(CMAKE_REQUIRED_FLAGS "-march=armv8.6-a+sve+f32mm")
             check_cxx_source_compiles("#include <arm_sve.h>\nsvfloat32_t test(svfloat32_t s, svfloat32_t a, svfloat32_t b) { return svmmla_f32(s, a, b); }" NCNN_COMPILER_SUPPORT_ARM86_SVEF32MM)
 
+            set(CMAKE_REQUIRED_FLAGS "-march=armv9.2-a+sme")
+            check_cxx_source_compiles("#include <arm_sme.h>\n__arm_new(\"za\") void test(svfloat32_t a, svfloat32_t b, svbool_t p) __arm_streaming { svmopa_za32_f32_m(0, p, p, a, b); }" NCNN_COMPILER_SUPPORT_ARM_SME)
+
             unset(CMAKE_REQUIRED_FLAGS)
         endif()
 
@@ -383,6 +386,12 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
             endif()
         else()
             message(WARNING "The compiler does not support armv8.2 fp16. NCNN_ARM82 will be OFF.")
+        endif()
+
+        if(NCNN_RUNTIME_CPU AND NCNN_COMPILER_SUPPORT_ARM_SME)
+            option(NCNN_ARM_SME "optimize aarch64 platform with armv9.2 sme" ON)
+        else()
+            message(WARNING "The compiler does not support armv9.2 sme. NCNN_ARM_SME will be OFF.")
         endif()
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
