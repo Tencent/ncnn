@@ -13,6 +13,7 @@ git submodule update --init
   - [POWER](#power)
   - [Intel oneAPI](#intel-oneapi)
   - [Cross compile: Riscv-gnu-toolchain](#cross-compile-riscv-gnu-toolchain)
+  - [Cross compile: SpacemiT K3 with spertomp](#cross-compile-spacemit-k3-with-spertomp)
   - [Verification](#verification)
 - [Build for Windows x64 using Visual Studio Community 2017](#build-for-windows-x64-using-visual-studio-community-2017)
 - [Build for Windows x64 using MinGW-w64](#build-for-windows-x64-using-mingw-w64)
@@ -139,6 +140,57 @@ cd build-riscv
 cmake -DDCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_EXAMPLES=ON ..
 make -j$(nproc) # or `make -j2` if your cpu isn't powerful enough.
 ```
+
+#### Cross compile: SpacemiT K3 with spertomp
+
+`NCNN_SPERTOMP` uses [spine-runtime](https://github.com/spacemit-com/spine-runtime/releases) to execute ncnn's OpenMP regions. It requires `NCNN_OPENMP=ON` and is mutually exclusive with `NCNN_SIMPLEOMP`. The following CPU-only configuration has been tested on K3 with SpacemiT toolchain v1.1.2 (GCC 14.3 / Clang 19.1.7) and spine-runtime 0.6.3. A compiler with C++17 support is required.
+
+Download and unpack the RISC-V runtime release. Run these commands from the ncnn source directory:
+
+```shell
+curl -fL https://github.com/spacemit-com/spine-runtime/releases/download/0.6.3/spine-runtime.riscv64.0.6.3.tar.gz \
+    -o spine-runtime.riscv64.0.6.3.tar.gz
+tar -xzf spine-runtime.riscv64.0.6.3.tar.gz
+export SPINE_RUNTIME_ROOT="$PWD/spine-runtime.riscv64.0.6.3"
+export RISCV_ROOT_PATH=/path/to/spacemit-toolchain-linux-glibc-x86_64-v1.1.2
+```
+
+Configure and build with GCC:
+
+```shell
+cmake -S . -B build-k3-spertomp \
+    -DCMAKE_TOOLCHAIN_FILE="$PWD/toolchains/k1.toolchain.cmake" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -Dspine-runtime_DIR="$SPINE_RUNTIME_ROOT/lib/cmake/spine-runtime" \
+    -DNCNN_OPENMP=ON -DNCNN_SPERTOMP=ON -DNCNN_SIMPLEOMP=OFF \
+    -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_XTHEADVECTOR=OFF \
+    -DNCNN_ZFH=ON -DNCNN_ZVFH=ON -DNCNN_VULKAN=OFF \
+    -DNCNN_SHARED_LIB=OFF -DNCNN_BUILD_TESTS=OFF \
+    -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF \
+    -DNCNN_BUILD_BENCHMARK=ON
+cmake --build build-k3-spertomp --target ncnn benchncnn -j "$(nproc)"
+```
+
+For Clang, use `toolchains/k1.llvm.toolchain.cmake` and a separate build directory, such as `build-k3-spertomp-clang`.
+
+`spine-runtime_DIR` must point to the directory containing `spine-runtimeConfig.cmake`. ncnn obtains the headers and library through the imported target `spine-runtime::spert`; no separate include/library path options are needed. The compiler still generates OpenMP calls, but spert supplies the runtime symbols, so do not additionally link `libgomp` or `libomp`. Applications consuming an installed ncnn SDK must also make spine-runtime discoverable to CMake, for example via `spine-runtime_DIR`.
+
+To build the spertomp regression test with this static-library configuration:
+
+```shell
+cmake -S . -B build-k3-spertomp -DNCNN_BUILD_TESTS=ON
+cmake --build build-k3-spertomp --target test_spertomp -j "$(nproc)"
+```
+
+Copy `build-k3-spertomp/tests/test_spertomp` and the unpacked runtime directory to K3. On the board, use the runtime's **target-side** path and run the test:
+
+```shell
+export SPINE_RUNTIME_ROOT=/path/on/k3/spine-runtime.riscv64.0.6.3
+export LD_LIBRARY_PATH="$SPINE_RUNTIME_ROOT/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+./test_spertomp
+```
+
+The test does not require model files. When running through CTest on the target, use `ctest --test-dir <build> -R '^test_spertomp$' --output-on-failure`. Cross-compiling hosts can use ncnn's `TESTS_EXECUTABLE_LOADER` interface to run the executable on the target instead.
 
 #### Verification
 
