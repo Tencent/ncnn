@@ -108,12 +108,14 @@ int PriorBox_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    cmd.record_upload(min_sizes, min_sizes_gpu, opt);
+    if (min_sizes.w > 0)
+        cmd.record_upload(min_sizes, min_sizes_gpu, opt);
 
     if (max_sizes.w > 0)
         cmd.record_upload(max_sizes, max_sizes_gpu, opt);
 
-    cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
+    if (aspect_ratios.w > 0)
+        cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
 
     if (opt.lightmode)
     {
