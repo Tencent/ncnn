@@ -138,13 +138,13 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     while (n > 0)
                     {
-                        size_t vl = __riscv_vsetvl_e32m8(n);
-                        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _slope = __riscv_vle32_v_f32m8(ptr_slope, vl);
+                        size_t vl = __riscv_vsetvl_e32m1(n);
+                        vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+                        vfloat32m1_t _slope = __riscv_vle32_v_f32m1(ptr_slope, vl);
 
-                        vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
-                        __riscv_vse32_v_f32m8(ptr, _p, vl);
+                        vbool32_t _lower = __riscv_vmflt_vf_f32m1_b32(_p, .0f, vl);
+                        _p = __riscv_vfmul_vv_f32m1_mu(_lower, _p, _p, _slope, vl);
+                        __riscv_vse32_v_f32m1(ptr, _p, vl);
 
                         ptr += vl;
                         ptr_slope += vl;
@@ -205,13 +205,13 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     const float* slope_ptr = (const float*)slope_data + q * elempack;
                     while (n1 > 0)
                     {
-                        size_t vl = __riscv_vsetvl_e32m8(n1);
-                        vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _slope = __riscv_vle32_v_f32m8(slope_ptr, vl);
+                        size_t vl = __riscv_vsetvl_e32m1(n1);
+                        vfloat32m1_t _p = __riscv_vle32_v_f32m1(ptr, vl);
+                        vfloat32m1_t _slope = __riscv_vle32_v_f32m1(slope_ptr, vl);
 
-                        vbool4_t _lower = __riscv_vmflt_vf_f32m8_b4(_p, .0f, vl);
-                        _p = __riscv_vfmul_vv_f32m8_mu(_lower, _p, _p, _slope, vl);
-                        __riscv_vse32_v_f32m8(ptr, _p, vl);
+                        vbool32_t _lower = __riscv_vmflt_vf_f32m1_b32(_p, .0f, vl);
+                        _p = __riscv_vfmul_vv_f32m1_mu(_lower, _p, _p, _slope, vl);
+                        __riscv_vse32_v_f32m1(ptr, _p, vl);
 
                         ptr += vl;
                         slope_ptr += vl;
