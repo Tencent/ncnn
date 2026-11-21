@@ -194,7 +194,8 @@ int MVN_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     v4f32 _p = __ncnn_altivec_load(ptr + j);
                     _s_lane = vec_add(_s_lane, _p);
                 }
-                v4f32 _mean = __ncnn_altivec_div2(_s_lane, vec_splats((float)size));
+                // each lane accumulated one channel, so divide by the spatial count
+                v4f32 _mean = __ncnn_altivec_div2(_s_lane, vec_splats((float)(size / elempack)));
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = __ncnn_altivec_load(ptr);
@@ -314,7 +315,8 @@ int MVN_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         v4f32 _p = __ncnn_altivec_load(outptr + j);
                         _sq_lane = vec_madd(_p, _p, _sq_lane);
                     }
-                    v4f32 _sqmean = __ncnn_altivec_div2(_sq_lane, vec_splats((float)size));
+                    // each lane accumulated one channel, so divide by the spatial count
+                    v4f32 _sqmean = __ncnn_altivec_div2(_sq_lane, vec_splats((float)(size / elempack)));
                     v4f32 _norm_var = vec_add(__ncnn_altivec_sqrt2(_sqmean), vec_splats(eps));
                     v4f32 _norm_var_inv = __ncnn_altivec_recip2(_norm_var);
                     for (; i + 3 < size; i += 4)

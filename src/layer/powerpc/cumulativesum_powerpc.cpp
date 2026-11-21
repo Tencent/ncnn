@@ -17,15 +17,26 @@ CumulativeSum_powerpc::CumulativeSum_powerpc()
 
 #if __ALTIVEC__
 
+// shift the lanes up by n positions, filling the low lanes with zero.
+// vec_sld counts bytes from the opposite end on little endian, so the two
+// endians take opposite shift amounts to move the same lanes.
+static NCNN_FORCEINLINE v4f32 cumsum_shift_up(v4f32 _v, int n)
+{
+    const v4u32 _zero = vec_splats((unsigned int)0);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+    return (v4f32)vec_sld((v4u32)_v, _zero, n * 4);
+#else
+    return (v4f32)vec_sld(_zero, (v4u32)_v, 16 - n * 4);
+#endif
+}
+
 // inclusive prefix sum within one 4-lane vector
 static NCNN_FORCEINLINE v4f32 cumsum_prefix_add(v4f32 _v)
 {
-    const v4u32 _zero = vec_splats((unsigned int)0);
-
     // {x0, x0+x1, x1+x2, x2+x3}
-    _v = vec_add(_v, (v4f32)vec_sld(_zero, (v4u32)_v, 12));
+    _v = vec_add(_v, cumsum_shift_up(_v, 1));
     // {x0, x0+x1, x0+x1+x2, x0+x1+x2+x3}
-    _v = vec_add(_v, (v4f32)vec_sld(_zero, (v4u32)_v, 8));
+    _v = vec_add(_v, cumsum_shift_up(_v, 2));
     return _v;
 }
 

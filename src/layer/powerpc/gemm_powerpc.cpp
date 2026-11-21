@@ -7,6 +7,10 @@
 #include "powerpc_usability.h"
 #endif // __ALTIVEC__
 
+#if __PPU__
+#include "gemm_powerpc_spu.h"
+#endif // __PPU__
+
 namespace ncnn {
 
 Gemm_powerpc::Gemm_powerpc()
@@ -331,7 +335,15 @@ int Gemm_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 return -100;
 
             if (A.elempack == 4)
+            {
+#if __PPU__
+                // the spes handle the aligned pack4 case; anything else, or a
+                // spe that fails to start, falls through to the ppe kernel
+                if (gemm_transB_pack4_spu(A, B, top_blob, alpha, beta, bc0, 0) == 0)
+                    return 0;
+#endif // __PPU__
                 return gemm_transB_pack4_powerpc(A, B, top_blob, alpha, bc0, opt);
+            }
 
             return gemm_transB_pack1_powerpc(A, B, top_blob, alpha, bc0, opt);
         }
@@ -366,8 +378,11 @@ int Gemm_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     {
         Mat top_blob_packed;
         convert_packing(top_blobs[0], top_blob_packed, 4, opt);
-        if (!top_blob_packed.empty())
-            top_blobs[0] = top_blob_packed;
+        // h is divisible by 4, so an empty result is an allocation failure,
+        // not a shape convert_packing refused. falling through would hide the oom.
+        if (top_blob_packed.empty())
+            return -100;
+        top_blobs[0] = top_blob_packed;
     }
 #endif // __ALTIVEC__
 

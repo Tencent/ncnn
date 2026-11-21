@@ -18,10 +18,12 @@ MultiHeadAttention_powerpc::MultiHeadAttention_powerpc()
 // (qdim x src_seqlen) output, so it is returned unchanged.
 int MultiHeadAttention_powerpc::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    // a default Mat has elempack 0. an empty kv cache is not packed, and
+    // convert_packing leaves it empty, which this wrapper would report as oom.
     bool any_packed = false;
     for (size_t i = 0; i < bottom_blobs.size(); i++)
     {
-        if (bottom_blobs[i].elempack != 1)
+        if (!bottom_blobs[i].empty() && bottom_blobs[i].elempack != 1)
         {
             any_packed = true;
             break;
@@ -34,7 +36,7 @@ int MultiHeadAttention_powerpc::forward(const std::vector<Mat>& bottom_blobs, st
     std::vector<Mat> bottom_blobs_unpacked(bottom_blobs.size());
     for (size_t i = 0; i < bottom_blobs.size(); i++)
     {
-        if (bottom_blobs[i].elempack != 1)
+        if (!bottom_blobs[i].empty() && bottom_blobs[i].elempack != 1)
         {
             convert_packing(bottom_blobs[i], bottom_blobs_unpacked[i], 1, opt);
             if (bottom_blobs_unpacked[i].empty())

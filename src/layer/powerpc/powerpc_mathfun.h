@@ -97,6 +97,9 @@ static NCNN_FORCEINLINE v4f32 log_ps(v4f32 x)
 
     x = vec_max(x, (v4f32)vec_splats(0)); /* force flush to zero on denormal values */
     v4i32 invalid_mask = (v4i32)vec_cmpge((v4f32)vec_splats(0), x);
+    // log(0) is -inf. the polynomial below turns a flushed zero into a large
+    // finite value, which the scalar logf never does, so replace those lanes.
+    x = __ncnn_altivec_sel(invalid_mask, vec_splats(1.f), x);
 
     v4i32 ux = (v4i32)(x);
 
@@ -149,7 +152,9 @@ static NCNN_FORCEINLINE v4f32 log_ps(v4f32 x)
     tmp = __ncnn_altivec_mul(e, (v4f32)vec_splats(c_cephes_log_q2.i));
     x = vec_add(x, y);
     x = vec_add(x, tmp);
-    x = (v4f32)(__ncnn_altivec_or((v4i32)(x), invalid_mask)); // negative arg will be NAN
+    // a non-positive argument is -inf, matching logf(0). or-ing the mask in
+    // made it a NaN, which the bf16 round trip then stored as a NaN.
+    x = __ncnn_altivec_sel(invalid_mask, vec_splats(-__builtin_inff()), x);
     return x;
 }
 
@@ -512,8 +517,23 @@ static NCNN_FORCEINLINE v4f32 erf_ps(v4f32 a)
 
 static NCNN_FORCEINLINE v4f32 pow_ps(v4f32 a, v4f32 b)
 {
-    // pow(x, m) = exp(m * log(x))
-    return exp_ps(__ncnn_altivec_mul(b, log_ps(a)));
+    // pow(x, m) = exp(m * log(x)) holds for a positive base only. zero and
+    // negative bases, including an integral power of a negative number, go
+    // through scalar powf for the lanes that need it.
+    v4f32 r = exp_ps(__ncnn_altivec_mul(b, log_ps(a)));
+
+    float ab[4];
+    float bb[4];
+    float rb[4];
+    __ncnn_altivec_store(ab, a);
+    __ncnn_altivec_store(bb, b);
+    __ncnn_altivec_store(rb, r);
+    for (int i = 0; i < 4; i++)
+    {
+        if (!(ab[i] > 0.f))
+            rb[i] = powf(ab[i], bb[i]);
+    }
+    return __ncnn_altivec_load(rb);
 }
 
 static NCNN_FORCEINLINE v4f32 sigmoid_ps(v4f32 _v)

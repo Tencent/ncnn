@@ -50,11 +50,13 @@ int Tile_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             Mat top_blob_packed;
             convert_packing(top_blob_unpacked, top_blob_packed, 4, opt);
-            if (!top_blob_packed.empty())
-            {
-                top_blob = top_blob_packed;
-                return 0;
-            }
+            // the count is divisible by 4, so an empty result is an allocation
+            // failure. falling through to the unpacked blob would hide the oom.
+            if (top_blob_packed.empty())
+                return -100;
+
+            top_blob = top_blob_packed;
+            return 0;
         }
 
         top_blob = top_blob_unpacked;

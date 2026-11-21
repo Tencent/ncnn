@@ -218,8 +218,15 @@ int Cast_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             {
                 v8u16 _p;
                 memcpy(&_p, ptr, 16);
+                // vec_mergeh puts the halves in the high 16 bits on little
+                // endian and the low 16 bits on big endian. the converter
+                // reads the low 16 bits, so shift them down where needed.
                 v4u32 _h0 = (v4u32)vec_mergeh((v8u16)vec_splats((unsigned short)0), _p);
                 v4u32 _h1 = (v4u32)vec_mergel((v8u16)vec_splats((unsigned short)0), _p);
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+                _h0 = vec_sr(_h0, vec_splats(16u));
+                _h1 = vec_sr(_h1, vec_splats(16u));
+#endif
                 __ncnn_altivec_store(outptr, __ncnn_altivec_f16x4_to_f32(_h0));
                 __ncnn_altivec_store(outptr + 4, __ncnn_altivec_f16x4_to_f32(_h1));
 

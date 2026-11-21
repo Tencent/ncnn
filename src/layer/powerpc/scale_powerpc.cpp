@@ -111,11 +111,13 @@ int Scale_powerpc::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Opt
 
 #if __ALTIVEC__
             v4f32 _s = (elempack == 4) ? __ncnn_altivec_load(scale + i * 4) : vec_splats(s);
-            v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bias + i * 4) : vec_splats(b);
 
             int j = 0;
             if (bias_term)
             {
+                // bias_data is empty when bias is disabled, so this load stays
+                // inside the branch that actually uses it
+                v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bias + i * 4) : vec_splats(b);
                 for (; j + 3 < size; j += 4)
                 {
                     v4f32 _p = __ncnn_altivec_load(ptr);
@@ -174,11 +176,13 @@ int Scale_powerpc::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Opt
 
 #if __ALTIVEC__
             v4f32 _s = (elempack == 4) ? __ncnn_altivec_load(scale + q * 4) : vec_splats(s);
-            v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bias + q * 4) : vec_splats(b);
 
             int i = 0;
             if (bias_term)
             {
+                // bias_data is empty when bias is disabled, so this load stays
+                // inside the branch that actually uses it
+                v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bias + q * 4) : vec_splats(b);
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = __ncnn_altivec_load(ptr);
@@ -306,11 +310,13 @@ int Scale_powerpc::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, con
 
 #if __ALTIVEC__
             v4f32 _s = (elempack == 4) ? __ncnn_altivec_load(sptr) : vec_splats(s);
-            v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bptr) : vec_splats(b);
 
             int j = 0;
             if (bias_term)
             {
+                // bias_data is empty when bias is disabled, so this load stays
+                // inside the branch that actually uses it
+                v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bptr) : vec_splats(b);
                 for (; j + 3 < size; j += 4)
                 {
                     v4f32 _p = __ncnn_altivec_bf16_to_f32(ptr);
@@ -374,11 +380,13 @@ int Scale_powerpc::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, con
 
 #if __ALTIVEC__
             v4f32 _s = (elempack == 4) ? __ncnn_altivec_load(sptr) : vec_splats(s);
-            v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bptr) : vec_splats(b);
 
             int i = 0;
             if (bias_term)
             {
+                // bias_data is empty when bias is disabled, so this load stays
+                // inside the branch that actually uses it
+                v4f32 _b = (elempack == 4) ? __ncnn_altivec_load(bptr) : vec_splats(b);
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = __ncnn_altivec_bf16_to_f32(ptr);

@@ -25,10 +25,11 @@ int Packing_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elembits == 8)
         return Packing::forward(bottom_blob, top_blob, opt);
 
-#if NCNN_BF16
+    // fp16 stays a valid input when NCNN_BF16 is off. the kernels below
+    // allocate by elemsize but read and write float, so any 16-bit tensor
+    // has to take the generic path.
     if (elembits == 16)
         return Packing::forward(bottom_blob, top_blob, opt);
-#endif
 
     if (use_padding)
     {

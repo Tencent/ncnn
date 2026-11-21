@@ -9,6 +9,10 @@
 #include "powerpc_usability.h"
 #endif // __ALTIVEC__
 
+#if __PPU__
+#include "gemm_powerpc_spu.h"
+#endif // __PPU__
+
 namespace ncnn {
 
 MatMul_powerpc::MatMul_powerpc()
@@ -134,7 +138,74 @@ static int matmul_forward_fp32(const Mat& A, const Mat& B, Mat& top_blob, int tr
             BT = B;
         }
 
-        matmul_transb(A, BT, top_blob, opt);
+#if __PPU__
+        bool spe_done = false;
+
+        const int K = A.w;
+
+        if (M % 4 == 0 && N % 4 == 0 && M >= 4 && N >= 4 && K > 0)
+        {
+            Mat Ap;
+            Mat Bp;
+            Mat C;
+            Ap.create(K, M / 4, (size_t)16u, 4, opt.workspace_allocator);
+            Bp.create(K, N / 4, (size_t)16u, 4, opt.workspace_allocator);
+            C.create(N, M / 4, (size_t)16u, 4, opt.workspace_allocator);
+
+            if (!Ap.empty() && !Bp.empty() && !C.empty())
+            {
+                // pack A: packed row q, vec4 k, lane t = A.row(4q+t)[k]
+                for (int q = 0; q < M / 4; q++)
+                {
+                    float* aptr = Ap.row(q);
+                    for (int k = 0; k < K; k++)
+                    {
+                        for (int t = 0; t < 4; t++)
+                        {
+                            aptr[k * 4 + t] = A.row(4 * q + t)[k];
+                        }
+                    }
+                }
+
+                // pack BT: packed row p, vec4 k, lane t = BT.row(4p+t)[k]
+                for (int p = 0; p < N / 4; p++)
+                {
+                    float* bptr = Bp.row(p);
+                    for (int k = 0; k < K; k++)
+                    {
+                        for (int t = 0; t < 4; t++)
+                        {
+                            bptr[k * 4 + t] = BT.row(4 * p + t)[k];
+                        }
+                    }
+                }
+
+                if (gemm_transB_pack4_spu(Ap, Bp, C, 1.f, 0.f, 0.f, 0) == 0)
+                {
+                    // unpack C: packed row q, vec4 at column j, lane t = out(4q+t, j)
+                    for (int q = 0; q < M / 4; q++)
+                    {
+                        const float* cptr = C.row(q);
+                        for (int j = 0; j < N; j++)
+                        {
+                            const float* p = cptr + j * 4;
+                            for (int t = 0; t < 4; t++)
+                            {
+                                top_blob.row(4 * q + t)[j] = p[t];
+                            }
+                        }
+                    }
+
+                    spe_done = true;
+                }
+            }
+        }
+
+        if (!spe_done)
+#endif // __PPU__
+        {
+            matmul_transb(A, BT, top_blob, opt);
+        }
     }
     else if (Adims == 1 && Bdims == 2)
     {

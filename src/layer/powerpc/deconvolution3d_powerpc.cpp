@@ -12,6 +12,10 @@
 #include "powerpc_mathfun.h"
 #endif // __ALTIVEC__
 
+#if __PPU__
+#include "gemm_powerpc_spu.h"
+#endif // __PPU__
+
 namespace ncnn {
 
 Deconvolution3D_powerpc::Deconvolution3D_powerpc()
@@ -244,6 +248,123 @@ int Deconvolution3D_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
         const float* tm = weight_data_tm;
 
+#if __PPU__
+        // the spes take the aligned pack4 case; anything else, or a spe that
+        // fails to start, falls through to the ppe kernel
+        bool spe_done = false;
+
+        const int S = outw * outh * outd;
+        const int num_input = inpack * 4;
+        const int maxk = kernel_w * kernel_h * kernel_d;
+        const int K = maxk * num_input;
+
+        if (S % 4 == 0 && S >= 4)
+        {
+            Mat A(K, S / 4, (size_t)16u, 4, opt.workspace_allocator);
+            Mat BT(K, outpack, (size_t)16u, 4, opt.workspace_allocator);
+            Mat C(num_output, S / 4, (size_t)16u, 4, opt.workspace_allocator);
+
+            if (!A.empty() && !BT.empty() && !C.empty())
+            {
+                // the im2col gather: k index k_tap*num_input+c is input channel
+                // c of kernel tap k_tap, and the 4 lanes of an A vec4 are the 4
+                // output voxels 4q..4q+3 reading that one channel. the taps in
+                // tm are already flipped at pipeline creation
+                for (int q = 0; q < S / 4; q++)
+                {
+                    float* aptr = A.row(q);
+
+                    for (int k_tap = 0; k_tap < maxk; k_tap++)
+                    {
+                        const int kd = k_tap / (kernel_h * kernel_w);
+                        const int ky = (k_tap / kernel_w) % kernel_h;
+                        const int kx = k_tap % kernel_w;
+
+                        for (int c = 0; c < num_input; c++)
+                        {
+                            const float* sptr = bottom_blob_bordered.channel(c / 4);
+                            const int cl = c % 4;
+                            float* dptr = aptr + (size_t)(k_tap * num_input + c) * 4;
+
+                            for (int t = 0; t < 4; t++)
+                            {
+                                const int s = q * 4 + t;
+                                const int x = s % outw;
+                                const int y = (s / outw) % outh;
+                                const int z = s / (outw * outh);
+
+                                const int ix = x + kx;
+                                const int iy = y + ky;
+                                const int iz = z + kd;
+
+                                dptr[t] = sptr[((((size_t)iz * bh + iy) * bw + ix) * 4) + cl];
+                            }
+                        }
+                    }
+                }
+
+                // weight vec4 for tap k_tap, input pack q, output pack p, input
+                // lane l holds output channels 4p..4p+3 at bt index
+                // k_tap*num_input+q*4+l; tm strides (q,p) by outpack*16 so copy
+                // element by element. tm already has the flipped taps
+                for (int p = 0; p < outpack; p++)
+                {
+                    float* btptr = BT.row(p);
+
+                    for (int k_tap = 0; k_tap < maxk; k_tap++)
+                    {
+                        for (int q = 0; q < inpack; q++)
+                        {
+                            for (int l = 0; l < 4; l++)
+                            {
+                                const float* kptr = tm + (size_t)k_tap * blocksize + ((size_t)q * outpack + p) * 16 + l * 4;
+                                float* dptr = btptr + (size_t)(k_tap * num_input + q * 4 + l) * 4;
+
+                                for (int t = 0; t < 4; t++)
+                                    dptr[t] = kptr[t];
+                            }
+                        }
+                    }
+                }
+
+                if (gemm_transB_pack4_spu(A, BT, C, 1.f, 0.f, 0.f, 0) == 0)
+                {
+                    // C row q, float j*4+t is output voxel 4q+t of output channel
+                    // j; the top blob stores voxel s as the vec4 at channel(p)
+                    // voxel s with lane t2 = output channel 4p+t2
+                    for (int p = 0; p < outpack; p++)
+                    {
+                        float* outptr = top_blob.channel(p);
+
+                        v4f32 _bias = vec_splats(0.f);
+                        if (bias_term)
+                            _bias = __ncnn_altivec_load((const float*)bias_data + p * 4);
+
+                        for (int s = 0; s < S; s++)
+                        {
+                            const int q = s / 4;
+                            const int t = s % 4;
+                            const float* cptr = C.row(q);
+
+                            float _v[4];
+                            for (int t2 = 0; t2 < 4; t2++)
+                                _v[t2] = cptr[(size_t)(4 * p + t2) * 4 + t];
+
+                            v4f32 _sum = vec_add(__ncnn_altivec_load(_v), _bias);
+                            _sum = activation_ps(_sum, activation_type, activation_params);
+
+                            __ncnn_altivec_store(outptr + (size_t)s * 4, _sum);
+                        }
+                    }
+
+                    spe_done = true;
+                }
+            }
+        }
+
+        if (!spe_done)
+#endif // __PPU__
+        {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < outpack; p++)
         {
@@ -294,6 +415,7 @@ int Deconvolution3D_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, cons
                     }
                 }
             }
+        }
         }
 
         return 0;

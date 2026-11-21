@@ -111,18 +111,31 @@ static NCNN_FORCEINLINE v4f32 __ncnn_altivec_rsqrt2(v4f32 _x)
     return __ncnn_altivec_mul(_y, _t);
 }
 
+// rsqrt(0) is +inf, and 0 * inf is nan. a zero lane keeps its own value,
+// which preserves both +0 and -0.
+static NCNN_FORCEINLINE v4f32 __ncnn_altivec_sqrt_nonzero(v4f32 _x, v4f32 _rsqrt)
+{
+    v4f32 _r = __ncnn_altivec_mul(_x, _rsqrt);
+    v4b32 _zero = vec_cmpeq(_x, vec_splats(0.f));
+    return vec_sel(_r, _x, _zero);
+}
+
 static NCNN_FORCEINLINE v4f32 __ncnn_altivec_sqrt(v4f32 _x)
 {
 #if __VSX__
     return vec_sqrt(_x);
 #else
-    return __ncnn_altivec_mul(_x, __ncnn_altivec_rsqrt(_x));
+    return __ncnn_altivec_sqrt_nonzero(_x, __ncnn_altivec_rsqrt(_x));
 #endif
 }
 
 static NCNN_FORCEINLINE v4f32 __ncnn_altivec_sqrt2(v4f32 _x)
 {
-    return __ncnn_altivec_mul(_x, __ncnn_altivec_rsqrt2(_x));
+#if __VSX__
+    return vec_sqrt(_x);
+#else
+    return __ncnn_altivec_sqrt_nonzero(_x, __ncnn_altivec_rsqrt2(_x));
+#endif
 }
 
 // a + b * c
@@ -484,17 +497,32 @@ static NCNN_FORCEINLINE void __ncnn_altivec_i32_to_i8x8(signed char* _out, v4i32
 
 static NCNN_FORCEINLINE v4f32 __ncnn_altivec_bf16_to_f32(const unsigned short* _ptr)
 {
-    // load 4 bf16 (8 bytes) into the low lanes and widen
-    v8u16 _v = (v8u16)vec_splats((unsigned int)0);
-    memcpy(&_v, _ptr, 8);
-    return (v4f32)vec_mergeh(_v, (v8u16)vec_splats((unsigned int)0));
+    // a bf16 is the high half of a float32. widening through vec_mergeh numbers
+    // the lanes differently on the two endians, so shift each half up as a
+    // scalar and load the four words in memory order.
+    unsigned int _w[4];
+    _w[0] = (unsigned int)_ptr[0] << 16;
+    _w[1] = (unsigned int)_ptr[1] << 16;
+    _w[2] = (unsigned int)_ptr[2] << 16;
+    _w[3] = (unsigned int)_ptr[3] << 16;
+    v4f32 _v;
+    memcpy(&_v, _w, 16);
+    return _v;
 }
 
 static NCNN_FORCEINLINE void __ncnn_altivec_f32_to_bf16(unsigned short* _ptr, const v4f32& _v)
 {
-    v4u32 _hi = vec_sr((v4u32)_v, (v4u32)vec_splats(16u));
-    v8u16 _p = (v8u16)vec_pack((v4i32)_hi, vec_splats(0));
-    memcpy(_ptr, &_p, 8);
+    // same rounding as float32_to_bfloat16: add 0x8000, then keep the high half.
+    // vec_pack and vec_perm both number lanes differently on the two endians,
+    // so shift the rounded high half down and write the four lanes out as
+    // scalars. that stores them in memory order on either endian.
+    v4u32 _r = vec_sr(vec_add((v4u32)_v, vec_splats(0x8000u)), (v4u32)vec_splats(16u));
+    unsigned int _w[4];
+    memcpy(_w, &_r, 16);
+    _ptr[0] = (unsigned short)_w[0];
+    _ptr[1] = (unsigned short)_w[1];
+    _ptr[2] = (unsigned short)_w[2];
+    _ptr[3] = (unsigned short)_w[3];
 }
 
 // ---- int8 <-> float32 ----

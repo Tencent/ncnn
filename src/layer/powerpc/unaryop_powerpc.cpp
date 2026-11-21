@@ -281,14 +281,12 @@ struct unary_op_round
 {
     float func(const float& x) const
     {
-        // round half away from zero, matching roundf in the generic implementation
-        return (float)roundf(x);
+        // ties to even, matching nearbyintf in the generic implementation
+        return nearbyintf(x);
     }
     v4f32 func_pack4(const v4f32& x) const
     {
-        // round half away from zero: copysign(0.5) + truncate
-        v4f32 _half = __ncnn_altivec_copysign(vec_splats(0.5f), x);
-        return __ncnn_altivec_trunc(vec_add(x, _half));
+        return __ncnn_altivec_round(x);
     }
 };
 
