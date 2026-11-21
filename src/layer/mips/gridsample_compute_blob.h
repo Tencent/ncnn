@@ -76,6 +76,20 @@ static v4f32 gridsample_floor_msa(v4f32 _v)
     return __msa_ffint_s_w(__msa_addv_w(_vi, _mask));
 }
 
+static v4f32 gridsample_round_nearest_even_msa(v4f32 _v)
+{
+    v4f32 _lower_f = gridsample_floor_msa(_v);
+    v4i32 _lower = __msa_ftrunc_s_w(_lower_f);
+    v4f32 _fraction = __msa_fsub_w(_v, _lower_f);
+    v4f32 _half = __msa_fill_w_f32(0.5f);
+    v4i32 _above_half = __msa_fclt_w(_half, _fraction);
+    v4i32 _at_half = __msa_fceq_w(_fraction, _half);
+    v4i32 _odd = (v4i32)__msa_and_v((v16u8)_lower, (v16u8)__msa_fill_w(1));
+    v4i32 _up = (v4i32)__msa_or_v((v16u8)_above_half, (v16u8)__msa_and_v((v16u8)_at_half, (v16u8)_odd));
+    _up = (v4i32)__msa_and_v((v16u8)_up, (v16u8)__msa_fill_w(1));
+    return __msa_ffint_s_w(__msa_addv_w(_lower, _up));
+}
+
 static v4f32 grid_sample_unormalize_msa(int w, v4f32 _coordx, int align_corner)
 {
     v4f32 _one = __msa_fill_w_f32(1.f);
@@ -192,8 +206,8 @@ static void gridsample_store_2d_bilinear_msa(float* offset_value_ptr, v4f32 _sam
 
 static void gridsample_store_2d_nearest_msa(int* offset_ptr, v4f32 _sample_x, v4f32 _sample_y, int w, int h, int elempack)
 {
-    v4f32 _x0f = gridsample_floor_msa(__msa_fadd_w(_sample_x, __msa_fill_w_f32(0.5f)));
-    v4f32 _y0f = gridsample_floor_msa(__msa_fadd_w(_sample_y, __msa_fill_w_f32(0.5f)));
+    v4f32 _x0f = gridsample_round_nearest_even_msa(_sample_x);
+    v4f32 _y0f = gridsample_round_nearest_even_msa(_sample_y);
 
     v4i32 _x0_in_range = gridsample_in_range_msa(_x0f, w);
     v4i32 _y0_in_range = gridsample_in_range_msa(_y0f, h);
@@ -296,9 +310,9 @@ static void gridsample_store_3d_bilinear_msa(float* offset_value_ptr, v4f32 _sam
 
 static void gridsample_store_3d_nearest_msa(int* offset_ptr, v4f32 _sample_x, v4f32 _sample_y, v4f32 _sample_z, int w, int h, int d, int elempack)
 {
-    v4f32 _x0f = gridsample_floor_msa(__msa_fadd_w(_sample_x, __msa_fill_w_f32(0.5f)));
-    v4f32 _y0f = gridsample_floor_msa(__msa_fadd_w(_sample_y, __msa_fill_w_f32(0.5f)));
-    v4f32 _z0f = gridsample_floor_msa(__msa_fadd_w(_sample_z, __msa_fill_w_f32(0.5f)));
+    v4f32 _x0f = gridsample_round_nearest_even_msa(_sample_x);
+    v4f32 _y0f = gridsample_round_nearest_even_msa(_sample_y);
+    v4f32 _z0f = gridsample_round_nearest_even_msa(_sample_z);
 
     v4i32 _x0_in_range = gridsample_in_range_msa(_x0f, w);
     v4i32 _y0_in_range = gridsample_in_range_msa(_y0f, h);

@@ -4,9 +4,20 @@
 #ifndef LAYER_GRIDSAMPLE_H
 #define LAYER_GRIDSAMPLE_H
 
+#include <math.h>
+
 #include "layer.h"
 
 namespace ncnn {
+
+// Round half-pixel coordinates to the even pixel, independently of the FP mode.
+static inline int gridsample_round_nearest_even(float x)
+{
+    const float lower_float = floorf(x);
+    const int lower = (int)lower_float;
+    const float fraction = x - lower_float;
+    return lower + (fraction > 0.5f || (fraction == 0.5f && lower % 2 != 0));
+}
 
 class GridSample : public Layer
 {
