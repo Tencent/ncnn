@@ -21,6 +21,7 @@
 #include "pass_ncnn/convert_Tensor_select.h"
 #include "pass_ncnn/convert_Tensor_slice.h"
 #include "pass_ncnn/convert_Tensor_slice_copy.h"
+#include "pass_ncnn/crop_pooling_output.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
@@ -127,6 +128,8 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+
+    ncnn::crop_pooling_output(g);
 
     ncnn::eliminate_noop(g);
 
