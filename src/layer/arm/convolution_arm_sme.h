@@ -26,8 +26,10 @@ extern "C" void ncnn_sme_conv1x1s1_pack4_f32(const float* A, int lda, const floa
 // the za storage is enabled together with streaming mode and both are left disabled on exit,
 // smstart za, sm and smstop za, sm are written as words because this file is built without sme
 // support and not every assembler accepts those mnemonics for a target that does not advertise sme
-#define NCNN_SME_SMSTART() __asm__ __volatile__(".word 0xd503477f" ::: "memory")
-#define NCNN_SME_SMSTOP() __asm__ __volatile__(".word 0xd503467f" ::: "memory")
+#define NCNN_SME_SMSTART() __asm__ __volatile__(".word 0xd503477f" :: \
+                                                    : "memory")
+#define NCNN_SME_SMSTOP() __asm__ __volatile__(".word 0xd503467f" :: \
+                                                   : "memory")
 
 // streaming mode discards v8-v15, the fpsimd callee-saved registers, so they are saved here in a
 // fixed size slot of the plain aapcs64 frame and restored once the kernel has written its result

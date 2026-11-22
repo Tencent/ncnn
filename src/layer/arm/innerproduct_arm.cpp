@@ -130,8 +130,8 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     // width and always runs a single sample, so the copy would be dead weight that
     // doubles the layer
     if (opt.use_arm_sme && cpu_support_arm_sme_f32f32()
-        && num_input >= 16 && num_output >= 16
-        && (size_t)num_input * num_output <= (size_t)4 * 1024 * 1024)
+            && num_input >= 16 && num_output >= 16
+            && (size_t)num_input * num_output <= (size_t)4 * 1024 * 1024)
     {
         // A[k][n] = weight[n][k], one num_output wide row per input channel
         weight_data_amx.create(num_output, num_input);
@@ -277,7 +277,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 // the kernel adds bias along m, the channel bias is applied with the activation
                 ncnn_conv1x1s1_sme_f32((const float*)a_pack, num_samples, (const float*)weight_data_amx, num_output,
-                                        (float*)top_rows, num_output, m_begin, m_end, num_output, num_input, 0);
+                                       (float*)top_rows, num_output, m_begin, m_end, num_output, num_input, 0);
             }
 
             #pragma omp parallel for num_threads(opt.num_threads)

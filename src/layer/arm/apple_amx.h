@@ -14,23 +14,29 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define NCNN_AMX_NOP_OP_IMM5(op, imm5) \
-    __asm__ __volatile__("nop\nnop\nnop\n.word (0x201000 + (%0 << 5) + %1)" : : "i"(op), "i"(imm5) : "memory")
+#define NCNN_AMX_NOP_OP_IMM5(op, imm5)                                      \
+    __asm__ __volatile__("nop\nnop\nnop\n.word (0x201000 + (%0 << 5) + %1)" \
+                         :                                                  \
+                         : "i"(op), "i"(imm5)                               \
+                         : "memory")
 
-#define NCNN_AMX_OP_GPR(op, gpr) \
-    __asm__ __volatile__(".word (0x201000 + (%0 << 5) + 0%1 - ((0%1 >> 4) * 6))" : : "i"(op), "r"((uint64_t)(gpr)) : "memory")
+#define NCNN_AMX_OP_GPR(op, gpr)                                                 \
+    __asm__ __volatile__(".word (0x201000 + (%0 << 5) + 0%1 - ((0%1 >> 4) * 6))" \
+                         :                                                       \
+                         : "i"(op), "r"((uint64_t)(gpr))                         \
+                         : "memory")
 
-#define NCNN_AMX_LDX(gpr)  NCNN_AMX_OP_GPR( 0, gpr)
-#define NCNN_AMX_LDY(gpr)  NCNN_AMX_OP_GPR( 1, gpr)
-#define NCNN_AMX_STX(gpr)  NCNN_AMX_OP_GPR( 2, gpr)
-#define NCNN_AMX_STY(gpr)  NCNN_AMX_OP_GPR( 3, gpr)
-#define NCNN_AMX_LDZ(gpr)  NCNN_AMX_OP_GPR( 4, gpr)
-#define NCNN_AMX_STZ(gpr)  NCNN_AMX_OP_GPR( 5, gpr)
-#define NCNN_AMX_FMA32(gpr) NCNN_AMX_OP_GPR(12, gpr)
-#define NCNN_AMX_FMA16(gpr) NCNN_AMX_OP_GPR(15, gpr)
+#define NCNN_AMX_LDX(gpr)    NCNN_AMX_OP_GPR(0, gpr)
+#define NCNN_AMX_LDY(gpr)    NCNN_AMX_OP_GPR(1, gpr)
+#define NCNN_AMX_STX(gpr)    NCNN_AMX_OP_GPR(2, gpr)
+#define NCNN_AMX_STY(gpr)    NCNN_AMX_OP_GPR(3, gpr)
+#define NCNN_AMX_LDZ(gpr)    NCNN_AMX_OP_GPR(4, gpr)
+#define NCNN_AMX_STZ(gpr)    NCNN_AMX_OP_GPR(5, gpr)
+#define NCNN_AMX_FMA32(gpr)  NCNN_AMX_OP_GPR(12, gpr)
+#define NCNN_AMX_FMA16(gpr)  NCNN_AMX_OP_GPR(15, gpr)
 #define NCNN_AMX_MATINT(gpr) NCNN_AMX_OP_GPR(20, gpr)
-#define NCNN_AMX_SET()     NCNN_AMX_NOP_OP_IMM5(17, 0)
-#define NCNN_AMX_CLR()     NCNN_AMX_NOP_OP_IMM5(17, 1)
+#define NCNN_AMX_SET()       NCNN_AMX_NOP_OP_IMM5(17, 0)
+#define NCNN_AMX_CLR()       NCNN_AMX_NOP_OP_IMM5(17, 1)
 
 // fma32 matrix mode
 // z[j][i] += x[i] * y[j]

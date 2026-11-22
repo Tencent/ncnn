@@ -28,7 +28,7 @@
 // inactive rows are skipped, inactive columns are masked by pg_n
 // the kernel keeps the four tiles in za between the two calls, so neither one
 // has to read the tile back from memory
-template <int T>
+template<int T>
 static __attribute__((always_inline)) void ncnn_sme_store_plain(const float* bias, float* outptr, size_t out_cstep, int m0, int svl, int m_end, int n0, svbool_t pg_n) __arm_preserves("za") __arm_streaming
 {
     const svbool_t ptrue = svptrue_b32();
@@ -56,7 +56,7 @@ static __attribute__((always_inline)) void ncnn_sme_store_plain(const float* bia
 // this epilogue is compiled for sme2 and only called when the cpu reports sme2
 // no scratch buffer is used, the predicate selects the pixels that are present
 // so that partial n tiles store straight into the destination
-template <int T>
+template<int T>
 static __attribute__((target("sme,sme2"), always_inline)) void ncnn_sme_store_pack4(const float* bias, float* outptr, size_t out_cstep, int m0, int svl, int m_end, int N, int n0) __arm_preserves("za") __arm_streaming
 {
     const svbool_t ptrue = svptrue_b32();
