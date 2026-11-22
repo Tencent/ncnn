@@ -237,6 +237,7 @@ public:
 
     // hardware limit
     uint32_t max_shared_memory_size() const;
+    uint32_t max_storage_buffer_range() const;
     uint32_t max_workgroup_count_x() const;
     uint32_t max_workgroup_count_y() const;
     uint32_t max_workgroup_count_z() const;

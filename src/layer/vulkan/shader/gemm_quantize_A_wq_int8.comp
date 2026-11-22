@@ -1,0 +1,115 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int transA = 0;
+layout(constant_id = 1) const int block_size = 0;
+layout(constant_id = 2) const int constantK = 1;
+layout(constant_id = 3) const int rotation_size = 0;
+
+layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 1) writeonly buffer A_int8_blob { uint A_int8_data[]; };
+layout(binding = 2) writeonly buffer A_descales_blob { float A_descales_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int K;
+    int K4;
+    int A_hstep;
+} p;
+
+shared float maxima[64];
+shared float rotated[constantK];
+
+float load_a(int m, int k)
+{
+    const int offset = transA == 1 ? k * p.A_hstep + m : m * p.A_hstep + k;
+    return float(buffer_ld1(A_blob_data, offset));
+}
+
+void rotate_a(int m, int lane, int lanes)
+{
+    for (int k = lane; k < constantK; k += lanes)
+        rotated[k] = load_a(m, k);
+    barrier();
+
+    for (int stride = 1; stride < rotation_size; stride *= 4)
+    {
+        for (int i = lane; i < constantK / 4; i += lanes)
+        {
+            const int a = i / stride * (stride * 4) + i % stride;
+            const int b = a + stride;
+            const int c = b + stride;
+            const int d = c + stride;
+            const vec4 x = vec4(rotated[a], rotated[b], rotated[c], rotated[d]);
+            const vec4 y = vec4((x.x + x.y + x.z + x.w) * 0.5f) - x.wzyx;
+            rotated[a] = y.x;
+            rotated[b] = y.y;
+            rotated[c] = y.z;
+            rotated[d] = y.w;
+        }
+        barrier();
+    }
+}
+
+void main()
+{
+    const int lane = int(gl_LocalInvocationID.x);
+    const int lanes = block_size == 32 ? 8 : 64;
+    const int m = int(gl_WorkGroupID.y);
+    const int g = int(gl_WorkGroupID.x);
+    const int K4 = block_size == 32 ? 8 : p.K4;
+    const int k4_start = g * K4;
+
+    float amax = 0.f;
+    vec4 v32 = vec4(0.f);
+    if (block_size == 32)
+    {
+        const int k = (k4_start + lane) * 4;
+        v32 = vec4(load_a(m, k), load_a(m, k + 1), load_a(m, k + 2), load_a(m, k + 3));
+        const vec4 v = abs(v32);
+        amax = max(max(v.x, v.y), max(v.z, v.w));
+    }
+    else
+    {
+        if (rotation_size != 0)
+            rotate_a(m, lane, lanes);
+
+        for (int k = lane; k < p.K; k += lanes)
+        {
+            const float v = rotation_size != 0 ? rotated[k] : load_a(m, k);
+            amax = max(amax, abs(v));
+        }
+    }
+    maxima[lane] = amax;
+    barrier();
+
+    for (int step = lanes / 2; step > 0; step /= 2)
+    {
+        if (lane < step)
+            maxima[lane] = max(maxima[lane], maxima[lane + step]);
+        barrier();
+    }
+
+    const float descale = max(maxima[0] / 127.f, 1e-30f);
+    if (lane == 0)
+        A_descales_data[m * (p.K4 / K4) + g] = descale;
+
+    for (int k4 = lane; k4 < K4; k4 += lanes)
+    {
+        vec4 v = v32;
+        if (block_size == 0)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                const int k = k4 * 4 + i;
+                if (k < p.K)
+                    v[i] = rotation_size != 0 ? rotated[k] : load_a(m, k);
+            }
+        }
+        v /= descale;
+        const ivec4 q = ivec4(clamp(sign(v) * floor(abs(v) + 0.5f), -127.f, 127.f));
+        A_int8_data[m * p.K4 + k4_start + k4] = uint(packInt4x8(q));
+    }
+}

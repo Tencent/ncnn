@@ -13,6 +13,7 @@ class Gemm_vulkan : public Gemm
 public:
     Gemm_vulkan();
 
+    virtual int load_param(const ParamDict& pd);
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
@@ -23,6 +24,17 @@ public:
     virtual int forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 protected:
+#if NCNN_WEIGHT_QUANT
+    bool use_weight_quantized_pipeline() const;
+    int get_weight_slice_rows() const;
+    int create_pipeline_weight_quantized(const Option& opt);
+    int create_pipeline_weight_quantized_cm(const Option& opt);
+    int upload_model_weight_quantized(VkTransfer& cmd, const Option& opt);
+    int create_pipeline_int8sa(const Option& opt);
+    int forward_weight_quantized(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const;
+    VkMat rotate_A_convrot(const VkMat& A, int M, int K, VkCompute& cmd, const Option& opt) const;
+    int gemm_int8sa(const VkMat& A, const VkMat& C, int M, int broadcast_type_C, VkMat& top_blob, VkCompute& cmd, const Option& opt) const;
+#endif
 #if NCNN_INT8
     int create_pipeline_int8(const Option& opt);
     int upload_model_int8(VkTransfer& cmd, const Option& opt);
@@ -40,6 +52,21 @@ public:
 
     Pipeline* pipeline_gemm;
     Pipeline* pipeline_gemm_pack4;
+
+#if NCNN_WEIGHT_QUANT
+    int weight_slice_rows;
+    std::vector<VkMat> B_data_packed_gpu;
+    std::vector<VkMat> B_data_descales_gpu;
+    Pipeline* pipeline_gemm_weight_quantized;
+    Pipeline* pipeline_gemm_weight_quantized_cm;
+    Pipeline* pipeline_gemm_convrot_rotate;
+    Pipeline* pipeline_gemm_quantize_A_wq_int8;
+    Pipeline* pipeline_gemm_wq_int8;
+    bool use_cooperative_matrix_wq_int8;
+    bool fuse_convrot_quantize;
+    int coopmat_M_wq;
+    int coopmat_N_wq;
+#endif
 
     // subgroup
     bool use_subgroup_ops;

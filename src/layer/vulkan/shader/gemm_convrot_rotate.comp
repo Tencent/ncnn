@@ -1,0 +1,57 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int rotation_size = 256;
+layout(constant_id = 1) const int transA = 0;
+
+layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 1) writeonly buffer A_rotated_blob { sfp A_rotated_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int K;
+    int A_hstep;
+} p;
+
+shared float v[rotation_size];
+
+void main()
+{
+    const int lane = int(gl_LocalInvocationID.x);
+    const int lanes = 64;
+    const int m = int(gl_WorkGroupID.y);
+    const int k0 = int(gl_WorkGroupID.x) * rotation_size;
+
+    for (int i = lane; i < rotation_size; i += lanes)
+    {
+        const int k = k0 + i;
+        const int offset = transA == 1 ? k * p.A_hstep + m : m * p.A_hstep + k;
+        v[i] = float(buffer_ld1(A_blob_data, offset));
+    }
+    barrier();
+
+    for (int stride = 1; stride < rotation_size; stride *= 4)
+    {
+        for (int i = lane; i < rotation_size / 4; i += lanes)
+        {
+            const int a = (i / stride) * (stride * 4) + i % stride;
+            const int b = a + stride;
+            const int c = b + stride;
+            const int d = c + stride;
+            const vec4 x = vec4(v[a], v[b], v[c], v[d]);
+            const vec4 y = vec4((x.x + x.y + x.z + x.w) * 0.5f) - x.wzyx;
+            v[a] = y.x;
+            v[b] = y.y;
+            v[c] = y.z;
+            v[d] = y.w;
+        }
+        barrier();
+    }
+
+    for (int i = lane; i < rotation_size; i += lanes)
+    {
+        buffer_st1(A_rotated_data, m * p.K + k0 + i, afp(v[i]));
+    }
+}

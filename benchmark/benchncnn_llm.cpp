@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include <float.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,7 @@
 #include "benchncnn_llm_param_data.h"
 
 #ifndef NCNN_SIMPLESTL
+#include <string>
 #include <vector>
 #endif
 
@@ -308,7 +310,8 @@ static void make_rope_cache(int half_dim, int seqlen, ncnn::Mat& cos_cache, ncnn
     sin_cache.fill(0.f);
 }
 
-static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, std::vector<ncnn::Mat>& cache, ncnn::Allocator* kvcache_allocator, int kvcache_max_seqlen_hint)
+static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache,
+                            const ncnn::Mat& sin_cache, std::vector<ncnn::Mat>& cache, ncnn::Allocator* kvcache_allocator, int kvcache_max_seqlen_hint, ncnn::Mat* output_logits = 0)
 {
     const int cur_seqlen = token_embeds.h;
 
@@ -349,11 +352,13 @@ static int run_decoder_once(ncnn::Net& decoder, ncnn::Net& proj_out, const Cache
     ex2.input("in0", last_hidden);
 
     ncnn::Mat logits;
-    return ex2.extract("out0", logits);
+    return ex2.extract("out0", output_logits ? *output_logits : logits);
 }
 
 #if NCNN_VULKAN
-static int run_decoder_once_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask, const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, std::vector<ncnn::VkMat>& cache, ncnn::VkAllocator* kvcache_vkallocator, int kvcache_max_seqlen_hint)
+static int run_decoder_once_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, const CacheIndexes& cache_indexes, const ncnn::Mat& token_embeds, const ncnn::Mat& attention_mask,
+                                   const ncnn::Mat& cos_cache, const ncnn::Mat& sin_cache, std::vector<ncnn::VkMat>& cache, ncnn::VkAllocator* kvcache_vkallocator, int kvcache_max_seqlen_hint,
+                                   ncnn::Mat* output_logits = 0)
 {
     const int cur_seqlen = token_embeds.h;
 
@@ -399,7 +404,7 @@ static int run_decoder_once_vulkan(ncnn::Net& decoder, ncnn::Net& proj_out, cons
     ex2.input("in0", last_hidden);
 
     ncnn::Mat logits;
-    return ex2.extract("out0", logits);
+    return ex2.extract("out0", output_logits ? *output_logits : logits);
 }
 #endif // NCNN_VULKAN
 
@@ -640,9 +645,174 @@ static int benchmark_model(const ModelConfig& config, const ncnn::Option& opt)
     return 0;
 }
 
+#if NCNN_WEIGHT_QUANT
+static int benchmark_qwen3_q8_0(const std::string& prefix, const ncnn::Option& opt, const char* logits_path, const char* proj_bin_path)
+{
+    ncnn::set_omp_dynamic(0);
+    ncnn::set_omp_num_threads(opt.num_threads);
+
+    ncnn::Net embed;
+    ncnn::Net decoder;
+    ncnn::Net proj_out;
+    embed.opt = opt;
+    embed.opt.use_vulkan_compute = false;
+    decoder.opt = opt;
+    proj_out.opt = opt;
+
+#if NCNN_VULKAN
+    if (opt.use_vulkan_compute)
+    {
+        decoder.set_vulkan_device(g_vkdev);
+        proj_out.set_vulkan_device(g_vkdev);
+    }
+#endif // NCNN_VULKAN
+
+    const double load_start = ncnn::get_current_time();
+    const std::string embed_bin = prefix + ".embed.ncnn.bin";
+    const char* proj_bin = proj_bin_path ? proj_bin_path : embed_bin.c_str();
+    if (embed.load_param((prefix + ".embed.ncnn.param").c_str()) != 0 || embed.load_model(embed_bin.c_str()) != 0
+        || decoder.load_param((prefix + ".decoder.ncnn.param").c_str()) != 0 || decoder.load_model((prefix + ".decoder.ncnn.bin").c_str()) != 0
+        || proj_out.load_param((prefix + ".proj_out.ncnn.param").c_str()) != 0 || proj_out.load_model(proj_bin) != 0)
+        return -1;
+    fprintf(stderr, "Qwen3-0.6B Q8_0 model load: %.3f ms\n", ncnn::get_current_time() - load_start);
+
+    CacheIndexes cache_indexes;
+    resolve_cache_indexes(decoder, cache_indexes);
+    if (cache_indexes.output_indexes.size() != 56)
+        return -1;
+
+    const int tokens[] = {151644, 872, 198, 2028, 374, 264, 1296, 220, 17, 10, 17, 30, 151645, 198, 151644, 77091, 198, 40, 2776, 311, 1401, 279};
+    const int token_count = sizeof(tokens) / sizeof(tokens[0]);
+    const int prefill = 16;
+    ncnn::UnlockedPoolAllocator cache_allocator;
+    cache_allocator.set_size_compare_ratio(0.f);
+    std::vector<ncnn::Mat> cache;
+#if NCNN_VULKAN
+    std::vector<ncnn::VkMat> cache_gpu;
+#endif
+
+    ncnn::Mat all_logits(151936, token_count - prefill + 1);
+    if (all_logits.empty())
+        return -100;
+
+    double decode_ms = 0.;
+    for (int pos = 0; pos < token_count;)
+    {
+        const int len = pos ? 1 : prefill;
+        ncnn::Mat input(len);
+        memcpy(input.data, tokens + pos, len * sizeof(int));
+
+        const double start = ncnn::get_current_time();
+        ncnn::Mat mask;
+        make_attention_mask(len, pos, mask);
+        ncnn::Mat cos_cache(64, len);
+        ncnn::Mat sin_cache(64, len);
+        for (int i = 0; i < len; i++)
+        {
+            for (int j = 0; j < 64; j++)
+            {
+                const float angle = (pos + i) / powf(1000000.f, j / 64.f);
+                cos_cache.row(i)[j] = cosf(angle);
+                sin_cache.row(i)[j] = sinf(angle);
+            }
+        }
+
+        ncnn::Extractor ex = embed.create_extractor();
+        ncnn::Mat token_embeds;
+        if (ex.input("in0", input) != 0 || ex.extract("out0", token_embeds) != 0)
+            return -1;
+
+        ncnn::Mat logits;
+        int ret;
+#if NCNN_VULKAN
+        if (opt.use_vulkan_compute)
+        {
+            ret = run_decoder_once_vulkan(decoder, proj_out, cache_indexes, token_embeds, mask, cos_cache, sin_cache, cache_gpu, opt.kvcache_vkallocator, token_count, &logits);
+        }
+        else
+#endif // NCNN_VULKAN
+        {
+            ret = run_decoder_once(decoder, proj_out, cache_indexes, token_embeds, mask, cos_cache, sin_cache, cache, &cache_allocator, token_count, &logits);
+        }
+        if (ret != 0 || logits.w != all_logits.w || logits.total() != (size_t)all_logits.w || logits.elemsize != 4u)
+            return -1;
+
+        const double elapsed = ncnn::get_current_time() - start;
+        if (pos)
+            decode_ms += elapsed;
+
+        int top = 0;
+        for (int i = 1; i < logits.w; i++)
+        {
+            if (logits[i] > logits[top])
+                top = i;
+        }
+        memcpy(all_logits.row(pos ? pos - prefill + 1 : 0), logits.data, all_logits.w * sizeof(float));
+        fprintf(stderr, "token position %d: %.3f ms, argmax=%d\n", pos + len - 1, elapsed, top);
+        pos += len;
+    }
+
+    fprintf(stderr, "decode: %.3f tokens/s\n", (token_count - prefill) * 1000. / decode_ms);
+    if (logits_path)
+    {
+        FILE* fp = fopen(logits_path, "wb");
+        if (!fp)
+            return -1;
+        const size_t nwritten = fwrite(all_logits.data, sizeof(float), all_logits.total(), fp);
+        if (fclose(fp) != 0 || nwritten != all_logits.total())
+            return -1;
+    }
+    return 0;
+}
+
+static int benchmark_qwen3_q8_0(const std::string& prefix, int num_threads, bool use_int8_inference, const char* logits_path, int gpu_device, const char* proj_bin_path)
+{
+    if (num_threads <= 0)
+        return -1;
+
+    ncnn::Option opt;
+    opt.num_threads = num_threads;
+    opt.use_int8_inference = use_int8_inference;
+    opt.use_mapped_model_loading = true;
+
+#if NCNN_VULKAN
+    if (gpu_device >= 0 && gpu_device < ncnn::get_gpu_count())
+    {
+        g_vkdev = ncnn::get_gpu_device(gpu_device);
+        ncnn::VkBlobAllocator blob_vkallocator(g_vkdev);
+        ncnn::VkBlobAllocator kvcache_vkallocator(g_vkdev);
+        ncnn::VkStagingAllocator staging_vkallocator(g_vkdev);
+        opt.use_vulkan_compute = true;
+        opt.use_fp16_packed = false;
+        opt.use_fp16_storage = false;
+        opt.use_fp16_arithmetic = false;
+        opt.use_bf16_packed = false;
+        opt.use_bf16_storage = false;
+        opt.use_int8_arithmetic = use_int8_inference;
+        opt.blob_vkallocator = &blob_vkallocator;
+        opt.workspace_vkallocator = &blob_vkallocator;
+        opt.kvcache_vkallocator = &kvcache_vkallocator;
+        opt.staging_vkallocator = &staging_vkallocator;
+        fprintf(stderr, "gpu_device = %d\n", gpu_device);
+        return benchmark_qwen3_q8_0(prefix, opt, logits_path, proj_bin_path);
+    }
+#endif // NCNN_VULKAN
+
+    if (gpu_device != -1)
+    {
+        fprintf(stderr, "invalid GPU device %d\n", gpu_device);
+        return -1;
+    }
+    return benchmark_qwen3_q8_0(prefix, opt, logits_path, proj_bin_path);
+}
+#endif // NCNN_WEIGHT_QUANT
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: benchncnn_llm [loop count] [num threads] [powersave] [gpu device] [cooling down]\n");
+#if NCNN_WEIGHT_QUANT
+    fprintf(stderr, "       benchncnn_llm --qwen3-q8-0 model-prefix [num threads] [dynamic int8] [logits.f32|-] [gpu device] [projection.bin]\n");
+#endif // NCNN_WEIGHT_QUANT
 }
 
 int main(int argc, char** argv)
@@ -652,6 +822,23 @@ int main(int argc, char** argv)
     int powersave = 2;
     int gpu_device = -1;
     int cooling_down = 1;
+
+#if NCNN_WEIGHT_QUANT
+    if (argc >= 2 && strcmp(argv[1], "--qwen3-q8-0") == 0)
+    {
+        if (argc < 3 || argc > 8)
+        {
+            show_usage();
+            return -1;
+        }
+        const int threads = argc > 3 ? atoi(argv[3]) : num_threads;
+        const bool int8 = argc < 5 || atoi(argv[4]) != 0;
+        const char* logits_path = argc > 5 && strcmp(argv[5], "-") != 0 ? argv[5] : 0;
+        const int device = argc > 6 ? atoi(argv[6]) : -1;
+        const char* proj_bin_path = argc > 7 ? argv[7] : 0;
+        return benchmark_qwen3_q8_0(argv[2], threads, int8, logits_path, device, proj_bin_path);
+    }
+#endif // NCNN_WEIGHT_QUANT
 
     for (int i = 1; i < argc; i++)
     {

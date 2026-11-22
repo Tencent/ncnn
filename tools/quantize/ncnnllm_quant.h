@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <float.h>
 #include <limits.h>
+#include <stdint.h>
 
 enum
 {
@@ -59,8 +61,8 @@ static inline int llm_weight_quantize_packed_k_bytes(int constantK, int weight_b
     if (constantK <= 0 || weight_bits <= 0)
         return -1;
 
-    const size_t packed_k_bytes = ((size_t)constantK * weight_bits + 7) / 8;
-    if (packed_k_bytes > (size_t)INT_MAX)
+    const uint64_t packed_k_bytes = ((uint64_t)constantK * weight_bits + 7) / 8;
+    if (packed_k_bytes > INT_MAX)
         return -1;
 
     return (int)packed_k_bytes;
@@ -69,29 +71,20 @@ static inline int llm_weight_quantize_packed_k_bytes(int constantK, int weight_b
 static inline int float2int_weight(float v, int weight_bits)
 {
     const int qmax = (1 << (weight_bits - 1)) - 1;
-    int q = static_cast<int>(roundf(v));
-    if (q > qmax)
-        q = qmax;
-    if (q < -qmax)
-        q = -qmax;
-
-    return q;
+    return static_cast<int>(roundf(std::max(-(float)qmax, std::min((float)qmax, v))));
 }
 
 static inline void pack_signed_weight(unsigned char* ptr, int k, int weight_bits, int q)
 {
     const unsigned int mask = (1u << weight_bits) - 1u;
-    const unsigned int v = (unsigned int)q & mask;
-    const int bit_offset = k * weight_bits;
+    const uint64_t bit_offset = (uint64_t)k * weight_bits;
+    const size_t byte_offset = bit_offset / 8;
+    const int shift = bit_offset % 8;
+    const unsigned int v = ((unsigned int)q & mask) << shift;
 
-    for (int b = 0; b < weight_bits; b++)
-    {
-        if (v & (1u << b))
-        {
-            const int out_bit = bit_offset + b;
-            ptr[out_bit / 8] |= (unsigned char)(1u << (out_bit % 8));
-        }
-    }
+    ptr[byte_offset] |= (unsigned char)v;
+    if (shift + weight_bits > 8)
+        ptr[byte_offset + 1] |= (unsigned char)(v >> 8);
 }
 
 static inline const char* gemm_name(const ncnn::Gemm* gemm)
@@ -198,10 +191,10 @@ static inline float choose_weight_scale(const float* ptr, int size, int weight_b
         return 1.f;
 
     const int qmax = (1 << (weight_bits - 1)) - 1;
+    float best_scale = std::min((float)qmax / absmax, FLT_MAX);
     if (method != LLM_QUANT_METHOD_MSECLIP)
-        return (float)qmax / absmax;
+        return best_scale;
 
-    float best_scale = (float)qmax / absmax;
     float best_error = 0.f;
     for (int i = 0; i < size; i++)
     {
@@ -215,7 +208,7 @@ static inline float choose_weight_scale(const float* ptr, int size, int weight_b
     for (int s = 1; s <= search_steps; s++)
     {
         const float shrink = 1.f - 0.5f * s / search_steps;
-        const float scale = (float)qmax / (absmax * shrink);
+        const float scale = std::min((float)qmax / (absmax * shrink), FLT_MAX);
 
         float error = 0.f;
         for (int i = 0; i < size; i++)
@@ -240,7 +233,7 @@ static inline int make_weight_scales(const ncnn::Mat& weight_data, int block_siz
 {
     const int constantN = weight_data.h;
     const int constantK = weight_data.w;
-    const int block_count = (constantK + block_size - 1) / block_size;
+    const int block_count = (constantK - 1) / block_size + 1;
 
     weight_data_quantize_scales.create(block_count, constantN);
     if (weight_data_quantize_scales.empty())
@@ -263,11 +256,11 @@ static inline int make_weight_scales(const ncnn::Mat& weight_data, int block_siz
     return 0;
 }
 
-static inline int pack_weight_data(const ncnn::Mat& weight_data, const ncnn::Mat& weight_data_quantize_scales, int block_size, int weight_bits, ncnn::Mat& weight_data_quantized)
+static inline int pack_weight_data(const ncnn::Mat& weight_data, const ncnn::Mat& weight_data_quantize_scales, int block_size, int weight_bits, ncnn::Mat& weight_data_quantized, int num_threads = 1)
 {
     const int constantN = weight_data.h;
     const int constantK = weight_data.w;
-    const int block_count = (constantK + block_size - 1) / block_size;
+    const int block_count = (constantK - 1) / block_size + 1;
 
     if (weight_data_quantize_scales.w != block_count || weight_data_quantize_scales.h != constantN)
     {
@@ -283,6 +276,7 @@ static inline int pack_weight_data(const ncnn::Mat& weight_data, const ncnn::Mat
 
     memset(weight_data_quantized.data, 0, weight_data_quantized.total() * weight_data_quantized.elemsize);
 
+    #pragma omp parallel for num_threads(num_threads)
     for (int n = 0; n < constantN; n++)
     {
         const float* ptr = weight_data.row(n);

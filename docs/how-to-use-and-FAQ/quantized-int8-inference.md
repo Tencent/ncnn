@@ -177,6 +177,108 @@ For quick conversion without saving a table, `ncnnllm2int` can still compute sca
 
 This format is signed symmetric scale-only. Zero point is not used.
 
+## Transformer weight import and quantization
+
+Build with `NCNN_WEIGHT_QUANT=ON` and `NCNN_BUILD_TOOLS=ON`. Use `NCNN_VULKAN=ON` for the Vulkan paths. The tools emit standard ncnn `.param` and `.bin` files using magic `7767517`.
+
+`ncnnllm2table`, `ncnnllm2int`, `ncnndit2table` and `ncnndit2int` take ncnn models as input. GGUF and ComfyUI checkpoints have their own import commands.
+
+### Qwen3-0.6B GGUF Q8_0
+
+```shell
+./ncnngguf2ncnn Qwen3-0.6B-Q8_0.gguf benchmark/models/llm/qwen3_0.6b_decoder.ncnn.param qwen3
+```
+
+Use the generated embedding, decoder and output projection graphs with the Qwen3 tokenization and KV cache flow. For tied weights, load both the embedding and output projection graphs with `qwen3.embed.ncnn.bin`. The tool reports which binary to use. On CPU, set `Net::opt.use_int8_inference` before loading the model. Enabling it selects dynamic K32 activation quantization. Disabling it uses floating-point activations.
+
+With `Net::opt.use_mapped_model_loading`, the tied graphs can share the file-backed pages containing the quantized codes. The output projection's packed CPU weights or Vulkan weights have their own storage. `Embed` decodes the requested rows on CPU.
+
+For a fixed-token prefill and decode benchmark, build with `NCNN_BUILD_BENCHMARK=ON`.
+
+```shell
+./benchncnn_llm --qwen3-q8-0 qwen3 8 1 logits.f32
+```
+
+The last arguments select eight threads and dynamic INT8 activations. Use `0` for floating-point activations. The logits file is optional.
+The optional `benchmark/qwen3_q8_reference.py` compares those logits with an independent FP32 reference using the same GGUF and token sequence. It uses the Python `gguf`, `numpy` and `torch` packages.
+
+For Vulkan, append the device index. The benchmark passes the CPU embedding output to the Vulkan decoder and runs the output projection on Vulkan. Use `-` as the logits path to skip writing the output file.
+
+```shell
+./benchncnn_llm --qwen3-q8-0 qwen3 8 1 logits-vulkan.f32 0
+```
+
+For separate output weights, pass the projection binary after the device index. Set the device index to `-1` for CPU inference.
+
+```shell
+./benchncnn_llm --qwen3-q8-0 qwen3 8 1 logits.f32 -1 qwen3.proj_out.ncnn.bin
+```
+
+### Quantize an ncnn DiT model
+
+`ncnndit2int` converts a floating-point ncnn `.param/.bin` model. It can compute the weight scales directly or read a table from `ncnndit2table`.
+
+```shell
+./ncnndit2int in.param in.bin out-int8.param out-int8.bin storage=bf16
+./ncnndit2int in.param in.bin out-int6.param out-int6.bin bits=6 block=64 storage=bf16
+./ncnndit2int in.param in.bin out-int4.param out-int4.bin bits=4 block=64 storage=bf16
+
+./ncnndit2table in.param in.bin model.dit.table convrot=auto method=mseclip include=layers.txt
+./ncnndit2int in.param in.bin out-convrot.param out-convrot.bin model.dit.table storage=bf16
+```
+
+Weight-only INT8 is the default and uses one scale per output channel. Weight-only INT6 and INT4 pack signed weights in K groups of 32, 64 (default) or 128. All three support `method=minmax` (default) and `method=mseclip`. FP16 and BF16 weights are loaded in FP32 for conversion.
+
+For ConvRot INT8, set `convrot=auto` or give a regular Hadamard group size such as `convrot=256`. The tool rotates weights along K before calculating their scales. `auto` selects the largest of 256, 64, 16 and 4 that divides each layer's K and skips dimensions without a valid group. An explicit group must divide K for each selected eligible Gemm. A layer listed in `include` must support the requested conversion unless also excluded. The resulting layer uses mode 902 and quantizes activations at inference time.
+
+Optional `include=file` and `exclude=file` take one Gemm layer name per line. `storage` controls tagged floating-point weights in the output. Keep the same storage option when comparing direct and table-driven conversion.
+
+The DiT table records a row for each Gemm. A `keep` row leaves that layer's quantization as is. Quantized rows record the mode, dimensions and the scale values in output-channel order. INT4 and INT6 store divisors in K-group order within each channel. INT8 stores multipliers. A row with no scale values requests recomputation using its settings.
+
+```text
+gemm_0 bits=8 block=0 convrot=256 method=mseclip N=3840 K=3840
+gemm_1 bits=4 block=64 convrot=0 method=minmax N=3840 K=3840
+gemm_2 keep
+```
+
+### ComfyUI ConvRot INT8
+
+```shell
+./ncnncomfy2int8 in.param in.bin checkpoint.safetensors out.param out.bin layers
+```
+
+Use `context_refiner`, `noise_refiner` or `layers` for the corresponding Z-Image-Turbo transformer graph. For a custom graph, pass a mapping file instead with one `gemm_layer comfy_module first_output_row` entry per line. The converter preserves the stored INT8 weights and scales. The runtime rotates the activation along K. For dynamic INT8, the CPU and supported Vulkan devices quantize each rotated row and perform W8A8. The floating-point path reads from compressed INT8 weights.
+
+With the built-in Z-Image-Turbo graphs, use `-` in place of `in.bin` to source the refiner weights directly from the checkpoint. Use the original `in.bin` with custom mappings.
+
+## Quantization formats and backend design
+
+Keep the CNN calibration and requantization flow under `NCNN_INT8`. Its `int8_scale_term` and calibration table describe the existing convolution, depthwise convolution and inner-product inference. Transformer constant-weight formats use `NCNN_WEIGHT_QUANT`. The native block formats store a divisor per block, `900` stores a FP16 multiplier per K32 block, and `901`/`902` store a FP32 multiplier per output channel. The [Gemm parameter reference](../developer-guide/operators.md#gemm) defines the serialized layouts and the rotation parameter.
+
+### LLM formats
+
+| Format | Representation and execution |
+| --- | --- |
+| GGUF `Q8_0` | One FP16 multiplier and 32 signed INT8 codes per block. The importer preserves both. Gemm supports floating-point activations and dynamic K32 W8A8, and Embed decodes selected rows. [GGML block definitions](https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-common.h) |
+| GGUF `Q4_0`, `Q4_K` and mixed K-quants | `Q4_0` uses two groups of nibbles within a K32 block and a signed FP16 multiplier. `Q4_K` uses eight K32 groups in a K256 superblock with quantized scales and minima. A `Q4_K_M` file can contain other types, including `Q6_K`. Read each tensor's type from the GGUF directory. [GGUF specification](https://github.com/ggml-org/ggml/blob/master/docs/gguf.md), [GGML quantization definitions](https://github.com/ggml-org/llama.cpp/blob/master/ggml/src/ggml-common.h), [llama.cpp tensor selection](https://github.com/ggml-org/llama.cpp/blob/master/src/llama-quant.cpp) |
+| AWQ and GPTQ | AWQ uses activation statistics to protect salient weights. GPTQ uses approximate second-order information to compensate for quantization error. ncnn can calibrate its native symmetric format with `ncnnllm2table`. Imported checkpoints may also require group zero points, a group index or a permutation and checkpoint-specific packing. [AWQ](https://arxiv.org/abs/2306.00978), [GPTQ](https://arxiv.org/abs/2210.17323), [vLLM format and device support](https://docs.vllm.ai/en/latest/features/quantization/) |
+| W8A8, FP8, FP4 and KV cache | SmoothQuant balances activation and weight ranges offline for W8A8. FP8 and FP4 require their own element and scale encodings and matching device kernels. KV-cache formats apply to the activation cache in attention. [SmoothQuant](https://arxiv.org/abs/2211.10438), [TensorRT-LLM precision modes](https://nvidia.github.io/TensorRT-LLM/latest/features/quantization.html) |
+
+The current GGUF importer targets Qwen3-0.6B `Q8_0`. To add GGUF INT4, extend the converter's tensor-type dispatch and give `Q4_0` and K-quants explicit on-disk layouts. Preserve the published code and scale information, including the minima in `Q4_K`. Decode a scalar reference first, then reuse bounded Gemm tiles and Embed row gather. In an integer kernel for a block with `W = d*q + b`, apply both `d*dot(A,q)` and `b*sum(A)` before accumulating the block. Cover `Q6_K` and the floating tensor types in a mixed `Q4_K_M` fixture. Verify packed bytes, row and axis order, and logits against the same GGUF using llama.cpp before choosing a default for decode or prefill. Extend the same affine tile computation to AWQ or GPTQ only after validating the checkpoint's layout and any activation transform.
+
+### DiT formats
+
+- Use channel-wise INT8 and grouped INT6/INT4 for weight-only inference. Select layers offline and keep activations floating point. A backend unpacks B into a compute tile or directly into registers so the compressed B stays resident. Measure M=1 and the actual large token batches separately.
+- Use `901`/`902` for ComfyUI `int8_tensorwise` weights. The importer preserves each layer's rotation and matrix-multiply precision. ConvRot uses normalized regular Hadamard groups along K. The integer kernel computes an INT32 dot and applies the token-row and output-channel multipliers in the epilogue. When integer execution is unavailable or disabled, the floating-point kernel uses the same rotated activation and compressed B. [ComfyUI quantization contract](https://github.com/Comfy-Org/ComfyUI/blob/master/QUANTIZATION.md), [Comfy Kitchen INT8 implementation](https://github.com/Comfy-Org/comfy-kitchen/blob/main/comfy_kitchen/tensor/int8_utils.py)
+- ComfyUI also publishes layout definitions for `convrot_w4a4`, `asym_w4a8_int8`, `w6a8_int8`, and block-scaled floating-point formats. Future importers can reuse the rotation or integer GEMM where the activation quantizer and accumulation boundaries match. Validate relative scales, codebooks, and block layout for each format before exposing a mode. [ComfyUI weight formats](https://github.com/Comfy-Org/ComfyUI/blob/master/QUANTIZATION.md#weight-formats)
+- Tune mixed precision on early, middle and late denoising steps with the same seed and scheduler. ViDiT-Q targets sensitivity across layers and timesteps. SVDQuant uses a low-rank floating-point component alongside W4A4. These schemes would require new conversion and execution support. Profile the selected DiT and device before adding an FP8/FP4 or low-rank kernel. [Q-Diffusion](https://arxiv.org/abs/2302.04304), [ViDiT-Q](https://arxiv.org/abs/2406.02540), [SVDQuant](https://research.nvidia.com/labs/eai/publication/svdquant/)
+
+### Porting and validation
+
+Use `Gemm`, `Embed`, the standard `.param/.bin` loader and the existing allocator and packing options. Keep container and tensor-name mappings in the conversion tools. Keep runtime prepacking backend-specific. On CPU, reuse the architecture's GEMM packing, tile kernels and epilogue for single- and multi-row inputs. On Vulkan, check buffer ranges, dispatch limits and arithmetic capabilities before selecting portable, integer dot or cooperative matrix kernels. Large aggregate models use multiple allocations and compressed weight shards where the layer supports them.
+
+Compare each backend to a reference computed from the same quantized codes and scales. Report format correctness, numerical accuracy and model quality separately. Record model load, prefill and decode for LLMs, and denoising steps and final images for DiTs. Measure peak RAM/VRAM, upload and compute with the actual backend recorded. Regression coverage includes the old CNN pipeline and native block formats, independent compile flags, scalar and SIMD CPU paths, and Vulkan fallback and accelerated paths.
+
 ## use ncnn int8 inference
 
 the ncnn library would use int8 inference automatically, nothing changed in your code

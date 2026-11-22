@@ -10,6 +10,30 @@ if(NCNN_WEIGHT_QUANT)
     set_property(TARGET ncnnllm2table PROPERTY FOLDER "tools/optimization")
     ncnn_install_tool(ncnnllm2int)
     ncnn_install_tool(ncnnllm2table)
+
+    add_executable(ncnngguf2ncnn ncnngguf2ncnn.cpp)
+    target_link_libraries(ncnngguf2ncnn PRIVATE ncnn)
+    if(NOT WIN32)
+        target_compile_definitions(ncnngguf2ncnn PRIVATE _FILE_OFFSET_BITS=64)
+    endif()
+    set_property(TARGET ncnngguf2ncnn PROPERTY FOLDER "tools/optimization")
+    ncnn_install_tool(ncnngguf2ncnn)
+
+    add_executable(ncnndit2int ncnndit2int.cpp)
+    target_link_libraries(ncnndit2int PRIVATE ncnn)
+
+    add_executable(ncnndit2table ncnndit2table.cpp)
+    target_link_libraries(ncnndit2table PRIVATE ncnn)
+
+    set_property(TARGET ncnndit2int PROPERTY FOLDER "tools/optimization")
+    set_property(TARGET ncnndit2table PROPERTY FOLDER "tools/optimization")
+    ncnn_install_tool(ncnndit2int)
+    ncnn_install_tool(ncnndit2table)
+
+    add_executable(ncnncomfy2int8 ncnncomfy2int8.cpp ../pnnx/src/json.cpp)
+    target_link_libraries(ncnncomfy2int8 PRIVATE ncnn)
+    set_property(TARGET ncnncomfy2int8 PROPERTY FOLDER "tools/optimization")
+    ncnn_install_tool(ncnncomfy2int8)
 endif()
 
 if(NCNN_INT8)

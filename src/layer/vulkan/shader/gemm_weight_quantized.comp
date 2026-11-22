@@ -1,0 +1,229 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int transA = 0;
+layout(constant_id = 3) const int output_transpose = 0;
+layout(constant_id = 4) const int weight_bits = 8;
+layout(constant_id = 5) const int block_size = 0;
+
+layout(binding = 0) readonly buffer A_blob { sfp A_blob_data[]; };
+layout(binding = 1) readonly buffer B_blob { uint B_blob_data[]; };
+layout(binding = 2) readonly buffer B_descales_blob { uint B_descales_data[]; };
+layout(binding = 3) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 4) buffer top_blob { sfp top_blob_data[]; };
+layout(binding = 5) readonly buffer A_blob_4 { sfpvec4 A_blob_data_4[]; };
+layout(binding = 6) writeonly buffer top_blob_4 { sfpvec4 top_blob_data_4[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K;
+    int A_hstep;
+    int B_hstep;
+    int out_hstep;
+    int broadcast_type_C;
+    int A_elempack;
+    int out_elempack;
+    int N_offset;
+    int B_rows;
+} p;
+
+#define LOCAL_MEMORY_UNROLL_K 8
+
+#if NCNN_shader_local_memory
+// avoid bank conflict
+#define PAD 1
+shared vec4 tmp_a[8][LOCAL_MEMORY_UNROLL_K + PAD];
+shared vec4 tmp_b[8][LOCAL_MEMORY_UNROLL_K + PAD];
+#endif
+
+float load_a(int m, int k)
+{
+    if (m >= p.M || k >= p.K)
+        return 0.f;
+
+    const int row = transA == 1 ? k : m;
+    const int col = transA == 1 ? m : k;
+    const int index = (row / p.A_elempack * p.A_hstep + col) * p.A_elempack + row % p.A_elempack;
+    return float(buffer_ld1(A_blob_data, index));
+}
+
+vec4 load_b4(int n, int k)
+{
+    if (n >= p.B_rows || k >= p.K)
+        return vec4(0.f);
+
+    vec4 q;
+    if (weight_bits == 8)
+    {
+        q = vec4(unpackInt4x8(int(B_blob_data[n * p.B_hstep + k / 4])));
+    }
+    else
+    {
+        const int bit_offset = k % 32 * weight_bits;
+        const int word = k / 32 * weight_bits + bit_offset / 32;
+        const int shift = bit_offset % 32;
+        const int index = n * p.B_hstep + word;
+        uint packed = B_blob_data[index] >> shift;
+        if (shift + 4 * weight_bits > 32 && word + 1 < p.B_hstep)
+            packed |= B_blob_data[index + 1] << (32 - shift);
+
+        q = vec4(bitfieldExtract(int(packed), 0, weight_bits),
+                 bitfieldExtract(int(packed), weight_bits, weight_bits),
+                 bitfieldExtract(int(packed), 2 * weight_bits, weight_bits),
+                 bitfieldExtract(int(packed), 3 * weight_bits, weight_bits));
+        if (k + 3 >= p.K)
+            q *= vec4(lessThan(ivec4(k) + ivec4(0, 1, 2, 3), ivec4(p.K)));
+    }
+    if (block_size > 0)
+    {
+        const int groups = (p.K - 1) / block_size + 1;
+        const int g = n * groups + k / block_size;
+        const float d = weight_bits == 8 ? unpackHalf2x16(B_descales_data[g / 2])[g % 2] : uintBitsToFloat(B_descales_data[g]);
+        q *= d;
+    }
+    return q;
+}
+
+float output_weight_scale(int n)
+{
+    return block_size == 0 ? uintBitsToFloat(B_descales_data[n]) : 1.f;
+}
+
+vec4 load_a4(int m, int k)
+{
+    if (transA == 0 && p.A_elempack == 4)
+    {
+        if (m >= p.M || k >= p.K)
+            return vec4(0.f);
+
+        return vec4(buffer_ld4(A_blob_data_4, m / 4 * p.A_hstep + k));
+    }
+
+    return vec4(load_a(m, k), load_a(m + 1, k), load_a(m + 2, k), load_a(m + 3, k));
+}
+
+float load_c(int m, int n)
+{
+    if (p.broadcast_type_C == 0)
+        return float(buffer_ld1(C_blob_data, 0));
+    if (p.broadcast_type_C == 1 || p.broadcast_type_C == 2)
+        return float(buffer_ld1(C_blob_data, m));
+    if (p.broadcast_type_C == 3)
+        return float(buffer_ld1(C_blob_data, m * p.N + n));
+    if (p.broadcast_type_C == 4)
+        return float(buffer_ld1(C_blob_data, n));
+    return 0.f;
+}
+
+void main()
+{
+    const int m = int(gl_GlobalInvocationID.y) * 4;
+    const int n = int(gl_GlobalInvocationID.x) * 4;
+    const int n0 = n + p.N_offset;
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+#else
+    if (m >= p.M || n >= p.B_rows)
+        return;
+#endif
+
+    vec4 sum0 = vec4(0.f);
+    vec4 sum1 = vec4(0.f);
+    vec4 sum2 = vec4(0.f);
+    vec4 sum3 = vec4(0.f);
+
+#if NCNN_shader_local_memory
+    for (int k = 0; k < p.K; k += LOCAL_MEMORY_UNROLL_K)
+    {
+        tmp_a[ly][lx] = load_a4(m, k + lx);
+        const int nn = ly / 2;
+        const int kk = ly % 2 * 4;
+        const vec4 b = load_b4(n + nn, k + kk);
+        tmp_b[lx][kk][nn] = b.x;
+        tmp_b[lx][kk + 1][nn] = b.y;
+        tmp_b[lx][kk + 2][nn] = b.z;
+        tmp_b[lx][kk + 3][nn] = b.w;
+
+        barrier();
+
+        for (int j = 0; j < LOCAL_MEMORY_UNROLL_K; j++)
+        {
+            const vec4 a = tmp_a[ly][j];
+            const vec4 b = tmp_b[lx][j];
+            sum0 = fma(vec4(a.x), b, sum0);
+            sum1 = fma(vec4(a.y), b, sum1);
+            sum2 = fma(vec4(a.z), b, sum2);
+            sum3 = fma(vec4(a.w), b, sum3);
+        }
+
+        barrier();
+    }
+#else
+    for (int k = 0; k < p.K; k += 4)
+    {
+        const vec4 b0 = load_b4(n, k);
+        const vec4 b1 = load_b4(n + 1, k);
+        const vec4 b2 = load_b4(n + 2, k);
+        const vec4 b3 = load_b4(n + 3, k);
+        for (int kk = 0; kk < 4 && k + kk < p.K; kk++)
+        {
+            const vec4 a = load_a4(m, k + kk);
+            const vec4 b = vec4(b0[kk], b1[kk], b2[kk], b3[kk]);
+            sum0 = fma(vec4(a.x), b, sum0);
+            sum1 = fma(vec4(a.y), b, sum1);
+            sum2 = fma(vec4(a.z), b, sum2);
+            sum3 = fma(vec4(a.w), b, sum3);
+        }
+    }
+#endif
+
+    const vec4 sums[4] = vec4[4](sum0, sum1, sum2, sum3);
+    if (p.out_elempack == 4)
+    {
+        if (m >= p.M || n >= p.B_rows)
+            return;
+
+        if (output_transpose == 1)
+        {
+            const vec4 scale = vec4(output_weight_scale(n), output_weight_scale(n + 1), output_weight_scale(n + 2), output_weight_scale(n + 3));
+            for (int i = 0; i < 4 && m + i < p.M; i++)
+            {
+                const int mi = m + i;
+                const vec4 c = vec4(load_c(mi, n0), load_c(mi, n0 + 1), load_c(mi, n0 + 2), load_c(mi, n0 + 3));
+                const vec4 v = alpha * (sums[i] * scale + beta * c);
+                buffer_st4(top_blob_data_4, n0 / 4 * p.out_hstep + mi, afpvec4(v));
+            }
+        }
+        else
+        {
+            for (int j = 0; j < 4 && n + j < p.B_rows; j++)
+            {
+                const int nj = n0 + j;
+                const vec4 c = vec4(load_c(m, nj), load_c(m + 1, nj), load_c(m + 2, nj), load_c(m + 3, nj));
+                const vec4 v = alpha * (vec4(sum0[j], sum1[j], sum2[j], sum3[j]) * output_weight_scale(n + j) + beta * c);
+                buffer_st4(top_blob_data_4, m / 4 * p.out_hstep + nj, afpvec4(v));
+            }
+        }
+        return;
+    }
+
+    for (int j = 0; j < 4 && n + j < p.B_rows; j++)
+    {
+        const float scale = output_weight_scale(n + j);
+        for (int i = 0; i < 4 && m + i < p.M; i++)
+        {
+            const int row = output_transpose == 1 ? n0 + j : m + i;
+            const int col = output_transpose == 1 ? m + i : n0 + j;
+            const int index = (row / p.out_elempack * p.out_hstep + col) * p.out_elempack + row % p.out_elempack;
+            const float v = alpha * (sums[i][j] * scale + beta * load_c(m + i, n0 + j));
+            buffer_st1(top_blob_data, index, afp(v));
+        }
+    }
+}

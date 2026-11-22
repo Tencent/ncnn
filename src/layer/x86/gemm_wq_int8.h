@@ -129,19 +129,32 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 #endif // __AVX512VNNI__ || __AVXVNNI__
             for (; kk + 1 < max_kk; kk += 2)
             {
-                _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                if (kk + 3 < max_kk)
+                {
+                    _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8) -1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                }
+                else
+                {
+                    for (int z = 0; z < 8; z++)
+                    {
+                        const signed char* p = p0 + (size_t)z * B.w;
+                        pp[z * 2] = p[0];
+                        pp[z * 2 + 1] = p[1];
+                    }
+                }
                 pp += 16;
                 p0 += 2;
             }
             for (; kk < max_kk; kk++)
             {
-                _mm256_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                for (int z = 0; z < 8; z++)
+                    pp[z] = p0[(size_t)z * B.w];
                 pp += 8;
                 p0++;
             }
 
             __m256 _scale = _mm256_i32gather_ps(ps, _sindex, sizeof(float));
-            _mm256_storeu_ps(pd, _mm256_div_ps(_mm256_set1_ps(1.f), _scale));
+            _mm256_storeu_ps(pd, _scale);
             pd += 8;
             ps++;
         }
@@ -207,12 +220,24 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             for (; kk + 1 < max_kk; kk += 2)
             {
 #if __AVX2__
+                if (kk + 3 < max_kk)
+                {
 #if __AVX512F__
-                _mm_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                    _mm_mask_cvtepi32_storeu_epi16(pp, (__mmask8) -1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
 #else
-                __m128i _p = _mm_comp_cvtepi32_epi16(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
-                _mm_storel_epi64((__m128i*)pp, _p);
+                    __m128i _p = _mm_comp_cvtepi32_epi16(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                    _mm_storel_epi64((__m128i*)pp, _p);
 #endif
+                }
+                else
+                {
+                    for (int z = 0; z < 4; z++)
+                    {
+                        const signed char* p = p0 + (size_t)z * B.w;
+                        pp[z * 2] = p[0];
+                        pp[z * 2 + 1] = p[1];
+                    }
+                }
                 pp += 8;
                 p0 += 2;
 #else
@@ -234,12 +259,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             for (; kk < max_kk; kk++)
             {
 #if __AVX2__
-#if __AVX512F__
-                _mm_mask_cvtepi32_storeu_epi8(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
-#else
-                __m128i _p = _mm_comp_cvtepi32_epi8(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
-                _mm_store_ss((float*)pp, _mm_castsi128_ps(_p));
-#endif
+                for (int z = 0; z < 4; z++)
+                    pp[z] = p0[(size_t)z * B.w];
                 pp += 4;
                 p0++;
 #else
@@ -253,13 +274,13 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 
 #if __AVX2__
             __m128 _scale = _mm_i32gather_ps(ps0, _sindex, sizeof(float));
-            _mm_storeu_ps(pd, _mm_div_ps(_mm_set1_ps(1.f), _scale));
+            _mm_storeu_ps(pd, _scale);
             ps0++;
 #else
-            pd[0] = 1.f / *ps0++;
-            pd[1] = 1.f / *ps1++;
-            pd[2] = 1.f / *ps2++;
-            pd[3] = 1.f / *ps3++;
+            pd[0] = *ps0++;
+            pd[1] = *ps1++;
+            pd[2] = *ps2++;
+            pd[3] = *ps3++;
 #endif // __AVX2__
             pd += 4;
         }
@@ -345,8 +366,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 2;
             }
 
-            pd[0] = 1.f / *ps0++;
-            pd[1] = 1.f / *ps1++;
+            pd[0] = *ps0++;
+            pd[1] = *ps1++;
             pd += 2;
         }
     }
@@ -400,7 +421,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 *pp++ = *p0++;
             }
 
-            pd[0] = 1.f / *ps0++;
+            pd[0] = *ps0++;
             pd += 1;
         }
     }
@@ -13165,18 +13186,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
 
-                _sum = _mm_add_epi32(_sum, _mm_shuffle_epi32(_sum, _MM_SHUFFLE(3, 2, 3, 2)));
-                sum0 = _mm_cvtsi128_si32(_sum);
-                sum1 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_sum, _MM_SHUFFLE(1, 1, 1, 1)));
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
+                    __m128i _pA = _mm_loadl_epi64((const __m128i*)pA);
+                    __m128i _pB = _mm_castps_si128(_mm_load_ss((const float*)pB));
+                    _pB = _mm_unpacklo_epi32(_pB, _pB);
 #if __AVXVNNIINT8__
-                    sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
-                    sum1 += pA[4] * pB[0] + pA[5] * pB[1] + pA[6] * pB[2] + pA[7] * pB[3];
+                    _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
-                    sum0 += ((const unsigned char*)pA)[0] * pB[0] + ((const unsigned char*)pA)[1] * pB[1] + ((const unsigned char*)pA)[2] * pB[2] + ((const unsigned char*)pA)[3] * pB[3];
-                    sum1 += ((const unsigned char*)pA)[4] * pB[0] + ((const unsigned char*)pA)[5] * pB[1] + ((const unsigned char*)pA)[6] * pB[2] + ((const unsigned char*)pA)[7] * pB[3];
+                    _sum = _mm_comp_dpbusd_epi32(_sum, _pA, _pB);
 #endif // __AVXVNNIINT8__
                     pA += 8;
                     pB += 4;
@@ -13184,13 +13203,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 if (max_kk0 >= 4)
                 {
-                    const int a_shift = ((const int*)pB)[0];
-                    sum0 -= a_shift;
-                    sum1 -= a_shift;
+                    // Cancel the unsigned input offset before extracting the signed dot product.
+                    __m128i _a_shift = _mm_castps_si128(_mm_load_ss((const float*)pB));
+                    _sum = _mm_sub_epi32(_sum, _mm_unpacklo_epi32(_a_shift, _a_shift));
                     pB += 4;
                 }
 #endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 #endif // __AVX512VNNI__ || __AVXVNNI__
+                _sum = _mm_add_epi32(_sum, _mm_shuffle_epi32(_sum, _MM_SHUFFLE(3, 2, 3, 2)));
+                sum0 = _mm_cvtsi128_si32(_sum);
+                sum1 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_sum, _MM_SHUFFLE(1, 1, 1, 1)));
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
                     const int b0 = pB[0];
@@ -13489,18 +13511,16 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
 
-                _sum = _mm_add_epi32(_sum, _mm_shuffle_epi32(_sum, _MM_SHUFFLE(3, 2, 3, 2)));
-                sum0 = _mm_cvtsi128_si32(_sum);
-                sum1 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_sum, _MM_SHUFFLE(1, 1, 1, 1)));
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
+                    __m128i _pA = _mm_castps_si128(_mm_load_ss((const float*)pA));
+                    _pA = _mm_unpacklo_epi32(_pA, _pA);
+                    __m128i _pB = _mm_loadl_epi64((const __m128i*)pB);
 #if __AVXVNNIINT8__
-                    sum0 += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
-                    sum1 += pA[0] * pB[4] + pA[1] * pB[5] + pA[2] * pB[6] + pA[3] * pB[7];
+                    _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
-                    sum0 += ((const unsigned char*)pA)[0] * pB[0] + ((const unsigned char*)pA)[1] * pB[1] + ((const unsigned char*)pA)[2] * pB[2] + ((const unsigned char*)pA)[3] * pB[3];
-                    sum1 += ((const unsigned char*)pA)[0] * pB[4] + ((const unsigned char*)pA)[1] * pB[5] + ((const unsigned char*)pA)[2] * pB[6] + ((const unsigned char*)pA)[3] * pB[7];
+                    _sum = _mm_comp_dpbusd_epi32(_sum, _pA, _pB);
 #endif // __AVXVNNIINT8__
                     pA += 4;
                     pB += 8;
@@ -13508,12 +13528,14 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 if (max_kk0 >= 4)
                 {
-                    sum0 -= ((const int*)pB)[0];
-                    sum1 -= ((const int*)pB)[1];
+                    _sum = _mm_sub_epi32(_sum, _mm_loadl_epi64((const __m128i*)pB));
                     pB += 8;
                 }
 #endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 #endif // __AVX512VNNI__ || __AVXVNNI__
+                _sum = _mm_add_epi32(_sum, _mm_shuffle_epi32(_sum, _MM_SHUFFLE(3, 2, 3, 2)));
+                sum0 = _mm_cvtsi128_si32(_sum);
+                sum1 = _mm_cvtsi128_si32(_mm_shuffle_epi32(_sum, _MM_SHUFFLE(1, 1, 1, 1)));
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
                     sum0 += pA[0] * pB[0] + pA[1] * pB[1];
@@ -13600,14 +13622,15 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
 #endif // __AVX512VNNI__ || __AVXVNNI__
 
-                sum = _mm_reduce_add_epi32(_sum);
 #if __AVX512VNNI__ || __AVXVNNI__
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
+                    __m128i _pA = _mm_castps_si128(_mm_load_ss((const float*)pA));
+                    __m128i _pB = _mm_castps_si128(_mm_load_ss((const float*)pB));
 #if __AVXVNNIINT8__
-                    sum += pA[0] * pB[0] + pA[1] * pB[1] + pA[2] * pB[2] + pA[3] * pB[3];
+                    _sum = _mm_dpbssd_epi32(_sum, _pB, _pA);
 #else  // __AVXVNNIINT8__
-                    sum += ((const unsigned char*)pA)[0] * pB[0] + ((const unsigned char*)pA)[1] * pB[1] + ((const unsigned char*)pA)[2] * pB[2] + ((const unsigned char*)pA)[3] * pB[3];
+                    _sum = _mm_comp_dpbusd_epi32(_sum, _pA, _pB);
 #endif // __AVXVNNIINT8__
                     pA += 4;
                     pB += 4;
@@ -13615,11 +13638,12 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
 #if __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
                 if (max_kk0 >= 4)
                 {
-                    sum -= ((const int*)pB)[0];
+                    _sum = _mm_sub_epi32(_sum, _mm_castps_si128(_mm_load_ss((const float*)pB)));
                     pB += 4;
                 }
 #endif // __AVX512VNNI__ || (__AVXVNNI__ && !__AVXVNNIINT8__)
 #endif // __AVX512VNNI__ || __AVXVNNI__
+                sum = _mm_reduce_add_epi32(_sum);
                 for (; kk + 1 < max_kk0; kk += 2)
                 {
                     sum += pA[0] * pB[0] + pA[1] * pB[1];

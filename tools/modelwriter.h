@@ -273,6 +273,7 @@ public:
     int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f, bool randomize = true);
     int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, bool randomize);
 
+    // Pass a null binpath to write only the parameter file.
     int save(const char* parampath, const char* binpath);
 };
 
@@ -687,9 +688,33 @@ static void fwrite_weight_data_little_endian(ncnn::Mat& data, FILE* bp)
 #endif
 }
 
+#if NCNN_WEIGHT_QUANT
+static bool fwrite_weight_int8_data(const ncnn::Mat& data, FILE* bp)
+{
+    if (!bp)
+        return true;
+
+    const size_t count = (size_t)data.w * data.h * data.d * data.c;
+    if (count == 0 || count > (size_t)INT_MAX || (data.elemsize != 1u && data.elemsize != 2u && data.elemsize != 4u))
+        return false;
+
+    ncnn::Mat flat = data.reshape((int)count);
+    if (flat.empty())
+        return false;
+
+    fwrite_weight_data_little_endian(flat, bp);
+
+    const size_t bytes = count * flat.elemsize;
+    const size_t padding_size = alignSize(bytes, 4) - bytes;
+    const unsigned char padding[4] = {0};
+    return fwrite(padding, 1, padding_size, bp) == padding_size && !ferror(bp);
+}
+#endif // NCNN_WEIGHT_QUANT
+
 int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
-    int p0 = ftell(bp);
+    if (!bp)
+        return 0;
 
     const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
     if (data_size > (size_t)INT_MAX)
@@ -702,6 +727,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
     if (gen_random_weight && randomize)
         Randomize(data_flattened, a, b);
 
+    size_t elemsize = data_flattened.elemsize;
     if (data_flattened.elemsize == 4)
     {
         if (storage_type == 1)
@@ -711,6 +737,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
             ncnn::Mat data_flattened_fp16;
             ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
             fwrite_weight_data_little_endian(data_flattened_fp16, bp);
+            elemsize = 2;
         }
         else if (storage_type == 2)
         {
@@ -719,6 +746,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
             ncnn::Mat data_flattened_bf16;
             ncnn::cast_float32_to_bfloat16(data_flattened, data_flattened_bf16);
             fwrite_weight_data_little_endian(data_flattened_bf16, bp);
+            elemsize = 2;
         }
         else
         {
@@ -743,10 +771,11 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
     else
     {
         fprintf(stderr, "unknown weight data type %d\n", (int)data_flattened.elemsize);
+        return -1;
     }
 
     // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
+    const size_t nwrite = 4 + data_size * elemsize;
     size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
@@ -761,7 +790,8 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, bool ra
 
 int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b, bool randomize)
 {
-    int p0 = ftell(bp);
+    if (!bp)
+        return 0;
 
     const size_t data_size = (size_t)data.w * data.h * data.d * data.c;
     if (data_size > (size_t)INT_MAX)
@@ -782,7 +812,7 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
     fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
 
     // padding to 32bit align
-    int nwrite = ftell(bp) - p0;
+    const size_t nwrite = data_size * data_flattened.elemsize;
     size_t nalign = alignSize(nwrite, 4);
     unsigned char padding[4] = {0x00, 0x00, 0x00, 0x00};
     fwrite(padding, sizeof(unsigned char), nalign - nwrite, bp);
@@ -800,10 +830,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
     uint64_t mac = 0;
 
     FILE* pp = fopen(parampath, "wb");
-    FILE* bp = fopen(binpath, "wb");
-    if (!pp || !bp)
+    FILE* bp = binpath ? fopen(binpath, "wb") : 0;
+    if (!pp || (binpath && !bp))
     {
-        fprintf(stderr, "fopen %s or %s failed\n", parampath, binpath);
+        if (!pp)
+            fprintf(stderr, "fopen %s failed\n", parampath);
+        if (binpath && !bp)
+            fprintf(stderr, "fopen %s failed\n", binpath);
         if (pp)
             fclose(pp);
         if (bp)
@@ -1862,15 +1895,47 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 3=%d", weight_data_size)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
-            fwrite_weight_tag_data(op->weight_data, bp);
+#if NCNN_WEIGHT_QUANT
+            const bool weight_q8_0 = op->int8_scale_term == 900;
+#elif NCNN_INT8
+            const bool weight_q8_0 = false;
+#endif // NCNN_WEIGHT_QUANT
+
+#if NCNN_WEIGHT_QUANT
+            if (weight_q8_0)
+            {
+                if (!fwrite_weight_int8_data(op->weight_data, bp))
+                {
+                    fprintf(stderr, "write Embed Q8_0 weights failed for %s\n", layer->name.c_str());
+                    delete layer_default;
+                    fclose(pp);
+                    fclose(bp);
+                    return -1;
+                }
+            }
+            else
+#endif // NCNN_WEIGHT_QUANT
+            {
+                fwrite_weight_tag_data(op->weight_data, bp);
+            }
             if (op->bias_term)
             {
                 fwrite_weight_data(op->bias_data, bp);
             }
 
+#if NCNN_WEIGHT_QUANT
+            if (weight_q8_0 && !fwrite_weight_int8_data(op->weight_data_q8_scales, bp))
+            {
+                fprintf(stderr, "write Embed Q8_0 scales failed for %s\n", layer->name.c_str());
+                delete layer_default;
+                fclose(pp);
+                fclose(bp);
+                return -1;
+            }
+#endif // NCNN_WEIGHT_QUANT
 #if NCNN_INT8
             // write int8_scale data
-            if (op->int8_scale_term)
+            if (op->int8_scale_term && !weight_q8_0)
             {
                 ncnn::Mat weight_data_int8_scales(1);
                 weight_data_int8_scales[0] = op->weight_data_int8_scale;
@@ -1959,6 +2024,10 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 20=%d", constant_TILE_M)
             fprintf_param_value(" 21=%d", constant_TILE_N)
             fprintf_param_value(" 22=%d", constant_TILE_K)
+            fprintf_param_value(" 23=%d", weight_int8_rotation)
+
+            const bool weight_int8
+                = op->quantize_term >= 900 && op->quantize_term <= 902;
 
 #if NCNN_WEIGHT_QUANT
             const bool weight_block_quantize
@@ -1974,13 +2043,29 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             if (op->constantB == 1)
             {
-                if (weight_block_quantize)
+#if NCNN_WEIGHT_QUANT
+                if (weight_int8)
                 {
-                    fwrite_weight_data(op->B_data, bp, false);
+                    if (!fwrite_weight_int8_data(op->B_data, bp))
+                    {
+                        fprintf(stderr, "write Gemm int8 weights failed for %s\n", layer->name.c_str());
+                        delete layer_default;
+                        fclose(pp);
+                        fclose(bp);
+                        return -1;
+                    }
                 }
                 else
+#endif // NCNN_WEIGHT_QUANT
                 {
-                    fwrite_weight_tag_data(op->B_data, bp);
+                    if (weight_block_quantize)
+                    {
+                        fwrite_weight_data(op->B_data, bp, false);
+                    }
+                    else
+                    {
+                        fwrite_weight_tag_data(op->B_data, bp);
+                    }
                 }
             }
             if (op->constantC == 1 && op->constant_broadcast_type_C != -1)
@@ -1989,7 +2074,39 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
 
 #if NCNN_WEIGHT_QUANT
-            if (weight_block_quantize)
+            if (bp && weight_int8)
+            {
+                ncnn::Mat scales = op->B_data_quantize_scales;
+                if (op->quantize_term == 900)
+                {
+                    const int count = scales.w * scales.h;
+                    ncnn::Mat scales_fp16(count, (size_t)2u);
+                    if (!scales_fp16.empty())
+                    {
+                        const float* ptr = scales;
+                        unsigned short* outptr = scales_fp16;
+                        for (int j = 0; j < count; j++)
+                        {
+                            unsigned short d = ncnn::float32_to_float16(ptr[j]);
+                            // Q8_0 multipliers came from FP16, including subnormals.
+                            if ((d & 0x7fff) == 0)
+                                d |= (unsigned short)(fabsf(ptr[j]) * 16777216.f);
+                            outptr[j] = d;
+                        }
+                    }
+                    scales = scales_fp16;
+                }
+
+                if (!fwrite_weight_int8_data(scales, bp))
+                {
+                    fprintf(stderr, "write Gemm int8 scales failed for %s\n", layer->name.c_str());
+                    delete layer_default;
+                    fclose(pp);
+                    fclose(bp);
+                    return -1;
+                }
+            }
+            else if (weight_block_quantize)
             {
                 if (op->constantB == 1)
                 {
@@ -2003,7 +2120,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 #endif // NCNN_WEIGHT_QUANT
 #if NCNN_INT8
             // write int8_scale data
-            if (op->quantize_term && !weight_block_quantize)
+            if (op->quantize_term && !weight_block_quantize && !weight_int8)
             {
                 if (op->constantA == 1)
                 {
@@ -2868,8 +2985,17 @@ int ModelWriter::save(const char* parampath, const char* binpath)
         delete layer_default;
     }
 
-    fclose(pp);
-    fclose(bp);
+    const bool write_error = ferror(pp) || (bp && ferror(bp));
+    const int param_close = fclose(pp);
+    const int bin_close = bp ? fclose(bp) : 0;
+    if (write_error || param_close != 0 || bin_close != 0)
+    {
+        if (binpath)
+            fprintf(stderr, "write %s or %s failed\n", parampath, binpath);
+        else
+            fprintf(stderr, "write %s failed\n", parampath);
+        return -1;
+    }
 
     if (mac)
     {

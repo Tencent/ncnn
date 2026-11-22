@@ -49,7 +49,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             }
 
             vfloat32m1_t _scale = __riscv_vlse32_v_f32m1(ps, B_scales_stride, vl8);
-            __riscv_vse32_v_f32m1(pd, __riscv_vfrdiv_vf_f32m1(_scale, 1.f, vl8), vl8);
+            __riscv_vse32_v_f32m1(pd, _scale, vl8);
             ps++;
             pd += 8;
         }
@@ -110,12 +110,12 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
 
 #if __riscv_vector
             vfloat32m1_t _scale = __riscv_vlse32_v_f32m1(ps, B_scales_stride, vl4);
-            __riscv_vse32_v_f32m1(pd, __riscv_vfrdiv_vf_f32m1(_scale, 1.f, vl4), vl4);
+            __riscv_vse32_v_f32m1(pd, _scale, vl4);
 #else
-            pd[0] = 1.f / ps[0];
-            pd[1] = 1.f / ps[B_scales_hstep];
-            pd[2] = 1.f / ps[B_scales_hstep * 2];
-            pd[3] = 1.f / ps[B_scales_hstep * 3];
+            pd[0] = ps[0];
+            pd[1] = ps[B_scales_hstep];
+            pd[2] = ps[B_scales_hstep * 2];
+            pd[3] = ps[B_scales_hstep * 3];
 #endif // __riscv_vector
             ps++;
             pd += 4;
@@ -165,8 +165,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 2;
             }
 
-            pd[0] = 1.f / *ps0++;
-            pd[1] = 1.f / *ps1++;
+            pd[0] = *ps0++;
+            pd[1] = *ps1++;
             pd += 2;
         }
     }
@@ -180,7 +180,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             const int max_kk = std::min(K - g * block_size, block_size);
             for (int kk = 0; kk < max_kk; kk++)
                 *pp++ = *p0++;
-            *pd++ = 1.f / *ps0++;
+            *pd++ = *ps0++;
         }
     }
 }
