@@ -151,7 +151,11 @@ static int test_crop_6(const ncnn::Mat& a, int flag = 0)
 
            || test_crop(a, 5, 2, 0, 11, -233, -233, 0, -233, 4, 3, 0, 16, flag)
            || test_crop(a, 6, 3, 0, 12, -233, -233, 0, -233, 5, 4, 0, 7, flag)
-           || test_crop(a, 4, 4, 0, 8, -233, -233, 0, -233, 6, 2, 0, 12, flag);
+           || test_crop(a, 4, 4, 0, 8, -233, -233, 0, -233, 6, 2, 0, 12, flag)
+
+           // outw/outh set but outc left unset must crop w/h and keep all channels
+           || test_crop(a, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, flag)
+           || test_crop(a, 3, 2, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, flag);
 }
 
 static int test_crop_9(const ncnn::Mat& a, int flag = 0)
@@ -249,7 +253,11 @@ static int test_crop_9(const ncnn::Mat& a, int flag = 0)
 
            || test_crop(a, 1, 1, 1, 11, -233, -233, -233, -233, 1, 1, 1, 16, flag)
            || test_crop(a, 2, 2, 2, 12, -233, -233, -233, -233, 2, 2, 2, 7, flag)
-           || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12, flag);
+           || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12, flag)
+
+           // outw/outh/outd set but outc left unset must crop w/h/d and keep all channels
+           || test_crop(a, 0, 0, 0, 0, 2, 1, 3, 0, 0, 0, 0, flag)
+           || test_crop(a, 3, 2, 4, 0, 2, 1, 3, 0, 0, 0, 0, flag);
 }
 
 static ncnn::Mat param_int_array(int size, int value)
