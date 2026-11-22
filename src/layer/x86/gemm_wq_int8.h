@@ -131,7 +131,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             {
                 if (kk + 3 < max_kk)
                 {
-                    _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8) -1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                    _mm256_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm256_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
                 }
                 else
                 {
@@ -223,7 +223,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 if (kk + 3 < max_kk)
                 {
 #if __AVX512F__
-                    _mm_mask_cvtepi32_storeu_epi16(pp, (__mmask8) -1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
+                    _mm_mask_cvtepi32_storeu_epi16(pp, (__mmask8)-1, _mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
 #else
                     __m128i _p = _mm_comp_cvtepi32_epi16(_mm_i32gather_epi32((const int*)p0, _vindex, sizeof(signed char)));
                     _mm_storel_epi64((__m128i*)pp, _p);

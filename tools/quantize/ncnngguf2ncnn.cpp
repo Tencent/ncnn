@@ -215,7 +215,7 @@ bool GGUFReader::parse()
     uint64_t tensor_count;
     uint64_t metadata_count;
     if (fread(magic, 1, 4, fp) != 4 || memcmp(magic, "GGUF", 4) != 0 || !read_u32(version) || version != 3
-        || !read_u64(tensor_count) || tensor_count > size / 24 || !read_u64(metadata_count) || metadata_count > size / 12)
+            || !read_u64(tensor_count) || tensor_count > size / 24 || !read_u64(metadata_count) || metadata_count > size / 12)
         return false;
 
     for (uint64_t i = 0; i < metadata_count; i++)
@@ -257,7 +257,7 @@ bool GGUFReader::match_tensor(const std::string& name, uint32_t type, int k, int
     const GGUFTensor& t = it->second;
     const uint64_t count = (uint64_t)k * (n ? n : 1);
     if (t.type != type || t.dims.size() != (n ? 2u : 1u) || t.dims[0] != (uint64_t)k
-        || (n && t.dims[1] != (uint64_t)n) || t.offset > size - data_offset)
+            || (n && t.dims[1] != (uint64_t)n) || t.offset > size - data_offset)
         return false;
 
     if (type == gguf_tensor_q8_0 && k % 32 != 0)
@@ -317,8 +317,7 @@ static bool match_qwen3_config(const GGUFReader& gguf)
     {
         const char* key;
         uint32_t value;
-    } fields[] =
-    {
+    } fields[] = {
         {"qwen3.block_count", qwen3_layer_count},
         {"qwen3.embedding_length", qwen3_hidden_size},
         {"qwen3.feed_forward_length", 3072},
@@ -402,7 +401,7 @@ static bool match_qwen3_decoder(const GGUFReader& gguf, const ncnn::Net& decoder
         {
             const std::string& t = layer->type;
             if (t != "Input" && t != "Split" && t != "Reshape" && t != "Permute" && t != "RotaryEmbed"
-                && t != "SDPA" && t != "BinaryOp" && t != "Swish")
+                    && t != "SDPA" && t != "BinaryOp" && t != "Swish")
                 return false;
             continue;
         }
@@ -458,10 +457,12 @@ static bool write_embedding_and_output(const GGUFReader& gguf, const std::string
         return false;
 
     if (fprintf(embed_param.fp, "7767517\n2 2\nInput in0 0 1 in0\nEmbed embed 1 1 in0 out0 0=%d 1=%d 3=%d 18=900\n",
-                qwen3_hidden_size, qwen3_vocab_size, qwen3_hidden_size * qwen3_vocab_size) < 0)
+                qwen3_hidden_size, qwen3_vocab_size, qwen3_hidden_size * qwen3_vocab_size)
+            < 0)
         return false;
     if (fprintf(proj_param.fp, "7767517\n2 2\nInput in0 0 1 in0\nGemm proj_out 1 1 in0 out0 3=1 5=1 8=%d 9=%d 18=900\n",
-                qwen3_vocab_size, qwen3_hidden_size) < 0)
+                qwen3_vocab_size, qwen3_hidden_size)
+            < 0)
         return false;
     if (!gguf.write_tensor("token_embd.weight", embed_bin.fp))
         return false;
@@ -503,7 +504,7 @@ int main(int argc, char** argv)
 
     const bool tied = gguf.tensors.count("output.weight") == 0;
     if (!gguf.match_tensor("token_embd.weight", gguf_tensor_q8_0, qwen3_hidden_size, qwen3_vocab_size)
-        || (!tied && !gguf.match_tensor("output.weight", gguf_tensor_q8_0, qwen3_hidden_size, qwen3_vocab_size)))
+            || (!tied && !gguf.match_tensor("output.weight", gguf_tensor_q8_0, qwen3_hidden_size, qwen3_vocab_size)))
     {
         fprintf(stderr, "missing or invalid Q8_0 token embedding or output weight\n");
         return 1;

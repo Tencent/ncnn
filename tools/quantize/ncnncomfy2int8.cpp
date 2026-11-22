@@ -206,8 +206,8 @@ static bool load_quant_config(Safetensors& checkpoint, const std::string& name, 
     const pnnx::JsonValue* groupsize = find_quant_option(config, "convrot_groupsize");
     const pnnx::JsonValue* full_precision = find_quant_option(config, "full_precision_matrix_mult");
     if ((convrot && convrot->type != pnnx::JsonValue::Bool)
-        || (groupsize && (groupsize->type != pnnx::JsonValue::Int || groupsize->i <= 0 || groupsize->i > INT_MAX))
-        || (full_precision && full_precision->type != pnnx::JsonValue::Bool))
+            || (groupsize && (groupsize->type != pnnx::JsonValue::Int || groupsize->i <= 0 || groupsize->i > INT_MAX))
+            || (full_precision && full_precision->type != pnnx::JsonValue::Bool))
         return false;
 
     rotation = 0;
@@ -336,7 +336,7 @@ int NetComfy::import_int8(Safetensors& checkpoint, const LinearMappings& mapping
         const int N = gemm->constantN;
         const bool constant_bias = gemm->constantC && gemm->constant_broadcast_type_C != -1;
         if (gemm->quantize_term != 0 || gemm->constantA || !gemm->constantB || !gemm->transB || K <= 0 || N <= 0 || (uint64_t)K * N > INT_MAX
-            || (!gemm->B_data.empty() && gemm->B_data.elemsize != 4u) || (constant_bias && gemm->constant_broadcast_type_C != 4))
+                || (!gemm->B_data.empty() && gemm->B_data.elemsize != 4u) || (constant_bias && gemm->constant_broadcast_type_C != 4))
         {
             fprintf(stderr, "layer %s has unsupported Gemm weight layout\n", layer->name.c_str());
             return -1;
@@ -344,7 +344,7 @@ int NetComfy::import_int8(Safetensors& checkpoint, const LinearMappings& mapping
 
         Safetensor weights;
         if (!checkpoint.find(source.module + ".weight", weights) || weights.dtype != "I8" || weights.shape.size() != 2 || weights.shape[1] != K || weights.size % K != 0
-            || weights.size / K != (uint64_t)weights.shape[0] || (int64_t)source.first_row + N > weights.shape[0] || (source.parts && weights.shape[0] != (int64_t)source.parts * N))
+                || weights.size / K != (uint64_t)weights.shape[0] || (int64_t)source.first_row + N > weights.shape[0] || (source.parts && weights.shape[0] != (int64_t)source.parts * N))
         {
             fprintf(stderr, "missing or invalid weight %s for layer %s [%d,%d]\n", source.module.c_str(), layer->name.c_str(), N, K);
             return -1;
@@ -417,7 +417,7 @@ int NetComfy::import_zimage_norms(Safetensors& checkpoint, const NormalizationMa
             Safetensor tensor;
             const int count = norm->affine_size;
             if (it == mapping.end() || !imported.insert(layer->name).second || count <= 0 || !norm->affine
-                || !checkpoint.find(it->second, tensor) || !read_float_vector(checkpoint, tensor, count, 0, count, norm->gamma_data))
+                    || !checkpoint.find(it->second, tensor) || !read_float_vector(checkpoint, tensor, count, 0, count, norm->gamma_data))
             {
                 fprintf(stderr, "missing or invalid Z-Image RMSNorm weights for %s\n", layer->name.c_str());
                 return -1;
@@ -454,7 +454,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "Usage: %s in.param in.bin|- checkpoint.safetensors out.param out.bin context_refiner|noise_refiner|layers|mapping.txt\n", argv[0]);
         fprintf(stderr, "Use - to load all weights from the checkpoint for a named Z-Image-Turbo refiner graph. "
-                        "A mapping file uses one 'gemm_layer comfy_module first_output_row' per line and requires in.bin.\n");
+                "A mapping file uses one 'gemm_layer comfy_module first_output_row' per line and requires in.bin.\n");
         return -1;
     }
 

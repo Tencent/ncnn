@@ -1896,9 +1896,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 18=%d", int8_scale_term)
 
 #if NCNN_WEIGHT_QUANT
-            const bool weight_q8_0 = op->int8_scale_term == 900;
+            const bool weight_q8_0
+                = op->int8_scale_term == 900;
 #elif NCNN_INT8
-            const bool weight_q8_0 = false;
+            const bool weight_q8_0
+                = false;
 #endif // NCNN_WEIGHT_QUANT
 
 #if NCNN_WEIGHT_QUANT

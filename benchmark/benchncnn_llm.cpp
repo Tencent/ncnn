@@ -671,8 +671,8 @@ static int benchmark_qwen3_q8_0(const std::string& prefix, const ncnn::Option& o
     const std::string embed_bin = prefix + ".embed.ncnn.bin";
     const char* proj_bin = proj_bin_path ? proj_bin_path : embed_bin.c_str();
     if (embed.load_param((prefix + ".embed.ncnn.param").c_str()) != 0 || embed.load_model(embed_bin.c_str()) != 0
-        || decoder.load_param((prefix + ".decoder.ncnn.param").c_str()) != 0 || decoder.load_model((prefix + ".decoder.ncnn.bin").c_str()) != 0
-        || proj_out.load_param((prefix + ".proj_out.ncnn.param").c_str()) != 0 || proj_out.load_model(proj_bin) != 0)
+            || decoder.load_param((prefix + ".decoder.ncnn.param").c_str()) != 0 || decoder.load_model((prefix + ".decoder.ncnn.bin").c_str()) != 0
+            || proj_out.load_param((prefix + ".proj_out.ncnn.param").c_str()) != 0 || proj_out.load_model(proj_bin) != 0)
         return -1;
     fprintf(stderr, "Qwen3-0.6B Q8_0 model load: %.3f ms\n", ncnn::get_current_time() - load_start);
 

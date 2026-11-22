@@ -247,7 +247,7 @@ static int test_gemm_weight_int8(int mode, int M, int K, int group, bool transA,
 
     bool equal = false;
     if ((dynamic || opt.use_bf16_storage) && result.dims == reference.dims && result.elemsize == 4u && result.elempack == 1 && result.w == reference.w && result.h == reference.h
-        && result.c == reference.c)
+            && result.c == reference.c)
     {
         double error = 0.;
         double norm = 0.;
@@ -389,7 +389,7 @@ static int test_gemm_weight_upload_oom(int failure)
     {
         ncnn::VkTransfer cmd(vkdev);
         if (gemm->upload_model(cmd, opt) != -100 || weight_staging.remaining != 0
-            || gemm->upload_model(cmd, opt) != 0 || cmd.submit_and_wait() != 0)
+                || gemm->upload_model(cmd, opt) != 0 || cmd.submit_and_wait() != 0)
             ret = -1;
     }
 
@@ -445,7 +445,7 @@ static int test_gemm_q8_0_subnormal_scale(bool int8, bool use_subgroup_ops)
     const unsigned char* ptr = data.data();
     ncnn::DataReaderFromMemory reader(ptr, data.size());
     if (net.load_param_mem(param) != 0 || !net.layers()[1]->support_vulkan
-        || net.load_model(reader) != 0 || ptr != data.data() + data.size())
+            || net.load_model(reader) != 0 || ptr != data.data() + data.size())
         return -1;
 
     ncnn::Mat A(32, 1);
@@ -505,7 +505,7 @@ static int test_gemm_int4_packed_storage(bool bf16)
     const unsigned char* ptr = data.data();
     ncnn::DataReaderFromMemory reader(ptr, data.size());
     if (net.load_param_mem(param) != 0 || !net.layers()[1]->support_vulkan || !net.layers()[3]->support_vulkan
-        || net.load_model(reader) != 0 || ptr != data.data() + data.size())
+            || net.load_model(reader) != 0 || ptr != data.data() + data.size())
         return -1;
 
     ncnn::Mat A(32, 14);
@@ -626,26 +626,26 @@ int main()
     opt_bf16.use_bf16_storage = true;
 
     if (test_gemm_int8_accumulation(1, 1) != 0
-        || test_gemm_int8_accumulation(1, 3) != 0
-        || test_gemm_int8_accumulation(3, 3) != 0
-        || test_gemm_weight_int8(900, 1, 64, 0, false, false, opt_int8) != 0
-        || test_gemm_weight_int8(900, 1, 32, 0, false, false, opt) != 0
-        || test_gemm_weight_int8(900, 1, 96, 0, false, false, opt, 0, 0, 0, 48) != 0
-        || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt, 1, 8, 0, 37) != 0
-        || test_gemm_weight_int8(900, 5, 64, 0, true, true, opt_int8) != 0
-        || test_gemm_weight_int8(900, 5, 64, 0, false, false, opt) != 0
-        || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_int8) != 0
-        || test_gemm_weight_int8(901, 1, 64, 16, true, false, opt_int8) != 0
-        || test_gemm_weight_int8(901, 1, 67, 0, false, true, opt, 1) != 0
-        || test_gemm_weight_int8(901, 17, 131, 0, true, true, opt, 1, 8) != 0
-        || test_gemm_weight_int8(901, 17, 131, 0, true, true, opt_bf16, 1, 8) != 0
-        || test_gemm_weight_int8(901, 1, 67, 0, false, true, opt, 1, 16, 0, 37) != 0
-        || test_gemm_weight_int8(901, 17, 131, 0, true, true, opt_bf16, 1, 16, 0, 37) != 0
-        || test_gemm_weight_int8(902, 1, 3, 0, false, false, opt_int8) != 0
-        || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_int8) != 0
-        || test_gemm_weight_int8(902, 17, 67, 0, true, true, opt_int8, 1, 8) != 0
-        || test_gemm_weight_int8(902, 5, 512, 256, false, false, opt_int8) != 0
-        || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt, 0, 0, 0, 37) != 0)
+            || test_gemm_int8_accumulation(1, 3) != 0
+            || test_gemm_int8_accumulation(3, 3) != 0
+            || test_gemm_weight_int8(900, 1, 64, 0, false, false, opt_int8) != 0
+            || test_gemm_weight_int8(900, 1, 32, 0, false, false, opt) != 0
+            || test_gemm_weight_int8(900, 1, 96, 0, false, false, opt, 0, 0, 0, 48) != 0
+            || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt, 1, 8, 0, 37) != 0
+            || test_gemm_weight_int8(900, 5, 64, 0, true, true, opt_int8) != 0
+            || test_gemm_weight_int8(900, 5, 64, 0, false, false, opt) != 0
+            || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_int8) != 0
+            || test_gemm_weight_int8(901, 1, 64, 16, true, false, opt_int8) != 0
+            || test_gemm_weight_int8(901, 1, 67, 0, false, true, opt, 1) != 0
+            || test_gemm_weight_int8(901, 17, 131, 0, true, true, opt, 1, 8) != 0
+            || test_gemm_weight_int8(901, 17, 131, 0, true, true, opt_bf16, 1, 8) != 0
+            || test_gemm_weight_int8(901, 1, 67, 0, false, true, opt, 1, 16, 0, 37) != 0
+            || test_gemm_weight_int8(901, 17, 131, 0, true, true, opt_bf16, 1, 16, 0, 37) != 0
+            || test_gemm_weight_int8(902, 1, 3, 0, false, false, opt_int8) != 0
+            || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_int8) != 0
+            || test_gemm_weight_int8(902, 17, 67, 0, true, true, opt_int8, 1, 8) != 0
+            || test_gemm_weight_int8(902, 5, 512, 256, false, false, opt_int8) != 0
+            || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt, 0, 0, 0, 37) != 0)
         return 1;
 
 #if defined(__riscv) && NCNN_RVV
@@ -653,8 +653,8 @@ int main()
     {
         const int packn = ncnn::cpu_riscv_vlenb() / 4;
         if (test_gemm_weight_int8(902, packn, 64, 16, false, false, opt_int8, 0, 0, packn) != 0
-            || test_gemm_weight_int8(901, packn, 67, 0, true, false, opt, 0, 8, packn) != 0
-            || test_gemm_weight_int8(900, packn + 1, 64, 0, false, true, opt, 1, 8, packn) != 0)
+                || test_gemm_weight_int8(901, packn, 67, 0, true, false, opt, 0, 8, packn) != 0
+                || test_gemm_weight_int8(900, packn + 1, 64, 0, false, true, opt, 1, 8, packn) != 0)
             return 1;
     }
 #endif
@@ -688,33 +688,33 @@ int main()
 
         SRAND(7767517);
         if (test_gemm_weight_upload_oom(1) != 0
-            || test_gemm_int8s_broadcast(1, 7, 5, 0, -1, 1, 0, 0) != 0
-            || test_gemm_int8s_broadcast(28, 36, 91, 0, 4, 1, 0, 0) != 0
-            || test_gemm_int8s_broadcast(16, 33, 17, 1, 3, 0, 0, 1) != 0
-            || test_gemm_int8s_broadcast(32, 32, 127, 0, 2, 1, 1, 0) != 0
-            || test_gemm_int8s_broadcast(19, 24, 64, 0, 0, 0, 1, 1) != 0
-            || test_gemm_int8s_broadcast(27, 31, 32, 0, 1, 0, 0, 0) != 0
-            || test_gemm_weight_upload_oom(2) != 0
-            || test_gemm_weight_upload_oom(3) != 0
-            || test_gemm_q8_0_subnormal_scale(false, false) != 0
-            || test_gemm_q8_0_subnormal_scale(false, true) != 0
-            || test_gemm_q8_0_subnormal_scale(true, false) != 0
-            || test_gemm_q8_0_subnormal_scale(true, true) != 0
-            || test_gemm_int4_packed_storage(false) != 0
-            || test_gemm_int4_packed_storage(true) != 0
-            || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_no_local_memory) != 0
-            || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt_vulkan_int8_no_local_memory) != 0
-            || test_gemm_weight_int8(900, 1, 64, 0, false, false, opt_vulkan_int8_no_local_memory) != 0
-            || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt_vulkan) != 0
-            || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt_vulkan_int8) != 0
-            || test_gemm_weight_int8(900, 1, 64, 0, false, false, opt_vulkan_int8) != 0
-            || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_int8) != 0
-            || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_fp16) != 0
-            || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_bf16) != 0
-            || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_vulkan) != 0
-            || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_vulkan_int8) != 0
-            || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_vulkan_int8_fp16) != 0
-            || test_gemm_weight_int8(902, 1, 67, 0, true, true, opt_vulkan_int8) != 0)
+                || test_gemm_int8s_broadcast(1, 7, 5, 0, -1, 1, 0, 0) != 0
+                || test_gemm_int8s_broadcast(28, 36, 91, 0, 4, 1, 0, 0) != 0
+                || test_gemm_int8s_broadcast(16, 33, 17, 1, 3, 0, 0, 1) != 0
+                || test_gemm_int8s_broadcast(32, 32, 127, 0, 2, 1, 1, 0) != 0
+                || test_gemm_int8s_broadcast(19, 24, 64, 0, 0, 0, 1, 1) != 0
+                || test_gemm_int8s_broadcast(27, 31, 32, 0, 1, 0, 0, 0) != 0
+                || test_gemm_weight_upload_oom(2) != 0
+                || test_gemm_weight_upload_oom(3) != 0
+                || test_gemm_q8_0_subnormal_scale(false, false) != 0
+                || test_gemm_q8_0_subnormal_scale(false, true) != 0
+                || test_gemm_q8_0_subnormal_scale(true, false) != 0
+                || test_gemm_q8_0_subnormal_scale(true, true) != 0
+                || test_gemm_int4_packed_storage(false) != 0
+                || test_gemm_int4_packed_storage(true) != 0
+                || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_no_local_memory) != 0
+                || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt_vulkan_int8_no_local_memory) != 0
+                || test_gemm_weight_int8(900, 1, 64, 0, false, false, opt_vulkan_int8_no_local_memory) != 0
+                || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt_vulkan) != 0
+                || test_gemm_weight_int8(900, 5, 96, 0, true, true, opt_vulkan_int8) != 0
+                || test_gemm_weight_int8(900, 1, 64, 0, false, false, opt_vulkan_int8) != 0
+                || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_int8) != 0
+                || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_fp16) != 0
+                || test_gemm_weight_int8(901, 5, 67, 0, false, true, opt_vulkan_bf16) != 0
+                || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_vulkan) != 0
+                || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_vulkan_int8) != 0
+                || test_gemm_weight_int8(902, 5, 64, 16, false, false, opt_vulkan_int8_fp16) != 0
+                || test_gemm_weight_int8(902, 1, 67, 0, true, true, opt_vulkan_int8) != 0)
             return 1;
     }
 #endif // NCNN_VULKAN

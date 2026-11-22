@@ -55,7 +55,7 @@ static void pack_B_tile_int4s(const Mat& B, const Mat& B_scales, Mat& BT, Mat& B
                 descales[(size_t)g * 16 + jj0] = 1.f / scales[g];
         }
     }
-#else // __AVX512F__
+#else  // __AVX512F__
     for (; jj + 11 < max_jj; jj += 12)
     {
         unsigned char* pp0 = BT.row<unsigned char>(j + jj);

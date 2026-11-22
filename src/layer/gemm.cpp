@@ -147,7 +147,7 @@ __attribute__((optimize("no-tree-vectorize")))
 #endif
 static int
 gemm_transB_int8sa(const Mat& A, int transA, const Mat& BT, const Mat& BT_scales, const Mat& input_scales, const Mat& C, Mat& top_blob, int M, int N, int K, int block_size,
-                  int quantize_term, float alpha, float beta, int broadcast_type_C, int output_transpose, const Option& opt)
+                   int quantize_term, float alpha, float beta, int broadcast_type_C, int output_transpose, const Option& opt)
 {
     const int block_count = (K + block_size - 1) / block_size;
 
@@ -307,9 +307,9 @@ int Gemm::load_param(const ParamDict& pd)
     {
 #if NCNN_WEIGHT_QUANT
         if (constantA != 0 || constantB != 1 || transB != 1 || (transA != 0 && transA != 1)
-            || constantN <= 0 || constantK <= 0 || constantN > INT_MAX / constantK
-            || (output_N1M != 0 && output_N1M != 1) || (output_transpose != 0 && output_transpose != 1)
-            || (output_elemtype != 0 && output_elemtype != 1))
+                || constantN <= 0 || constantK <= 0 || constantN > INT_MAX / constantK
+                || (output_N1M != 0 && output_N1M != 1) || (output_transpose != 0 && output_transpose != 1)
+                || (output_elemtype != 0 && output_elemtype != 1))
         {
             NCNN_LOGE("Gemm invalid constant B layout for int8 weights");
             return -1;
@@ -857,7 +857,7 @@ int Gemm::get_weight_quantize_broadcast_type_C(const std::vector<Mat>& bottom_bl
     {
         C = C_data;
         if (weight_block_quantize && weight_block_quantize_bits != 8
-            && constant_broadcast_type_C >= 1 && constant_broadcast_type_C <= 3 && M != constantM)
+                && constant_broadcast_type_C >= 1 && constant_broadcast_type_C <= 3 && M != constantM)
             return -1;
         return constant_broadcast_type_C;
     }
@@ -892,7 +892,7 @@ int Gemm::forward_int8s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     const int K = transA ? rows : A.w;
     const int N = constantN;
     if (A.empty() || A.dims > 3 || (A.dims == 3 && A.h != 1) || A.elempack != 1 || A.elemsize != 4u
-        || M <= 0 || N > INT_MAX / M || K != constantK || (constantM > 0 && M != constantM))
+            || M <= 0 || N > INT_MAX / M || K != constantK || (constantM > 0 && M != constantM))
     {
         NCNN_LOGE("Gemm invalid activation shape for int8 weights");
         return -1;
@@ -1038,7 +1038,7 @@ int Gemm::forward_int8sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     if (weight_block_quantize || quantize_term == 900)
     {
         int ret = gemm_transB_int8sa(A, transA, B_data, B_data_quantize_scales, B_data_input_scales, C, top_blob, M, N, K, weight_block_quantize_block_size,
-                                    quantize_term, alpha, beta, broadcast_type_C, output_transpose, opt);
+                                     quantize_term, alpha, beta, broadcast_type_C, output_transpose, opt);
         if (ret != 0 || weight_block_quantize)
             return ret;
     }

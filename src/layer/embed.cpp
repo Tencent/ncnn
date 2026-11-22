@@ -58,7 +58,7 @@ int Embed::load_model(const ModelBin& mb)
         const int scale_size = weight_data_size / 32 * 2;
         weight_data_q8_scales = mb.load(scale_size, 3);
         if (weight_data.elemsize != 1u || weight_data.w != weight_data_size || weight_data_q8_scales.empty()
-            || weight_data_q8_scales.elemsize != 1u || weight_data_q8_scales.w != scale_size)
+                || weight_data_q8_scales.elemsize != 1u || weight_data_q8_scales.w != scale_size)
             return -100;
 
         const unsigned char* scales = weight_data_q8_scales;

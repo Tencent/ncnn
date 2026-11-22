@@ -118,10 +118,10 @@ int NetQuantize::quantize_gemm_from_table(std::istream& table)
         DiTQuantizeParams params;
         int n, k;
         if (!(row >> block >> rotation >> method >> N >> K)
-            || !parse_dit_int(bits.c_str(), "bits=", params.bits)
-            || !parse_dit_int(block.c_str(), "block=", params.block_size)
-            || !parse_dit_int(rotation.c_str(), "convrot=", params.rotation)
-            || method.compare(0, 7, "method=") != 0 || !parse_dit_int(N.c_str(), "N=", n) || !parse_dit_int(K.c_str(), "K=", k))
+                || !parse_dit_int(bits.c_str(), "bits=", params.bits)
+                || !parse_dit_int(block.c_str(), "block=", params.block_size)
+                || !parse_dit_int(rotation.c_str(), "convrot=", params.rotation)
+                || method.compare(0, 7, "method=") != 0 || !parse_dit_int(N.c_str(), "N=", n) || !parse_dit_int(K.c_str(), "K=", k))
         {
             fprintf(stderr, "invalid DiT quantization table row for %s\n", name.c_str());
             return -1;
@@ -193,7 +193,7 @@ int main(int argc, char** argv)
     const char* outbin = argv[4];
     const char* table_path = argc > 5 && strchr(argv[5], '=') == 0 ? argv[5] : 0;
     if (strcmp(inparam, outparam) == 0 || strcmp(inparam, outbin) == 0 || strcmp(inbin, outparam) == 0 || strcmp(inbin, outbin) == 0
-        || strcmp(outparam, outbin) == 0 || (table_path && (strcmp(table_path, outparam) == 0 || strcmp(table_path, outbin) == 0)))
+            || strcmp(outparam, outbin) == 0 || (table_path && (strcmp(table_path, outparam) == 0 || strcmp(table_path, outbin) == 0)))
     {
         fprintf(stderr, "input and output paths must be distinct\n");
         return -1;

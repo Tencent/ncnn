@@ -1218,14 +1218,14 @@ int Gemm_vulkan::create_pipeline_weight_quantized(const Option& opt)
 int Gemm_vulkan::create_pipeline_weight_quantized_cm(const Option& opt)
 {
     if (!opt.use_cooperative_matrix || !vkdev->info.support_VK_KHR_cooperative_matrix()
-        || vkdev->info.vendor_id() == 0x5143
-        || (vkdev->info.type() == 3 && !opt.use_shader_local_memory)
-        || (constantM != 0 && constantM < 8))
+            || vkdev->info.vendor_id() == 0x5143
+            || (vkdev->info.type() == 3 && !opt.use_shader_local_memory)
+            || (constantM != 0 && constantM < 8))
         return 0;
 
     const bool use_bf16 = opt.use_bf16_storage;
     if (use_bf16 ? !vkdev->info.support_bf16_cooperative_matrix()
-        : !opt.use_fp16_storage || !vkdev->info.support_fp16_arithmetic() || !vkdev->info.support_cooperative_matrix())
+            : !opt.use_fp16_storage || !vkdev->info.support_fp16_arithmetic() || !vkdev->info.support_cooperative_matrix())
         return 0;
 
     const VkComponentTypeKHR type = use_bf16 ? VK_COMPONENT_TYPE_BFLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR;
@@ -1234,8 +1234,8 @@ int Gemm_vulkan::create_pipeline_weight_quantized_cm(const Option& opt)
     vkdev->info.get_optimal_cooperative_matrix_mnk(M, constantN, constantK, type, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, TM, TN, TK, subgroup_size);
 
     if (TM <= 0 || TN <= 0 || TK <= 0 || TK % 4 != 0 || subgroup_size <= 0
-        || (uint32_t)subgroup_size > vkdev->info.max_workgroup_size_x()
-        || (uint32_t)subgroup_size > vkdev->info.max_workgroup_invocations())
+            || (uint32_t)subgroup_size > vkdev->info.max_workgroup_size_x()
+            || (uint32_t)subgroup_size > vkdev->info.max_workgroup_invocations())
         return 0;
 
     int UNROLL_M = std::min((M - 1) / TM + 1, 2);
@@ -1279,7 +1279,7 @@ int Gemm_vulkan::create_pipeline_int8sa(const Option& opt)
     if (quantize_term == 902 && opt.use_cooperative_matrix && opt.use_int8_arithmetic && vkdev->info.support_int8_cooperative_matrix())
     {
         vkdev->info.get_optimal_cooperative_matrix_mnk(constantM ? constantM : 1024, constantN, constantK, VK_COMPONENT_TYPE_SINT8_KHR, VK_COMPONENT_TYPE_SINT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M,
-                                                       coopmat_N, coopmat_K, coopmat_subgroup_size);
+                coopmat_N, coopmat_K, coopmat_subgroup_size);
         use_cooperative_matrix_wq_int8 = coopmat_M > 0 && coopmat_N > 0 && coopmat_K > 0 && coopmat_K % 4 == 0 && coopmat_subgroup_size > 0;
     }
 
@@ -1460,7 +1460,7 @@ int Gemm_vulkan::upload_model_weight_quantized(VkTransfer& cmd, const Option& op
         VkMat& B_gpu = B_data_packed_gpu_tmp[i];
         VkMat& B_descales_gpu = B_data_descales_gpu_tmp[i];
         if (!record_weight_upload(cmd, B_packed, B_gpu, max_storage_buffer_range, opt_fp32, false)
-            || !record_weight_upload(cmd, B_descales, B_descales_gpu, max_storage_buffer_range, opt_fp32, false))
+                || !record_weight_upload(cmd, B_descales, B_descales_gpu, max_storage_buffer_range, opt_fp32, false))
         {
             ret = -100;
             break;
@@ -1568,7 +1568,7 @@ int Gemm_vulkan::forward_weight_quantized(const std::vector<VkMat>& bottom_blobs
     {
         const VkMat& C0 = bottom_blobs[1];
         if (C0.buffer_capacity() > max_storage_buffer_range
-            || C0.total() * C0.elempack > max_storage_buffer_range / elemsize)
+                || C0.total() * C0.elempack > max_storage_buffer_range / elemsize)
             return -100;
 
         vkdev->convert_packing(C0, C, 1, cast_type, cmd, opt_workspace);
