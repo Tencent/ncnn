@@ -281,11 +281,20 @@ int Convolution_x86::create_pipeline(const Option& opt)
     if (dynamic_weight)
         return 0;
 
+#if NCNN_INT8
+    const bool int8_weights = weight_data.elemsize == (size_t)1u;
+    if (int8_weights && !opt.use_int8_inference)
+    {
+        NCNN_LOGE("Convolution int8 weights require opt.use_int8_inference");
+        return -1;
+    }
+#endif
+
     activation = create_activation_layer(activation_type, activation_params, opt);
     nT = opt.num_threads;
 
 #if NCNN_INT8
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    if (int8_weights)
     {
         return create_pipeline_int8_x86(opt);
     }
@@ -521,27 +530,7 @@ int Convolution_x86::destroy_pipeline(const Option& opt)
 int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
 #if NCNN_INT8
-    if (opt.use_int8_inference && int8_scale_term)
-    {
-        if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
-        {
-            NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
-            NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
-        }
-
-#if NCNN_BF16
-        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
-        {
-            Mat bottom_blob_fp32;
-            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
-            if (bottom_blob_fp32.empty())
-                return -100;
-
-            return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
-        }
-#endif
-        return forward_int8_x86(bottom_blob, top_blob, opt);
-    }
+    const bool use_int8 = opt.use_int8_inference && int8_scale_term;
 #endif
 
     // flattened blob, implement as InnerProduct
@@ -549,6 +538,19 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         NCNN_LOGE("Convolution 1d input compatibility path is deprecated and will be removed, please replace this layer with InnerProduct");
         NCNN_LOGE("ncnn param suggestion: Convolution ... 0=%d 1=1 11=1 5=%d 6=%d 8=%d 9=%d 10=... -> InnerProduct ... 0=%d 1=%d 2=%d 8=%d 9=%d 10=...", num_output, bias_term, weight_data_size, int8_scale_term, activation_type, num_output, bias_term, weight_data_size, int8_scale_term, activation_type);
+
+#if NCNN_INT8
+        if (use_int8 && bottom_blob.w * bottom_blob.elempack != weight_data_size / num_output)
+        {
+            NCNN_LOGE("Convolution int8 1d input size does not match weight data");
+            return -1;
+        }
+        if (use_int8 && (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0))
+        {
+            NCNN_LOGE("Convolution int8 1d input does not support explicit spatial padding");
+            return -1;
+        }
+#endif
 
         Mat bottom_blob_3d;
         if (bottom_blob.elemsize % 16 == 0)
@@ -590,6 +592,24 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
         return 0;
     }
+
+#if NCNN_INT8
+    if (use_int8)
+    {
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bottom_blob.elembits() == 16)
+        {
+            Mat bottom_blob_fp32;
+            cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
+            if (bottom_blob_fp32.empty())
+                return -100;
+
+            return forward_int8_x86(bottom_blob_fp32, top_blob, opt);
+        }
+#endif
+        return forward_int8_x86(bottom_blob, top_blob, opt);
+    }
+#endif
 
 #if NCNN_BF16
     if (opt.use_bf16_storage && bottom_blob.elembits() == 16)

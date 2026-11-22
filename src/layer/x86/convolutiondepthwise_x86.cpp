@@ -50,10 +50,19 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
     if (dynamic_weight)
         return 0;
 
+#if NCNN_INT8
+    const bool int8_weights = weight_data.elemsize == (size_t)1u;
+    if (int8_weights && !opt.use_int8_inference)
+    {
+        NCNN_LOGE("ConvolutionDepthWise int8 weights require opt.use_int8_inference");
+        return -1;
+    }
+#endif
+
     activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if NCNN_INT8
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    if (int8_weights)
     {
         return create_pipeline_int8_x86(opt);
     }
