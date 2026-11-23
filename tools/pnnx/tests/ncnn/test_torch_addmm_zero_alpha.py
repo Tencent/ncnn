@@ -1,6 +1,7 @@
 # Copyright 2026 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import math
 import subprocess
 import torch
 import torch.nn as nn
@@ -33,8 +34,16 @@ def test():
         if proc.returncode != 0 or b"addmm with alpha=0 is not supported yet" not in proc.stderr:
             return False
         with open(name + ".ncnn.param", "r") as f:
-            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
-        if "Gemm" not in layers or "torch.addmm" in layers:
+            layers = [line.split() for line in f.readlines()[2:] if line.strip()]
+        if not any(layer[0] == "Gemm" for layer in layers) or any(layer[0] == "torch.addmm" for layer in layers):
+            return False
+        gemm = next(layer for layer in layers if layer[0] == "Gemm")
+        params = dict(token.split("=", 1) for token in gemm if "=" in token)
+        if "0" not in params or "1" not in params:
+            return False
+        if not all(math.isfinite(float(value)) for value in params.values()):
+            return False
+        if float(params["0"]) != 0.0 or not math.isclose(float(params["1"]), beta, rel_tol=1e-6, abs_tol=1e-6):
             return False
 
     return True

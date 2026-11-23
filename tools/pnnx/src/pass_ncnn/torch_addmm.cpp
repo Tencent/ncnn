@@ -163,7 +163,7 @@ pnnx.Output             output      1 0 out
             fprintf(stderr, "addmm with alpha=0 is not supported yet\n");
 
         op->params["0"] = alpha;
-        op->params["1"] = beta / alpha;
+        op->params["1"] = alpha == 0.f ? beta : beta / alpha;
     }
 };
 
