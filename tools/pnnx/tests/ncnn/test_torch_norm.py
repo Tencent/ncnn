@@ -59,8 +59,7 @@ class UnsupportedNormModel(nn.Module):
         return torch.norm(x, p=self.p, dim=1, keepdim=True)
 
 def test_unsupported():
-    import ncnn
-    import os
+    import subprocess
     x = torch.tensor([[-3., -4., 0.], [1., 2., 4.]])
     cases = [(0, False), (3.0, False), (-1, False),
              (0.0, True), (3, True), (-1.0, True)]
@@ -69,15 +68,22 @@ def test_unsupported():
         mod = torch.jit.trace(net, x)
         name = "test_torch_norm_unsupported_" + str(i)
         mod.save(name + ".pt")
-        if os.system("../../src/pnnx " + name + ".pt inputshape=[2,3] fp16=0") != 0:
+        proc = subprocess.run(
+            ["../../src/pnnx", name + ".pt", "inputshape=[2,3]", "fp16=0"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0 or b"unsupported norm p=" not in proc.stderr:
             return False
         with open(name + ".ncnn.param") as f:
-            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
-        if "torch.norm" not in layers or "Reduction" in layers:
+            layers = [line.split() for line in f.readlines()[2:] if line.strip()]
+        if any(line[0] == "torch.norm" for line in layers):
             return False
-        with ncnn.Net() as net:
-            if net.load_param(name + ".ncnn.param") == 0:
-                return False
+        reduction = next((line for line in layers if line[0] == "Reduction"), None)
+        if reduction is None:
+            return False
+        params = {token.split("=", 1)[0] for token in reduction if "=" in token}
+        if not {"0", "1", "-23303", "4", "5"}.issubset(params):
+            return False
+
     return True
 
 if __name__ == "__main__":
