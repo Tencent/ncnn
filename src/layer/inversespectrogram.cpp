@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "inversespectrogram.h"
+#include "constants.h"
 
 #include <limits.h>
 
@@ -62,7 +63,7 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
             // hann window
             for (int i = 0; i < winlen; i++)
             {
-                *p++ = 0.5f * (1 - cosf(2 * 3.14159265358979323846 * i / winlen));
+                *p++ = 0.5f * (1 - cosf(2 * constants::PI * i / winlen));
             }
         }
         if (window_type == 2)
@@ -70,7 +71,7 @@ int InverseSpectrogram::load_param(const ParamDict& pd)
             // hamming window
             for (int i = 0; i < winlen; i++)
             {
-                *p++ = 0.54f - 0.46f * cosf(2 * 3.14159265358979323846 * i / winlen);
+                *p++ = 0.54f - 0.46f * cosf(2 * constants::PI * i / winlen);
             }
         }
         for (int i = 0; i < n_fft - winlen - (n_fft - winlen) / 2; i++)
@@ -179,7 +180,7 @@ int InverseSpectrogram::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             float im = 0.f;
             for (int k = 0; k < n_fft; k++)
             {
-                double angle = 2 * 3.14159265358979323846 * i * k / n_fft;
+                double angle = 2 * constants::PI * i * k / n_fft;
 
                 re += sp.row(k)[0] * cosf(angle) - sp.row(k)[1] * sinf(angle);
                 im += sp.row(k)[0] * sinf(angle) + sp.row(k)[1] * cosf(angle);

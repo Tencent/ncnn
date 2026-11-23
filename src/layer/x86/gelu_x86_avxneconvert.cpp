@@ -1,6 +1,7 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include "constants.h"
 #include "cpu.h"
 #include "layer.h"
 #include "layer_type.h"

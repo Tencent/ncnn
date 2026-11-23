@@ -3,6 +3,7 @@
 
 #include "convolution_x86.h"
 
+#include "constants.h"
 #include "cpu.h"
 #include "mat.h"
 #include "x86_activation.h"

@@ -6,21 +6,13 @@
 #if NCNN_SIMPLEMATH
 
 #include "simplemath.h"
+#include "constants.h"
 #define __HI(X)       *(1 + (short*)&(X))
 #define __LO(X)       *(short*)&(X)
 #define FE_TONEAREST  0
 #define FE_DOWNWARD   1024
 #define FE_UPWARD     2048
 #define FE_TOWARDZERO 3072
-
-/*
-* ====================================================
-* some useful constants
-* ====================================================
-*/
-static const float PI = 3.14159265358979323846;
-static const float PI_2 = 1.57079632679489661923; /* PI/2 */
-static const float E = 2.71828182845904523536;
 
 typedef char simplemath_unsigned_int_must_be_32bit[sizeof(unsigned int) == 4 ? 1 : -1];
 
@@ -237,7 +229,7 @@ float sinf(float a)
 
 float cosf(float x)
 {
-    return sinf(PI_2 + x);
+    return sinf(ncnn::constants::PI_2_F + x);
 }
 
 float tanf(float x)
@@ -257,7 +249,7 @@ float asinf(float x)
     ret -= 0.2121144;
     ret *= x;
     ret += 1.5707288;
-    ret = PI * 0.5 - sqrt(1.0 - x) * ret;
+    ret = ncnn::constants::PI_F * 0.5 - sqrt(1.0 - x) * ret;
     return ret - 2 * negate * ret;
 }
 
@@ -275,7 +267,7 @@ float acosf(float x)
     ret = ret + 1.5707288;
     ret = ret * sqrt(1.0 - x);
     ret = ret - 2 * negate * ret;
-    return negate * PI + ret;
+    return negate * ncnn::constants::PI_F + ret;
 }
 
 /* copy from https://developer.download.nvidia.cn/cg/atan.html */
@@ -287,7 +279,7 @@ float atanf(float a)
     }
     if (a > 1)
     {
-        return PI_2 - atanf(1 / a);
+        return ncnn::constants::PI_2_F - atanf(1 / a);
     }
     float s = a * a;
     float r = 0.0027856871020048857;
@@ -312,11 +304,11 @@ float atan2f(float y, float x)
     }
     if (y == 0)
     {
-        return x > 0 ? 0 : PI;
+        return x > 0 ? 0 : ncnn::constants::PI_F;
     }
     if (x == 0)
     {
-        return copysignf(PI_2, y);
+        return copysignf(ncnn::constants::PI_2_F, y);
     }
 
     if (x > 0 && y > 0)
@@ -325,7 +317,7 @@ float atan2f(float y, float x)
     }
     else if (x < 0 && y > 0)
     {
-        return PI - atanf(y / -x);
+        return ncnn::constants::PI_F - atanf(y / -x);
     }
     else if (x > 0 && y < 0)
     {
@@ -333,7 +325,7 @@ float atan2f(float y, float x)
     }
     else
     {
-        return -PI + atanf(-y / -x);
+        return -ncnn::constants::PI_F + atanf(-y / -x);
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include "convolution_vulkan.h"
 
+#include "constants.h"
 #include "layer_shader_type.h"
 #include "layer_type.h"
 #include "modelbin.h"
@@ -273,7 +274,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             Mat weight_data_tm;
             weight_data_tm.create(6 * 6, num_input, num_output);
 
-            const float sq2 = 1.41421356237f;
+            const float sq2 = ncnn::constants::SQRT2;
             const float ktm[6][3] = {
                 {1.0f, 0.0f, 0.0f},
                 {-2.0f / 3, -sq2 / 3, -1.0f / 3},

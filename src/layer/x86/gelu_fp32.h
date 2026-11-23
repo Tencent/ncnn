@@ -46,8 +46,8 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             __m512 _half512 = _mm512_set1_ps(0.5f);
             __m512 _one512 = _mm512_set1_ps(1.f);
-            __m512 _fast1c512 = _mm512_set1_ps(0.79788452f);
-            __m512 _fast2c512 = _mm512_set1_ps(0.044715f);
+            __m512 _fast1c512 = _mm512_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m512 _fast2c512 = _mm512_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 15 < size; i += 16)
             {
                 __m512 _pLoad = _mm512_loadu_ps(ptr);
@@ -72,7 +72,7 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             __m512 _half512 = _mm512_set1_ps(0.5f);
             __m512 _one512 = _mm512_set1_ps(1.f);
-            __m512 _inv_sqrt2_512 = _mm512_set1_ps(0.70710678f);
+            __m512 _inv_sqrt2_512 = _mm512_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 15 < size; i += 16)
             {
                 __m512 _pLoad = _mm512_loadu_ps(ptr);
@@ -91,8 +91,8 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             __m256 _half256 = _mm256_set1_ps(0.5f);
             __m256 _one256 = _mm256_set1_ps(1.f);
-            __m256 _fast1c256 = _mm256_set1_ps(0.79788452f);
-            __m256 _fast2c256 = _mm256_set1_ps(0.044715f);
+            __m256 _fast1c256 = _mm256_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m256 _fast2c256 = _mm256_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 7 < size; i += 8)
             {
                 __m256 _pLoad = _mm256_loadu_ps(ptr);
@@ -117,7 +117,7 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             __m256 _half256 = _mm256_set1_ps(0.5f);
             __m256 _one256 = _mm256_set1_ps(1.f);
-            __m256 _inv_sqrt2_256 = _mm256_set1_ps(0.70710678f);
+            __m256 _inv_sqrt2_256 = _mm256_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 7 < size; i += 8)
             {
                 __m256 _pLoad = _mm256_loadu_ps(ptr);
@@ -136,8 +136,8 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             __m128 _half128 = _mm_set1_ps(0.5f);
             __m128 _one128 = _mm_set1_ps(1.f);
-            __m128 _fast1c128 = _mm_set1_ps(0.79788452f);
-            __m128 _fast2c128 = _mm_set1_ps(0.044715f);
+            __m128 _fast1c128 = _mm_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m128 _fast2c128 = _mm_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _pLoad = _mm_loadu_ps(ptr);
@@ -162,7 +162,7 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             __m128 _half128 = _mm_set1_ps(0.5f);
             __m128 _one128 = _mm_set1_ps(1.f);
-            __m128 _inv_sqrt2_128 = _mm_set1_ps(0.70710678f);
+            __m128 _inv_sqrt2_128 = _mm_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _pLoad = _mm_loadu_ps(ptr);
@@ -181,7 +181,7 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             for (; i < size; i++)
             {
-                *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+                *ptr = 0.5f * *ptr * (1.0f + tanhf(ncnn::constants::SQRT_2_OVER_PI * (*ptr + ncnn::constants::GELU_TANH_CUBIC_COEFF * *ptr * *ptr * *ptr)));
 
                 ptr++;
             }
@@ -190,7 +190,7 @@ static void gelu_fp32(Mat& bottom_top_blob, int fast_gelu, const Option& opt)
         {
             for (; i < size; i++)
             {
-                *ptr = 0.5f * *ptr * (1.0f + erff(0.70710678f * *ptr));
+                *ptr = 0.5f * *ptr * (1.0f + erff(ncnn::constants::INV_SQRT2 * *ptr));
 
                 ptr++;
             }

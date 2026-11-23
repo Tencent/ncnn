@@ -3,6 +3,7 @@
 
 #include "convolution_arm.h"
 
+#include "constants.h"
 #include "cpu.h"
 
 #if __ARM_NEON

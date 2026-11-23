@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gelu_arm.h"
+#include "constants.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -78,7 +79,7 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif
             for (; i < size; i++)
             {
-                *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+                *ptr = 0.5f * *ptr * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (*ptr + constants::GELU_TANH_CUBIC_COEFF * *ptr * *ptr * *ptr)));
                 ptr++;
             }
         }
@@ -103,7 +104,7 @@ int GELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif
             for (; i < size; i++)
             {
-                *ptr = 0.5f * *ptr * erfcf(-0.70710678f * *ptr);
+                *ptr = 0.5f * *ptr * erfcf(-constants::INV_SQRT2 * *ptr);
                 ptr++;
             }
         }
@@ -144,7 +145,7 @@ int GELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             for (; i < size; i++)
             {
                 float v = bfloat16_to_float32(*ptr);
-                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+                v = 0.5f * v * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (v + constants::GELU_TANH_CUBIC_COEFF * v * v * v)));
                 *ptr = float32_to_bfloat16(v);
                 ptr++;
             }
@@ -172,7 +173,7 @@ int GELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
             for (; i < size; i++)
             {
                 float v = bfloat16_to_float32(*ptr);
-                v = 0.5f * v * erfcf(-0.70710678f * v);
+                v = 0.5f * v * erfcf(-constants::INV_SQRT2 * v);
                 *ptr = float32_to_bfloat16(v);
                 ptr++;
             }

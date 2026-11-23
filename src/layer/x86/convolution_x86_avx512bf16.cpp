@@ -13,6 +13,7 @@
 #include "x86_activation.h"
 #include "x86_usability.h"
 
+#include "constants.h"
 #include "cpu.h"
 
 namespace ncnn {
