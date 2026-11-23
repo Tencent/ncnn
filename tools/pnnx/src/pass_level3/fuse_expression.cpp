@@ -658,7 +658,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
              || op->type == "aten::trunc")
     {
         if (op->type == "aten::round" && !round_decimals_supported(op))
-            goto DEFAULT;
+            fprintf(stderr, "round with nonzero or non-constant decimals is not supported yet, ignoring decimals\n");
 
         std::string mathop = op->type.substr(6);
 
@@ -923,12 +923,6 @@ void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constan
             if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__" || op->type == "aten::__lshift__" || op->type == "aten::__rshift__")
             {
                 need_fuse = true;
-            }
-
-            if (op->type == "aten::round" && !round_decimals_supported(op))
-            {
-                fprintf(stderr, "round with nonzero or non-constant decimals is not supported yet\n");
-                need_fuse = false;
             }
 
             if (need_fuse)

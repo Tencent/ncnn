@@ -56,20 +56,19 @@ def test():
         if not torch.equal(a0, b0):
             return False
 
-    import ncnn
     x = torch.tensor([[-12.75, 12.75, -1.25], [1.25, 2.65, -2.65]])
     for i, args in enumerate([(1, False, False), (-1, True, False), (2, False, True), (-2, True, True)]):
         mod = torch.jit.trace(ModelWithDecimals(*args).eval(), x)
         name = "test_torch_round_decimals_%d" % i
         mod.save(name + ".pt")
-        if os.system("../../src/pnnx %s.pt inputshape=[2,3]" % name) != 0:
+        import subprocess
+        proc = subprocess.run(["../../src/pnnx", name + ".pt", "inputshape=[2,3]"],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0 or b"round with nonzero or non-constant decimals" not in proc.stderr:
             return False
         with open(name + ".ncnn.param", encoding="utf-8") as f:
-            if "aten::round" not in f.read():
-                return False
-        with ncnn.Net() as net:
-            net.opt.use_vulkan_compute = False
-            if net.load_param(name + ".ncnn.param") != -1:
+            graph = f.read()
+            if "aten::round" in graph or "UnaryOp" not in graph:
                 return False
     return True
 

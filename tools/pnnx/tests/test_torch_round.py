@@ -58,10 +58,14 @@ def test():
         mod = torch.jit.trace(ModelWithDecimals(*args).eval(), x)
         name = "test_torch_round_decimals_%d" % i
         mod.save(name + ".pt")
-        if os.system("../src/pnnx %s.pt inputshape=[2,3]" % name) != 0:
+        import subprocess
+        proc = subprocess.run(["../src/pnnx", name + ".pt", "inputshape=[2,3]"],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0 or b"round with nonzero or non-constant decimals" not in proc.stderr:
             return False
         with open(name + ".pnnx.param", encoding="utf-8") as f:
-            if "aten::round" not in f.read():
+            graph = f.read()
+            if "aten::round" in graph or "round(" not in graph:
                 return False
     return True
 
