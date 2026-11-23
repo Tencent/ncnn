@@ -45,6 +45,28 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Embedding, 20)
 
+class nn_Embedding_1 : public nn_Embedding
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.Embedding            op_0        1 1 input out embedding_dim=%embedding_dim max_norm=%max_norm norm_type=%norm_type num_embeddings=%num_embeddings sparse=False @weight
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    {
+        fprintf(stderr, "unsupported nn.Embedding max_norm\n");
+        nn_Embedding::write(op, captured_params, captured_attrs);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Embedding_1, 20)
+
 } // namespace ncnn
 
 } // namespace pnnx
