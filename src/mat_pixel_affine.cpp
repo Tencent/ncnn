@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "mat.h"
+#include "constants.h"
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
@@ -14,7 +15,7 @@ namespace ncnn {
 #if NCNN_PIXEL_AFFINE
 void get_rotation_matrix(float angle, float scale, float dx, float dy, float* tm)
 {
-    angle *= (float)(3.14159265358979323846 / 180);
+    angle *= (float)(constants::PI / 180);
     float alpha = cosf(angle) * scale;
     float beta = sinf(angle) * scale;
 

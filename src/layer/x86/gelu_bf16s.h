@@ -80,8 +80,8 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m512 _half512 = _mm512_set1_ps(0.5f);
             __m512 _one512 = _mm512_set1_ps(1.f);
-            __m512 _fast1c512 = _mm512_set1_ps(0.79788452f);
-            __m512 _fast2c512 = _mm512_set1_ps(0.044715f);
+            __m512 _fast1c512 = _mm512_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m512 _fast2c512 = _mm512_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 15 < size; i += 16)
             {
                 __m512 _pLoad = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
@@ -126,7 +126,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m512 _half512 = _mm512_set1_ps(0.5f);
             __m512 _one512 = _mm512_set1_ps(1.f);
-            __m512 _inv_sqrt2_512 = _mm512_set1_ps(0.70710678f);
+            __m512 _inv_sqrt2_512 = _mm512_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 15 < size; i += 16)
             {
                 __m512 _pLoad = bfloat2float_avx512(_mm256_loadu_si256((const __m256i*)ptr));
@@ -158,8 +158,8 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m256 _half256 = _mm256_set1_ps(0.5f);
             __m256 _one256 = _mm256_set1_ps(1.f);
-            __m256 _fast1c256 = _mm256_set1_ps(0.79788452f);
-            __m256 _fast2c256 = _mm256_set1_ps(0.044715f);
+            __m256 _fast1c256 = _mm256_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m256 _fast2c256 = _mm256_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 7 < size; i += 8)
             {
                 __m256 _pLoad = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
@@ -184,7 +184,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m256 _half256 = _mm256_set1_ps(0.5f);
             __m256 _one256 = _mm256_set1_ps(1.f);
-            __m256 _inv_sqrt2_256 = _mm256_set1_ps(0.70710678f);
+            __m256 _inv_sqrt2_256 = _mm256_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 7 < size; i += 8)
             {
                 __m256 _pLoad = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
@@ -202,8 +202,8 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m128 _half128 = _mm_set1_ps(0.5f);
             __m128 _one128 = _mm_set1_ps(1.f);
-            __m128 _fast1c128 = _mm_set1_ps(0.79788452f);
-            __m128 _fast2c128 = _mm_set1_ps(0.044715f);
+            __m128 _fast1c128 = _mm_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m128 _fast2c128 = _mm_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _pLoad = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
@@ -228,7 +228,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m128 _half128 = _mm_set1_ps(0.5f);
             __m128 _one128 = _mm_set1_ps(1.f);
-            __m128 _inv_sqrt2_128 = _mm_set1_ps(0.70710678f);
+            __m128 _inv_sqrt2_128 = _mm_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _pLoad = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
@@ -248,8 +248,8 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m128 _half128 = _mm_set1_ps(0.5f);
             __m128 _one128 = _mm_set1_ps(1.f);
-            __m128 _fast1c128 = _mm_set1_ps(0.79788452f);
-            __m128 _fast2c128 = _mm_set1_ps(0.044715f);
+            __m128 _fast1c128 = _mm_set1_ps(ncnn::constants::SQRT_2_OVER_PI);
+            __m128 _fast2c128 = _mm_set1_ps(ncnn::constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _pLoad = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
@@ -274,7 +274,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
         {
             __m128 _half128 = _mm_set1_ps(0.5f);
             __m128 _one128 = _mm_set1_ps(1.f);
-            __m128 _inv_sqrt2_128 = _mm_set1_ps(0.70710678f);
+            __m128 _inv_sqrt2_128 = _mm_set1_ps(ncnn::constants::INV_SQRT2);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _pLoad = bfloat2float_sse(_mm_loadl_epi64((const __m128i*)ptr));
@@ -295,7 +295,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
             for (; i < size; i++)
             {
                 float v = bfloat16_to_float32(*ptr);
-                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+                v = 0.5f * v * (1.0f + tanhf(ncnn::constants::SQRT_2_OVER_PI * (v + ncnn::constants::GELU_TANH_CUBIC_COEFF * v * v * v)));
                 *ptr = float32_to_bfloat16(v);
                 ptr++;
             }
@@ -305,7 +305,7 @@ static void gelu_bf16s(Mat& a, int fast_gelu, const Option& opt)
             for (; i < size; i++)
             {
                 float v = bfloat16_to_float32(*ptr);
-                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+                v = 0.5f * v * (1.0f + erff(ncnn::constants::INV_SQRT2 * v));
                 *ptr = float32_to_bfloat16(v);
                 ptr++;
             }

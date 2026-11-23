@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gelu.h"
+#include "constants.h"
 
 namespace ncnn {
 
@@ -36,7 +37,7 @@ int GELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int i = 0; i < size; i++)
             {
                 // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
-                ptr[i] = 0.5f * ptr[i] * (1.0f + tanhf(0.79788452f * (ptr[i] + 0.044715f * ptr[i] * ptr[i] * ptr[i])));
+                ptr[i] = 0.5f * ptr[i] * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (ptr[i] + constants::GELU_TANH_CUBIC_COEFF * ptr[i] * ptr[i] * ptr[i])));
             }
         }
     }
@@ -50,7 +51,7 @@ int GELU::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int i = 0; i < size; i++)
             {
                 // y = x * P(X <= x) where X ~ N(0, 1)
-                ptr[i] = 0.5f * ptr[i] * erfcf(-0.70710678f * ptr[i]);
+                ptr[i] = 0.5f * ptr[i] * erfcf(-constants::INV_SQRT2 * ptr[i]);
             }
         }
     }

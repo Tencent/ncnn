@@ -172,6 +172,47 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
 
     if (reduce_w && h == 1 && d == 1)
     {
+        // thread the w axis over a fixed block partition when the whole
+        // reduce-all collapses to one row (gated on the collapsed shape,
+        // not on reduce_c: explicit-axis reductions such as torch.sum(dim)
+        // land here with reduce_c false and channels already merged by the
+        // collapse step above). the block count depends on w only, so the
+        // result stays independent of num_threads; the final combine walks
+        // the partials in fixed order. signed-add reductions keep their
+        // serial overflow behavior for cancelling-magnitude inputs; PROD
+        // is serial at every size for the same reason -- block-wise
+        // partials reorder the operation and change intermediate overflow
+        // behavior. both detected via the functor type (reduction_op has
+        // no op-type arg). the local trait avoids <type_traits> so the
+        // C++03 and NCNN_SIMPLESTL compatibility builds keep compiling
+        template <typename A, typename B>
+        struct op_type_is { static const bool value = false; };
+        template <typename A>
+        struct op_type_is<A, A> { static const bool value = true; };
+
+        const bool is_prod = op_type_is<Op, reduction_x86_functor::reduction_op_mul>::value;
+        const bool is_signed_add = op_type_is<Op, reduction_x86_functor::reduction_op_add>::value;
+        const bool overflow_sensitive = is_prod || is_signed_add;
+        const int blocks = w < 128 ? w : 128;
+        if (!overflow_sensitive && channels == 1 && blocks >= 2 && w >= 8192)
+        {
+            Mat sums(blocks, a.elemsize, opt.workspace_allocator);
+            if (sums.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < blocks; i++)
+            {
+                const int begin = (size_t)i * w / blocks;
+                const int end = (size_t)(i + 1) * w / blocks;
+
+                sums[i] = reduction<Op, Op2>(v0, (const float*)a + begin, end - begin);
+            }
+
+            b[0] = reduction<Op2, Op2>(v0, sums, blocks);
+            return 0;
+        }
+
         Mat sums = b;
         if (reduce_c && channels > 1)
         {

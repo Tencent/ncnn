@@ -6,6 +6,7 @@
 #if __riscv_vector
 #include <riscv_vector.h>
 #endif // __riscv_vector
+#include "constants.h"
 #include "cpu.h"
 #include "riscv_activation.h"
 #include "riscv_usability.h"

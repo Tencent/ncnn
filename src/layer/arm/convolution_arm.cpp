@@ -4,6 +4,7 @@
 #include "convolution_arm.h"
 
 #include "benchmark.h"
+#include "constants.h"
 #include "cpu.h"
 #include "layer_type.h"
 

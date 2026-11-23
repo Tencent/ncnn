@@ -1060,8 +1060,8 @@ static int conv3x3s1_winograd23_bf16s(const Mat& bottom_blob, Mat& top_blob, con
 
 static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
-    const float sq2 = 1.41421356237;
-    const float sq2_d2 = 1.41421356237 / 2;
+    const float sq2 = ncnn::constants::SQRT2;
+    const float sq2_d2 = ncnn::constants::SQRT2 / 2;
 
     // const float itm[6][6] = {
     //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
@@ -1660,10 +1660,10 @@ static inline void conv3x3s1_winograd43_transform_input_tile_bf16s(const Mat& bo
 
 static inline void conv3x3s1_winograd43_transform_output_tile_bf16s(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj, int activation_type, const Mat& activation_params)
 {
-    const float sq2 = 1.41421356237;
-    const float sq2_m2 = 1.41421356237 * 2;
-    const float sq2_d2 = 1.41421356237 / 2;
-    const float sq2_d4 = 1.41421356237 / 4;
+    const float sq2 = ncnn::constants::SQRT2;
+    const float sq2_m2 = ncnn::constants::SQRT2 * 2;
+    const float sq2_d2 = ncnn::constants::SQRT2 / 2;
+    const float sq2_d4 = ncnn::constants::SQRT2 / 4;
 
     // const float otm[4][6] = {
     //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},

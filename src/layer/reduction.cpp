@@ -287,7 +287,50 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
     {
         const int w = a.w;
 
-        b[0] = reduction(v0, a, w, op_type);
+        // thread the w axis over a fixed block partition: the block count
+        // depends on w only, so the result stays independent of
+        // num_threads; the final combine walks the partials in fixed order.
+        // small vectors stay serial: with w < 8192 each block would handle
+        // a few dozen elements while the parallel region's team setup and
+        // barrier cost more than the whole reduction
+        //
+        // overflow-sensitive operations stay serial at every size:
+        // block-wise partials reorder the operation, and reordering changes
+        // intermediate overflow behavior rather than just rounding --
+        // PROD because large factors can meet in one block and overflow
+        // where the serial order cancels, and the signed-add family (SUM/
+        // MEAN/LogSum) because cancelling-magnitude inputs can overflow
+        // inside a zero-initialized block. inputs with |x| < 3.4e37 never
+        // hit this; real inference data does not carry such extremes.
+        // LogSumExp/ASUM/SUMSQ and MAX/MIN are unaffected (abs/square/max
+        // are sign-safe) and keep the threaded path
+        const bool overflow_sensitive =
+            op_type == Reduction::ReductionOp_PROD ||
+            op_type == Reduction::ReductionOp_SUM ||
+            op_type == Reduction::ReductionOp_MEAN ||
+            op_type == Reduction::ReductionOp_LogSum;
+        const int blocks = std::min(w, 128);
+        if (!overflow_sensitive && blocks >= 2 && w >= 8192)
+        {
+            Mat sums(blocks, elemsize, opt.workspace_allocator);
+            if (sums.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < blocks; i++)
+            {
+                const int begin = (size_t)i * w / blocks;
+                const int end = (size_t)(i + 1) * w / blocks;
+
+                sums[i] = reduction(v0, (const float*)a + begin, end - begin, op_type);
+            }
+
+            b[0] = reduction(v0, sums, blocks, op2_type);
+        }
+        else
+        {
+            b[0] = reduction(v0, a, w, op_type);
+        }
     }
 
     if (dims == 2)

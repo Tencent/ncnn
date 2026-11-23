@@ -2378,7 +2378,7 @@ static inline void conv3x3s1_winograd43_transform_kernel_tile_fp16sa_rvv(const M
         int kk = 0;
         for (; kk < max_kk; kk++)
         {
-            const float sq2 = 1.41421356237f;
+            const float sq2 = ncnn::constants::SQRT2;
             // const float ktm[6][3] = {
             //     {1.0f, 0.0f, 0.0f},
             //     {-2.0f / 3, -sq2 / 3, -1.0f / 3},
@@ -2476,8 +2476,8 @@ static void conv3x3s1_winograd43_transform_kernel_fp16sa_rvv(const Mat& kernel, 
 
 static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa_rvv(const Mat& bottom_blob, Mat& B, int j, int max_jj, int k, int max_kk, int nT)
 {
-    const __fp16 sq2 = (__fp16)1.41421356237f;
-    const __fp16 sq2_d2 = (__fp16)(1.41421356237f / 2);
+    const __fp16 sq2 = (__fp16)ncnn::constants::SQRT2;
+    const __fp16 sq2_d2 = (__fp16)(ncnn::constants::SQRT2 / 2);
 
     // const __fp16 itm[6][6] = {
     //     {1.0f,  0.0f,  -2.5f,  0.0f,  1.0f, 0.0f},
@@ -2704,10 +2704,10 @@ static inline void conv3x3s1_winograd43_transform_input_tile_fp16sa_rvv(const Ma
 
 static inline void conv3x3s1_winograd43_transform_output_tile_fp16sa_rvv(const Mat& top_tile, Mat& top_blob, const Mat& bias, int i, int max_ii, int j, int max_jj)
 {
-    const __fp16 sq2 = (__fp16)1.41421356237f;
-    const __fp16 sq2_m2 = (__fp16)(1.41421356237f * 2);
-    const __fp16 sq2_d2 = (__fp16)(1.41421356237f / 2);
-    const __fp16 sq2_d4 = (__fp16)(1.41421356237f / 4);
+    const __fp16 sq2 = (__fp16)ncnn::constants::SQRT2;
+    const __fp16 sq2_m2 = (__fp16)(ncnn::constants::SQRT2 * 2);
+    const __fp16 sq2_d2 = (__fp16)(ncnn::constants::SQRT2 / 2);
+    const __fp16 sq2_d4 = (__fp16)(ncnn::constants::SQRT2 / 4);
 
     // const __fp16 otm[4][6] = {
     //     {1.0f, 1.0f,   1.0f,  1.0f,  1.0f,   0.0f},
