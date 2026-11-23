@@ -172,7 +172,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         // so the result stays independent of num_threads; the final combine
         // walks the partials in fixed order
         const int blocks = w < 128 ? w : 128;
-        if (reduce_c && channels == 1 && blocks >= 2)
+        if (reduce_c && channels == 1 && blocks >= 2 && w >= 8192)
         {
             Mat sums(blocks, a.elemsize, opt.workspace_allocator);
             if (sums.empty())

@@ -306,9 +306,12 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
 
         // thread the w axis over a fixed block partition: the block count
         // depends on w only, so the result stays independent of
-        // num_threads; the final combine walks the partials in fixed order
+        // num_threads; the final combine walks the partials in fixed order.
+        // small vectors stay serial: with w < 8192 each block would handle
+        // a few dozen elements while the parallel region's team setup and
+        // barrier cost more than the whole reduction
         const int blocks = std::min(w, 128);
-        if (blocks >= 2)
+        if (blocks >= 2 && w >= 8192)
         {
             Mat sums(blocks, elemsize, opt.workspace_allocator);
             if (sums.empty())
