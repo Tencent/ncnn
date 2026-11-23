@@ -251,18 +251,18 @@ int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 #endif
 
         ncnn::ParamDict pd;
-        pd.set(2, 0);         // transA
-        pd.set(3, 1);         // transB
-        pd.set(4, 0);         // constantA
-        pd.set(5, 1);         // constantB
-        pd.set(6, 0);         // constantC
-        pd.set(7, 0);         // M
+        pd.set(2, 0);          // transA
+        pd.set(3, 1);          // transB
+        pd.set(4, 0);          // constantA
+        pd.set(5, 1);          // constantB
+        pd.set(6, 0);          // constantC
+        pd.set(7, 0);          // M
         pd.set(8, num_output); // N
-        pd.set(9, K);         // K
-        pd.set(10, -1);       // constant_broadcast_type_C
-        pd.set(11, 0);        // output_N1M
+        pd.set(9, K);          // K
+        pd.set(10, -1);        // constant_broadcast_type_C
+        pd.set(11, 0);         // output_N1M
         pd.set(12, out_elempack);
-        pd.set(14, 1);        // output_transpose
+        pd.set(14, 1); // output_transpose
 
         int ret = gemm->load_param(pd);
         if (ret != 0)
