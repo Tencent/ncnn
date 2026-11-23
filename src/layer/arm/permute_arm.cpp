@@ -143,6 +143,137 @@ static NCNN_FORCEINLINE float32x4_t permute_load_c4(const Mat& bottom_blob, int 
     return v;
 }
 
+static int permute2d_ps(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int elempack = bottom_blob.elempack;
+    const int out_elempack = top_blob.elempack;
+
+    if (w % 4 != 0 || h % 4 != 0)
+        return -1;
+
+    if (elempack == 1 && out_elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y += 4)
+        {
+            for (int x = 0; x < w; x += 4)
+            {
+                float32x4_t _r0 = vld1q_f32((const float*)bottom_blob.row(y + 0) + x);
+                float32x4_t _r1 = vld1q_f32((const float*)bottom_blob.row(y + 1) + x);
+                float32x4_t _r2 = vld1q_f32((const float*)bottom_blob.row(y + 2) + x);
+                float32x4_t _r3 = vld1q_f32((const float*)bottom_blob.row(y + 3) + x);
+                permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+                permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+
+                float* outptr = (float*)top_blob.row(x / 4) + y * 4;
+                vst1q_f32(outptr + 0, _r0);
+                vst1q_f32(outptr + 4, _r1);
+                vst1q_f32(outptr + 8, _r2);
+                vst1q_f32(outptr + 12, _r3);
+            }
+        }
+        return 0;
+    }
+
+    if (elempack == 1 && out_elempack == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y += 4)
+        {
+            for (int x = 0; x < w; x += 4)
+            {
+                float32x4_t _r0 = vld1q_f32((const float*)bottom_blob.row(y + 0) + x);
+                float32x4_t _r1 = vld1q_f32((const float*)bottom_blob.row(y + 1) + x);
+                float32x4_t _r2 = vld1q_f32((const float*)bottom_blob.row(y + 2) + x);
+                float32x4_t _r3 = vld1q_f32((const float*)bottom_blob.row(y + 3) + x);
+                permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+
+                vst1q_f32((float*)top_blob.row(x + 0) + y, _r0);
+                vst1q_f32((float*)top_blob.row(x + 1) + y, _r1);
+                vst1q_f32((float*)top_blob.row(x + 2) + y, _r2);
+                vst1q_f32((float*)top_blob.row(x + 3) + y, _r3);
+            }
+        }
+        return 0;
+    }
+
+    if (elempack == 4 && out_elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < h; y++)
+        {
+            const float* ptr = (const float*)bottom_blob.row(y);
+            for (int x = 0; x < w; x += 4)
+            {
+                float32x4x4_t _r = vld4q_f32(ptr + x * 4);
+                permute_transpose4x4_ps(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
+                permute_transpose4x4_ps(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
+
+                float* outptr = (float*)top_blob.row(x / 4) + y * 16;
+                vst1q_f32(outptr + 0, _r.val[0]);
+                vst1q_f32(outptr + 4, _r.val[1]);
+                vst1q_f32(outptr + 8, _r.val[2]);
+                vst1q_f32(outptr + 12, _r.val[3]);
+            }
+        }
+        return 0;
+    }
+
+    return -1;
+}
+
+static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt);
+
+static int permute4d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
+{
+    if (order_type != 6 && order_type != 9 && order_type != 18 && order_type != 21)
+        return -1;
+
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int elempack = bottom_blob.elempack;
+    const int out_elempack = top_blob.elempack;
+    const size_t elemsize = bottom_blob.elemsize;
+    const size_t out_elemsize = top_blob.elemsize;
+
+    if (order_type == 6)
+    {
+        Mat bottom_blob_3d(w * h, d, channels, bottom_blob.data, elemsize, elempack);
+        bottom_blob_3d.cstep = bottom_blob.cstep;
+        Mat top_blob_3d(w * h, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
+        top_blob_3d.cstep = top_blob.cstep;
+        return permute3d_ps(bottom_blob_3d, top_blob_3d, 2, opt);
+    }
+
+    if (order_type == 9)
+    {
+        Mat bottom_blob_3d(w * h, d, channels, bottom_blob.data, elemsize, elempack);
+        bottom_blob_3d.cstep = bottom_blob.cstep;
+        Mat top_blob_3d(channels * elempack, w * h, top_blob.c, top_blob.data, out_elemsize, out_elempack);
+        top_blob_3d.cstep = top_blob.cstep;
+        return permute3d_ps(bottom_blob_3d, top_blob_3d, 3, opt);
+    }
+
+    if (order_type == 18)
+    {
+        Mat bottom_blob_3d(w, h * d, channels, bottom_blob.data, elemsize, elempack);
+        bottom_blob_3d.cstep = bottom_blob.cstep;
+        Mat top_blob_3d(h * d, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
+        top_blob_3d.cstep = top_blob.cstep;
+        return permute3d_ps(bottom_blob_3d, top_blob_3d, 4, opt);
+    }
+
+    Mat bottom_blob_3d(w, h * d, channels, bottom_blob.data, elemsize, elempack);
+    bottom_blob_3d.cstep = bottom_blob.cstep;
+    Mat top_blob_3d(channels * elempack, h * d, top_blob.c, top_blob.data, out_elemsize, out_elempack);
+    top_blob_3d.cstep = top_blob.cstep;
+    return permute3d_ps(bottom_blob_3d, top_blob_3d, 5, opt);
+}
+
 static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
 {
     const int w = bottom_blob.w;
@@ -295,14 +426,7 @@ Permute_arm::Permute_arm()
 #if __ARM_NEON
     support_packing = true;
     support_any_packing = true;
-#if NCNN_ARM82
-    support_fp16_storage = cpu_support_arm_asimdhp();
-#endif
 #endif // __ARM_NEON
-
-#if NCNN_BF16
-    support_bf16_storage = true;
-#endif
 }
 
 int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -375,9 +499,21 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return -100;
 
 #if __ARM_NEON && __aarch64__
+    if (dims == 2 && order_type == 1 && scalar_size == 4)
+    {
+        int ret = permute2d_ps(bottom_blob, top_blob, opt);
+        if (ret == 0)
+            return 0;
+    }
     if (dims == 3 && scalar_size == 4)
     {
         int ret = permute3d_ps(bottom_blob, top_blob, order_type, opt);
+        if (ret == 0)
+            return 0;
+    }
+    if (dims == 4 && scalar_size == 4)
+    {
+        int ret = permute4d_ps(bottom_blob, top_blob, order_type, opt);
         if (ret == 0)
             return 0;
     }
