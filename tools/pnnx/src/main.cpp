@@ -88,53 +88,45 @@ static void print_string_list(const std::vector<std::string>& list)
     }
 }
 
-static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types)
+static void parse_shape_list(const char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types)
 {
     shapes.clear();
     types.clear();
 
-    char* pch = strtok(s, "[]");
-    while (pch != NULL)
+    const char* p = s;
+    while ((p = strchr(p, '[')) != NULL)
     {
-        // assign user data type
-        if (!types.empty() && (pch[0] == 'b' || pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u' || pch[0] == 'c'))
+        const char* dims = p + 1;
+        const char* end = strchr(dims, ']');
+        if (end == NULL)
+            break;
+
+        p = end + 1;
+        std::vector<int64_t> shape;
+        dims += strspn(dims, " \t\r\n");
+        if (dims != end)
         {
-            char type[32];
-            int nscan = sscanf(pch, "%31[^,]", type);
-            if (nscan == 1)
+            int v;
+            int nconsumed = 0;
+            if (sscanf(dims, "%d%n", &v, &nconsumed) != 1)
+                continue;
+
+            shape.push_back(v);
+            dims += nconsumed;
+            while (sscanf(dims, ",%d%n", &v, &nconsumed) == 1)
             {
-                types[types.size() - 1] = std::string(type);
+                shape.push_back(v);
+                dims += nconsumed;
             }
         }
 
-        // parse a,b,c
-        int v;
-        int nconsumed = 0;
-        int nscan = sscanf(pch, "%d%n", &v, &nconsumed);
-        if (nscan == 1)
-        {
-            // ok we get shape
-            pch += nconsumed;
-
-            std::vector<int64_t> s;
-            s.push_back(v);
-
-            nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
-            while (nscan == 1)
-            {
-                pch += nconsumed;
-
-                s.push_back(v);
-
-                nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
-            }
-
-            // shape end
-            shapes.push_back(s);
+        // Even an empty bracket pair has its own dtype.
+        const char* type = p + strspn(p, " \t\r\n");
+        if (*type != '\0' && strchr("bfiuc", *type) != NULL)
+            types.push_back(std::string(type, strcspn(type, ",[ \t\r\n")));
+        else
             types.push_back("f32");
-        }
-
-        pch = strtok(NULL, "[]");
+        shapes.push_back(shape);
     }
 }
 
