@@ -170,15 +170,22 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
     if (reduce_w && h == 1 && d == 1)
     {
         // thread the w axis over a fixed block partition when the whole
-        // reduce-all collapses to one row: the block count depends on w only,
-        // so the result stays independent of num_threads; the final combine
-        // walks the partials in fixed order
-        // PROD stays serial at every size: block-wise partials reorder
-        // the multiplication and change intermediate overflow behavior.
-        // detected via the functor type (reduction_op has no op-type arg)
+        // reduce-all collapses to one row (gated on the collapsed shape,
+        // not on reduce_c: explicit-axis reductions such as torch.sum(dim)
+        // land here with reduce_c false and channels already merged by the
+        // collapse step above). the block count depends on w only, so the
+        // result stays independent of num_threads; the final combine walks
+        // the partials in fixed order. signed-add reductions keep their
+        // serial overflow behavior for cancelling-magnitude inputs; PROD
+        // is serial at every size for the same reason -- block-wise
+        // partials reorder the operation and change intermediate overflow
+        // behavior. both detected via the functor type (reduction_op has
+        // no op-type arg)
         const bool is_prod = std::is_same<Op, reduction_x86_functor::reduction_op_mul>::value;
+        const bool is_signed_add = std::is_same<Op, reduction_x86_functor::reduction_op_add>::value;
+        const bool overflow_sensitive = is_prod || is_signed_add;
         const int blocks = w < 128 ? w : 128;
-        if (!is_prod && reduce_c && channels == 1 && blocks >= 2 && w >= 8192)
+        if (!overflow_sensitive && channels == 1 && blocks >= 2 && w >= 8192)
         {
             Mat sums(blocks, a.elemsize, opt.workspace_allocator);
             if (sums.empty())

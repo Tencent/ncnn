@@ -309,12 +309,25 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         // num_threads; the final combine walks the partials in fixed order.
         // small vectors stay serial: with w < 8192 each block would handle
         // a few dozen elements while the parallel region's team setup and
-        // barrier cost more than the whole reduction. PROD stays serial at
-        // every size: block-wise partials reorder the multiplication and
-        // change intermediate overflow behavior (large factors meeting in
-        // one block can overflow where the serial order would not)
+        // barrier cost more than the whole reduction
+        //
+        // overflow-sensitive operations stay serial at every size:
+        // block-wise partials reorder the operation, and reordering changes
+        // intermediate overflow behavior rather than just rounding --
+        // PROD because large factors can meet in one block and overflow
+        // where the serial order cancels, and the signed-add family (SUM/
+        // MEAN/LogSum) because cancelling-magnitude inputs can overflow
+        // inside a zero-initialized block. inputs with |x| < 3.4e37 never
+        // hit this; real inference data does not carry such extremes.
+        // LogSumExp/ASUM/SUMSQ and MAX/MIN are unaffected (abs/square/max
+        // are sign-safe) and keep the threaded path
+        const bool overflow_sensitive =
+            op_type == Reduction::ReductionOp_PROD ||
+            op_type == Reduction::ReductionOp_SUM ||
+            op_type == Reduction::ReductionOp_MEAN ||
+            op_type == Reduction::ReductionOp_LogSum;
         const int blocks = std::min(w, 128);
-        if (op_type != Reduction::ReductionOp_PROD && blocks >= 2 && w >= 8192)
+        if (!overflow_sensitive && blocks >= 2 && w >= 8192)
         {
             Mat sums(blocks, elemsize, opt.workspace_allocator);
             if (sums.empty())
