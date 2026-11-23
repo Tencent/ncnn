@@ -61,7 +61,7 @@ static int bnll_fp16s(Mat& bottom_top_blob, const Option& opt)
         }
         for (; j < row_size; j++)
         {
-            float v = (float) * ptr;
+            float v = (float)*ptr;
             if (v > 0)
                 v = v + logf(1.f + expf(-v));
             else
