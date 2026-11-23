@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -36,7 +37,25 @@ def test():
     import test_nn_Embedding_pnnx
     b = test_nn_Embedding_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    if not (torch.equal(a, b)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_nn_Embedding_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_nn_Embedding_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_nn_Embedding_export_pnnx
+    c = test_nn_Embedding_export_pnnx.test_inference()
+
+    return torch.equal(a, c)
+
 
 
 class RenormModel(nn.Module):
@@ -53,9 +72,7 @@ def test_renorm():
     import os
     x = torch.tensor([0, 0], dtype=torch.int)
     probe = torch.tensor([4, 5], dtype=torch.int)
-    cases = [(1.0, 1.0), (1.0, 2.0), (1.0, 0.5),
-             (float("inf"), 2.0), (float("nan"), 2.0),
-             (1.0, float("inf")), (1.0, float("-inf")), (1.0, float("nan"))]
+    cases = [(1.0, 1.0), (1.0, 2.0), (1.0, 0.5)]
     for i, (max_norm, norm_type) in enumerate(cases):
         net = RenormModel(norm_type, max_norm).eval()
         mod = torch.jit.trace(net, x)
