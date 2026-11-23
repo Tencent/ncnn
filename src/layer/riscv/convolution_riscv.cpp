@@ -23,6 +23,8 @@ namespace ncnn {
 
 #if NCNN_INT8
 #include "convolution_packed_int8.h"
+#include "convolution_im2col_gemm_int8.h"
+#include "convolution_3x3_winograd_int8.h"
 #endif // NCNN_INT8
 
 #if __riscv_vector
@@ -539,8 +541,28 @@ int Convolution_riscv::create_pipeline_int8_rvv(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    // TODO: implement kernel transform for winograd, sgemm, etc
-    convolution_transform_kernel_packed_int8_rvv(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
+    const bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        int ret;
+        if (opt.use_winograd43_convolution)
+            ret = conv3x3s1_winograd43_transform_kernel_int8_rvv(weight_data, weight_winograd43_data, num_input, num_output, opt);
+        else
+            ret = conv3x3s1_winograd23_transform_kernel_int8_rvv(weight_data, weight_winograd23_data, num_input, num_output, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else if (opt.use_sgemm_convolution)
+    {
+        int ret = convolution_im2col_gemm_transform_kernel_int8_rvv(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else
+    {
+        convolution_transform_kernel_packed_int8_rvv(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h);
+    }
 
     scale_in_data.create(num_output);
     for (int p = 0; p < num_output; p++)
@@ -634,8 +656,45 @@ int Convolution_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, c
     if (top_blob_int32.empty())
         return -100;
 
-    // TODO: implement winograd, sgemm, etc
-    convolution_packed_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+    const int num_input = bottom_blob_bordered.c * bottom_blob_bordered.elempack;
+    const bool prefer_winograd = (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && (num_input > 8 || num_output > 8);
+
+    if (opt.use_winograd_convolution && prefer_winograd && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution winograd int8 will use load-time value %d", opt.num_threads, nT);
+        }
+
+        int ret;
+        if (opt.use_winograd43_convolution && !weight_winograd43_data.empty())
+            ret = conv3x3s1_winograd43_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, _nT, opt);
+        else
+            ret = conv3x3s1_winograd23_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, _nT, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else if (opt.use_sgemm_convolution)
+    {
+        int _nT = nT ? nT : opt.num_threads;
+        if (nT != 0 && opt.num_threads != nT)
+        {
+            // force num_threads the same as in create_pipeline
+            // so we could use pre-packed A/B from the same tile config
+            NCNN_LOGE("opt.num_threads %d changed, convolution gemm int8 will use load-time value %d", opt.num_threads, nT);
+        }
+
+        int ret = convolution_im2col_gemm_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, _nT, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else
+    {
+        convolution_packed_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+    }
     bottom_blob_bordered.release();
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);

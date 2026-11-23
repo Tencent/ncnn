@@ -64,6 +64,8 @@ static int test_sdpa_kvcache(int head_dim, int value_dim, int num_heads, int num
         ncnn::Mat reference_mask;
         if (mask_type == 1)
             reference_mask = RandomMat(dst_seqlen, cur_seqlen);
+        if (mask_type == 2)
+            reference_mask = RandomMat(dst_seqlen, cur_seqlen, 1);
         if (mask_type == 3)
             reference_mask = RandomMat(dst_seqlen, cur_seqlen, num_heads);
 
@@ -159,15 +161,18 @@ static int test_sdpa_0()
     return 0
            || test_sdpa_kvcache(32, 20, 8, 8, 0, 0)
            || test_sdpa_kvcache(37, 29, 15, 3, 1, 0, 4)
+           || test_sdpa_kvcache(37, 29, 15, 3, 2, 0, 4)
            || test_sdpa_kvcache(63, 47, 31, 1, 3, 0, 4)
            || test_sdpa_kvcache(64, 64, 16, 1, 0, 0)
 #if NCNN_BF16
            || test_sdpa_kvcache(37, 29, 15, 3, 1, 1)
+           || test_sdpa_kvcache(37, 29, 15, 3, 2, 1)
            || test_sdpa_kvcache(63, 47, 31, 1, 3, 1, 4)
 #endif // NCNN_BF16
 #if NCNN_INT8
            || test_sdpa_kvcache(32, 20, 8, 8, 0, 2)
            || test_sdpa_kvcache(37, 29, 15, 3, 1, 2)
+           || test_sdpa_kvcache(37, 29, 15, 3, 2, 2)
 #endif // NCNN_INT8
            ;
 }

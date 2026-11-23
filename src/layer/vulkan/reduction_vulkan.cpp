@@ -188,9 +188,13 @@ int Reduction_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompu
 
     int out_total = outw * outh * outd * outc;
 
+    // split groups across x and y to stay within the dispatch limits
+    const int group_count_x = (out_total - 1) / vkdev->info.max_workgroup_count_y() + 1;
+    const int group_count_y = (out_total - 1) / group_count_x + 1;
+
     VkMat dispatcher;
-    dispatcher.w = 256;
-    dispatcher.h = out_total;
+    dispatcher.w = group_count_x * pipeline_reduction->local_size_x();
+    dispatcher.h = group_count_y;
     dispatcher.c = 1;
 
     cmd.record_pipeline(pipeline_reduction, bindings, constants, dispatcher);

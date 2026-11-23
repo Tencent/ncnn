@@ -66,6 +66,16 @@ static int test_unaryop(const ncnn::Mat& _a, int flag = 0)
             a[i] = v;
         }
     }
+#else
+    if (op_type == 18)
+    {
+        // exact halfway values round to even
+        const float halfway[8] = {0.5f, 1.5f, 2.5f, 3.5f, -0.5f, -1.5f, -2.5f, -3.5f};
+        for (int i = 0; i < 8 && i < (int)a.total(); i++)
+        {
+            a[i] = halfway[i];
+        }
+    }
 #endif // __powerpc__
 
     ncnn::ParamDict pd;

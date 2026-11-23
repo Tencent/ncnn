@@ -5,6 +5,7 @@ import time
 import re
 import shutil
 import subprocess
+import sysconfig
 
 from setuptools import setup, find_packages, Extension
 from setuptools.command.build_ext import build_ext
@@ -107,6 +108,52 @@ class CMakeBuild(build_ext):
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",
         ]
+        if sys.platform == "android":
+            # use target python headers and library from cibuildwheel's sysconfig
+            # preserve its generated android toolchain and compiler flags
+            cmake_args += [
+                "-DPython_INCLUDE_DIR={}".format(sysconfig.get_path("include")),
+                "-DPython_LIBRARY={}".format(os.path.join(
+                    sysconfig.get_config_var("LIBDIR"),
+                    sysconfig.get_config_var("LDLIBRARY"),
+                )),
+            ]
+        elif sys.platform == "ios":
+            # use the selected target python framework and native xcode compilers
+            # cross-venv compiler wrappers may otherwise select the host macos sdk
+            arch, sdk = sys.implementation._multiarch.rsplit("-", 1)
+            deployment_target = os.environ.get("IPHONEOS_DEPLOYMENT_TARGET", "14.0")
+            sdk_path = subprocess.check_output(
+                ["xcrun", "--sdk", sdk, "--show-sdk-path"], text=True
+            ).strip()
+            cmake_args += [
+                "-DCMAKE_SYSTEM_NAME=iOS",
+                "-DCMAKE_SYSTEM_VERSION=" + deployment_target,
+                "-DCMAKE_OSX_SYSROOT=" + sdk_path,
+                "-DCMAKE_OSX_ARCHITECTURES=" + arch,
+                "-DCMAKE_SYSTEM_PROCESSOR=" + arch,
+                "-DCMAKE_OSX_DEPLOYMENT_TARGET=" + deployment_target,
+                "-DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY",
+                "-DCMAKE_FIND_ROOT_PATH=" + sys.base_prefix,
+                "-DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER",
+                "-DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY",
+                "-DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY",
+                "-DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ONLY",
+                "-DPYBIND11_USE_CROSSCOMPILING=ON",
+                "-DPython_ROOT_DIR=" + sys.base_prefix,
+                "-DPython_INCLUDE_DIR=" + sysconfig.get_path("include"),
+                "-DPython_FIND_IMPLEMENTATIONS=CPython",
+                "-DPython_FIND_FRAMEWORK=NEVER",
+                "-DPython_FIND_REGISTRY=NEVER",
+                "-DPYTHON_MODULE_EXTENSION=" + sysconfig.get_config_var("EXT_SUFFIX"),
+                "-DPYTHON_MODULE_DEBUG_POSTFIX=",
+                "-DPYTHON_IS_DEBUG=OFF",
+            ]
+            for language, compiler in (("C", "clang"), ("CXX", "clang++")):
+                compiler_path = subprocess.check_output(
+                    ["xcrun", "--sdk", sdk, "--find", compiler], text=True
+                ).strip()
+                cmake_args.append("-DCMAKE_{}_COMPILER={}".format(language, compiler_path))
         if Vulkan_LIBRARY != "":
             cmake_args.append("-DVulkan_LIBRARY=" + Vulkan_LIBRARY)
         if CMAKE_TOOLCHAIN_FILE != "":
@@ -185,7 +232,7 @@ class CMakeBuild(build_ext):
 if sys.version_info < (3, 0):
     sys.exit("Sorry, Python < 3.0 is not supported")
 
-requirements = ["numpy", "tqdm", "requests", "portalocker", "opencv-python"]
+requirements = ["numpy", "tqdm", "requests", "portalocker"]
 setup_requires = []
 if shutil.which("cmake") is None:
     setup_requires += ["cmake>=3.12"]
@@ -218,6 +265,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
         "Programming Language :: Python :: 3.14",
+        "Programming Language :: Python :: 3.15",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -228,6 +276,7 @@ setup(
     package_dir={"": "python"},
     setup_requires=setup_requires,
     install_requires=requirements,
+    extras_require={"opencv": ["opencv-python"]},
     ext_modules=[CMakeExtension("ncnn")],
     cmdclass={'install': InstallCommand, "build_ext": CMakeBuild},
 )
