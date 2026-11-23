@@ -126,7 +126,7 @@ static NCNN_FORCEINLINE void permute_transpose4x4_ps(float32x4_t& r0, float32x4_
     r3 = vcombine_f32(vget_high_f32(_t1), vget_high_f32(_t3));
 }
 
-static NCNN_FORCEINLINE float32x4_t permute_load_c4(const Mat& bottom_blob, int cbase, int h, int w)
+static NCNN_FORCEINLINE float32x4_t permute_load_c4_ps(const Mat& bottom_blob, int cbase, int h, int w)
 {
     const int elempack = bottom_blob.elempack;
     if (elempack == 4)
@@ -368,10 +368,10 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
             {
                 for (int x = 0; x < w; x++)
                 {
-                    float32x4_t _r0 = permute_load_c4(bottom_blob, c, y + 0, x);
-                    float32x4_t _r1 = permute_load_c4(bottom_blob, c, y + 1, x);
-                    float32x4_t _r2 = permute_load_c4(bottom_blob, c, y + 2, x);
-                    float32x4_t _r3 = permute_load_c4(bottom_blob, c, y + 3, x);
+                    float32x4_t _r0 = permute_load_c4_ps(bottom_blob, c, y + 0, x);
+                    float32x4_t _r1 = permute_load_c4_ps(bottom_blob, c, y + 1, x);
+                    float32x4_t _r2 = permute_load_c4_ps(bottom_blob, c, y + 2, x);
+                    float32x4_t _r3 = permute_load_c4_ps(bottom_blob, c, y + 3, x);
                     permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                     float* outq = (float*)top_blob.channel(y / 4);
@@ -397,10 +397,10 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
             {
                 for (int x = 0; x < w; x += 4)
                 {
-                    float32x4_t _r0 = permute_load_c4(bottom_blob, c, y, x + 0);
-                    float32x4_t _r1 = permute_load_c4(bottom_blob, c, y, x + 1);
-                    float32x4_t _r2 = permute_load_c4(bottom_blob, c, y, x + 2);
-                    float32x4_t _r3 = permute_load_c4(bottom_blob, c, y, x + 3);
+                    float32x4_t _r0 = permute_load_c4_ps(bottom_blob, c, y, x + 0);
+                    float32x4_t _r1 = permute_load_c4_ps(bottom_blob, c, y, x + 1);
+                    float32x4_t _r2 = permute_load_c4_ps(bottom_blob, c, y, x + 2);
+                    float32x4_t _r3 = permute_load_c4_ps(bottom_blob, c, y, x + 3);
                     permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                     float* outq = (float*)top_blob.channel(x / 4);
