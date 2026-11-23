@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias, int activation_type = 0)
+static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, int stride, int pad, int bias, int activation_type = 0, int flag = 0)
 {
     ncnn::Mat a = RandomMat(w, h);
 
@@ -31,7 +31,7 @@ static int test_convolution1d(int w, int h, int outh, int kernel, int dilation, 
     if (bias)
         weights[1] = RandomMat(outh);
 
-    int ret = test_layer("Convolution1D", pd, weights, a, 0.001);
+    int ret = test_layer("Convolution1D", pd, weights, a, 0.001, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution1d failed w=%d h=%d outh=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, outh, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -448,6 +448,16 @@ static int test_convolution1d_activation_saturation()
     return 0;
 }
 
+static int test_convolution1d_bf16_workload_dispatch()
+{
+    // large work uses the bf16 gemm path, small work keeps the packed bf16 path
+    const int flag = TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING;
+
+    return 0
+           || test_convolution1d(128, 128, 128, 3, 1, 1, 1, 1, 0, flag)
+           || test_convolution1d(512, 64, 64, 3, 1, 1, 1, 0, 0, flag);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -462,5 +472,6 @@ int main()
 #endif // NCNN_VALIDATION
            || test_convolution1d_activation_packing_boundaries()
            || test_convolution1d_cooperative_scalar_k_tail()
-           || test_convolution1d_activation_saturation();
+           || test_convolution1d_activation_saturation()
+           || test_convolution1d_bf16_workload_dispatch();
 }

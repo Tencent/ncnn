@@ -33,6 +33,7 @@ protected:
 
 public:
     Mat weight_data_tm;
+    Layer* gemm;
 
     // fp16
     Mat bias_data_fp16;
