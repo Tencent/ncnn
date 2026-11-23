@@ -309,9 +309,12 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         // num_threads; the final combine walks the partials in fixed order.
         // small vectors stay serial: with w < 8192 each block would handle
         // a few dozen elements while the parallel region's team setup and
-        // barrier cost more than the whole reduction
+        // barrier cost more than the whole reduction. PROD stays serial at
+        // every size: block-wise partials reorder the multiplication and
+        // change intermediate overflow behavior (large factors meeting in
+        // one block can overflow where the serial order would not)
         const int blocks = std::min(w, 128);
-        if (blocks >= 2 && w >= 8192)
+        if (op_type != Reduction::ReductionOp_PROD && blocks >= 2 && w >= 8192)
         {
             Mat sums(blocks, elemsize, opt.workspace_allocator);
             if (sums.empty())
