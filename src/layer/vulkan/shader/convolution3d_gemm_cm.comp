@@ -211,6 +211,8 @@ void main()
 
     uint k = 0;
 
+    // adreno drops K tiles in the prefetch loop
+#if ncnn_vendorID != 0x5143
     if (kk >= UNROLL_SG_K * 2)
     {
         // local stack and shared memory ping-pong
@@ -808,11 +810,15 @@ void main()
             }
         }
     }
-    else if (kk >= UNROLL_SG_K)
+#endif
+
+    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
     {
         // no ping-pong version
 
-        const uint ki = 0;
+        const uint ki = k * K;
+
+        barrier();
 
         // load bottom_blob
         {
@@ -1047,8 +1053,6 @@ void main()
                 }
             }
         }
-
-        k += UNROLL_SG_K;
     }
 
     for (; k < kk; k++)
