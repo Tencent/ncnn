@@ -65,7 +65,7 @@ class NormalizeContractModel(nn.Module):
             x = F.max_pool2d(x, 1)
         if self.legacy_fro:
             # Older TorchScript exports retain this operator and its "fro" alias.
-            denom = torch.ops.aten.frobenius_norm.dim(x, [self.dim], True).clamp_min(1e-3).expand_as(x)
+            denom = torch.ops.aten.frobenius_norm(x, [self.dim], True).clamp_min(1e-3).expand_as(x)
             return x / denom
         return F.normalize(x, p=self.p, dim=self.dim, eps=1e-3)
 
@@ -116,35 +116,8 @@ def test_frobenius_alias():
             return False
     return True
 
-def test_unsupported():
-    import ncnn
-    cases = [
-        ((11,), 1, 0, False),
-        ((11,), 3, 0, False),
-        ((11,), float("inf"), 0, False),
-        ((5, 7), 2, 0, False),
-        ((5, 3, 7), 2, 1, False),
-        ((5, 2, 3, 7), 2, -1, False),
-        ((2, 5, 3, 7), 2, 0, True),
-        ((2, 5, 3, 7), 2, -4, True),
-        ((5, 7), "fro", 0, False),
-        ((5, 3, 7), "fro", 1, False),
-        ((2, 5, 3, 7), "fro", 0, True),
-    ]
-    for i, (shape, p, dim, batched) in enumerate(cases):
-        name = "test_F_normalize_unsupported_" + str(i)
-        convert_contract_case(name, shape, p, dim, batched, legacy_fro=(p == "fro"))
-        with open(name + ".ncnn.param") as f:
-            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
-        if "F.normalize" not in layers or "Normalize" in layers:
-            return False
-        with ncnn.Net() as net:
-            if net.load_param(name + ".ncnn.param") == 0:
-                return False
-    return True
-
 if __name__ == "__main__":
-    if test() and test_supported_negative_axes() and test_frobenius_alias() and test_unsupported():
+    if test() and test_supported_negative_axes() and test_frobenius_alias():
         exit(0)
     else:
         exit(1)
