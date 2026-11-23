@@ -1094,30 +1094,25 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
-        int out_elempack = 1;
-#if __ARM_NEON
-        if (opt.use_packing_layout)
-        {
-            out_elempack = num_output % 8 == 0 ? 8 : 1;
-        }
-#endif // __ARM_NEON
+        int out_elempack = elempack;
         bool use_int8_requantize = int8_scale_term > 100;
         size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
-#if NCNN_ARM82
-        if (support_fp16_storage && opt.use_fp16_storage)
+#if NCNN_GNU_INLINE_ASM && (NCNN_ARM82 || NCNN_BF16)
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == stride_h && (stride_w == 1 || stride_w == 2) && (activation_type == 0 || activation_type == 1))
         {
-            out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#if NCNN_ARM82
+            if (support_fp16_storage && opt.use_fp16_storage)
+            {
+                out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+            }
+#endif
+#if NCNN_BF16
+            if (opt.use_bf16_storage)
+                out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
+#endif
         }
 #endif
-        if (opt.use_bf16_storage)
-            out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
 
-        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        // TODO use fp16 / bf16
-        out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
         top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;

@@ -38,6 +38,9 @@ public:
     Pipeline* pipeline_instancenorm_sub_mean_square_pack4;
     Pipeline* pipeline_instancenorm_coeffs_pack4;
     Pipeline* pipeline_instancenorm_norm_pack4;
+
+    Pipeline* pipeline_instancenorm_reduce_subgroup;
+    Pipeline* pipeline_instancenorm_reduce_subgroup_pack4;
 };
 
 } // namespace ncnn
