@@ -3,10 +3,10 @@
 
 from math import sqrt
 import numpy as np
-import cv2
 import ncnn
 from .model_store import get_model_file
 from ..utils.functional import sigmoid, nms
+from ..utils._opencv import _require_cv2
 
 
 class Yolact:
@@ -137,6 +137,8 @@ class Yolact:
         self.net = None
 
     def __call__(self, img):
+        cv2 = _require_cv2()
+
         img_h = img.shape[0]
         img_w = img.shape[1]
 

@@ -88,30 +88,42 @@ static void convert_input_layout(const ncnn::Mat& src, ncnn::Mat& dst, const ncn
     // clang-format off
     // *INDENT-OFF*
 #if NCNN_ARM82
-    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp() && op->support_fp16_storage)
+    if (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp())
     {
-        ncnn::cast_float32_to_float16(src, casted, opt);
+        if (op->support_fp16_storage)
+            ncnn::cast_float32_to_float16(src, casted, opt);
+        else
+            casted = src;
     }
     else
 #endif // NCNN_ARM82
 #if NCNN_VFPV4
-    if (opt.use_fp16_storage && !opt.use_bf16_storage && ncnn::cpu_support_arm_vfpv4() && op->support_fp16_storage)
+    if (opt.use_fp16_storage && !opt.use_bf16_storage && ncnn::cpu_support_arm_vfpv4())
     {
-        ncnn::cast_float32_to_float16(src, casted, opt);
+        if (op->support_fp16_storage)
+            ncnn::cast_float32_to_float16(src, casted, opt);
+        else
+            casted = src;
     }
     else
 #endif // NCNN_VFPV4
 #if NCNN_ZFH
-    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())) && op->support_fp16_storage)
+    if (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())))
     {
-        ncnn::cast_float32_to_float16(src, casted, opt);
+        if (op->support_fp16_storage)
+            ncnn::cast_float32_to_float16(src, casted, opt);
+        else
+            casted = src;
     }
     else
 #endif // NCNN_ZFH
 #if NCNN_BF16
-    if (opt.use_bf16_storage && op->support_bf16_storage)
+    if (opt.use_bf16_storage)
     {
-        ncnn::cast_float32_to_bfloat16(src, casted, opt);
+        if (op->support_bf16_storage)
+            ncnn::cast_float32_to_bfloat16(src, casted, opt);
+        else
+            casted = src;
     }
     else
 #endif // NCNN_BF16
@@ -263,10 +275,33 @@ static int perf_layer_cpu(const char* layer_type, const ncnn::ParamDict& pd,
                           const std::vector<ncnn::Mat>& weights,
                           const std::vector<ncnn::Mat>& inputs,
                           int top_blob_count,
-                          const ncnn::Option& opt,
+                          const ncnn::Option& _opt,
                           int forced_inner_loops,
                           PerfResult& result)
 {
+    ncnn::Option opt = _opt;
+
+#if NCNN_BF16
+    {
+        // fp16 and bf16 blobs are indistinguishable, cpu layers use one 16bit storage type like net
+        // fp16 takes the priority when the cpu stores fp16 blobs
+        bool use_fp16_storage = false;
+#if NCNN_ARM82
+        use_fp16_storage = use_fp16_storage || (opt.use_fp16_storage && ncnn::cpu_support_arm_asimdhp());
+#endif
+#if NCNN_VFPV4
+        use_fp16_storage = use_fp16_storage || (opt.use_fp16_storage && !opt.use_bf16_storage && ncnn::cpu_support_arm_vfpv4());
+#endif
+#if NCNN_ZFH
+        use_fp16_storage = use_fp16_storage || (opt.use_fp16_storage && (ncnn::cpu_support_riscv_zvfh() || (!ncnn::cpu_support_riscv_v() && ncnn::cpu_support_riscv_zfh())));
+#endif
+        if (use_fp16_storage)
+            opt.use_bf16_storage = false;
+        else if (opt.use_bf16_storage)
+            opt.use_fp16_storage = false;
+    }
+#endif // NCNN_BF16
+
     ncnn::Layer* op = ncnn::create_layer_cpu(layer_type);
     if (!op)
     {

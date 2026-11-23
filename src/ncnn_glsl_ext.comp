@@ -304,7 +304,11 @@
 #define aint16 int16_t
 #define aint16vec4 i16vec4
 #define lint162aint16(v) int16_t(v)
+#if ncnn_vendorID == 0x5143
+#define lint162aint16vec4(v) i16vec4(unpackInt2x16(v.r),unpackInt2x16(v.g))
+#else
 #define lint162aint16vec4(v) i16vec4(unpack16(v.r),unpack16(v.g))
+#endif
 #else
 #define aint16 int
 #define aint16vec4 ivec4
@@ -370,7 +374,11 @@
 #define i16buffer_st2(buf,i,v) {uint _i=uint(i);ivec2 _v=ivec2(v);if((_i&1u)==0u){buf[_i/2]=packInt2x16(_v);}else{i16buffer_st1(buf,int(_i),_v.r);i16buffer_st1(buf,int(_i)+1,_v.g);}}
 #define i16buffer_sm4(buf,i) buf[i]
 #if ncnn_shaderInt16
+#if ncnn_vendorID == 0x5143
+#define i16buffer_ld4(buf,i) i16vec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))
+#else
 #define i16buffer_ld4(buf,i) i16vec4(unpack16(buf[i].r),unpack16(buf[i].g))
+#endif
 #else
 #define i16buffer_ld4(buf,i) ivec4(unpackInt2x16(buf[i].r),unpackInt2x16(buf[i].g))
 #endif

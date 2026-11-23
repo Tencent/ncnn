@@ -596,6 +596,18 @@ int load_vulkan_driver(const char* driver_path)
     }
 #endif // __APPLE__
 
+    if (ret != 0)
+    {
+        // finally, load from momoten
+#if defined _WIN32
+        ret = load_vulkan_windows("momoten.dll");
+#elif __APPLE__
+        ret = load_vulkan_linux("libmomoten.dylib");
+#else
+        ret = load_vulkan_linux("libmomoten.so");
+#endif
+    }
+
     return ret;
 #endif // __EMSCRIPTEN__
 }

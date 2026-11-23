@@ -319,7 +319,7 @@ static void requantize(const int* intptr, signed char* ptr, const Mat& scale_in_
         return;
     }
 
-    if (activation_type == 2 && activation_params[0] > 0.f)
+    if (activation_type == 2 && activation_params[0] > 0.f && activation_params[0] <= 1.f)
     {
         const float slope = activation_params[0];
         requantize_leakyrelu(intptr, ptr, scale_in_data, bias_data, scale_out_data, slope, elemcount, elempack);

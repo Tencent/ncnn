@@ -89,7 +89,7 @@ void main()
         afp max_size = buffer_ld1(max_sizes_data, gx);
 
         // max size box
-        box_w = box_h = sqrt(min_size * max_size);
+        box_w = box_h = afp(sqrt(float(min_size) * float(max_size)));
 
         box = (center + afpvec4(-box_w, -box_h, box_w, box_h) * afp(0.5f)) * image_norm;
         box = clip == 1 ? clamp(box, afp(0.f), afp(1.f)) : box;
