@@ -114,6 +114,13 @@ static void reduction_vector(const float* ptr, float* outptr, int size)
     }
 }
 
+// C++03-compatible type identity trait: no <type_traits>, so the
+// C++03 and NCNN_SIMPLESTL compatibility builds keep compiling
+template <typename A, typename B>
+struct op_type_is { static const bool value = false; };
+template <typename A>
+struct op_type_is<A, A> { static const bool value = true; };
+
 template<typename Op, typename Op2>
 static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, float v0, const Option& opt)
 {
@@ -178,13 +185,9 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         // is serial at every size for the same reason -- block-wise
         // partials reorder the operation and change intermediate overflow
         // behavior. both detected via the functor type (reduction_op has
-        // no op-type arg). the local trait avoids <type_traits> so the
-        // C++03 and NCNN_SIMPLESTL compatibility builds keep compiling
-        template <typename A, typename B>
-        struct op_type_is { static const bool value = false; };
-        template <typename A>
-        struct op_type_is<A, A> { static const bool value = true; };
-
+        // no op-type arg) -- op_type_is is defined at file scope above
+        // reduction_op so the C++03 and NCNN_SIMPLESTL compatibility
+        // builds keep compiling
         const bool is_prod = op_type_is<Op, reduction_x86_functor::reduction_op_mul>::value;
         const bool is_signed_add = op_type_is<Op, reduction_x86_functor::reduction_op_add>::value;
         const bool overflow_sensitive = is_prod || is_signed_add;
