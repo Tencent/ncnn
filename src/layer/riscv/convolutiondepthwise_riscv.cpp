@@ -20,6 +20,9 @@ namespace ncnn {
 #if __riscv_vector
 #include "convolutiondepthwise_3x3_packn.h"
 #include "convolutiondepthwise_5x5_packn.h"
+#if NCNN_INT8
+#include "convolutiondepthwise_3x3_packn_int8.h"
+#endif // NCNN_INT8
 #endif // __riscv_vector
 
 ConvolutionDepthWise_riscv::ConvolutionDepthWise_riscv()
@@ -48,8 +51,7 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO implement int8
-        return 0;
+        return create_pipeline_int8_rvv(opt);
     }
 #endif
 
@@ -228,31 +230,7 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (bottom_blob.elempack != 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-            if (bottom_blob_unpacked.empty())
-                return -100;
-        }
-
-        Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
-        if (bottom_blob_unpacked.elembits() == 16)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
-            if (bottom_blob_unpacked_fp32.empty())
-                return -100;
-        }
-
-        Option opt_unpacked = opt;
-        opt_unpacked.use_packing_layout = false;
-        return ConvolutionDepthWise::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_rvv(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -554,6 +532,156 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 
     return 0;
 }
+
+#if NCNN_INT8
+int ConvolutionDepthWise_riscv::create_pipeline_int8_rvv(const Option& opt)
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb();
+    const int maxk = kernel_w * kernel_h;
+    int channels = (weight_data_size / group) / maxk / (num_output / group) * group;
+
+    // depth-wise
+    if (channels == group && group == num_output && opt.use_packing_layout && channels % packn == 0
+            && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1
+            && stride_w == stride_h && (stride_w == 1 || stride_w == 2))
+    {
+        Mat weight_data_r2 = weight_data.reshape(maxk, group);
+        convert_packing(weight_data_r2, weight_data_tm, packn, opt);
+        if (weight_data_tm.empty())
+            return -100;
+
+        scale_in_data.create(group);
+        if (scale_in_data.empty())
+            return -100;
+
+        for (int g = 0; g < group; g++)
+        {
+            float scale_in;
+            if (weight_data_int8_scales[g] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[g] * weight_data_int8_scales[g]);
+
+            scale_in_data[g] = scale_in;
+        }
+    }
+#else
+    (void)opt;
+#endif // __riscv_vector
+
+    return 0;
+}
+
+int ConvolutionDepthWise_riscv::forward_int8_rvv(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+    const int packn_s8 = csrr_vlenb();
+    int channels = bottom_blob.c * bottom_blob.elempack;
+    int elempack = bottom_blob.elempack;
+    int elembits = bottom_blob.elembits();
+
+    // depth-wise
+    if (channels == group && group == num_output && opt.use_packing_layout && channels % packn_s8 == 0
+            && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1
+            && stride_w == stride_h && (stride_w == 1 || stride_w == 2)
+            && (elembits != 8 || elempack == packn_s8))
+    {
+        Mat bottom_blob_int8 = bottom_blob;
+        if (elembits != 8)
+        {
+            Option opt_q = opt;
+            opt_q.blob_allocator = opt.workspace_allocator;
+            quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+            if (bottom_blob_int8.empty())
+                return -100;
+        }
+
+        Mat bottom_blob_bordered;
+        make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
+        if (bottom_blob_bordered.empty())
+            return -100;
+
+        int outw = (bottom_blob_bordered.w - 3) / stride_w + 1;
+        int outh = (bottom_blob_bordered.h - 3) / stride_h + 1;
+
+        Mat top_blob_int32;
+        top_blob_int32.create(outw, outh, num_output / packn, (size_t)4u * packn, packn, opt.workspace_allocator);
+        if (top_blob_int32.empty())
+            return -100;
+
+        if (stride_w == 1)
+        {
+            convdw3x3s1_packn_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, opt);
+        }
+        else
+        {
+            convdw3x3s2_packn_int8_rvv(bottom_blob_bordered, top_blob_int32, weight_data_tm, opt);
+        }
+
+        bottom_blob_bordered.release();
+
+        const bool use_int8_requantize = int8_scale_term > 100;
+        int out_elempack = use_int8_requantize ? packn_s8 : packn;
+        size_t out_elemsize = use_int8_requantize ? (size_t)out_elempack : 4u * out_elempack;
+#if NCNN_ZFH
+        if (!use_int8_requantize && support_fp16_storage && opt.use_fp16_storage)
+        {
+            out_elempack = csrr_vlenb() / 2;
+            out_elemsize = 2u * out_elempack;
+        }
+#endif // NCNN_ZFH
+
+        top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (use_int8_requantize)
+        {
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+        }
+        else
+        {
+            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+
+        return 0;
+    }
+#endif // __riscv_vector
+
+    Mat bottom_blob_unpacked = bottom_blob;
+    if (bottom_blob.elempack != 1)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        if (bottom_blob_unpacked.empty())
+            return -100;
+    }
+
+    Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
+    if (bottom_blob_unpacked.elembits() == 16)
+    {
+        Option opt_pack1 = opt;
+        opt_pack1.blob_allocator = opt.workspace_allocator;
+
+        cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
+        if (bottom_blob_unpacked_fp32.empty())
+            return -100;
+    }
+
+    Option opt_unpacked = opt;
+    opt_unpacked.use_packing_layout = false;
+    return ConvolutionDepthWise::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+}
+#endif // NCNN_INT8
 
 int ConvolutionDepthWise_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {

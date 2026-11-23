@@ -89,7 +89,7 @@ int LRN_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            for (int p = q - local_size / 2; p <= q + local_size / 2; p++)
+            for (int p = q - local_size / 2; p <= q + (local_size - 1) / 2; p++)
             {
                 if (p < 0 || p >= channels)
                     continue;

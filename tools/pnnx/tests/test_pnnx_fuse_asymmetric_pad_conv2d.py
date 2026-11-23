@@ -5,6 +5,7 @@ import os
 
 import torch
 import torch.nn as nn
+from packaging import version
 
 
 class Model(nn.Module):
@@ -61,9 +62,27 @@ def test():
         ncnn_param = f.read()
 
     if "ConvolutionDepthWise" in ncnn_param:
-        return " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
+        ok = " 4=1 " in ncnn_param and " 14=1 " in ncnn_param and " 15=2 " in ncnn_param and " 16=2 " in ncnn_param and " 5=1 " in ncnn_param
 
-    return "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
+    else:
+        ok = "Padding" in ncnn_param and " 0=1 " in ncnn_param and " 1=2 " in ncnn_param and " 2=1 " in ncnn_param and " 3=2 " in ncnn_param
+
+    if not ok:
+        return False
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_pnnx_fuse_asymmetric_pad_conv2d_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_fuse_asymmetric_pad_conv2d_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_pnnx_fuse_asymmetric_pad_conv2d_export_pnnx
+    c = test_pnnx_fuse_asymmetric_pad_conv2d_export_pnnx.test_inference()
+    return a.shape == c.shape and torch.allclose(a, c, 1e-4, 1e-4)
 
 
 if __name__ == "__main__":

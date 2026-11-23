@@ -60,6 +60,8 @@ pnnx.Output             output      1 0 out
                 op->params["memory_format"] = "torch.preserve_format";
             if (captured_params.at("memory_format").i == 2)
                 op->params["memory_format"] = "torch.channels_last";
+            if (captured_params.at("memory_format").i == 3)
+                op->params["memory_format"] = "torch.channels_last_3d";
         }
     }
 };

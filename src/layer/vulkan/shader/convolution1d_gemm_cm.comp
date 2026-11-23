@@ -19,8 +19,8 @@
 #extension GL_NV_cooperative_matrix : require
 #endif
 
-#if ncnn_vendorID == 0x5143
-// adreno needs stride * 2 for these packed fp16 buffers
+#if ncnn_vendorID == 0x5143 || ncnn_vendorID == 0x13b5
+// adreno and mali need stride * 2 for these packed fp16 buffers
 #define coopMatLoad(m, buf, element, stride, layout)  coopMatLoad(m, buf, element, (stride) * 2, layout)
 #define coopMatStore(m, buf, element, stride, layout) coopMatStore(m, buf, element, (stride) * 2, layout)
 #endif
