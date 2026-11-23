@@ -18,7 +18,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads batch_first=%batch_first add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -37,6 +37,16 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = captured_params.at("embed_dim");
         op->params["1"] = captured_params.at("num_heads");
+
+        if (captured_params.at("add_bias_kv").b)
+        {
+            fprintf(stderr, "MultiheadAttention add_bias_kv=True not supported\n");
+        }
+
+        if (captured_params.at("add_zero_attn").b)
+        {
+            fprintf(stderr, "MultiheadAttention add_zero_attn=True not supported\n");
+        }
 
         const int embed_dim = captured_params.at("embed_dim").i;
         const int kdim = captured_params.at("kdim").i;
@@ -133,7 +143,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 attn_mask
-nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -161,7 +171,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -178,7 +188,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 attn_mask
-nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        2 1 input attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -196,7 +206,7 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
-nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads batch_first=%batch_first add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -215,6 +225,16 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = captured_params.at("embed_dim");
         op->params["1"] = captured_params.at("num_heads");
+
+        if (captured_params.at("add_bias_kv").b)
+        {
+            fprintf(stderr, "MultiheadAttention add_bias_kv=True not supported\n");
+        }
+
+        if (captured_params.at("add_zero_attn").b)
+        {
+            fprintf(stderr, "MultiheadAttention add_zero_attn=True not supported\n");
+        }
 
         const int embed_dim = captured_params.at("embed_dim").i;
         const int kdim = captured_params.at("kdim").i;
@@ -325,7 +345,7 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 attn_mask
-nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -355,7 +375,7 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
-nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -374,7 +394,7 @@ pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
 pnnx.Input              input_3     0 1 attn_mask
-nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        4 1 query key value attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -391,7 +411,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
-nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads batch_first=%batch_first add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -409,7 +429,7 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 attn_mask
-nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -438,7 +458,7 @@ public:
 4 3
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
-nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -456,7 +476,7 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 attn_mask
-nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads add_zero_attn=False embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=False @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        3 1 query key attn_mask out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
