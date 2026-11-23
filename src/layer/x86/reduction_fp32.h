@@ -1,6 +1,8 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <type_traits>
+
 namespace reduction_x86_functor {
 
 #include "reduction_functor.h"
@@ -172,10 +174,11 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         // so the result stays independent of num_threads; the final combine
         // walks the partials in fixed order
         // PROD stays serial at every size: block-wise partials reorder
-        // the multiplication and change intermediate overflow behavior
+        // the multiplication and change intermediate overflow behavior.
+        // detected via the functor type (reduction_op has no op-type arg)
+        const bool is_prod = std::is_same<Op, reduction_x86_functor::reduction_op_mul>::value;
         const int blocks = w < 128 ? w : 128;
-        if (operation != Reduction::ReductionOp_PROD && reduce_c &&
-            channels == 1 && blocks >= 2 && w >= 8192)
+        if (!is_prod && reduce_c && channels == 1 && blocks >= 2 && w >= 8192)
         {
             Mat sums(blocks, a.elemsize, opt.workspace_allocator);
             if (sums.empty())
