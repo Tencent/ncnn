@@ -8,7 +8,12 @@ namespace ncnn {
 Eltwise::Eltwise()
 {
     one_blob_only = false;
-    support_inplace = true;
+    // stays false for the graph machinery: net.cpp dispatches Vulkan and
+    // light-mode blob reuse by this flag, and neither has an in-place
+    // Eltwise path (Eltwise_vulkan has no forward_inplace; the shared
+    // test infrastructure allocates single-output vectors). Direct layer
+    // callers may still invoke forward_inplace below explicitly.
+    support_inplace = false;
 }
 
 int Eltwise::load_param(const ParamDict& pd)
@@ -205,20 +210,38 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 int Eltwise::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     // fold every other blob into the first one in place: SUM is
-    // b0 + sum coeffs[b] * b_b (requires coeffs[0] == 1, the normal form
-    // after factoring), PROD is b0 * prod b_b, MAX is max(b0, b_1..)
+    // coeffs[0]*b0 + sum coeffs[b]*b_b (any coeffs), PROD is b0 * prod b_b,
+    // MAX is max(b0, b_1..). float storage only: 16-bit storage layouts
+    // (fp16/bf16) have their own out-of-place kernels and a float-pointer
+    // fold here would reinterpret pairs of half elements
     Mat& bottom_blob = bottom_top_blobs[0];
+    if (bottom_blob.elemsize != 4u)
+        return -1;
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
-    int size = w * h * d;
+    // packed layouts store elempack scalars per channel cell
+    int size = w * h * d * bottom_blob.elempack;
 
     if (op_type == Operation_SUM)
     {
-        // coeff normalization is the caller's job: skip when coeff0 != 1
+        // apply the leading coefficient in place first: coeffs[0] may be
+        // any value (ncnnoptimize writes arbitrary BinaryOp scales there)
         if (coeffs.w != 0 && coeffs[0] != 1.f)
-            return -1;
+        {
+            const float c0 = coeffs[0];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* outptr = bottom_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    outptr[i] *= c0;
+                }
+            }
+        }
 
         for (size_t b = 1; b < bottom_top_blobs.size(); b++)
         {
