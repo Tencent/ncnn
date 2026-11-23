@@ -44,6 +44,11 @@ def run_ncnn_model(name, x):
             return torch.from_numpy(value.numpy(batch_index=233).copy())
 
 def test_round_decimals():
+    try:
+        torch.round(torch.tensor([0.]), decimals=0)
+    except TypeError:
+        return True
+
     decimals_input = torch.tensor([[-12.75, 12.75, -1.25], [1.25, 2.65, -2.65]])
     cases = [(1, False, False), (-1, True, False), (2, False, True),
              (-2, True, True), (0, False, False), (0, True, True)]
