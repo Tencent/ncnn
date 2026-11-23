@@ -13,12 +13,14 @@
 
 namespace ncnn {
 
-static const int permute_axes_2d[2][2] = {
+static const int permute_axes_2d[2][2] =
+{
     {0, 1},
     {1, 0}
 };
 
-static const int permute_axes_3d[6][3] = {
+static const int permute_axes_3d[6][3] =
+{
     {0, 1, 3},
     {1, 0, 3},
     {0, 3, 1},
@@ -27,7 +29,8 @@ static const int permute_axes_3d[6][3] = {
     {3, 1, 0}
 };
 
-static const int permute_axes_4d[24][4] = {
+static const int permute_axes_4d[24][4] =
+{
     {0, 1, 2, 3},
     {1, 0, 2, 3},
     {0, 2, 1, 3},
@@ -113,7 +116,7 @@ static NCNN_FORCEINLINE size_t permute_output_offset(const Mat& top_blob, const 
 }
 
 #if __ARM_NEON && __aarch64__
-static NCNN_FORCEINLINE void permute_transpose4x4_ps(float32x4_t& r0, float32x4_t& r1, float32x4_t& r2, float32x4_t& r3)
+static NCNN_FORCEINLINE void permute_transpose4x4(float32x4_t& r0, float32x4_t& r1, float32x4_t& r2, float32x4_t& r3)
 {
     float32x4_t _t0 = vtrn1q_f32(r0, r1);
     float32x4_t _t1 = vtrn2q_f32(r0, r1);
@@ -126,7 +129,7 @@ static NCNN_FORCEINLINE void permute_transpose4x4_ps(float32x4_t& r0, float32x4_
     r3 = vcombine_f32(vget_high_f32(_t1), vget_high_f32(_t3));
 }
 
-static NCNN_FORCEINLINE float32x4_t permute_load_c4_ps(const Mat& bottom_blob, int cbase, int h, int w)
+static NCNN_FORCEINLINE float32x4_t permute_load_c4(const Mat& bottom_blob, int cbase, int h, int w)
 {
     const int elempack = bottom_blob.elempack;
     if (elempack == 4)
@@ -143,7 +146,7 @@ static NCNN_FORCEINLINE float32x4_t permute_load_c4_ps(const Mat& bottom_blob, i
     return v;
 }
 
-static int permute2d_ps(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static int permute2d(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -164,8 +167,8 @@ static int permute2d_ps(const Mat& bottom_blob, Mat& top_blob, const Option& opt
                 float32x4_t _r1 = vld1q_f32((const float*)bottom_blob.row(y + 1) + x);
                 float32x4_t _r2 = vld1q_f32((const float*)bottom_blob.row(y + 2) + x);
                 float32x4_t _r3 = vld1q_f32((const float*)bottom_blob.row(y + 3) + x);
-                permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
-                permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+                permute_transpose4x4(_r0, _r1, _r2, _r3);
+                permute_transpose4x4(_r0, _r1, _r2, _r3);
 
                 float* outptr = (float*)top_blob.row(x / 4) + y * 4;
                 vst1q_f32(outptr + 0, _r0);
@@ -188,7 +191,7 @@ static int permute2d_ps(const Mat& bottom_blob, Mat& top_blob, const Option& opt
                 float32x4_t _r1 = vld1q_f32((const float*)bottom_blob.row(y + 1) + x);
                 float32x4_t _r2 = vld1q_f32((const float*)bottom_blob.row(y + 2) + x);
                 float32x4_t _r3 = vld1q_f32((const float*)bottom_blob.row(y + 3) + x);
-                permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+                permute_transpose4x4(_r0, _r1, _r2, _r3);
 
                 vst1q_f32((float*)top_blob.row(x + 0) + y, _r0);
                 vst1q_f32((float*)top_blob.row(x + 1) + y, _r1);
@@ -208,8 +211,8 @@ static int permute2d_ps(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             for (int x = 0; x < w; x += 4)
             {
                 float32x4x4_t _r = vld4q_f32(ptr + x * 4);
-                permute_transpose4x4_ps(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
-                permute_transpose4x4_ps(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
+                permute_transpose4x4(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
+                permute_transpose4x4(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
 
                 float* outptr = (float*)top_blob.row(x / 4) + y * 16;
                 vst1q_f32(outptr + 0, _r.val[0]);
@@ -224,9 +227,9 @@ static int permute2d_ps(const Mat& bottom_blob, Mat& top_blob, const Option& opt
     return -1;
 }
 
-static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt);
+static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt);
 
-static int permute4d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
+static int permute4d(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
 {
     if (order_type != 6 && order_type != 9 && order_type != 18 && order_type != 21)
         return -1;
@@ -246,7 +249,7 @@ static int permute4d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
         bottom_blob_3d.cstep = bottom_blob.cstep;
         Mat top_blob_3d(w * h, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
         top_blob_3d.cstep = top_blob.cstep;
-        return permute3d_ps(bottom_blob_3d, top_blob_3d, 2, opt);
+        return permute3d(bottom_blob_3d, top_blob_3d, 2, opt);
     }
 
     if (order_type == 9)
@@ -255,7 +258,7 @@ static int permute4d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
         bottom_blob_3d.cstep = bottom_blob.cstep;
         Mat top_blob_3d(channels * elempack, w * h, top_blob.c, top_blob.data, out_elemsize, out_elempack);
         top_blob_3d.cstep = top_blob.cstep;
-        return permute3d_ps(bottom_blob_3d, top_blob_3d, 3, opt);
+        return permute3d(bottom_blob_3d, top_blob_3d, 3, opt);
     }
 
     if (order_type == 18)
@@ -264,17 +267,17 @@ static int permute4d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
         bottom_blob_3d.cstep = bottom_blob.cstep;
         Mat top_blob_3d(h * d, channels * elempack, top_blob.c, top_blob.data, out_elemsize, out_elempack);
         top_blob_3d.cstep = top_blob.cstep;
-        return permute3d_ps(bottom_blob_3d, top_blob_3d, 4, opt);
+        return permute3d(bottom_blob_3d, top_blob_3d, 4, opt);
     }
 
     Mat bottom_blob_3d(w, h * d, channels, bottom_blob.data, elemsize, elempack);
     bottom_blob_3d.cstep = bottom_blob.cstep;
     Mat top_blob_3d(channels * elempack, h * d, top_blob.c, top_blob.data, out_elemsize, out_elempack);
     top_blob_3d.cstep = top_blob.cstep;
-    return permute3d_ps(bottom_blob_3d, top_blob_3d, 5, opt);
+    return permute3d(bottom_blob_3d, top_blob_3d, 5, opt);
 }
 
-static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
+static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -302,7 +305,7 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
                         float32x4_t _r1 = vld1q_f32(ptr + (y + 1) * w + x);
                         float32x4_t _r2 = vld1q_f32(ptr + (y + 2) * w + x);
                         float32x4_t _r3 = vld1q_f32(ptr + (y + 3) * w + x);
-                        permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+                        permute_transpose4x4(_r0, _r1, _r2, _r3);
 
                         vst1q_f32(outptr + (x + 0) * outw + y, _r0);
                         vst1q_f32(outptr + (x + 1) * outw + y, _r1);
@@ -334,7 +337,7 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
                             _t[c][1] = _r[1][c];
                             _t[c][2] = _r[2][c];
                             _t[c][3] = _r[3][c];
-                            permute_transpose4x4_ps(_t[c][0], _t[c][1], _t[c][2], _t[c][3]);
+                            permute_transpose4x4(_t[c][0], _t[c][1], _t[c][2], _t[c][3]);
                         }
 
                         for (int j = 0; j < 4; j++)
@@ -343,7 +346,7 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
                             float32x4_t _u1 = _t[1][j];
                             float32x4_t _u2 = _t[2][j];
                             float32x4_t _u3 = _t[3][j];
-                            permute_transpose4x4_ps(_u0, _u1, _u2, _u3);
+                            permute_transpose4x4(_u0, _u1, _u2, _u3);
 
                             float* out = outptr + ((x + j) * outw + y) * 4;
                             vst1q_f32(out, _u0);
@@ -368,16 +371,18 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
             {
                 for (int x = 0; x < w; x++)
                 {
-                    float32x4_t _r0 = permute_load_c4_ps(bottom_blob, c, y + 0, x);
-                    float32x4_t _r1 = permute_load_c4_ps(bottom_blob, c, y + 1, x);
-                    float32x4_t _r2 = permute_load_c4_ps(bottom_blob, c, y + 2, x);
-                    float32x4_t _r3 = permute_load_c4_ps(bottom_blob, c, y + 3, x);
-                    permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    float32x4_t _r0 = permute_load_c4(bottom_blob, c, y + 0, x);
+                    float32x4_t _r1 = permute_load_c4(bottom_blob, c, y + 1, x);
+                    float32x4_t _r2 = permute_load_c4(bottom_blob, c, y + 2, x);
+                    float32x4_t _r3 = permute_load_c4(bottom_blob, c, y + 3, x);
+                    permute_transpose4x4(_r0, _r1, _r2, _r3);
 
                     float* outq = (float*)top_blob.channel(y / 4);
                     for (int l = 0; l < 4; l++)
                     {
-                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1 : l == 2 ? _r2 : _r3;
+                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
+                                         : l == 2   ? _r2
+                                         : _r3;
                         float* outptr = order_type == 2 ? outq + ((c + l) * top_blob.w + x) * 4 : outq + (x * top_blob.w + c + l) * 4;
                         vst1q_f32(outptr, _v);
                     }
@@ -397,16 +402,18 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
             {
                 for (int x = 0; x < w; x += 4)
                 {
-                    float32x4_t _r0 = permute_load_c4_ps(bottom_blob, c, y, x + 0);
-                    float32x4_t _r1 = permute_load_c4_ps(bottom_blob, c, y, x + 1);
-                    float32x4_t _r2 = permute_load_c4_ps(bottom_blob, c, y, x + 2);
-                    float32x4_t _r3 = permute_load_c4_ps(bottom_blob, c, y, x + 3);
-                    permute_transpose4x4_ps(_r0, _r1, _r2, _r3);
+                    float32x4_t _r0 = permute_load_c4(bottom_blob, c, y, x + 0);
+                    float32x4_t _r1 = permute_load_c4(bottom_blob, c, y, x + 1);
+                    float32x4_t _r2 = permute_load_c4(bottom_blob, c, y, x + 2);
+                    float32x4_t _r3 = permute_load_c4(bottom_blob, c, y, x + 3);
+                    permute_transpose4x4(_r0, _r1, _r2, _r3);
 
                     float* outq = (float*)top_blob.channel(x / 4);
                     for (int l = 0; l < 4; l++)
                     {
-                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1 : l == 2 ? _r2 : _r3;
+                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
+                                         : l == 2   ? _r2
+                                         : _r3;
                         float* outptr = order_type == 4 ? outq + ((c + l) * top_blob.w + y) * 4 : outq + (y * top_blob.w + c + l) * 4;
                         vst1q_f32(outptr, _v);
                     }
@@ -501,19 +508,19 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if __ARM_NEON && __aarch64__
     if (dims == 2 && order_type == 1 && scalar_size == 4)
     {
-        int ret = permute2d_ps(bottom_blob, top_blob, opt);
+        int ret = permute2d(bottom_blob, top_blob, opt);
         if (ret == 0)
             return 0;
     }
     if (dims == 3 && scalar_size == 4)
     {
-        int ret = permute3d_ps(bottom_blob, top_blob, order_type, opt);
+        int ret = permute3d(bottom_blob, top_blob, order_type, opt);
         if (ret == 0)
             return 0;
     }
     if (dims == 4 && scalar_size == 4)
     {
-        int ret = permute4d_ps(bottom_blob, top_blob, order_type, opt);
+        int ret = permute4d(bottom_blob, top_blob, order_type, opt);
         if (ret == 0)
             return 0;
     }
