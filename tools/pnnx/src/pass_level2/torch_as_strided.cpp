@@ -15,7 +15,7 @@ public:
 pnnx.Input              input_0     0 1 input
 pnnx.Input              input_1     0 1 size
 pnnx.Input              input_2     0 1 stride
-prim::Constant          op_0        0 1 storage_offset value=*
+prim::Constant          op_0        0 1 storage_offset value=%storage_offset
 aten::as_strided        op_1        4 1 input size stride storage_offset out
 pnnx.Output             output      1 0 out
 )PNNXIR";

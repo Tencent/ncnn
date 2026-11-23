@@ -21,10 +21,10 @@ permissions:
   contents: read
 
 env:
-  LIBTORCH_VERSION: 2.14.0
-  TORCHVISION_VERSION: 0.29.0
+  LIBTORCH_VERSION: 2.15.0
+  TORCHVISION_VERSION: 0.29.2
   PROTOBUF_VERSION: 33.6
-  ONNXRUNTIME_VERSION: 1.30.0
+  ONNXRUNTIME_VERSION: 1.31.1
   CACHE_DATE: 20260916
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 15
 
@@ -272,6 +272,7 @@ jobs:
           - { python: '3.14', numpy: '2.3.5',  opencv: '4.13.*', torch: '2.12.1', torchvision: '0.27.1', torchaudio: '2.11.0+cpu', transformers: '4.57.6' }
           - { python: '3.14', numpy: '2.3.5',  opencv: '4.13.*', torch: '2.13.0', torchvision: '0.28.0', torchaudio: '2.11.0+cpu', transformers: '4.57.6' }
           - { python: '3.14', numpy: '2.4.6',  opencv: '4.14.*', torch: '2.14.0', torchvision: '0.29.0', torchaudio: '2.11.0+cpu', transformers: '5.10.4' }
+          - { python: '3.14', numpy: '2.4.6',  opencv: '4.14.*', torch: '2.15.0', torchvision: '0.29.2', torchaudio: '2.11.0+cpu', transformers: '5.10.4' }
 
     name: test-${{ matrix.torch }}-py${{ matrix.python }}
 
