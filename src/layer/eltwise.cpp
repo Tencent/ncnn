@@ -8,7 +8,7 @@ namespace ncnn {
 Eltwise::Eltwise()
 {
     one_blob_only = false;
-    support_inplace = false; // TODO inplace reduction
+    support_inplace = true;
 }
 
 int Eltwise::load_param(const ParamDict& pd)
@@ -200,6 +200,99 @@ int Eltwise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     }
 
     return 0;
+}
+
+int Eltwise::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
+{
+    // fold every other blob into the first one in place: SUM is
+    // b0 + sum coeffs[b] * b_b (requires coeffs[0] == 1, the normal form
+    // after factoring), PROD is b0 * prod b_b, MAX is max(b0, b_1..)
+    Mat& bottom_blob = bottom_top_blobs[0];
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int d = bottom_blob.d;
+    int channels = bottom_blob.c;
+    int size = w * h * d;
+
+    if (op_type == Operation_SUM)
+    {
+        // coeff normalization is the caller's job: skip when coeff0 != 1
+        if (coeffs.w != 0 && coeffs[0] != 1.f)
+            return -1;
+
+        for (size_t b = 1; b < bottom_top_blobs.size(); b++)
+        {
+            const Mat& bottom_blob1 = bottom_top_blobs[b];
+            const float coeff = coeffs.w == 0 ? 1.f : coeffs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* outptr = bottom_blob.channel(q);
+                const float* ptr = bottom_blob1.channel(q);
+
+                if (coeff == 1.f)
+                {
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[i] += ptr[i];
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr[i] += ptr[i] * coeff;
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (op_type == Operation_PROD)
+    {
+        for (size_t b = 1; b < bottom_top_blobs.size(); b++)
+        {
+            const Mat& bottom_blob1 = bottom_top_blobs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* outptr = bottom_blob.channel(q);
+                const float* ptr = bottom_blob1.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    outptr[i] *= ptr[i];
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (op_type == Operation_MAX)
+    {
+        for (size_t b = 1; b < bottom_top_blobs.size(); b++)
+        {
+            const Mat& bottom_blob1 = bottom_top_blobs[b];
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* outptr = bottom_blob.channel(q);
+                const float* ptr = bottom_blob1.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    outptr[i] = std::max(outptr[i], ptr[i]);
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    return -1;
 }
 
 } // namespace ncnn
