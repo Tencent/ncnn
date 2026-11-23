@@ -1,8 +1,6 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
-#include <type_traits>
-
 namespace reduction_x86_functor {
 
 #include "reduction_functor.h"
@@ -180,9 +178,15 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         // is serial at every size for the same reason -- block-wise
         // partials reorder the operation and change intermediate overflow
         // behavior. both detected via the functor type (reduction_op has
-        // no op-type arg)
-        const bool is_prod = std::is_same<Op, reduction_x86_functor::reduction_op_mul>::value;
-        const bool is_signed_add = std::is_same<Op, reduction_x86_functor::reduction_op_add>::value;
+        // no op-type arg). the local trait avoids <type_traits> so the
+        // C++03 and NCNN_SIMPLESTL compatibility builds keep compiling
+        template <typename A, typename B>
+        struct op_type_is { static const bool value = false; };
+        template <typename A>
+        struct op_type_is<A, A> { static const bool value = true; };
+
+        const bool is_prod = op_type_is<Op, reduction_x86_functor::reduction_op_mul>::value;
+        const bool is_signed_add = op_type_is<Op, reduction_x86_functor::reduction_op_add>::value;
         const bool overflow_sensitive = is_prod || is_signed_add;
         const int blocks = w < 128 ? w : 128;
         if (!overflow_sensitive && channels == 1 && blocks >= 2 && w >= 8192)
