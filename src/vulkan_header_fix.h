@@ -879,9 +879,11 @@ typedef PFN_vkGetDescriptorSetLayoutSupport PFN_vkGetDescriptorSetLayoutSupportK
 #endif // VK_KHR_maintenance3
 
 #ifndef VK_KHR_maintenance4
-#define VK_KHR_maintenance4                                          1
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES     (VkStructureType)1000413000
-#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES
+#define VK_KHR_maintenance4                                            1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES       (VkStructureType)1000413000
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR   VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES     (VkStructureType)1000413001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES_KHR VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES
 typedef struct VkPhysicalDeviceMaintenance4Features
 {
     VkStructureType sType;
@@ -889,6 +891,13 @@ typedef struct VkPhysicalDeviceMaintenance4Features
     VkBool32 maintenance4;
 } VkPhysicalDeviceMaintenance4Features;
 typedef VkPhysicalDeviceMaintenance4Features VkPhysicalDeviceMaintenance4FeaturesKHR;
+typedef struct VkPhysicalDeviceMaintenance4Properties
+{
+    VkStructureType sType;
+    void* pNext;
+    VkDeviceSize maxBufferSize;
+} VkPhysicalDeviceMaintenance4Properties;
+typedef VkPhysicalDeviceMaintenance4Properties VkPhysicalDeviceMaintenance4PropertiesKHR;
 #endif // VK_KHR_maintenance4
 
 #ifndef VK_KHR_8bit_storage
@@ -1669,6 +1678,17 @@ typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeVectorPropertiesNV
 typedef VkResult(VKAPI_PTR* PFN_vkConvertCooperativeVectorMatrixNV)(VkDevice device, const VkConvertCooperativeVectorMatrixInfoNV* pInfo);
 typedef void(VKAPI_PTR* PFN_vkCmdConvertCooperativeVectorMatrixNV)(VkCommandBuffer commandBuffer, uint32_t infoCount, const VkConvertCooperativeVectorMatrixInfoNV* pInfos);
 #endif // VK_NV_cooperative_vector
+
+#ifndef VK_QCOM_cooperative_matrix_conversion
+#define VK_QCOM_cooperative_matrix_conversion                                         1
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_CONVERSION_FEATURES_QCOM (VkStructureType)1000172000
+typedef struct VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrixConversion;
+} VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM;
+#endif // VK_QCOM_cooperative_matrix_conversion
 
 #ifndef VK_NV_cooperative_matrix2
 #define VK_NV_cooperative_matrix2                                              1

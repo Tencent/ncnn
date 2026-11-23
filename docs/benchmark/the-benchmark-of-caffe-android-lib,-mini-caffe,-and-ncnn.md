@@ -2,7 +2,7 @@ caffe-android-lib https://github.com/sh1r0/caffe-android-lib
 
 mini-caffe https://github.com/luoyetx/mini-caffe
 
-openblas-0.2.20 https://github.com/xianyi/OpenBLAS
+openblas-0.2.20 https://github.com/OpenMathLib/OpenBLAS
 
 ncnn https://github.com/Tencent/ncnn
 
