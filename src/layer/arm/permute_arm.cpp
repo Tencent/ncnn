@@ -54,7 +54,7 @@ static const int permute_axes_4d[24][4] = {
     {3, 2, 1, 0}
 };
 
-static NCNN_FORCEINLINE size_t permute_input_offset(const Mat& bottom_blob, const int* pos, int scalar_size)
+static NCNN_FORCEINLINE size_t permute_fallback_input_offset(const Mat& bottom_blob, const int* pos, int scalar_size)
 {
     const int elempack = bottom_blob.elempack;
     const int dims = bottom_blob.dims;
@@ -85,7 +85,7 @@ static NCNN_FORCEINLINE size_t permute_input_offset(const Mat& bottom_blob, cons
     return offset;
 }
 
-static NCNN_FORCEINLINE size_t permute_output_offset(const Mat& top_blob, const int* pos, int inner, int scalar_size)
+static NCNN_FORCEINLINE size_t permute_fallback_output_offset(const Mat& top_blob, const int* pos, int inner, int scalar_size)
 {
     const int elempack = top_blob.elempack;
     const int dims = top_blob.dims;
@@ -374,11 +374,13 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                     float32x4_t _r3 = permute_load_c4(bottom_blob, c, y + 3, x);
                     permute_transpose4x4(_r0, _r1, _r2, _r3);
 
-                    float* outq = (float*)top_blob.channel(y / 4);
+                    float* outbase = (float*)top_blob.channel(y / 4);
                     for (int l = 0; l < 4; l++)
                     {
-                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1 : l == 2 ? _r2 : _r3;
-                        float* outptr = order_type == 2 ? outq + ((c + l) * top_blob.w + x) * 4 : outq + (x * top_blob.w + c + l) * 4;
+                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
+                                         : l == 2   ? _r2
+                                         : _r3;
+                        float* outptr = order_type == 2 ? outbase + ((c + l) * top_blob.w + x) * 4 : outbase + (x * top_blob.w + c + l) * 4;
                         vst1q_f32(outptr, _v);
                     }
                 }
@@ -403,11 +405,13 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                     float32x4_t _r3 = permute_load_c4(bottom_blob, c, y, x + 3);
                     permute_transpose4x4(_r0, _r1, _r2, _r3);
 
-                    float* outq = (float*)top_blob.channel(x / 4);
+                    float* outbase = (float*)top_blob.channel(x / 4);
                     for (int l = 0; l < 4; l++)
                     {
-                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1 : l == 2 ? _r2 : _r3;
-                        float* outptr = order_type == 4 ? outq + ((c + l) * top_blob.w + y) * 4 : outq + (y * top_blob.w + c + l) * 4;
+                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
+                                         : l == 2   ? _r2
+                                         : _r3;
+                        float* outptr = order_type == 4 ? outbase + ((c + l) * top_blob.w + y) * 4 : outbase + (y * top_blob.w + c + l) * 4;
                         vst1q_f32(outptr, _v);
                     }
                 }
@@ -451,10 +455,10 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     const int scalar_size = scalar_bits / 8;
 
-    int in_ext[4] = {in_w, in_h, in_d, in_c * in_elempack};
+    int in_shape[4] = {in_w, in_h, in_d, in_c * in_elempack};
     if (dims == 2)
-        in_ext[1] *= in_elempack;
-    int out_ext[4] = {1, 1, 1, 1};
+        in_shape[1] *= in_elempack;
+    int out_shape[4] = {1, 1, 1, 1};
 
     const int* axes;
     if (dims == 2)
@@ -466,7 +470,7 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     for (int i = 0; i < dims; i++)
     {
-        out_ext[i] = in_ext[axes[i]];
+        out_shape[i] = in_shape[axes[i]];
     }
 
     const int last_axis = axes[dims - 1];
@@ -481,7 +485,7 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         else
         {
-            const int axis_size = out_ext[dims - 1];
+            const int axis_size = out_shape[dims - 1];
             out_elempack = axis_size % 4 == 0 ? 4 : 1;
         }
     }
@@ -489,11 +493,11 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const size_t out_elemsize = (size_t)scalar_size * out_elempack;
 
     if (dims == 2)
-        top_blob.create(out_ext[0], out_ext[1] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(out_shape[0], out_shape[1] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (dims == 3)
-        top_blob.create(out_ext[0], out_ext[1], out_ext[2] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(out_shape[0], out_shape[1], out_shape[2] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (dims == 4)
-        top_blob.create(out_ext[0], out_ext[1], out_ext[2], out_ext[3] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        top_blob.create(out_shape[0], out_shape[1], out_shape[2], out_shape[3] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
 
     if (top_blob.empty())
         return -100;
@@ -519,18 +523,18 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 #endif // __ARM_NEON && __aarch64__
 
-    int outer_count = 1;
+    int outer_size = 1;
     for (int i = 0; i < dims - 1; i++)
     {
-        outer_count *= out_ext[i];
+        outer_size *= out_shape[i];
     }
 
-    const int inner_ext = out_ext[dims - 1];
+    const int inner_size = out_shape[dims - 1];
     const unsigned char* bottom_ptr = (const unsigned char*)bottom_blob.data;
     unsigned char* top_ptr = (unsigned char*)top_blob.data;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int r = 0; r < outer_count; r++)
+    for (int r = 0; r < outer_size; r++)
     {
         int out_pos[4] = {0, 0, 0, 0};
         int in_pos[4] = {0, 0, 0, 0};
@@ -538,8 +542,8 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         int v = r;
         for (int i = 0; i < dims - 1; i++)
         {
-            out_pos[i] = v % out_ext[i];
-            v /= out_ext[i];
+            out_pos[i] = v % out_shape[i];
+            v /= out_shape[i];
             in_pos[axes[i]] = out_pos[i];
         }
 
@@ -551,11 +555,11 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (dims == 2)
         {
-            for (int j = 0; j < inner_ext; j++)
+            for (int j = 0; j < inner_size; j++)
             {
                 in_pos[last_axis] = j;
-                const size_t src_offset = permute_input_offset(bottom_blob, in_pos, scalar_size);
-                const size_t dst_offset = permute_output_offset(top_blob, out_pos, j, scalar_size);
+                const size_t src_offset = permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
+                const size_t dst_offset = permute_fallback_output_offset(top_blob, out_pos, j, scalar_size);
                 memcpy(top_ptr + dst_offset, bottom_ptr + src_offset, scalar_size);
             }
             continue;
@@ -569,14 +573,14 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (last_axis == 2)
                 in_step = (size_t)in_w * in_h * in_elemsize;
 
-            const unsigned char* inptr = bottom_ptr + permute_input_offset(bottom_blob, in_pos, scalar_size);
-            unsigned char* outptr = top_ptr + permute_output_offset(top_blob, out_pos, 0, scalar_size);
+            const unsigned char* inptr = bottom_ptr + permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
+            unsigned char* outptr = top_ptr + permute_fallback_output_offset(top_blob, out_pos, 0, scalar_size);
 
             if (out_elempack == 1)
             {
                 if (scalar_size == 4)
                 {
-                    for (int j = 0; j < inner_ext; j++)
+                    for (int j = 0; j < inner_size; j++)
                     {
                         *(float*)outptr = *(const float*)inptr;
                         inptr += in_step;
@@ -585,7 +589,7 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
                 else
                 {
-                    for (int j = 0; j < inner_ext; j++)
+                    for (int j = 0; j < inner_size; j++)
                     {
                         *(unsigned short*)outptr = *(const unsigned short*)inptr;
                         inptr += in_step;
@@ -597,7 +601,7 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             {
                 int j = 0;
 #if __ARM_NEON
-                for (; j + 3 < inner_ext; j += 4)
+                for (; j + 3 < inner_size; j += 4)
                 {
                     if (scalar_size == 4)
                     {
@@ -621,7 +625,7 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     outptr += out_cstep_bytes;
                 }
 #endif // __ARM_NEON
-                for (; j < inner_ext; j++)
+                for (; j < inner_size; j++)
                 {
                     const unsigned char* outp = outptr + (j % out_elempack) * scalar_size;
                     memcpy((void*)outp, inptr, scalar_size);
@@ -631,12 +635,12 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         else
         {
-            const unsigned char* inbase = bottom_ptr + permute_input_offset(bottom_blob, in_pos, scalar_size);
-            unsigned char* outbase = top_ptr + permute_output_offset(top_blob, out_pos, 0, scalar_size);
+            const unsigned char* inbase = bottom_ptr + permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
+            unsigned char* outbase = top_ptr + permute_fallback_output_offset(top_blob, out_pos, 0, scalar_size);
 
             if (in_elempack == out_elempack && in_elempack > 1)
             {
-                for (int j = 0; j < inner_ext; j += out_elempack)
+                for (int j = 0; j < inner_size; j += out_elempack)
                 {
                     const size_t src_offset = (size_t)(j / in_elempack) * bottom_blob.cstep * in_elemsize;
                     const size_t dst_offset = (size_t)(j / out_elempack) * out_cstep_bytes;
@@ -645,8 +649,8 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
             else
             {
-                const size_t spatial_offset = permute_input_offset(bottom_blob, in_pos, scalar_size);
-                for (int j = 0; j < inner_ext; j++)
+                const size_t spatial_offset = permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
+                for (int j = 0; j < inner_size; j++)
                 {
                     const size_t src_offset = (size_t)(j / in_elempack) * bottom_blob.cstep * in_elemsize + (j % in_elempack) * scalar_size;
                     const size_t dst_offset = (size_t)(j / out_elempack) * out_cstep_bytes + (j % out_elempack) * scalar_size;
