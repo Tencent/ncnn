@@ -175,6 +175,7 @@ static int test_binaryop_3()
     return 0
            || test_binaryop_3(7, 3, 31)
            || test_binaryop_3(7, 9, 28)
+           || test_binaryop_3(5, 3, 4)
            || test_binaryop_channel_broadcast(24)
            || test_binaryop_channel_broadcast(32)
            || test_binaryop_mixed_channel_broadcast();

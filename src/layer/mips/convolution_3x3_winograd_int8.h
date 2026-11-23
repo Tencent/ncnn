@@ -427,7 +427,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk < max_kk; kk++)
                 {
                     v4i32 _pA02 = __msa_fill_d_ptr(pA);
-                    v4i32 _pA46 = __msa_loadl_d(pA + 4);
+                    v4i32 _pA46 = __msa_fill_d_ptr(pA + 4);
                     v4i32 _pB = (v4i32)__msa_ld_w(pB, 0);
 
                     v4i32 _pA0 = _pA02;
@@ -608,7 +608,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk < max_kk; kk++)
                 {
                     v4i32 _pA02 = __msa_fill_d_ptr(pA);
-                    v4i32 _pA46 = __msa_loadl_d(pA + 4);
+                    v4i32 _pA46 = __msa_fill_d_ptr(pA + 4);
                     v4i32 _pB = __msa_fill_d_ptr(pB);
                     v4i32 _pA0 = _pA02;
                     v4i32 _pA1 = (v4i32)__msa_shf_w(_pA02, _MSA_SHUFFLE(2, 3, 0, 1));
@@ -721,7 +721,7 @@ static void gemm_transB_packed_tile_int8(const Mat& AT_tile, const Mat& BT_tile,
                 for (; kk < max_kk; kk++)
                 {
                     v4i32 _pA0 = __msa_fill_d_ptr(pA);
-                    v4i32 _pA1 = __msa_loadl_d(pA + 4);
+                    v4i32 _pA1 = __msa_fill_d_ptr(pA + 4);
                     v4i32 _pB = (v4i32)__msa_fill_w(*(const int*)pB);
                     v4i32 _pB01 = (v4i32)__msa_ilvr_d((v2i64)__msa_shf_h((v8i16)_pB, _MSA_SHUFFLE(0, 1, 0, 1)), (v2i64)_pB);
                     v4i32 _sl0 = (v4i32)__msa_mulv_h((v8i16)_pA0, (v8i16)_pB01);
@@ -1901,14 +1901,14 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int& TILE_M, int& TIL
         int tile_size = (int)(sqrt((float)l2_cache_size_int8) - TILE_M);
 
 #if __mips_msa
-        TILE_K = std::max(4, tile_size / 4 * 4);
+        TILE_K = std::max(8, tile_size / 8 * 8);
 #else
         TILE_K = std::max(2, tile_size / 2 * 2);
 #endif
 
         int nn_K = (K + TILE_K - 1) / TILE_K;
 #if __mips_msa
-        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 3) / 4 * 4);
+        TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 7) / 8 * 8);
 #else
         TILE_K = std::min(TILE_K, ((K + nn_K - 1) / nn_K + 1) / 2 * 2);
 #endif

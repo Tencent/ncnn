@@ -44,6 +44,13 @@ public:
     void set_vulkan_device(const VulkanDevice* vkdev);
 
     const VulkanDevice* vulkan_device() const;
+
+    // copy the UTF-8 directory before loading weights; null or empty uses the system default
+    // retained by clear(); an explicit directory must be writable when disk storage is enabled
+    void set_weight_file_directory(const char* path);
+#if _WIN32
+    void set_weight_file_directory(const wchar_t* path);
+#endif
 #endif // NCNN_VULKAN
 
 #if NCNN_STRING

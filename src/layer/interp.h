@@ -20,6 +20,9 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
+    bool is_identity_resize(int w, int h, int outw, int outh, int dims) const;
+    int forward_small_input(const Mat& bottom_blob, Mat& top_blob, int outw, int outh, const Option& opt) const;
+
     int eval_size_expr(const std::vector<Mat>& bottom_blobs, int& outw, int& outh) const;
 
 public:

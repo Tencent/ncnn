@@ -273,6 +273,54 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Upsample_3, 20)
 
+class nn_Upsample_4 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.Upsample             op_0        1 1 input out mode=%mode scale_factor=%scale_factor size=None align_corners=%align_corners recompute_scale_factor=True
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    const char* name_str() const
+    {
+        return "upsample";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params = captured_params;
+        op->params["recompute_scale_factor"] = true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Upsample_4, 19)
+
+class nn_Upsample_5 : public nn_Upsample_4
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.Upsample             op_0        1 1 input out mode=%mode scale_factor=%scale_factor size=None recompute_scale_factor=True
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Upsample_5, 19)
+
 } // namespace ncnn
 
 } // namespace pnnx

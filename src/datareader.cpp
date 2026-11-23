@@ -4,6 +4,9 @@
 #include "datareader.h"
 
 #include <ctype.h>
+#if NCNN_STRING
+#include <stdio.h>
+#endif
 #include <string.h>
 
 namespace ncnn {
@@ -81,15 +84,27 @@ class DataReaderFromMemoryPrivate
 {
 public:
     DataReaderFromMemoryPrivate(const unsigned char*& _mem)
-        : mem(_mem)
+        : mem(_mem), remaining(0), bounded(false)
     {
     }
     const unsigned char*& mem;
+    size_t remaining;
+    bool bounded;
+#if NCNN_STRING
+    std::vector<char> text;
+#endif
 };
 
 DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem)
     : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
 {
+}
+
+DataReaderFromMemory::DataReaderFromMemory(const unsigned char*& _mem, size_t mem_size)
+    : DataReader(), d(new DataReaderFromMemoryPrivate(_mem))
+{
+    d->remaining = mem_size;
+    d->bounded = true;
 }
 
 DataReaderFromMemory::~DataReaderFromMemory()
@@ -110,6 +125,22 @@ DataReaderFromMemory& DataReaderFromMemory::operator=(const DataReaderFromMemory
 #if NCNN_STRING
 int DataReaderFromMemory::scan(const char* format, void* p) const
 {
+    if (d->bounded && d->remaining == 0)
+        return 0;
+
+    const char* mem = (const char*)d->mem;
+    if (d->bounded)
+    {
+        // prepare bounded text once because the input may not be null-terminated
+        if (d->text.empty())
+        {
+            d->text.resize(d->remaining + 1);
+            memcpy(&d->text[0], mem, d->remaining);
+            d->text[d->remaining] = 0;
+        }
+        mem = &d->text[d->text.size() - d->remaining - 1];
+    }
+
     size_t fmtlen = strlen(format);
 
     const size_t nlen = fmtlen + 4;
@@ -117,8 +148,10 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
     snprintf(format_with_n, nlen, "%s%%n", format);
 
     int nconsumed = 0;
-    int nscan = sscanf((const char*)d->mem, format_with_n, p, &nconsumed);
+    int nscan = sscanf(mem, format_with_n, p, &nconsumed);
     d->mem += nconsumed;
+    if (d->bounded)
+        d->remaining -= nconsumed;
 
     delete[] format_with_n;
 
@@ -128,15 +161,31 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 
 size_t DataReaderFromMemory::read(void* buf, size_t size) const
 {
-    memcpy(buf, d->mem, size);
-    d->mem += size;
+    if (d->bounded && size > d->remaining)
+        size = d->remaining;
+
+    if (size != 0)
+    {
+        memcpy(buf, d->mem, size);
+        d->mem += size;
+        if (d->bounded)
+            d->remaining -= size;
+    }
     return size;
 }
 
 size_t DataReaderFromMemory::reference(size_t size, const void** buf) const
 {
+    if (d->bounded && size > d->remaining)
+        return 0;
+
     *buf = d->mem;
-    d->mem += size;
+    if (size != 0)
+    {
+        d->mem += size;
+        if (d->bounded)
+            d->remaining -= size;
+    }
     return size;
 }
 
