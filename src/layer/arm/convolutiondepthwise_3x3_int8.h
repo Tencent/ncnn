@@ -814,7 +814,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
 
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
-        int16x4_t _k8xxx = vget_low_s16(_kn_s16);
+        // low half holds -127 bytes for clamping the int8 output, k8 is lane 4
+        int16x8_t _k8xxx = vcombine_s16(vreinterpret_s16_s8(vdup_n_s8(-127)), vget_low_s16(_kn_s16));
 #endif // __ARM_NEON
 
         for (; i + 1 < outh; i += 2)
@@ -898,16 +899,16 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "smlal2  v21.4s, v8.8h, %15.h[2]      \n"
                     "smlal  v22.4s, v16.4h, %15.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v16.8h, %15.h[3]     \n"
-                    "smlal  v24.4s, v17.4h, %16.h[0]      \n" // (r22 - r29) * k08
-                    "smlal2  v25.4s, v17.8h, %16.h[0]     \n"
+                    "smlal  v24.4s, v17.4h, %16.h[4]      \n" // (r22 - r29) * k08
+                    "smlal2  v25.4s, v17.8h, %16.h[4]     \n"
 
                     // r3
                     "smlal  v26.4s, v10.4h, %15.h[2]      \n" // (r30 - r37) * k06
                     "smlal2  v27.4s, v10.8h, %15.h[2]     \n"
                     "smlal  v28.4s, v18.4h, %15.h[3]      \n" // (r31 - r38) * k07
                     "smlal2  v29.4s, v18.8h, %15.h[3]     \n"
-                    "smlal  v30.4s, v19.4h, %16.h[0]      \n" // (r32 - r39) * k08
-                    "smlal2  v31.4s, v19.8h, %16.h[0]     \n"
+                    "smlal  v30.4s, v19.4h, %16.h[4]      \n" // (r32 - r39) * k08
+                    "smlal2  v31.4s, v19.8h, %16.h[4]     \n"
 
                     // add and save
                     "add    v20.4s, v20.4s, v22.4s        \n"
@@ -957,6 +958,9 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     // top_s16 -> top_s8
                     "sqxtn  v8.8b, v7.8h                  \n"
                     "sqxtn  v10.8b, v9.8h                 \n"
+                    // top_s8 = max(top_s8, -127)
+                    "smax   v8.8b, v8.8b, %16.8b          \n"
+                    "smax   v10.8b, v10.8b, %16.8b        \n"
                     // save top_s8
                     "st1    {v8.8b}, [%1], #8             \n"
                     "st1    {v10.8b}, [%2], #8            \n"
@@ -1050,8 +1054,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vmlal.s16  q8, d31, %P15[2]     \n"
                     "vmlal.s16  q9, d10, %P15[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P15[3]    \n"
-                    "vmlal.s16  q7, d12, %P16[0]     \n" // (r22 - r29) * k08
-                    "vmlal.s16  q8, d13, %P16[0]     \n"
+                    "vmlal.s16  q7, d12, %f16[0]     \n" // (r22 - r29) * k08
+                    "vmlal.s16  q8, d13, %f16[0]     \n"
                     // sum1
                     "vmlal.s16  q11, d30, %P14[3]    \n" // (r20 - r27) * k03
                     "vmlal.s16  q12, d31, %P14[3]    \n"
@@ -1076,8 +1080,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vmlal.s16  q12, d31, %P15[2]    \n"
                     "vmlal.s16  q13, d10, %P15[3]    \n" // (r31 - r38) * k07
                     "vmlal.s16  q14, d11, %P15[3]    \n"
-                    "vmlal.s16  q11, d12, %P16[0]    \n" // (r32 - r39) * k08
-                    "vmlal.s16  q12, d13, %P16[0]    \n"
+                    "vmlal.s16  q11, d12, %f16[0]    \n" // (r32 - r39) * k08
+                    "vmlal.s16  q12, d13, %f16[0]    \n"
 
                     "subs   %0, %0, #1               \n"
 
@@ -1117,6 +1121,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vqmovn.s32 d15, q4             \n"
                     // top_s16 -> top_s8
                     "vqmovn.s16   d14, q7           \n"
+                    // top_s8 = max(top_s8, -127)
+                    "vmax.s8    d14, d14, %e16       \n"
                     // save top_s8
                     "vst1.8     {d14}, [%1]!        \n"
 
@@ -1146,6 +1152,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vqmovn.s32 d15, q4             \n"
                     // top_s16 -> top_s8
                     "vqmovn.s16   d14, q7           \n"
+                    // top_s8 = max(top_s8, -127)
+                    "vmax.s8    d14, d14, %e16       \n"
                     // save top_s8
                     "vst1.8     {d14}, [%2]!        \n"
 
@@ -1285,8 +1293,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "smlal2  v21.4s, v8.8h, %11.h[2]      \n"
                     "smlal  v22.4s, v16.4h, %11.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v16.8h, %11.h[3]     \n"
-                    "smlal  v24.4s, v17.4h, %12.h[0]      \n" // (r22 - r29) * k08
-                    "smlal2  v25.4s, v17.8h, %12.h[0]     \n"
+                    "smlal  v24.4s, v17.4h, %12.h[4]      \n" // (r22 - r29) * k08
+                    "smlal2  v25.4s, v17.8h, %12.h[4]     \n"
 
                     // add and save
                     "add    v20.4s, v20.4s, v22.4s        \n"
@@ -1314,6 +1322,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "sqxtn2 v7.8h, v21.4s                 \n"
                     // top_s16 -> top_s8
                     "sqxtn  v8.8b, v7.8h                  \n"
+                    // top_s8 = max(top_s8, -127)
+                    "smax   v8.8b, v8.8b, %12.8b          \n"
                     // save top_s8
                     "st1    {v8.8b}, [%1], #8             \n"
 
@@ -1395,8 +1405,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vmlal.s16  q8, d31, %P11[2]     \n"
                     "vmlal.s16  q9, d10, %P11[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P11[3]    \n"
-                    "vmlal.s16  q7, d12, %P12[0]     \n" // (r22 - r29) * k08
-                    "vmlal.s16  q8, d13, %P12[0]     \n"
+                    "vmlal.s16  q7, d12, %f12[0]     \n" // (r22 - r29) * k08
+                    "vmlal.s16  q8, d13, %f12[0]     \n"
 
                     "subs   %0, %0, #1               \n"
 
@@ -1434,6 +1444,8 @@ static void convdw3x3s1_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vqmovn.s32 d15, q4             \n"
                     // top_s16 -> top_s8
                     "vqmovn.s16   d14, q7           \n"
+                    // top_s8 = max(top_s8, -127)
+                    "vmax.s8    d14, d14, %e12       \n"
                     // save top_s8
                     "vst1.8     {d14}, [%1]!        \n"
 
@@ -1527,7 +1539,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
 
         int16x4_t _k0123 = vget_low_s16(_k_s16);
         int16x4_t _k4567 = vget_high_s16(_k_s16);
-        int16x4_t _k8xxx = vget_low_s16(_kn_s16);
+        // low half holds -127 bytes for clamping the int8 output, k8 is lane 4
+        int16x8_t _k8xxx = vcombine_s16(vreinterpret_s16_s8(vdup_n_s8(-127)), vget_low_s16(_kn_s16));
 #endif // __ARM_NEON
         for (; i < outh; i++)
         {
@@ -1589,8 +1602,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "smlal2  v21.4s, v12.8h, %11.h[2]     \n"
                     "smlal  v22.4s, v13.4h, %11.h[3]      \n" // (r21 - r28) * k07
                     "smlal2  v23.4s, v13.8h, %11.h[3]     \n"
-                    "smlal  v24.4s, v14.4h, %12.h[0]      \n" // (r22 - r29) * k08
-                    "smlal2  v25.4s, v14.8h, %12.h[0]     \n"
+                    "smlal  v24.4s, v14.4h, %12.h[4]      \n" // (r22 - r29) * k08
+                    "smlal2  v25.4s, v14.8h, %12.h[4]     \n"
 
                     // add and save
                     "add    v20.4s, v20.4s, v22.4s        \n"
@@ -1618,6 +1631,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "sqxtn2 v7.8h, v21.4s                 \n"
                     // top_s16 -> top_s8
                     "sqxtn  v8.8b, v7.8h                  \n"
+                    // top_s8 = max(top_s8, -127)
+                    "smax   v8.8b, v8.8b, %12.8b          \n"
                     // save top_s8
                     "st1    {v8.8b}, [%1], #8             \n"
 
@@ -1693,8 +1708,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vmlal.s16  q8, d31, %P11[2]     \n"
                     "vmlal.s16  q9, d10, %P11[3]     \n" // (r21 - r28) * k07
                     "vmlal.s16  q10, d11, %P11[3]    \n"
-                    "vmlal.s16  q7, d12, %P12[0]     \n" // (r22 - r29) * k08
-                    "vmlal.s16  q8, d13, %P12[0]     \n"
+                    "vmlal.s16  q7, d12, %f12[0]     \n" // (r22 - r29) * k08
+                    "vmlal.s16  q8, d13, %f12[0]     \n"
 
                     "subs   %0, %0, #1               \n"
 
@@ -1732,6 +1747,8 @@ static void convdw3x3s2_int8_requant_neon(const Mat& bottom_blob, Mat& top_blob,
                     "vqmovn.s32 d15, q4              \n"
                     // top_s16 -> top_s8
                     "vqmovn.s16   d14, q7            \n"
+                    // top_s8 = max(top_s8, -127)
+                    "vmax.s8    d14, d14, %e12        \n"
                     // save top_s8
                     "vst1.8     {d14}, [%1]!         \n"
 

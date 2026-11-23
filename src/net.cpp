@@ -91,7 +91,8 @@ public:
 #if NCNN_VULKAN
     const VulkanDevice* vkdev;
 
-    VkAllocator* weight_vkallocator;
+    std::string weight_file_directory;
+    VkWeightAllocator* weight_vkallocator;
     VkAllocator* weight_staging_vkallocator;
 
     PipelineCache* pipeline_cache;
@@ -2383,17 +2384,23 @@ int Net::load_model(const DataReader& dr)
             opt.pipeline_cache = d->pipeline_cache;
         }
 
-        cmd_upload = new ncnn::VkTransfer(d->vkdev);
-
         // create gpu device allocator if null
         if (!d->weight_vkallocator)
         {
             d->weight_vkallocator = new VkWeightAllocator(d->vkdev, opt.use_weights_in_host_memory);
+            d->weight_vkallocator->set_weight_file_directory(d->weight_file_directory.c_str());
+            d->weight_vkallocator->set_weights_in_disk(opt.use_weights_in_disk);
+            if (opt.use_weights_in_disk)
+            {
+                d->weight_vkallocator->set_weight_memory_limit(opt.weight_device_memory_limit, opt.weight_host_memory_limit);
+            }
         }
         if (!d->weight_staging_vkallocator)
         {
             d->weight_staging_vkallocator = new VkWeightStagingAllocator(d->vkdev);
         }
+
+        cmd_upload = new ncnn::VkTransfer(d->vkdev);
 
         opt_upload.blob_allocator = 0;
         opt_upload.workspace_allocator = 0;
@@ -2497,6 +2504,8 @@ int Net::load_model(const DataReader& dr)
     if (ret == 0 && opt.use_vulkan_compute && cmd_upload)
     {
         ret = cmd_upload->submit_and_wait();
+        if (ret == 0)
+            ret = d->weight_vkallocator->finalize_weights();
     }
 
     if (cmd_upload)
@@ -2946,6 +2955,35 @@ void Net::set_vulkan_device(const VulkanDevice* _vkdev)
     d->vkdev = _vkdev;
 }
 
+void Net::set_weight_file_directory(const char* path)
+{
+    d->weight_file_directory = path ? path : "";
+}
+
+#if _WIN32
+void Net::set_weight_file_directory(const wchar_t* path)
+{
+    if (!path || !path[0])
+    {
+        d->weight_file_directory.clear();
+        return;
+    }
+    int length = WideCharToMultiByte(CP_UTF8, 0, path, -1, 0, 0, 0, 0);
+    if (length == 0)
+    {
+        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
+        return;
+    }
+    std::vector<char> utf8(length);
+    if (!WideCharToMultiByte(CP_UTF8, 0, path, -1, utf8.data(), length, 0, 0))
+    {
+        NCNN_LOGE("convert weight file directory failed %lu", GetLastError());
+        return;
+    }
+    d->weight_file_directory = utf8.data();
+}
+#endif
+
 const VulkanDevice* Net::vulkan_device() const
 {
     return d->vkdev;
@@ -3057,6 +3095,10 @@ public:
     ExtractorPrivate(const Net* _net)
         : net(_net)
     {
+#if NCNN_VULKAN
+        local_blob_vkallocator = 0;
+        local_staging_vkallocator = 0;
+#endif
     }
     const Net* net;
     std::vector<Mat> blob_mats;
@@ -3113,6 +3155,8 @@ Extractor& Extractor::operator=(const Extractor& rhs)
 {
     if (this == &rhs)
         return *this;
+
+    clear();
 
     d->net = rhs.d->net;
     d->blob_mats = rhs.d->blob_mats;
