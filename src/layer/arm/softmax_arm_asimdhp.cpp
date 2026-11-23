@@ -61,19 +61,41 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack)
     }
 
     // reduce exp(x - max)
-    float16x8_t _sum8 = vdupq_n_f16(0.f);
-    float16x4_t _sum4 = vdup_n_f16(0.f);
-    __fp16 sum = 0.f;
+    // accumulate in fp32, a fp16 sum stops growing once it reaches 2048
+    float32x4_t _sum0 = vdupq_n_f32(0.f);
+    float32x4_t _sum1 = vdupq_n_f32(0.f);
+    float sum32 = 0.f;
     {
         __fp16* ptr = _ptr;
 
         int i = 0;
+        for (; i + 31 < size; i += 32)
+        {
+            float16x8_t _p0 = vld1q_f16(ptr);
+            float16x8_t _p1 = vld1q_f16(ptr + 8);
+            float16x8_t _p2 = vld1q_f16(ptr + 16);
+            float16x8_t _p3 = vld1q_f16(ptr + 24);
+            _p0 = exp_ps_f16(vsubq_f16(_p0, _max8));
+            _p1 = exp_ps_f16(vsubq_f16(_p1, _max8));
+            _p2 = exp_ps_f16(vsubq_f16(_p2, _max8));
+            _p3 = exp_ps_f16(vsubq_f16(_p3, _max8));
+            vst1q_f16(ptr, _p0);
+            vst1q_f16(ptr + 8, _p1);
+            vst1q_f16(ptr + 16, _p2);
+            vst1q_f16(ptr + 24, _p3);
+            // each exp is at most 1, so this partial sum stays within 4 and fp16 is precise enough
+            float16x8_t _p = vaddq_f16(vaddq_f16(_p0, _p1), vaddq_f16(_p2, _p3));
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_p)));
+            _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_p)));
+            ptr += 32;
+        }
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
             _p = exp_ps_f16(vsubq_f16(_p, _max8));
             vst1q_f16(ptr, _p);
-            _sum8 = vaddq_f16(_sum8, _p);
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_p)));
+            _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_p)));
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
@@ -81,40 +103,37 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack)
             float16x4_t _p = vld1_f16(ptr);
             _p = exp_ps_f16(vsub_f16(_p, _max4));
             vst1_f16(ptr, _p);
-            _sum4 = vadd_f16(_sum4, _p);
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(_p));
             ptr += 4;
         }
         for (; i < size; i++)
         {
             __fp16 v = (__fp16)expf(*ptr - max);
             *ptr = v;
-            sum += v;
+            sum32 += (float)v;
             ptr++;
         }
     }
 
     if (elempack == 4)
     {
-        _sum4 = vadd_f16(_sum4, vget_low_f16(_sum8));
-        _sum4 = vadd_f16(_sum4, vget_high_f16(_sum8));
-
-        _sum8 = vcombine_f16(_sum4, _sum4);
+        _sum0 = vaddq_f32(_sum0, _sum1);
+        _sum1 = _sum0;
     }
     if (elempack == 1)
     {
-        _sum4 = vadd_f16(_sum4, vget_low_f16(_sum8));
-        _sum4 = vadd_f16(_sum4, vget_high_f16(_sum8));
-        _sum4 = vpadd_f16(_sum4, _sum4);
-        _sum4 = vpadd_f16(_sum4, _sum4);
-        sum += vget_lane_f16(_sum4, 0);
+        sum32 += vaddvq_f32(vaddq_f32(_sum0, _sum1));
 
-        _sum4 = vdup_n_f16(sum);
-        _sum8 = vdupq_n_f16(sum);
+        _sum0 = vdupq_n_f32(sum32);
+        _sum1 = _sum0;
     }
 
-    _sum8 = vdivq_f16(vdupq_n_f16(1.f), _sum8);
-    _sum4 = vdiv_f16(vdup_n_f16(1.f), _sum4);
-    sum = (__fp16)1.f / sum;
+    _sum0 = vdivq_f32(vdupq_n_f32(1.f), _sum0);
+    _sum1 = vdivq_f32(vdupq_n_f32(1.f), _sum1);
+
+    float16x8_t _sum8 = vcombine_f16(vcvt_f16_f32(_sum0), vcvt_f16_f32(_sum1));
+    float16x4_t _sum4 = vget_low_f16(_sum8);
+    __fp16 sum = vget_lane_f16(_sum4, 0);
 
     // div sum
     {
@@ -142,7 +161,7 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack)
     }
 }
 
-static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int size1, __fp16* _maxptr, __fp16* _sumptr)
+static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int size1, __fp16* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -203,7 +222,7 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int 
     {
         __fp16* ptr = _ptr + i * stride;
         const __fp16* maxptr = _maxptr;
-        __fp16* sumptr = _sumptr;
+        float* sumptr = _sumptr;
 
         int j = 0;
         for (; j + 7 < size1; j += 8)
@@ -233,15 +252,19 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int 
             vst1q_f16(ptr + 40, _p5);
             vst1q_f16(ptr + 48, _p6);
             vst1q_f16(ptr + 56, _p7);
-            float16x8_t _sum = vld1q_f16(sumptr);
+            float32x4_t _sum0 = vld1q_f32(sumptr);
+            float32x4_t _sum1 = vld1q_f32(sumptr + 4);
             float16x8_t _ss01 = vpaddq_f16(_p0, _p1);
             float16x8_t _ss23 = vpaddq_f16(_p2, _p3);
             float16x8_t _ss45 = vpaddq_f16(_p4, _p5);
             float16x8_t _ss67 = vpaddq_f16(_p6, _p7);
             float16x8_t _ss2 = vpaddq_f16(_ss01, _ss23);
             float16x8_t _ss4 = vpaddq_f16(_ss45, _ss67);
-            _sum = vaddq_f16(_sum, vpaddq_f16(_ss2, _ss4));
-            vst1q_f16(sumptr, _sum);
+            float16x8_t _ss = vpaddq_f16(_ss2, _ss4);
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_ss)));
+            _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_ss)));
+            vst1q_f32(sumptr, _sum0);
+            vst1q_f32(sumptr + 4, _sum1);
             ptr += 64;
             maxptr += 8;
             sumptr += 8;
@@ -261,12 +284,12 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int 
             vst1q_f16(ptr + 8, _p1);
             vst1q_f16(ptr + 16, _p2);
             vst1q_f16(ptr + 24, _p3);
-            float16x4_t _sum = vld1_f16(sumptr);
+            float32x4_t _sum = vld1q_f32(sumptr);
             float16x8_t _ss01 = vpaddq_f16(_p0, _p1);
             float16x8_t _ss23 = vpaddq_f16(_p2, _p3);
             float16x8_t _ss2 = vpaddq_f16(_ss01, _ss23);
-            _sum = vadd_f16(_sum, vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
-            vst1_f16(sumptr, _sum);
+            _sum = vaddq_f32(_sum, vcvt_f32_f16(vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2))));
+            vst1q_f32(sumptr, _sum);
             ptr += 32;
             maxptr += 4;
             sumptr += 4;
@@ -278,37 +301,29 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int 
             _p = exp_ps_f16(vsubq_f16(_p, _max));
             vst1q_f16(ptr, _p);
             float16x4_t _sum2 = vadd_f16(vget_low_f16(_p), vget_high_f16(_p));
-            float16x4_t _ss2 = vpadd_f16(_sum2, _sum2);
-            __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-            *sumptr += sum0;
+            *sumptr += vaddvq_f32(vcvt_f32_f16(_sum2));
             ptr += 8;
             maxptr++;
             sumptr++;
         }
     }
 
+    // 1 / sum in fp16, written over the max values that are no longer needed
     {
-        float16x8_t _one = vdupq_n_f16(1.f);
-        __fp16* sumptr = _sumptr;
+        float32x4_t _one = vdupq_n_f32(1.f);
+        const float* sumptr = _sumptr;
+        __fp16* rcpptr = _maxptr;
         int j = 0;
-        for (; j + 7 < size1; j += 8)
-        {
-            float16x8_t _sum = vld1q_f16(sumptr);
-            _sum = vdivq_f16(_one, _sum);
-            vst1q_f16(sumptr, _sum);
-            sumptr += 8;
-        }
         for (; j + 3 < size1; j += 4)
         {
-            float16x4_t _sum = vld1_f16(sumptr);
-            _sum = vdiv_f16(vget_low_f16(_one), _sum);
-            vst1_f16(sumptr, _sum);
+            float32x4_t _sum = vld1q_f32(sumptr);
+            vst1_f16(rcpptr, vcvt_f16_f32(vdivq_f32(_one, _sum)));
             sumptr += 4;
+            rcpptr += 4;
         }
         for (; j < size1; j++)
         {
-            *sumptr = (__fp16)1.f / *sumptr;
-            sumptr++;
+            *rcpptr++ = (__fp16)(1.f / *sumptr++);
         }
     }
 
@@ -316,7 +331,7 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int 
     for (int i = 0; i < elemcount; i++)
     {
         __fp16* ptr = _ptr + i * stride;
-        const __fp16* sumptr = _sumptr;
+        const __fp16* sumptr = _maxptr;
 
         int j = 0;
         for (; j + 7 < size1; j += 8)
@@ -379,7 +394,7 @@ static void softmax_fp16s_pack8(__fp16* _ptr, int elemcount, size_t stride, int 
     }
 }
 
-static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int size1, __fp16* _maxptr, __fp16* _sumptr)
+static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int size1, __fp16* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -428,7 +443,7 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int 
     {
         __fp16* ptr = _ptr + i * stride;
         const __fp16* maxptr = _maxptr;
-        __fp16* sumptr = _sumptr;
+        float* sumptr = _sumptr;
 
         int j = 0;
         for (; j + 7 < size1; j += 8)
@@ -450,11 +465,15 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int 
             vst1q_f16(ptr + 8, _p1);
             vst1q_f16(ptr + 16, _p2);
             vst1q_f16(ptr + 24, _p3);
-            float16x8_t _sum = vld1q_f16(sumptr);
+            float32x4_t _sum0 = vld1q_f32(sumptr);
+            float32x4_t _sum1 = vld1q_f32(sumptr + 4);
             float16x8_t _ss2 = vpaddq_f16(_p0, _p1);
             float16x8_t _ss4 = vpaddq_f16(_p2, _p3);
-            _sum = vaddq_f16(_sum, vpaddq_f16(_ss2, _ss4));
-            vst1q_f16(sumptr, _sum);
+            float16x8_t _ss = vpaddq_f16(_ss2, _ss4);
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_ss)));
+            _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_ss)));
+            vst1q_f32(sumptr, _sum0);
+            vst1q_f32(sumptr + 4, _sum1);
             ptr += 32;
             maxptr += 8;
             sumptr += 8;
@@ -470,10 +489,10 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int 
             _p1 = exp_ps_f16(vsubq_f16(_p1, _max1));
             vst1q_f16(ptr, _p0);
             vst1q_f16(ptr + 8, _p1);
-            float16x4_t _sum = vld1_f16(sumptr);
+            float32x4_t _sum = vld1q_f32(sumptr);
             float16x8_t _ss2 = vpaddq_f16(_p0, _p1);
-            _sum = vadd_f16(_sum, vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2)));
-            vst1_f16(sumptr, _sum);
+            _sum = vaddq_f32(_sum, vcvt_f32_f16(vpadd_f16(vget_low_f16(_ss2), vget_high_f16(_ss2))));
+            vst1q_f32(sumptr, _sum);
             ptr += 16;
             maxptr += 4;
             sumptr += 4;
@@ -484,37 +503,29 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int 
             float16x4_t _max = vdup_n_f16(*maxptr);
             _p = exp_ps_f16(vsub_f16(_p, _max));
             vst1_f16(ptr, _p);
-            float16x4_t _ss2 = vpadd_f16(_p, _p);
-            __fp16 sum0 = vget_lane_f16(_ss2, 0) + vget_lane_f16(_ss2, 1);
-            *sumptr += sum0;
+            *sumptr += vaddvq_f32(vcvt_f32_f16(_p));
             ptr += 4;
             maxptr++;
             sumptr++;
         }
     }
 
+    // 1 / sum in fp16, written over the max values that are no longer needed
     {
-        float16x8_t _one = vdupq_n_f16(1.f);
-        __fp16* sumptr = _sumptr;
+        float32x4_t _one = vdupq_n_f32(1.f);
+        const float* sumptr = _sumptr;
+        __fp16* rcpptr = _maxptr;
         int j = 0;
-        for (; j + 7 < size1; j += 8)
-        {
-            float16x8_t _sum = vld1q_f16(sumptr);
-            _sum = vdivq_f16(_one, _sum);
-            vst1q_f16(sumptr, _sum);
-            sumptr += 8;
-        }
         for (; j + 3 < size1; j += 4)
         {
-            float16x4_t _sum = vld1_f16(sumptr);
-            _sum = vdiv_f16(vget_low_f16(_one), _sum);
-            vst1_f16(sumptr, _sum);
+            float32x4_t _sum = vld1q_f32(sumptr);
+            vst1_f16(rcpptr, vcvt_f16_f32(vdivq_f32(_one, _sum)));
             sumptr += 4;
+            rcpptr += 4;
         }
         for (; j < size1; j++)
         {
-            *sumptr = (__fp16)1.f / *sumptr;
-            sumptr++;
+            *rcpptr++ = (__fp16)(1.f / *sumptr++);
         }
     }
 
@@ -522,7 +533,7 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int 
     for (int i = 0; i < elemcount; i++)
     {
         __fp16* ptr = _ptr + i * stride;
-        const __fp16* sumptr = _sumptr;
+        const __fp16* sumptr = _maxptr;
 
         int j = 0;
         for (; j + 7 < size1; j += 8)
@@ -573,7 +584,7 @@ static void softmax_fp16s_pack4(__fp16* _ptr, int elemcount, size_t stride, int 
     }
 }
 
-static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int size1, __fp16* _maxptr, __fp16* _sumptr)
+static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int size1, __fp16* _maxptr, float* _sumptr)
 {
     // reduce max
     for (int i = 0; i < elemcount; i++)
@@ -609,23 +620,100 @@ static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int 
     }
 
     // reduce exp(x - max)
-    for (int i = 0; i < elemcount; i++)
+    int i = 0;
+    for (; i + 3 < elemcount; i += 4)
+    {
+        __fp16* ptr0 = _ptr + i * stride;
+        __fp16* ptr1 = ptr0 + stride;
+        __fp16* ptr2 = ptr1 + stride;
+        __fp16* ptr3 = ptr2 + stride;
+        const __fp16* maxptr = _maxptr;
+        float* sumptr = _sumptr;
+
+        int j = 0;
+        for (; j + 7 < size1; j += 8)
+        {
+            float16x8_t _max = vld1q_f16(maxptr);
+            float16x8_t _p0 = exp_ps_f16(vsubq_f16(vld1q_f16(ptr0), _max));
+            float16x8_t _p1 = exp_ps_f16(vsubq_f16(vld1q_f16(ptr1), _max));
+            float16x8_t _p2 = exp_ps_f16(vsubq_f16(vld1q_f16(ptr2), _max));
+            float16x8_t _p3 = exp_ps_f16(vsubq_f16(vld1q_f16(ptr3), _max));
+            vst1q_f16(ptr0, _p0);
+            vst1q_f16(ptr1, _p1);
+            vst1q_f16(ptr2, _p2);
+            vst1q_f16(ptr3, _p3);
+            // each exp is at most 1, so this partial sum stays within 4 and fp16 is precise enough
+            float16x8_t _p = vaddq_f16(vaddq_f16(_p0, _p1), vaddq_f16(_p2, _p3));
+            float32x4_t _sum0 = vld1q_f32(sumptr);
+            float32x4_t _sum1 = vld1q_f32(sumptr + 4);
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_p)));
+            _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_p)));
+            vst1q_f32(sumptr, _sum0);
+            vst1q_f32(sumptr + 4, _sum1);
+            ptr0 += 8;
+            ptr1 += 8;
+            ptr2 += 8;
+            ptr3 += 8;
+            maxptr += 8;
+            sumptr += 8;
+        }
+        for (; j + 3 < size1; j += 4)
+        {
+            float16x4_t _max = vld1_f16(maxptr);
+            float16x4_t _p0 = exp_ps_f16(vsub_f16(vld1_f16(ptr0), _max));
+            float16x4_t _p1 = exp_ps_f16(vsub_f16(vld1_f16(ptr1), _max));
+            float16x4_t _p2 = exp_ps_f16(vsub_f16(vld1_f16(ptr2), _max));
+            float16x4_t _p3 = exp_ps_f16(vsub_f16(vld1_f16(ptr3), _max));
+            vst1_f16(ptr0, _p0);
+            vst1_f16(ptr1, _p1);
+            vst1_f16(ptr2, _p2);
+            vst1_f16(ptr3, _p3);
+            float16x4_t _p = vadd_f16(vadd_f16(_p0, _p1), vadd_f16(_p2, _p3));
+            float32x4_t _sum = vld1q_f32(sumptr);
+            _sum = vaddq_f32(_sum, vcvt_f32_f16(_p));
+            vst1q_f32(sumptr, _sum);
+            ptr0 += 4;
+            ptr1 += 4;
+            ptr2 += 4;
+            ptr3 += 4;
+            maxptr += 4;
+            sumptr += 4;
+        }
+        for (; j < size1; j++)
+        {
+            __fp16 v0 = expf(*ptr0 - *maxptr);
+            __fp16 v1 = expf(*ptr1 - *maxptr);
+            __fp16 v2 = expf(*ptr2 - *maxptr);
+            __fp16 v3 = expf(*ptr3 - *maxptr);
+            *ptr0++ = v0;
+            *ptr1++ = v1;
+            *ptr2++ = v2;
+            *ptr3++ = v3;
+            *sumptr += (float)v0 + (float)v1 + (float)v2 + (float)v3;
+            maxptr++;
+            sumptr++;
+        }
+    }
+    for (; i < elemcount; i++)
     {
         __fp16* ptr = _ptr + i * stride;
         const __fp16* maxptr = _maxptr;
-        __fp16* sumptr = _sumptr;
+        float* sumptr = _sumptr;
 
         int j = 0;
         for (; j + 7 < size1; j += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
             float16x8_t _max = vld1q_f16(maxptr);
-            float16x8_t _sum = vld1q_f16(sumptr);
+            float32x4_t _sum0 = vld1q_f32(sumptr);
+            float32x4_t _sum1 = vld1q_f32(sumptr + 4);
             _p = vsubq_f16(_p, _max);
             _p = exp_ps_f16(_p);
             vst1q_f16(ptr, _p);
-            _sum = vaddq_f16(_sum, _p);
-            vst1q_f16(sumptr, _sum);
+            _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_p)));
+            _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_p)));
+            vst1q_f32(sumptr, _sum0);
+            vst1q_f32(sumptr + 4, _sum1);
             ptr += 8;
             maxptr += 8;
             sumptr += 8;
@@ -634,12 +722,12 @@ static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int 
         {
             float16x4_t _p = vld1_f16(ptr);
             float16x4_t _max = vld1_f16(maxptr);
-            float16x4_t _sum = vld1_f16(sumptr);
+            float32x4_t _sum = vld1q_f32(sumptr);
             _p = vsub_f16(_p, _max);
             _p = exp_ps_f16(_p);
             vst1_f16(ptr, _p);
-            _sum = vadd_f16(_sum, _p);
-            vst1_f16(sumptr, _sum);
+            _sum = vaddq_f32(_sum, vcvt_f32_f16(_p));
+            vst1q_f32(sumptr, _sum);
             ptr += 4;
             maxptr += 4;
             sumptr += 4;
@@ -648,35 +736,29 @@ static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int 
         {
             __fp16 v = expf(*ptr - *maxptr);
             *ptr = v;
-            *sumptr += v;
+            *sumptr += (float)v;
             ptr++;
             maxptr++;
             sumptr++;
         }
     }
 
+    // 1 / sum in fp16, written over the max values that are no longer needed
     {
-        float16x8_t _one = vdupq_n_f16(1.f);
-        __fp16* sumptr = _sumptr;
+        float32x4_t _one = vdupq_n_f32(1.f);
+        const float* sumptr = _sumptr;
+        __fp16* rcpptr = _maxptr;
         int j = 0;
-        for (; j + 7 < size1; j += 8)
-        {
-            float16x8_t _sum = vld1q_f16(sumptr);
-            _sum = vdivq_f16(_one, _sum);
-            vst1q_f16(sumptr, _sum);
-            sumptr += 8;
-        }
         for (; j + 3 < size1; j += 4)
         {
-            float16x4_t _sum = vld1_f16(sumptr);
-            _sum = vdiv_f16(vget_low_f16(_one), _sum);
-            vst1_f16(sumptr, _sum);
+            float32x4_t _sum = vld1q_f32(sumptr);
+            vst1_f16(rcpptr, vcvt_f16_f32(vdivq_f32(_one, _sum)));
             sumptr += 4;
+            rcpptr += 4;
         }
         for (; j < size1; j++)
         {
-            *sumptr = (__fp16)1.f / *sumptr;
-            sumptr++;
+            *rcpptr++ = (__fp16)(1.f / *sumptr++);
         }
     }
 
@@ -684,7 +766,7 @@ static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int 
     for (int i = 0; i < elemcount; i++)
     {
         __fp16* ptr = _ptr + i * stride;
-        const __fp16* sumptr = _sumptr;
+        const __fp16* sumptr = _maxptr;
 
         int j = 0;
         for (; j + 7 < size1; j += 8)
@@ -714,7 +796,7 @@ static void softmax_fp16s_pack1(__fp16* _ptr, int elemcount, size_t stride, int 
     }
 }
 
-static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack, size_t stride, int size1, __fp16* _maxptr, __fp16* _sumptr)
+static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack, size_t stride, int size1, __fp16* _maxptr, float* _sumptr)
 {
     // reduce max
     {
@@ -741,19 +823,14 @@ static void softmax_fp16s(__fp16* _ptr, int elemcount, int elempack, size_t stri
 
     // reduce exp(x - max)
     {
-        float16x8_t _zero = vdupq_n_f16(0.f);
+        float32x4_t _zero = vdupq_n_f32(0.f);
 
-        __fp16* sumptr = _sumptr;
+        float* sumptr = _sumptr;
 
         int j = 0;
-        for (; j + 7 < size1; j += 8)
-        {
-            vst1q_f16(sumptr, _zero);
-            sumptr += 8;
-        }
         for (; j + 3 < size1; j += 4)
         {
-            vst1_f16(sumptr, vget_low_f16(_zero));
+            vst1q_f32(sumptr, _zero);
             sumptr += 4;
         }
         for (; j < size1; j++)
@@ -801,7 +878,8 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
         const size_t stride = (size_t)w * elempack;
 
-        Mat maxsum(sizen, 2, opt.num_threads, 2u, opt.workspace_allocator);
+        // fp16 max in the first row, fp32 sum in the second
+        Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
@@ -812,9 +890,9 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             const int i = ii * sizen;
             const int size1 = std::min(sizen, size - i);
 
-            __fp16* maxsumptr = maxsum.channel(get_omp_thread_num());
-            __fp16* maxptr = maxsumptr;
-            __fp16* sumptr = maxptr + sizen;
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            __fp16* maxptr = (__fp16*)maxsumptr;
+            float* sumptr = maxsumptr + sizen;
 
             __fp16* ptr = (__fp16*)bottom_top_blob + i * elempack;
 
@@ -839,7 +917,8 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
         const size_t stride = bottom_top_blob.cstep * elempack;
 
-        Mat maxsum(sizen, 2, opt.num_threads, 2u, opt.workspace_allocator);
+        // fp16 max in the first row, fp32 sum in the second
+        Mat maxsum(sizen, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
@@ -850,9 +929,9 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             const int i = ii * sizen;
             const int size1 = std::min(sizen, size - i);
 
-            __fp16* maxsumptr = maxsum.channel(get_omp_thread_num());
-            __fp16* maxptr = maxsumptr;
-            __fp16* sumptr = maxptr + sizen;
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            __fp16* maxptr = (__fp16*)maxsumptr;
+            float* sumptr = maxsumptr + sizen;
 
             __fp16* ptr = (__fp16*)bottom_top_blob + i * elempack;
 
@@ -864,7 +943,8 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w * elempack;
 
-        Mat maxsum(size, 2, opt.num_threads, 2u, opt.workspace_allocator);
+        // fp16 max in the first row, fp32 sum in the second
+        Mat maxsum(size, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
@@ -875,9 +955,9 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             {
                 __fp16* ptr = bottom_top_blob.channel(q).depth(i);
 
-                __fp16* maxsumptr = maxsum.channel(get_omp_thread_num());
-                __fp16* maxptr = maxsumptr;
-                __fp16* sumptr = maxptr + size;
+                float* maxsumptr = maxsum.channel(get_omp_thread_num());
+                __fp16* maxptr = (__fp16*)maxsumptr;
+                float* sumptr = maxsumptr + size;
 
                 softmax_fp16s(ptr, h, 1, size, size, maxptr, sumptr);
             }
@@ -903,7 +983,8 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
     {
         const int size = w * h * elempack;
 
-        Mat maxsum(size, 2, opt.num_threads, 2u, opt.workspace_allocator);
+        // fp16 max in the first row, fp32 sum in the second
+        Mat maxsum(size, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
@@ -912,9 +993,9 @@ int Softmax_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         {
             __fp16* ptr = bottom_top_blob.channel(q);
 
-            __fp16* maxsumptr = maxsum.channel(get_omp_thread_num());
-            __fp16* maxptr = maxsumptr;
-            __fp16* sumptr = maxptr + size;
+            float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            __fp16* maxptr = (__fp16*)maxsumptr;
+            float* sumptr = maxsumptr + size;
 
             softmax_fp16s(ptr, d, 1, size, size, maxptr, sumptr);
         }

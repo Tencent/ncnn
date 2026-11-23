@@ -685,6 +685,77 @@ static int test_convolutiondepthwise_int8_zero_weight_scales()
     return 0;
 }
 
+static int test_convolutiondepthwise_int8_requant_saturate()
+{
+    // unit scales and integer data keep every requantized output exact, and most of them saturate
+    // w, h, channels, stride, bias
+    static const int cases[][5] = {
+        // scalar 3x3 kernels cover vector bodies, column tails and the odd row
+        {21, 9, 3, 1, 0},
+        {21, 9, 3, 1, 1},
+        {23, 11, 3, 2, 0},
+        {23, 11, 3, 2, 1},
+        // pack8 3x3 kernels requantize separately
+        {21, 9, 8, 1, 1},
+        {23, 11, 8, 2, 1},
+    };
+
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++)
+    {
+        const int w = cases[i][0];
+        const int h = cases[i][1];
+        const int c = cases[i][2];
+        const int stride = cases[i][3];
+        const int bias = cases[i][4];
+
+        ncnn::Mat a(w, h, c);
+        for (size_t j = 0; j < a.total(); j++)
+            a[j] = (float)RandomInt(-127, 127);
+
+        ncnn::ParamDict pd;
+        pd.set(0, c);
+        pd.set(1, 3);
+        pd.set(2, 1);
+        pd.set(3, stride);
+        pd.set(4, 1);
+        pd.set(5, bias);
+        pd.set(6, c * 9);
+        pd.set(7, c);
+        pd.set(8, 101);
+
+        ncnn::Mat weight_data(c * 9);
+        for (int j = 0; j < c * 9; j++)
+            weight_data[j] = (float)RandomInt(-127, 127);
+        ncnn::Mat bias_data(c);
+        for (int q = 0; q < c; q++)
+            bias_data[q] = (float)RandomInt(-100, 100);
+        ncnn::Mat weight_scales(c);
+        weight_scales.fill(1.f);
+        ncnn::Mat bottom_scales(1);
+        bottom_scales.fill(1.f);
+        ncnn::Mat top_scales(1);
+        top_scales.fill(1.f);
+
+        std::vector<ncnn::Mat> weights;
+        weights.push_back(weight_data);
+        if (bias)
+            weights.push_back(bias_data);
+        weights.push_back(weight_scales);
+        weights.push_back(bottom_scales);
+        weights.push_back(top_scales);
+
+        // gpu stores in fp16 with a loose epsilon that cannot tell -128 from -127
+        int ret = test_layer("ConvolutionDepthWise", pd, weights, a, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING);
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_convolutiondepthwise_int8_requant_saturate failed w=%d h=%d c=%d stride=%d bias=%d\n", w, h, c, stride, bias);
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
 #endif // NCNN_INT8
 
 int main()
@@ -702,7 +773,8 @@ int main()
            || test_convolutiondepthwise_dynamic_postprocessing_boundaries()
            || test_convolutiondepthwise_dynamic_scalar_pack4_activation_tails()
            || test_convolutiondepthwise_int8_input_tile_tails()
-           || test_convolutiondepthwise_int8_zero_weight_scales();
+           || test_convolutiondepthwise_int8_zero_weight_scales()
+           || test_convolutiondepthwise_int8_requant_saturate();
 #else
     return test_convolutiondepthwise_2()
            || test_convolutiondepthwise_dynamic_activation_tails()
