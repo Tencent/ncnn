@@ -13,14 +13,12 @@
 
 namespace ncnn {
 
-static const int permute_axes_2d[2][2] =
-{
+static const int permute_axes_2d[2][2] = {
     {0, 1},
     {1, 0}
 };
 
-static const int permute_axes_3d[6][3] =
-{
+static const int permute_axes_3d[6][3] = {
     {0, 1, 3},
     {1, 0, 3},
     {0, 3, 1},
@@ -29,8 +27,7 @@ static const int permute_axes_3d[6][3] =
     {3, 1, 0}
 };
 
-static const int permute_axes_4d[24][4] =
-{
+static const int permute_axes_4d[24][4] = {
     {0, 1, 2, 3},
     {1, 0, 2, 3},
     {0, 2, 1, 3},
@@ -249,9 +246,7 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
                     float* outq = (float*)top_blob.channel(y / 4);
                     for (int l = 0; l < 4; l++)
                     {
-                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
-                                         : l == 2   ? _r2
-                                         : _r3;
+                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1 : l == 2 ? _r2 : _r3;
                         float* outptr = order_type == 2 ? outq + ((c + l) * top_blob.w + x) * 4 : outq + (x * top_blob.w + c + l) * 4;
                         vst1q_f32(outptr, _v);
                     }
@@ -280,9 +275,7 @@ static int permute3d_ps(const Mat& bottom_blob, Mat& top_blob, int order_type, c
                     float* outq = (float*)top_blob.channel(x / 4);
                     for (int l = 0; l < 4; l++)
                     {
-                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
-                                         : l == 2   ? _r2
-                                         : _r3;
+                        float32x4_t _v = l == 0 ? _r0 : l == 1 ? _r1 : l == 2 ? _r2 : _r3;
                         float* outptr = order_type == 4 ? outq + ((c + l) * top_blob.w + y) * 4 : outq + (y * top_blob.w + c + l) * 4;
                         vst1q_f32(outptr, _v);
                     }
