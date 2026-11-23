@@ -10,16 +10,23 @@
 
 namespace pnnx {
 
-static bool round_decimals_supported(const Operator* op)
+static bool get_round_decimals(const Operator* op, int& decimals)
 {
     if (op->inputs.size() == 1)
+    {
+        decimals = 0;
         return true;
+    }
 
     if (op->inputs.size() != 2 || op->inputs[1]->producer->type != "prim::Constant")
         return false;
 
-    const Parameter& decimals = op->inputs[1]->producer->params.at("value");
-    return decimals.type == 2 && decimals.i == 0;
+    const Parameter& value = op->inputs[1]->producer->params.at("value");
+    if (value.type != 2)
+        return false;
+
+    decimals = value.i;
+    return true;
 }
 
 static bool operand_maybe_shape_tensor(const Operand* operand)
@@ -751,8 +758,23 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
              || op->type == "aten::tanh"
              || op->type == "aten::trunc")
     {
-        if (op->type == "aten::round" && !round_decimals_supported(op))
-            fprintf(stderr, "round with nonzero or non-constant decimals is not supported yet, ignoring decimals\n");
+        if (op->type == "aten::round")
+        {
+            int decimals = 0;
+            if (!get_round_decimals(op, decimals))
+            {
+                fprintf(stderr, "round with non-constant decimals is not supported yet, ignoring decimals\n");
+            }
+            else if (decimals != 0)
+            {
+                const long long exponent = decimals > 0 ? decimals : -(long long)decimals;
+                const std::string scale = "1e" + std::to_string(exponent);
+                expr += decimals > 0 ? "div(round(mul(" : "mul(round(div(";
+                fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, layout_observers, zip);
+                expr += "," + scale + "))," + scale + ")";
+                return;
+            }
+        }
 
         std::string mathop = op->type.substr(6);
 

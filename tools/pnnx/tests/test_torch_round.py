@@ -1,6 +1,7 @@
 # Copyright 2023 Tencent
 # SPDX-License-Identifier: BSD-3-Clause
 
+import importlib.util
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,7 +28,66 @@ class ModelWithDecimals(nn.Module):
         y = x.round(decimals=self.decimals) if self.method else torch.round(x, decimals=self.decimals)
         return y + 1 if self.embedded else y
 
+class ModelWithDynamicDecimals(nn.Module):
+    def forward(self, x):
+        return torch.round(x, decimals=int(x[0, 0]))
+
+def load_generated_model(name):
+    spec = importlib.util.spec_from_file_location(name, name + ".py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.Model()
+
+def test_round_decimals():
+    decimals_input = torch.tensor([[-12.75, 12.75, -1.25], [1.25, 2.65, -2.65]])
+    cases = [(1, False, False), (-1, True, False), (2, False, True),
+             (-2, True, True), (0, False, False), (0, True, True)]
+    for i, args in enumerate(cases):
+        decimals_model = ModelWithDecimals(*args).eval()
+        expected = decimals_model(decimals_input)
+        mod = torch.jit.trace(decimals_model, decimals_input)
+        name = "test_torch_round_decimals_%d" % i
+        mod.save(name + ".pt")
+        import subprocess
+        proc = subprocess.run(["../src/pnnx", name + ".pt", "inputshape=[2,3]", "fp16=0"],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0 or b"ignoring decimals" in proc.stderr:
+            return False
+        with open(name + ".pnnx.param", encoding="utf-8") as f:
+            graph = f.read()
+            if "aten::round" in graph or "round(" not in graph:
+                return False
+        actual = load_generated_model(name + "_pnnx")(decimals_input)
+        if (actual.shape != expected.shape or actual.dtype != expected.dtype
+                or not torch.allclose(actual, expected, atol=1e-4, rtol=1e-4)):
+            return False
+
+    # Runtime decimals are unsupported: keep a usable plain-round fallback.
+    dynamic_input = decimals_input.clone()
+    dynamic_input[0, 0] = 1.25
+    mod = torch.jit.script(ModelWithDynamicDecimals().eval())
+    name = "test_torch_round_dynamic_decimals"
+    mod.save(name + ".pt")
+    proc = subprocess.run(["../src/pnnx", name + ".pt", "inputshape=[2,3]", "fp16=0"],
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if proc.returncode != 0 or b"round with non-constant decimals" not in proc.stderr:
+        return False
+    with open(name + ".pnnx.param", encoding="utf-8") as f:
+        graph = f.read()
+        if "aten::round" in graph or "round(" not in graph:
+            return False
+    actual = load_generated_model(name + "_pnnx")(dynamic_input)
+    expected = torch.round(dynamic_input)
+    if (actual.shape != expected.shape or actual.dtype != expected.dtype
+            or not torch.equal(actual, expected)):
+        return False
+
+    return True
+
 def test():
+    if not test_round_decimals():
+        return False
+
     net = Model()
     net.eval()
 
@@ -53,21 +113,6 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-
-    decimals_input = torch.tensor([[-12.75, 12.75, -1.25], [1.25, 2.65, -2.65]])
-    for i, args in enumerate([(1, False, False), (-1, True, False), (2, False, True), (-2, True, True)]):
-        mod = torch.jit.trace(ModelWithDecimals(*args).eval(), decimals_input)
-        name = "test_torch_round_decimals_%d" % i
-        mod.save(name + ".pt")
-        import subprocess
-        proc = subprocess.run(["../src/pnnx", name + ".pt", "inputshape=[2,3]"],
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if proc.returncode != 0 or b"round with nonzero or non-constant decimals" not in proc.stderr:
-            return False
-        with open(name + ".pnnx.param", encoding="utf-8") as f:
-            graph = f.read()
-            if "aten::round" in graph or "round(" not in graph:
-                return False
 
     if version.parse(torch.__version__) < version.parse('2.11'):
         return True
