@@ -14,21 +14,6 @@
 namespace ncnn {
 
 #if __ARM_NEON
-static NCNN_FORCEINLINE float32x4_t normalize_coeff_ps(float32x4_t ssum, float eps, int eps_mode)
-{
-    const float32x4_t _one = vdupq_n_f32(1.f);
-    const float32x4_t _eps = vdupq_n_f32(eps);
-
-    if (eps_mode == 0) // caffe/mxnet
-        return vdivq_f32(_one, vsqrtq_f32(vaddq_f32(ssum, _eps)));
-
-    if (eps_mode == 1) // pytorch
-        return vdivq_f32(_one, vmaxq_f32(vsqrtq_f32(ssum), _eps));
-
-    // if (eps_mode == 2) // tensorflow
-    return vdivq_f32(_one, vsqrtq_f32(vmaxq_f32(ssum, _eps)));
-}
-
 static NCNN_FORCEINLINE float normalize_coeff(float ssum, float eps, int eps_mode)
 {
     if (eps_mode == 0) // caffe/mxnet
@@ -39,17 +24,6 @@ static NCNN_FORCEINLINE float normalize_coeff(float ssum, float eps, int eps_mod
 
     // if (eps_mode == 2) // tensorflow
     return 1.f / sqrtf(std::max(ssum, eps));
-}
-
-static NCNN_FORCEINLINE float horizontal_sum_ps(float32x4_t v)
-{
-#if __aarch64__
-    return vaddvq_f32(v);
-#else
-    float32x2_t v2 = vadd_f32(vget_low_f32(v), vget_high_f32(v));
-    v2 = vpadd_f32(v2, v2);
-    return vget_lane_f32(v2, 0);
-#endif
 }
 
 static float square_sum_ps(const float* ptr, int size)
@@ -83,7 +57,13 @@ static float square_sum_ps(const float* ptr, int size)
     _sum0 = vaddq_f32(_sum0, _sum2);
     _sum0 = vaddq_f32(_sum0, _sum3);
 
-    float ssum = horizontal_sum_ps(_sum0);
+#if __aarch64__
+    float ssum = vaddvq_f32(_sum0);
+#else
+    float32x2_t _sum2 = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
+    _sum2 = vpadd_f32(_sum2, _sum2);
+    float ssum = vget_lane_f32(_sum2, 0);
+#endif
     for (; i < size; i++)
     {
         ssum += ptr[0] * ptr[0];
@@ -257,7 +237,16 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 }
 
                 float32x4_t _ssum = vaddq_f32(vaddq_f32(_ssum0, _ssum1), vaddq_f32(_ssum2, _ssum3));
-                float32x4_t _scale = normalize_coeff_ps(_ssum, eps, eps_mode);
+                const float32x4_t _one = vdupq_n_f32(1.f);
+                const float32x4_t _eps_vec = vdupq_n_f32(eps);
+                float32x4_t _coeff;
+                if (eps_mode == 0)
+                    _coeff = vdivq_f32(_one, vsqrtq_f32(vaddq_f32(_ssum, _eps_vec)));
+                else if (eps_mode == 1)
+                    _coeff = vdivq_f32(_one, vmaxq_f32(vsqrtq_f32(_ssum), _eps_vec));
+                else
+                    _coeff = vdivq_f32(_one, vsqrtq_f32(vmaxq_f32(_ssum, _eps_vec)));
+                float32x4_t _scale = _coeff;
                 _scale = vmulq_f32(_scale, channel_shared ? vdupq_n_f32(scale_ptr[0]) : vld1q_f32(scale_ptr));
 
                 scale_ps(ptr, n, _scale);
@@ -322,7 +311,13 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     float32x4_t _p = vld1q_f32(ptr);
                     _ssum = vmlaq_f32(_ssum, _p, _p);
                 }
-                square_sum[i] = horizontal_sum_ps(_ssum);
+#if __aarch64__
+                square_sum[i] = vaddvq_f32(_ssum);
+#else
+                float32x2_t _ssum2 = vadd_f32(vget_low_f32(_ssum), vget_high_f32(_ssum));
+                _ssum2 = vpadd_f32(_ssum2, _ssum2);
+                square_sum[i] = vget_lane_f32(_ssum2, 0);
+#endif
             }
 #else
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -343,7 +338,16 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             for (; i + 3 < size; i += 4)
             {
                 float32x4_t _ssum = vld1q_f32(square_sum + i);
-                _ssum = normalize_coeff_ps(_ssum, eps, eps_mode);
+                const float32x4_t _one = vdupq_n_f32(1.f);
+                const float32x4_t _eps_vec = vdupq_n_f32(eps);
+                float32x4_t _coeff;
+                if (eps_mode == 0)
+                    _coeff = vdivq_f32(_one, vsqrtq_f32(vaddq_f32(_ssum, _eps_vec)));
+                else if (eps_mode == 1)
+                    _coeff = vdivq_f32(_one, vmaxq_f32(vsqrtq_f32(_ssum), _eps_vec));
+                else
+                    _coeff = vdivq_f32(_one, vsqrtq_f32(vmaxq_f32(_ssum, _eps_vec)));
+                _ssum = _coeff;
                 vst1q_f32(square_sum + i, _ssum);
             }
             for (; i < size; i++)
@@ -403,7 +407,16 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     float32x4_t _p = vld1q_f32(ptr);
                     _ssum = vmlaq_f32(_ssum, _p, _p);
                 }
-                _ssum = normalize_coeff_ps(_ssum, eps, eps_mode);
+                const float32x4_t _one = vdupq_n_f32(1.f);
+                const float32x4_t _eps_vec = vdupq_n_f32(eps);
+                float32x4_t _coeff;
+                if (eps_mode == 0)
+                    _coeff = vdivq_f32(_one, vsqrtq_f32(vaddq_f32(_ssum, _eps_vec)));
+                else if (eps_mode == 1)
+                    _coeff = vdivq_f32(_one, vmaxq_f32(vsqrtq_f32(_ssum), _eps_vec));
+                else
+                    _coeff = vdivq_f32(_one, vsqrtq_f32(vmaxq_f32(_ssum, _eps_vec)));
+                _ssum = _coeff;
                 vst1q_f32(square_sum + i, _ssum);
             }
             else
