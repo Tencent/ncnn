@@ -61,7 +61,7 @@ static int softplus_fp16s(Mat& bottom_top_blob, const Option& opt)
         }
         for (; j < row_size; j++)
         {
-            float v = (float) * ptr;
+            float v = (float)*ptr;
             if (v <= 88.3762626647949f)
                 *ptr = (__fp16)logf(expf(v) + 1.f);
             ptr++;
