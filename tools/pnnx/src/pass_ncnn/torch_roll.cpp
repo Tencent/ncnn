@@ -136,37 +136,6 @@ pnnx.Output             output      1 0 out
         return true;
     }
 
-    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>&) const
-    {
-        if (!match(captured_params))
-            return false;
-
-        const Operator* op = matched_operators.at("op_0");
-        const Operand* in = op->inputs[0];
-        const int ncnn_batch_axis = in->params.at("__ncnn_batch_axis").i;
-        if (ncnn_batch_axis == 233)
-            return true;
-
-        int input_rank = in->shape.size();
-        if (input_rank == 0)
-            input_rank = op->outputs[0]->shape.size();
-
-        for (int i = 0; i < 2; i++)
-        {
-            int axis = captured_params.at("dims").ai[i];
-            if (axis < 0)
-            {
-                if (input_rank == 0)
-                    return false;
-                axis += input_rank;
-            }
-            if (axis == ncnn_batch_axis)
-                return false;
-        }
-
-        return true;
-    }
-
     void write(const std::map<std::string, Operator*>& ops, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         GraphRewriterPass::write(ops, captured_params, captured_attrs);

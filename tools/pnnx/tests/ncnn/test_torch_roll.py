@@ -104,19 +104,22 @@ class BatchRollModel(nn.Module):
         return torch.roll(x, shifts=(1,1), dims=self.dims)
 
 def test_unsupported_batch():
-    import ncnn
     import subprocess
 
     x = torch.rand(2, 3, 5, 7)
     for dims in [(0,0), (0,1), (1,-4)]:
         model = BatchRollModel(dims).eval()
         torch.jit.trace(model, x).save("test_torch_roll_batch.pt")
-        if subprocess.call(["../../src/pnnx", "test_torch_roll_batch.pt",
-                            "inputshape=[2,3,5,7]", "fp16=0"]) != 0:
+        # Unsupported batch rolls are still lowered with a diagnostic.
+        proc = subprocess.run(["../../src/pnnx", "test_torch_roll_batch.pt",
+                               "inputshape=[2,3,5,7]", "fp16=0"],
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0 or b"roll along batch axis 0 is not supported" not in proc.stderr:
             return False
-        with ncnn.Net() as net:
-            if net.load_param("test_torch_roll_batch.ncnn.param") == 0:
-                return False
+        with open("test_torch_roll_batch.ncnn.param") as f:
+            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
+        if layers.count("Slice") != 2 or layers.count("Concat") != 2 or "torch.roll" in layers:
+            return False
     return True
 
 if __name__ == "__main__":
