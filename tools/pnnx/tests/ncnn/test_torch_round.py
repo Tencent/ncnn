@@ -55,10 +55,9 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
             return False
-
-    x = torch.tensor([[-12.75, 12.75, -1.25], [1.25, 2.65, -2.65]])
+    decimals_input = torch.tensor([[-12.75, 12.75, -1.25], [1.25, 2.65, -2.65]])
     for i, args in enumerate([(1, False, False), (-1, True, False), (2, False, True), (-2, True, True)]):
-        mod = torch.jit.trace(ModelWithDecimals(*args).eval(), x)
+        mod = torch.jit.trace(ModelWithDecimals(*args).eval(), decimals_input)
         name = "test_torch_round_decimals_%d" % i
         mod.save(name + ".pt")
         import subprocess
