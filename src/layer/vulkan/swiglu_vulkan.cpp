@@ -44,17 +44,8 @@ int SwiGLU_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int SwiGLU_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    if (bottom_blobs.size() != 2)
-        return -100;
-
     const VkMat& gate = bottom_blobs[0];
     const VkMat& up = bottom_blobs[1];
-
-    if (gate.elembits() != up.elembits())
-        return -100;
-
-    if (gate.dims != up.dims || gate.w != up.w || gate.h != up.h || gate.d != up.d || gate.c != up.c || gate.elempack != up.elempack)
-        return -100;
 
     VkMat& top_blob = top_blobs[0];
     top_blob.create_like(gate, opt.blob_vkallocator);

@@ -56,14 +56,8 @@ static inline __m256 swiglu_f32x8(__m256 _g, __m256 _u, __m256 _nscale, __m256 _
 
 int SwiGLU_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (bottom_blobs.size() != 2)
-        return -100;
-
     const Mat& gate = bottom_blobs[0];
     const Mat& up = bottom_blobs[1];
-
-    if (gate.dims != up.dims || gate.w != up.w || gate.h != up.h || gate.d != up.d || gate.c != up.c || gate.elempack != up.elempack || gate.elembits() != up.elembits())
-        return -100;
 
     Mat& top_blob = top_blobs[0];
     top_blob.create_like(gate, opt.blob_allocator);
