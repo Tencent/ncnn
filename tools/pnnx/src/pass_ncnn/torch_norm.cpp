@@ -48,12 +48,6 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("p").type == 4 && captured_params.at("p").s == "fro")
             p = 2.f;
 
-        if (p != 1.f && p != 2.f)
-        {
-            fprintf(stderr, "unsupported norm p=%f\n", p);
-            return;
-        }
-
         op->params["0"] = (p == 1.f) ? 7 : 8;
 
         const int ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
