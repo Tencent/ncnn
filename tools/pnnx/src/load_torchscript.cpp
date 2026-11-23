@@ -21,6 +21,7 @@ int64_t cuda_version();
 #endif
 
 #include "pass_level0.h"
+#include "pass_level0/normalize_module_dtype.h"
 #include "pass_level1.h"
 #include "pass_level1/fuse_module_pass.h"
 
@@ -562,7 +563,8 @@ static void get_traced_input_shape(const std::string& ptpath, std::vector<std::v
     }
 }
 
-static bool check_input_shape(const std::vector<std::vector<int64_t> >& traced_input_shapes, const std::vector<std::string>& traced_input_types, const std::vector<std::vector<int64_t> >& input_shapes, const std::vector<std::string>& input_types)
+static bool check_input_shape(const std::vector<std::vector<int64_t> >& traced_input_shapes, const std::vector<std::string>& traced_input_types, const std::vector<std::vector<int64_t> >& input_shapes,
+                              const std::vector<std::string>& input_types)
 {
     if (input_shapes.size() != traced_input_shapes.size())
     {
@@ -859,7 +861,10 @@ int load_torchscript(const std::string& ptpath, Graph& pnnx_graph,
 
     fprintf(stderr, "############# pass_level0\n");
 
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
+    if (pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath) != 0)
+        return -1;
+
+    normalize_module_dtype(mod);
 
     // g->dump();
 

@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -58,6 +59,26 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y, z, w, v))
+    torch.export.save(ep, "test_torch_transpose_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_torch_transpose_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_torch_transpose_export_pnnx
+    b = test_torch_transpose_export_pnnx.test_inference()
+
+    if len(a) != len(b):
+        return False
+    for a0, b0 in zip(a, b):
+        if a0.shape != b0.shape or a0.dtype != b0.dtype or not torch.equal(a0, b0):
             return False
     return True
 

@@ -105,7 +105,9 @@ static int test_convolutiondepthwise_1()
     return 0
            || test_convolutiondepthwise_oom_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 8)
            || test_convolutiondepthwise_oom_int8(9, 7, 16, 16, 3, 1, 1, 1, 1, 16)
-           || test_convolutiondepthwise_oom_int8(9, 7, 16, 8, 3, 1, 1, 1, 1, 2);
+           || test_convolutiondepthwise_oom_int8(9, 7, 16, 8, 3, 1, 1, 1, 1, 2)
+           || test_convolutiondepthwise_oom_int8(9, 7, 32, 32, 3, 1, 1, 1, 1, 32)
+           || test_convolutiondepthwise_oom_int8(9, 7, 64, 64, 3, 1, 2, 1, 1, 64);
 }
 
 static int test_convolutiondepthwise_2()
@@ -113,7 +115,9 @@ static int test_convolutiondepthwise_2()
     return 0
            || test_convolutiondepthwise_oom_int8(9, 7, 8, 8, 3, 1, 1, 1, 1, 8, true)
            || test_convolutiondepthwise_oom_int8(9, 7, 16, 16, 3, 1, 1, 1, 1, 16, true)
-           || test_convolutiondepthwise_oom_int8(9, 7, 16, 8, 3, 1, 1, 1, 1, 2, true);
+           || test_convolutiondepthwise_oom_int8(9, 7, 16, 8, 3, 1, 1, 1, 1, 2, true)
+           || test_convolutiondepthwise_oom_int8(9, 7, 32, 32, 3, 1, 1, 1, 1, 32, true)
+           || test_convolutiondepthwise_oom_int8(9, 7, 64, 64, 3, 1, 2, 1, 1, 64, true);
 }
 #endif // NCNN_INT8
 

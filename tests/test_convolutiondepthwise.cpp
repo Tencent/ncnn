@@ -7,7 +7,7 @@
 
 #include <limits.h>
 
-static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int activation_type)
+static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel, int dilation, int stride, int pad, int bias, int group, int activation_type, float epsilon = 0.001)
 {
     ncnn::Mat a = RandomMat(w, h, c);
 
@@ -31,7 +31,7 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     weights[0] = RandomMat(outch / group * c / group * kernel * kernel * group);
     weights[1] = RandomMat(outch);
 
-    int ret = test_layer("ConvolutionDepthWise", pd, weights, a, 0.001);
+    int ret = test_layer("ConvolutionDepthWise", pd, weights, a, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolutiondepthwise failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1]);
@@ -283,6 +283,23 @@ static int test_convolutiondepthwise_packed_activation_tails()
         for (int act = 1; act <= 6; act++)
         {
             if (test_convolutiondepthwise(8, 6, 8, 8, 2, 1, 1, 1, bias, 8, act) != 0)
+                return -1;
+        }
+    }
+
+    return 0;
+}
+
+static int test_convolutiondepthwise_stride2_tails()
+{
+    // 3x3s2 output widths with two and one column remainders, strict enough to check fp16 arithmetic
+    static const int shapes[][3] = {{5, 5, 1}, {12, 7, 1}, {15, 9, 0}};
+    for (int i = 0; i < 3; i++)
+    {
+        for (int bias = 0; bias < 2; bias++)
+        {
+            const int* s = shapes[i];
+            if (test_convolutiondepthwise(s[0], s[1], 8, 8, 3, 1, 2, s[2], bias, 8, 0, 0.0001) != 0)
                 return -1;
         }
     }
@@ -589,6 +606,7 @@ int main()
            || test_convolutiondepthwise_0()
            || test_convolutiondepthwise_activation_boundaries()
            || test_convolutiondepthwise_packed_activation_tails()
+           || test_convolutiondepthwise_stride2_tails()
            || test_convolutiondepthwise_activation_params_text()
 #if NCNN_VALIDATION
            || test_convolutiondepthwise_load_param()

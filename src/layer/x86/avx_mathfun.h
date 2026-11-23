@@ -813,7 +813,7 @@ static NCNN_FORCEINLINE __m256 pow256_ps(const __m256& a, const __m256& b)
 
 static NCNN_FORCEINLINE __m256 asin256_ps(const __m256& x)
 {
-    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_negative_zero = _mm256_castsi256_ps(_mm256_set1_epi32(INT32_MIN));
     const __m256 magic_half_one = _mm256_set1_ps(0.5f);
     const __m256 magic_one = _mm256_set1_ps(1.0f);
     const __m256 magic_a4 = _mm256_set1_ps(0.023994016f);
@@ -896,7 +896,7 @@ static NCNN_FORCEINLINE __m256 asin256_ps(const __m256& x)
 
 static NCNN_FORCEINLINE __m256 acos256_ps(const __m256& x)
 {
-    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_negative_zero = _mm256_castsi256_ps(_mm256_set1_epi32(INT32_MIN));
     const __m256 magic_zero = _mm256_set1_ps(0.0f);
     const __m256 magic_half_one = _mm256_set1_ps(0.5f);
     const __m256 magic_one = _mm256_set1_ps(1.0f);
@@ -985,7 +985,7 @@ static NCNN_FORCEINLINE __m256 acos256_ps(const __m256& x)
 
 static NCNN_FORCEINLINE __m256 atan256_ps(const __m256& x)
 {
-    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_negative_zero = _mm256_castsi256_ps(_mm256_set1_epi32(INT32_MIN));
     const __m256 magic_one = _mm256_set1_ps(1.0f);
     const __m256 magic_negative_one = _mm256_set1_ps(-1.0f);
     const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
@@ -1080,7 +1080,7 @@ static NCNN_FORCEINLINE __m256 atan2256_ps(const __m256& y, const __m256& x)
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
 
     const __m256 magic_zero = _mm256_set1_ps(0.0f);
-    const __m256 magic_negative_zero = _mm256_set1_ps(-0.0f);
+    const __m256 magic_negative_zero = _mm256_castsi256_ps(_mm256_set1_epi32(INT32_MIN));
     const __m256 magic_pi = _mm256_set1_ps(3.1415927f);
     const __m256 magic_half_pi = _mm256_set1_ps(1.5707964f);
 
@@ -1208,7 +1208,7 @@ static NCNN_FORCEINLINE __m256 asinh256_ps(const __m256& x)
     __m256 y_large = _mm256_add_ps(log256_ps(ax), _mm256_set1_ps(0.6931471805599453f));
     __m256 mask = _mm256_cmp_ps(ax, _mm256_set1_ps(1e19f), _CMP_GT_OQ);
     y = _mm256_or_ps(_mm256_and_ps(mask, y_large), _mm256_andnot_ps(mask, y));
-    return _mm256_or_ps(y, _mm256_and_ps(x, _mm256_set1_ps(-0.f)));
+    return _mm256_or_ps(y, _mm256_and_ps(x, _mm256_castsi256_ps(_mm256_set1_epi32(INT32_MIN))));
 }
 
 static NCNN_FORCEINLINE __m256 cosh256_ps(const __m256& x)

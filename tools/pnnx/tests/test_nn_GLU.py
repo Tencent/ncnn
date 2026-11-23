@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 
 class Model(nn.Module):
@@ -51,13 +52,37 @@ def test():
 
     x0p, y0p, y1p, z0p, z1p, z2p = test_nn_GLU_pnnx.test_inference()
 
-    return (
+    if not (
         torch.equal(x0, x0p)
         and torch.equal(y0, y0p)
         and torch.equal(y1, y1p)
         and torch.equal(z0, z0p)
         and torch.equal(z1, z1p)
         and torch.equal(z2, z2p)
+    ):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y, z))
+    torch.export.save(ep, "test_nn_GLU_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_nn_GLU_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_nn_GLU_export_pnnx
+    c0, c1, c2, c3, c4, c5 = test_nn_GLU_export_pnnx.test_inference()
+
+    return (
+        torch.equal(x0, c0)
+        and torch.equal(y0, c1)
+        and torch.equal(y1, c2)
+        and torch.equal(z0, c3)
+        and torch.equal(z1, c4)
+        and torch.equal(z2, c5)
     )
 
 

@@ -266,6 +266,8 @@ static int g_cpu_support_x86_avx512_fp16;
 #if __riscv
 static int g_cpu_support_riscv_zfh;
 static int g_cpu_support_riscv_zvfh;
+static int g_cpu_support_riscv_zvfbfmin;
+static int g_cpu_support_riscv_zvfbfwma;
 static int g_cpu_support_riscv_xtheadvector;
 #endif // __riscv
 #endif // defined __ANDROID__ || defined __linux__
@@ -2292,6 +2294,8 @@ static void initialize_global_cpu_info()
 #if __riscv
     g_cpu_support_riscv_zfh = ruapu_supports("zfh") || ruapu_supports("xtheadvector");   // xtheadvector implies zfh
     g_cpu_support_riscv_zvfh = ruapu_supports("zvfh") || ruapu_supports("xtheadvector"); // xtheadvector implies zvfh
+    g_cpu_support_riscv_zvfbfmin = ruapu_supports("zvfbfmin");
+    g_cpu_support_riscv_zvfbfwma = ruapu_supports("zvfbfwma");
     g_cpu_support_riscv_xtheadvector = ruapu_supports("xtheadvector");
 #endif // __riscv
 #endif // defined __ANDROID__ || defined __linux__
@@ -2952,6 +2956,34 @@ int cpu_support_riscv_zvfh()
 #endif
 }
 
+int cpu_support_riscv_zvfbfmin()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_cpu_support_riscv_zvfbfmin;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_zvfbfwma()
+{
+    try_initialize_global_cpu_info();
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_cpu_support_riscv_zvfbfwma;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_riscv_xtheadvector()
 {
     try_initialize_global_cpu_info();
@@ -2974,7 +3006,7 @@ int cpu_riscv_vlenb()
 #endif
     try_initialize_global_cpu_info();
 #if __riscv
-    if (!cpu_support_riscv_v())
+    if (!cpu_support_riscv_v() && !cpu_support_riscv_xtheadvector())
         return 0;
 
     int a = 0;
