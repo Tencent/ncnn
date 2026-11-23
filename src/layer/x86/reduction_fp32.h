@@ -167,6 +167,30 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
 
     if (reduce_w && h == 1 && d == 1)
     {
+        // thread the w axis over a fixed block partition when the whole
+        // reduce-all collapses to one row: the block count depends on w only,
+        // so the result stays independent of num_threads; the final combine
+        // walks the partials in fixed order
+        const int blocks = w < 128 ? w : 128;
+        if (reduce_c && channels == 1 && blocks >= 2)
+        {
+            Mat sums(blocks, a.elemsize, opt.workspace_allocator);
+            if (sums.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < blocks; i++)
+            {
+                const int begin = (size_t)i * w / blocks;
+                const int end = (size_t)(i + 1) * w / blocks;
+
+                sums[i] = reduction<Op, Op2>(v0, (const float*)a + begin, end - begin);
+            }
+
+            b[0] = reduction<Op2, Op2>(v0, sums, blocks);
+            return 0;
+        }
+
         Mat sums = b;
         if (reduce_c && channels > 1)
         {
