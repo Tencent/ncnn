@@ -212,10 +212,13 @@ int Eltwise::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& o
     // fold every other blob into the first one in place: SUM is
     // coeffs[0]*b0 + sum coeffs[b]*b_b (any coeffs), PROD is b0 * prod b_b,
     // MAX is max(b0, b_1..). float storage only: 16-bit storage layouts
-    // (fp16/bf16) have their own out-of-place kernels and a float-pointer
-    // fold here would reinterpret pairs of half elements
+    // (fp16/bf16) have their own out-of-place kernels, and a float-pointer
+    // fold here would reinterpret pairs of half elements. check the
+    // per-scalar bit width, not the per-channel byte size: a packed
+    // tensor's elemsize is scaled by elempack (pack4 fp32 = 16 bytes,
+    // pack2 fp16 = 4 bytes)
     Mat& bottom_blob = bottom_top_blobs[0];
-    if (bottom_blob.elemsize != 4u)
+    if (bottom_blob.elembits() != 32)
         return -1;
     int w = bottom_blob.w;
     int h = bottom_blob.h;
