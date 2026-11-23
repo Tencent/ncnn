@@ -38,7 +38,8 @@ def test():
 
     # torchscript to pnnx
     import os
-    if os.system("../../src/pnnx test_ncnn_fuse_swiglu.pt inputshape=[2,5,16] fp16=0") != 0:
+    # export with a dynamic sequence length, the fusion must still apply to the same dynamic dims
+    if os.system("../../src/pnnx test_ncnn_fuse_swiglu.pt inputshape=[2,5,16] inputshape2=[2,7,16] fp16=0") != 0:
         return False
 
     # both swish + mul pairs must be fused

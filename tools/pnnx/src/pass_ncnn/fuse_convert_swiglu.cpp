@@ -45,20 +45,9 @@ pnnx.Output             output      1 0 out
         const Operand* up = op_mul->inputs[0] == silu_gate ? op_mul->inputs[1] : op_mul->inputs[0];
 
         // SwiGLU requires two inputs with identical shape, reject broadcast cases
-        if (gate->shape.empty() || up->shape.empty())
-            return false;
-
-        if (gate->shape.size() != up->shape.size())
-            return false;
-
-        // -1 and -233 are unknown dims, equality there does not prove the runtime shapes match
-        for (size_t i = 0; i < gate->shape.size(); i++)
-        {
-            if (gate->shape[i] <= 0 || up->shape[i] <= 0)
-                return false;
-        }
-
-        return gate->shape == up->shape;
+        // matching dynamic dims are accepted like fuse_binaryop_eltwise,
+        // so llm graphs exported with a dynamic sequence length still fuse
+        return !gate->shape.empty() && gate->shape == up->shape;
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const

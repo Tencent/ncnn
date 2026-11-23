@@ -7,7 +7,7 @@ void swiglu_bf16s_avx512bf16(const Mat& gate, const Mat& up, Mat& top_blob, cons
 #if NCNN_RUNTIME_CPU && NCNN_AVXNECONVERT && __AVX__ && !__AVX512F__ && !__AVXNECONVERT__
 void swiglu_bf16s_avxneconvert(const Mat& gate, const Mat& up, Mat& top_blob, const Option& opt, float scale, float offset, float limit);
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
 void swiglu_bf16s_avx2(const Mat& gate, const Mat& up, Mat& top_blob, const Option& opt, float scale, float offset, float limit);
 #endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
@@ -33,7 +33,7 @@ static void swiglu_bf16s(const Mat& gate, const Mat& up, Mat& top_blob, const Op
         return;
     }
 #endif
-#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__FMA__ && !__FMA4__ && !__AVX512BF16__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__AVX512BF16__
     if (ncnn::cpu_support_x86_avx2())
     {
         swiglu_bf16s_avx2(gate, up, top_blob, opt, scale, offset, limit);

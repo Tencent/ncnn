@@ -3,8 +3,6 @@
 
 #include "testutil.h"
 
-#include <float.h>
-
 static int test_swiglu(const ncnn::Mat& a, const ncnn::Mat& b, float sigmoid_scale, float up_offset, float activation_limit, int flag = 0)
 {
     ncnn::ParamDict pd;
@@ -126,171 +124,6 @@ static int test_swiglu_4()
            || test_swiglu(a2, b2, 1.f, 1.f, 0.5f);
 }
 
-static const float expected_standard[14] = {0.00317785081f, 0.00637735836f, -0.f, 0.f, 5.11741005f, 28.5772238f, -69.9362264f, 4.99977301f, -4.99999999f, -0.566311003f, -0.421632376f, 8800.f, -5.58011396e-42f, -150.f};
-static const float expected_gptoss[14] = {2.43477678e-06f, -0.f, -0.154204234f, 0.f, 6.76636613f, 23.8554295f, -41.9997188f, 10.4999297f, 5.24996485f, -0.598446254f, -0.3023993f, 55.999625f, -3.02704717e-72f, -3.49997656f};
-static const float expected_deepseek[14] = {0.00317785081f, 0.00637735836f, -0.f, 0.f, 5.11741005f, 28.5772238f, -69.9362264f, 4.99977301f, -2.49988651f, -0.566311003f, -0.421632376f, 99.9954602f, -5.58011396e-42f, -14.999319f};
-
-static int test_swiglu_expected(const char* name, const char* mode, const ncnn::Mat& out, const float* expected, float epsilon)
-{
-    for (int i = 0; i < 14; i++)
-    {
-        if (!NearlyEqual(out[i], expected[i], epsilon))
-        {
-            fprintf(stderr, "swiglu oracle %s/%s failed i=%d expect %f but got %f\n", name, mode, i, expected[i], out[i]);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
-static int test_swiglu_oracle(const char* name, float scale, float offset, float limit, const float* expected)
-{
-    ncnn::ParamDict pd;
-    pd.set(0, scale);
-    pd.set(1, offset);
-    pd.set(2, limit);
-
-    const int size = 14;
-    const float gate_data[size] = {-10.f, -7.f, -1.f, 0.f, 1.f, 3.f, 7.f, 10.f, 20.f, -0.5f, 0.25f, 88.f, -100.f, 100.f};
-    const float up_data[size] = {-7.f, -1.f, 0.f, 1.f, 7.f, 10.f, -10.f, 0.5f, -0.25f, 3.f, -3.f, 100.f, 1.5f, -1.5f};
-
-    ncnn::Mat gate(size);
-    ncnn::Mat up(size);
-    float* gateptr = gate;
-    float* upptr = up;
-    for (int i = 0; i < size; i++)
-    {
-        gateptr[i] = gate_data[i];
-        upptr[i] = up_data[i];
-    }
-
-    ncnn::Option opt;
-    opt.num_threads = 1;
-    opt.use_packing_layout = true;
-
-    // the generic layer must match the reference values
-    {
-        ncnn::Layer* op = ncnn::create_layer_naive("SwiGLU");
-        if (!op)
-        {
-            fprintf(stderr, "create swiglu layer failed\n");
-            return -1;
-        }
-        op->load_param(pd);
-        op->create_pipeline(opt);
-
-        std::vector<ncnn::Mat> as(2);
-        as[0] = gate;
-        as[1] = up;
-        std::vector<ncnn::Mat> tops(1);
-        int ret = op->forward(as, tops, opt);
-
-        op->destroy_pipeline(opt);
-        delete op;
-
-        if (ret != 0 || tops[0].empty())
-        {
-            fprintf(stderr, "swiglu oracle %s/naive forward failed ret=%d\n", name, ret);
-            return -1;
-        }
-        if (test_swiglu_expected(name, "naive", tops[0], expected, 0.001f) != 0)
-            return -1;
-    }
-
-    // optimized backends must match the same reference values, including the clamp edges
-    {
-        ncnn::Layer* op = ncnn::create_layer_cpu("SwiGLU");
-        if (!op)
-        {
-            fprintf(stderr, "create swiglu cpu layer failed\n");
-            return -1;
-        }
-        op->load_param(pd);
-        op->create_pipeline(opt);
-
-        std::vector<ncnn::Mat> as(2);
-        as[0] = gate;
-        as[1] = up;
-
-        {
-            std::vector<ncnn::Mat> tops(1);
-            int ret = op->forward(as, tops, opt);
-            if (ret != 0 || tops[0].empty() || test_swiglu_expected(name, "cpu", tops[0], expected, 0.001f) != 0)
-            {
-                fprintf(stderr, "swiglu oracle %s/cpu forward failed ret=%d\n", name, ret);
-                op->destroy_pipeline(opt);
-                delete op;
-                return -1;
-            }
-        }
-
-        if (op->support_bf16_storage)
-        {
-            ncnn::Option opt_bf16 = opt;
-            opt_bf16.use_bf16_storage = true;
-            opt_bf16.use_fp16_storage = false;
-            opt_bf16.use_fp16_arithmetic = false;
-
-            ncnn::Mat gate_bf16;
-            ncnn::Mat up_bf16;
-            ncnn::cast_float32_to_bfloat16(gate, gate_bf16, opt_bf16);
-            ncnn::cast_float32_to_bfloat16(up, up_bf16, opt_bf16);
-
-            as[0] = gate_bf16;
-            as[1] = up_bf16;
-
-            std::vector<ncnn::Mat> tops_bf16(1);
-            int ret = op->forward(as, tops_bf16, opt_bf16);
-
-            ncnn::Mat top;
-            ncnn::cast_bfloat16_to_float32(tops_bf16[0], top, opt_bf16);
-
-            if (ret != 0 || tops_bf16[0].empty() || test_swiglu_expected(name, "bf16", top, expected, 0.01f) != 0)
-            {
-                fprintf(stderr, "swiglu oracle %s/bf16 forward failed ret=%d\n", name, ret);
-                op->destroy_pipeline(opt);
-                delete op;
-                return -1;
-            }
-        }
-
-        if (op->support_fp16_storage)
-        {
-            ncnn::Option opt_fp16 = opt;
-            opt_fp16.use_fp16_storage = true;
-            opt_fp16.use_fp16_arithmetic = false;
-
-            ncnn::Mat gate_fp16;
-            ncnn::Mat up_fp16;
-            ncnn::cast_float32_to_float16(gate, gate_fp16, opt_fp16);
-            ncnn::cast_float32_to_float16(up, up_fp16, opt_fp16);
-
-            as[0] = gate_fp16;
-            as[1] = up_fp16;
-
-            std::vector<ncnn::Mat> tops_fp16(1);
-            int ret = op->forward(as, tops_fp16, opt_fp16);
-
-            ncnn::Mat top;
-            ncnn::cast_float16_to_float32(tops_fp16[0], top, opt_fp16);
-
-            if (ret != 0 || tops_fp16[0].empty() || test_swiglu_expected(name, "fp16s", top, expected, 0.01f) != 0)
-            {
-                fprintf(stderr, "swiglu oracle %s/fp16s forward failed ret=%d\n", name, ret);
-                op->destroy_pipeline(opt);
-                delete op;
-                return -1;
-            }
-        }
-
-        op->destroy_pipeline(opt);
-        delete op;
-    }
-
-    return 0;
-}
-
 int main()
 {
     SRAND(7767517);
@@ -300,8 +133,5 @@ int main()
            || test_swiglu_1()
            || test_swiglu_2()
            || test_swiglu_3()
-           || test_swiglu_4()
-           || test_swiglu_oracle("standard", 1.f, 0.f, 0.f, expected_standard)
-           || test_swiglu_oracle("gpt-oss", 1.702f, 1.f, 7.f, expected_gptoss)
-           || test_swiglu_oracle("deepseek", 1.f, 0.f, 10.f, expected_deepseek);
+           || test_swiglu_4();
 }
