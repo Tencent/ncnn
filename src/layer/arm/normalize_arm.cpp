@@ -26,7 +26,7 @@ static NCNN_FORCEINLINE float normalize_coeff(float ssum, float eps, int eps_mod
     return 1.f / sqrtf(std::max(ssum, eps));
 }
 
-static float square_sum_ps(const float* ptr, int size)
+static float normalize_square_sum(const float* ptr, int size)
 {
     float32x4_t _sum0 = vdupq_n_f32(0.f);
     float32x4_t _sum1 = vdupq_n_f32(0.f);
@@ -73,7 +73,7 @@ static float square_sum_ps(const float* ptr, int size)
     return ssum;
 }
 
-static void scale_ps(float* ptr, int size, float32x4_t scale)
+static void normalize_scale(float* ptr, int size, float32x4_t scale)
 {
     int i = 0;
 #if __aarch64__
@@ -159,7 +159,7 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             const int n = size * elempack;
 
 #if __ARM_NEON
-            ((float*)square_sum_blob)[q] = square_sum_ps(ptr, n);
+            ((float*)square_sum_blob)[q] = normalize_square_sum(ptr, n);
 #else
             float ssum = 0.f;
             for (int i = 0; i < n; i++)
@@ -189,7 +189,7 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float32x4_t _scale = vdupq_n_f32(a * scale_ptr[0]);
             if (!channel_shared && elempack == 4)
                 _scale = vmulq_f32(vdupq_n_f32(a), vld1q_f32(scale_ptr));
-            scale_ps(ptr, n, _scale);
+            normalize_scale(ptr, n, _scale);
 #else
             const float scale = a * scale_ptr[0];
             for (int i = 0; i < n; i++)
@@ -249,7 +249,7 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float32x4_t _scale = _coeff;
                 _scale = vmulq_f32(_scale, channel_shared ? vdupq_n_f32(scale_ptr[0]) : vld1q_f32(scale_ptr));
 
-                scale_ps(ptr, n, _scale);
+                normalize_scale(ptr, n, _scale);
             }
 
             return 0;
@@ -264,7 +264,7 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             const int n = size * elempack;
 
 #if __ARM_NEON
-            float ssum = square_sum_ps(ptr, n);
+            float ssum = normalize_square_sum(ptr, n);
 #else
             float ssum = 0.f;
             for (int i = 0; i < n; i++)
@@ -276,7 +276,7 @@ int Normalize_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             const float a = normalize_coeff(ssum, eps, eps_mode);
 
 #if __ARM_NEON
-            scale_ps(ptr, n, vdupq_n_f32(a * scale_ptr[0]));
+            normalize_scale(ptr, n, vdupq_n_f32(a * scale_ptr[0]));
 #else
             const float scale = a * scale_ptr[0];
             for (int i = 0; i < n; i++)
