@@ -16,7 +16,7 @@ env:
   ENABLE_BITCODE: OFF
   ENABLE_ARC: OFF
   ENABLE_VISIBILITY: OFF
-  EMSCRIPTEN_VERSION: 3.1.28
+  EMSCRIPTEN_VERSION: 6.0.12
 
 permissions:
   contents: read
@@ -61,8 +61,10 @@ jobs:
         opt:
           - { shared-lib: OFF, os: ubuntu-22.04, id: ubuntu-2204        }
           - { shared-lib: OFF, os: ubuntu-24.04, id: ubuntu-2404        }
+          - { shared-lib: OFF, os: ubuntu-26.04, id: ubuntu-2604        }
           - { shared-lib: ON,  os: ubuntu-22.04, id: ubuntu-2204-shared }
           - { shared-lib: ON,  os: ubuntu-24.04, id: ubuntu-2404-shared }
+          - { shared-lib: ON,  os: ubuntu-26.04, id: ubuntu-2604-shared }
     runs-on: ${{ matrix.opt.os }}
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.opt.id }}
@@ -1980,9 +1982,15 @@ jobs:
 
   webassembly:
     needs: [setup]
+    strategy:
+      matrix:
+        include:
+          - { arch: webassembly, flags: "" }
+          - { arch: webassembly64, flags: "-m64" }
     runs-on: ubuntu-latest
     env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-${{ matrix.arch }}
+      LDFLAGS: ${{ matrix.flags }}
     steps:
     - uses: actions/checkout@v7
     - name: emsdk
@@ -1995,7 +2003,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j $(nproc)
@@ -2004,7 +2012,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-simd && cd build-simd
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j $(nproc)
@@ -2013,8 +2021,8 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-threads && cd build-threads
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
@@ -2022,8 +2030,8 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-simd-threads && cd build-simd-threads
-        cmake -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
+        cmake -DCMAKE_C_FLAGS="${{ matrix.flags }}" -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j $(nproc)
         cmake --build . --target install/strip
@@ -2052,10 +2060,12 @@ jobs:
           - { shared-lib: OFF, os: windows-2022, toolset-version: v141, windows-sdk-version: 22621, id: vs2017 }
           - { shared-lib: OFF, os: windows-2022, toolset-version: v142, windows-sdk-version: 22621, id: vs2019 }
           - { shared-lib: OFF, os: windows-2022, toolset-version: v143, windows-sdk-version: 26100, id: vs2022 }
+          - { shared-lib: OFF, os: windows-2025-vs2026, toolset-version: v145, windows-sdk-version: 26100, id: vs2026 }
           - { shared-lib: ON,  os: windows-2022, toolset-version: v140, windows-sdk-version: 22621, id: vs2015-shared }
           - { shared-lib: ON,  os: windows-2022, toolset-version: v141, windows-sdk-version: 22621, id: vs2017-shared }
           - { shared-lib: ON,  os: windows-2022, toolset-version: v142, windows-sdk-version: 22621, id: vs2019-shared }
           - { shared-lib: ON,  os: windows-2022, toolset-version: v143, windows-sdk-version: 26100, id: vs2022-shared }
+          - { shared-lib: ON,  os: windows-2025-vs2026, toolset-version: v145, windows-sdk-version: 26100, id: vs2026-shared }
     runs-on: ${{ matrix.opt.os }}
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-${{ matrix.opt.id }}
@@ -2114,12 +2124,12 @@ jobs:
         7z x ./protobuf-3.11.2.zip
         cd protobuf-3.11.2
         mkdir build-x86; cd build-x86;
-        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A Win32,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x86" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DCMAKE_POLICY_VERSION_MINIMUM="3.5" ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
         cd ..
         mkdir build-x64; cd build-x64;
-        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+        cmake -T ${{ matrix.opt.toolset-version }},host=x64 -A x64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF -DCMAKE_POLICY_VERSION_MINIMUM="3.5" ../cmake
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-x86
@@ -2135,7 +2145,7 @@ jobs:
         cmake --build . --config Release -j 4
         cmake --build . --config Release --target install
     - name: build-arm64
-      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
+      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143' || matrix.opt.toolset-version == 'v145'
       run: |
         mkdir build-arm64; cd build-arm64
         cmake ${{ env.NCNN_CMAKE_OPTIONS }} -A arm64,version=10.0.${{ matrix.opt.windows-sdk-version }}.0 ..
@@ -2151,7 +2161,7 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: package
-      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143'
+      if: matrix.opt.toolset-version == 'v142' || matrix.opt.toolset-version == 'v143' || matrix.opt.toolset-version == 'v145'
       run: |
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86

@@ -189,6 +189,7 @@ pnnx_add_test(Tensor_type_as)
 pnnx_add_test(Tensor_unflatten)
 pnnx_add_test(Tensor_view)
 
+pnnx_add_test(functionize)
 pnnx_add_test(pnnx_model_stat)
 
 pnnx_add_test(torch_addmm)
@@ -342,6 +343,7 @@ pnnx_add_test(ir_complex)
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
 pnnx_add_test(pnnx_bool_attribute)
+pnnx_add_test(pnnx_div_rounding)
 pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_expand)
 pnnx_add_test(pnnx_eliminate_noop_math)
@@ -427,4 +429,8 @@ add_subdirectory(ncnn)
 
 if(onnxruntime_FOUND)
     add_subdirectory(onnx)
+endif()
+
+if(Torch_VERSION VERSION_GREATER_EQUAL "2.11")
+    add_subdirectory(pt2)
 endif()

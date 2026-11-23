@@ -556,7 +556,7 @@ static NCNN_FORCEINLINE __m512 pow512_ps(const __m512& a, const __m512& b)
 
 static NCNN_FORCEINLINE __m512 asin512_ps(const __m512& x)
 {
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_half_one = _mm512_set1_ps(0.5f);
     const __m512 magic_one = _mm512_set1_ps(1.0f);
     const __m512 magic_a4 = _mm512_set1_ps(0.023994016f);
@@ -643,7 +643,7 @@ static NCNN_FORCEINLINE __m512 asin512_ps(const __m512& x)
 
 static NCNN_FORCEINLINE __m512 acos512_ps(const __m512& x)
 {
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_zero = _mm512_set1_ps(0.0f);
     const __m512 magic_half_one = _mm512_set1_ps(0.5f);
     const __m512 magic_one = _mm512_set1_ps(1.0f);
@@ -739,7 +739,7 @@ static NCNN_FORCEINLINE __m512 acos512_ps(const __m512& x)
 
 static NCNN_FORCEINLINE __m512 atan512_ps(const __m512& x)
 {
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_one = _mm512_set1_ps(1.0f);
     const __m512 magic_negative_one = _mm512_set1_ps(-1.0f);
     const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
@@ -839,7 +839,7 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
     // Reference: https://mazzo.li/posts/vectorized-atan2.html
 
     const __m512 magic_zero = _mm512_set1_ps(0.0f);
-    const __m512 magic_negative_zero = _mm512_set1_ps(-0.0f);
+    const __m512 magic_negative_zero = _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN));
     const __m512 magic_pi = _mm512_set1_ps(3.1415927f);
     const __m512 magic_half_pi = _mm512_set1_ps(1.5707964f);
 
@@ -864,14 +864,11 @@ static NCNN_FORCEINLINE __m512 atan2512_ps(const __m512& y, const __m512& x)
     // negative_mask_y = magic_negative_zero && y;
     __m512 negative_mask_y = _mm512_and_ps(magic_negative_zero, y);
 
-    // pi_additions = ((x < 0.0f) ? ((y < 0.0f) ? -PI : PI) : 0.0f);
-    __m512 pi_additions = _mm512_mask_mov_ps(
-                              magic_zero,
+    // pi_additions = ((x < 0.0f) ? copysign(PI, y) : 0.0f);
+    // Avoid MSVC 2019 misencoding the broadcast of a constant-folded -PI.
+    __m512 pi_additions = _mm512_maskz_mov_ps(
                               _mm512_cmp_ps_mask(x, magic_zero, _CMP_LT_OQ),
-                              _mm512_mask_mov_ps(
-                                  magic_pi,
-                                  _mm512_cmp_ps_mask(y, magic_zero, _CMP_LT_OQ),
-                                  _mm512_or_ps(magic_negative_zero, magic_pi)));
+                              _mm512_or_ps(negative_mask_y, magic_pi));
 
     // normal_result = (atan(y / x) + pi_additions);
     __m512 normal_result = _mm512_add_ps(
@@ -965,7 +962,7 @@ static NCNN_FORCEINLINE __m512 asinh512_ps(const __m512& x)
     __m512 y_large = _mm512_add_ps(log512_ps(ax), _mm512_set1_ps(0.6931471805599453f));
     __mmask16 mask = _mm512_cmp_ps_mask(ax, _mm512_set1_ps(1e19f), _CMP_GT_OQ);
     y = _mm512_mask_blend_ps(mask, y, y_large);
-    return _mm512_or_ps(y, _mm512_and_ps(x, _mm512_set1_ps(-0.f)));
+    return _mm512_or_ps(y, _mm512_and_ps(x, _mm512_castsi512_ps(_mm512_set1_epi32(INT32_MIN))));
 }
 
 static NCNN_FORCEINLINE __m512 cosh512_ps(const __m512& x)

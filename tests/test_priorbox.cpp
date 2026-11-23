@@ -5,7 +5,7 @@
 
 #include "layer_type.h"
 
-static int test_priorbox_caffe()
+static int test_priorbox_caffe(int w, int h, int image_w, int image_h, float step_w, float step_h, float offset, int step_mmdetection, int center_mmdetection)
 {
     ncnn::Mat min_sizes(1);
     min_sizes[0] = 105.f;
@@ -21,30 +21,30 @@ static int test_priorbox_caffe()
     pd.set(0, min_sizes);
     pd.set(1, max_sizes);
     pd.set(2, aspect_ratios);
-    pd.set(3, 0.1f);    // variances[0]
-    pd.set(4, 0.1f);    // variances[1]
-    pd.set(5, 0.2f);    // variances[2]
-    pd.set(6, 0.2f);    // variances[3]
-    pd.set(7, 1);       // flip
-    pd.set(8, 0);       // clip
-    pd.set(9, -233);    // image_width
-    pd.set(10, -233);   // image_height
-    pd.set(11, -233.f); // step_width
-    pd.set(12, -233.f); // step_height
-    pd.set(13, 0.f);    // offset
-    pd.set(14, 0.f);    // step_mmdetection
-    pd.set(15, 0.f);    // center_mmdetection
+    pd.set(3, 0.1f);  // variances[0]
+    pd.set(4, 0.1f);  // variances[1]
+    pd.set(5, 0.2f);  // variances[2]
+    pd.set(6, 0.2f);  // variances[3]
+    pd.set(7, 1);     // flip
+    pd.set(8, 0);     // clip
+    pd.set(9, -233);  // image_width
+    pd.set(10, -233); // image_height
+    pd.set(11, step_w);
+    pd.set(12, step_h);
+    pd.set(13, offset);
+    pd.set(14, step_mmdetection);
+    pd.set(15, center_mmdetection);
 
     std::vector<ncnn::Mat> weights(0);
 
     std::vector<ncnn::Mat> as(2);
-    as[0] = RandomMat(72, 72, 1);
-    as[1] = RandomMat(512, 512, 1);
+    as[0] = RandomMat(w, h, 1);
+    as[1] = RandomMat(image_w, image_h, 1);
 
     int ret = test_layer("PriorBox", pd, weights, as, 1);
     if (ret != 0)
     {
-        fprintf(stderr, "test_priorbox_caffe failed\n");
+        fprintf(stderr, "test_priorbox_caffe failed w=%d h=%d image_w=%d image_h=%d step_w=%f step_h=%f offset=%f step_mmdetection=%d center_mmdetection=%d\n", w, h, image_w, image_h, step_w, step_h, offset, step_mmdetection, center_mmdetection);
     }
 
     return ret;
@@ -174,7 +174,13 @@ int main()
     SRAND(7767517);
 
     return 0
-           || test_priorbox_caffe()
+           || test_priorbox_caffe(72, 72, 512, 512, -233.f, -233.f, 0.f, 0, 0)
+           || test_priorbox_caffe(19, 19, 300, 300, -233.f, -233.f, 0.5f, 0, 0)
+           || test_priorbox_caffe(19, 19, 300, 300, -233.f, -233.f, 0.5f, 1, 0)
+           || test_priorbox_caffe(19, 19, 300, 300, -233.f, -233.f, 0.5f, 0, 1)
+           || test_priorbox_caffe(19, 19, 300, 300, -233.f, -233.f, 0.5f, 1, 1)
+           || test_priorbox_caffe(10, 7, 128, 96, -233.f, -233.f, 0.5f, 1, 1)
+           || test_priorbox_caffe(10, 7, 128, 96, 12.f, 14.f, 0.5f, 1, 1)
            || test_priorbox_mxnet()
 #if NCNN_VALIDATION
            || test_priorbox_load_param()

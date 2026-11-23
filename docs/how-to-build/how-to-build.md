@@ -185,7 +185,7 @@ Start the command prompt: `Start → Programs → Visual Studio 2017 → Visual 
 
 > You can also search `x64 Native Tools Command Prompt for VS 2017` directly.
 
-Download protobuf-3.11.2 from https://github.com/google/protobuf/archive/v3.11.2.zip
+Download protobuf-3.11.2 from https://github.com/protocolbuffers/protobuf/archive/v3.11.2.zip
 
 Build protobuf library:
 
@@ -456,7 +456,7 @@ unzip android-ndk-r21d-linux-x86_64.zip
 export ANDROID_NDK=<your-ndk-root-path>
 ```
 
-(optional) remove the hardcoded debug flag in Android NDK [android-ndk issue](https://github.com/android-ndk/ndk/issues/243)
+(optional) remove the hardcoded debug flag in Android NDK [android-ndk issue](https://github.com/android/ndk/issues/243)
 ```
 # open $ANDROID_NDK/build/cmake/android.toolchain.cmake for ndk < r23
 # or $ANDROID_NDK/build/cmake/android-legacy.toolchain.cmake for ndk >= r23
