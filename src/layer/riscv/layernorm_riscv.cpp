@@ -278,17 +278,24 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     }
     else
     {
-        int n = size;
+        // full vl chunks keep every chunk aligned with the packn lanes of _a and _b
+        const size_t vl = __riscv_vsetvlmax_e32m8();
+        int n = size / vl * vl;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
             _p = __riscv_vfmadd_vv_f32m8(_p, _a, _b, vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
-            n -= vl;
             ptr += vl;
-            gamma_ptr += vl;
-            beta_ptr += vl;
+            n -= vl;
+        }
+        int remain = size % vl;
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e32m8(remain);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vlr);
+            _p = __riscv_vfmadd_vv_f32m8(_p, _a, _b, vlr);
+            __riscv_vse32_v_f32m8(ptr, _p, vlr);
         }
     }
 #else  // __riscv_vector

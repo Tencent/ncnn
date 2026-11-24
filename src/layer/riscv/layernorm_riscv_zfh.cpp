@@ -234,17 +234,24 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
     }
     else
     {
-        int n = size;
+        // full vl chunks keep every chunk aligned with the packn lanes of _a and _b
+        const size_t vl = __riscv_vsetvlmax_e16m4();
+        int n = size / vl * vl;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m4(n);
             vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
             _p = __riscv_vfmadd_vv_f32m8(_p, _a, _b, vl);
             __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
-            n -= vl;
             ptr += vl;
-            gamma_ptr += vl;
-            beta_ptr += vl;
+            n -= vl;
+        }
+        int remain = size % vl;
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e16m4(remain);
+            vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vlr), vlr);
+            _p = __riscv_vfmadd_vv_f32m8(_p, _a, _b, vlr);
+            __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vlr), vlr);
         }
     }
 #else  // __riscv_vector
