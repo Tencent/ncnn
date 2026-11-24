@@ -392,7 +392,23 @@ def _run_case(name, net, inputs, inputshape, expected_inputshape, expected_flops
     pnnx_module = __import__(name + "_pnnx")
     b = pnnx_module.test_inference()
 
-    return _allclose(a, b)
+    if not _allclose(a, b):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, tuple(inputs))
+    torch.export.save(ep, name + "_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx " + name + "_export.pt2 fp16=0")
+
+    # pnnx inference
+    pnnx_export = __import__(name + "_export_pnnx")
+    c = pnnx_export.test_inference()
+    return _allclose(a, c)
 
 
 def test():

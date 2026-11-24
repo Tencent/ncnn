@@ -31,6 +31,41 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm, 130)
 
+class F_layer_norm_native : public F_layer_norm
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+7 8
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+pnnx.Input              input_3     0 1 normalized_shape
+prim::Constant          op_0        0 1 eps value=%eps
+aten::native_layer_norm op_1        5 3 input normalized_shape weight bias eps out mean rstd
+pnnx.Output             output      3 0 out mean rstd
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_1");
+        return op->outputs[1]->consumers.empty() && op->outputs[2]->consumers.empty();
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        GraphRewriterPass::write(op, captured_params);
+
+        op->outputs[1]->producer = 0;
+        op->outputs[2]->producer = 0;
+        op->outputs.resize(1);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_layer_norm_native, 130)
+
 class F_layer_norm_onnx : public GraphRewriterPass
 {
 public:

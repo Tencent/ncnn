@@ -17,6 +17,11 @@ public:
     {
         return "nn.Dropout2d";
     }
+
+    void write(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod) const
+    {
+        write_dropout_alias(op, graph, mod);
+    }
 };
 
 REGISTER_GLOBAL_PNNX_FUSE_MODULE_PASS(Dropout2d)

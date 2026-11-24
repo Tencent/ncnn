@@ -9,8 +9,13 @@
 #endif // __riscv_vector
 
 #include "cpu.h"
+#include "riscv_usability.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "gelu_bf16s.h"
+#endif
 
 GELU_riscv::GELU_riscv()
 {
@@ -24,15 +29,25 @@ GELU_riscv::GELU_riscv()
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_top_blob.elembits();
+#endif
 
 #if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
 
     int w = bottom_top_blob.w;
@@ -104,5 +119,13 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return GELU::forward_inplace(bottom_top_blob, opt);
 }
+
+#if NCNN_BF16
+int GELU_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    gelu_bf16s(bottom_top_blob, fast_gelu, opt);
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
