@@ -218,12 +218,14 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (top_blob.empty())
         return -100;
 
+    const int nT = bottom_blob.total() * bottom_blob.elemsize >= 8192 ? opt.num_threads : 1;
+
     if (scalar_size == 2)
-        return permute_arm_bf16s_fp16s(bottom_blob, top_blob, order_type, opt.num_threads);
+        return permute_arm_bf16s_fp16s(bottom_blob, top_blob, order_type, nT);
 
     if (dims == 2)
     {
-        permute_arm_fp32::permute2d(bottom_blob, top_blob, opt.num_threads);
+        permute_arm_fp32::permute2d(bottom_blob, top_blob, nT);
         return 0;
     }
 
@@ -231,40 +233,40 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     {
         switch (order_type)
         {
-        case 1: permute_arm_fp32::permute3d_hwc(bottom_blob, top_blob, opt.num_threads); break;
-        case 2: permute_arm_fp32::permute3d_wch(bottom_blob, top_blob, opt.num_threads); break;
-        case 3: permute_arm_fp32::permute3d_cwh(bottom_blob, top_blob, opt.num_threads); break;
-        case 4: permute_arm_fp32::permute3d_hcw(bottom_blob, top_blob, opt.num_threads); break;
-        case 5: permute_arm_fp32::permute3d_chw(bottom_blob, top_blob, opt.num_threads); break;
+        case 1: permute_arm_fp32::permute3d_hwc(bottom_blob, top_blob, nT); break;
+        case 2: permute_arm_fp32::permute3d_wch(bottom_blob, top_blob, nT); break;
+        case 3: permute_arm_fp32::permute3d_cwh(bottom_blob, top_blob, nT); break;
+        case 4: permute_arm_fp32::permute3d_hcw(bottom_blob, top_blob, nT); break;
+        case 5: permute_arm_fp32::permute3d_chw(bottom_blob, top_blob, nT); break;
         }
         return 0;
     }
 
     switch (order_type)
     {
-    case 1: permute_arm_fp32::permute4d_hwdc(bottom_blob, top_blob, opt.num_threads); break;
-    case 2: permute_arm_fp32::permute4d_wdhc(bottom_blob, top_blob, opt.num_threads); break;
-    case 3: permute_arm_fp32::permute4d_dwhc(bottom_blob, top_blob, opt.num_threads); break;
-    case 4: permute_arm_fp32::permute4d_hdwc(bottom_blob, top_blob, opt.num_threads); break;
-    case 5: permute_arm_fp32::permute4d_dhwc(bottom_blob, top_blob, opt.num_threads); break;
-    case 6: permute_arm_fp32::permute4d_whcd(bottom_blob, top_blob, opt.num_threads); break;
-    case 7: permute_arm_fp32::permute4d_hwcd(bottom_blob, top_blob, opt.num_threads); break;
-    case 8: permute_arm_fp32::permute4d_wchd(bottom_blob, top_blob, opt.num_threads); break;
-    case 9: permute_arm_fp32::permute4d_cwhd(bottom_blob, top_blob, opt.num_threads); break;
-    case 10: permute_arm_fp32::permute4d_hcwd(bottom_blob, top_blob, opt.num_threads); break;
-    case 11: permute_arm_fp32::permute4d_chwd(bottom_blob, top_blob, opt.num_threads); break;
-    case 12: permute_arm_fp32::permute4d_wdch(bottom_blob, top_blob, opt.num_threads); break;
-    case 13: permute_arm_fp32::permute4d_dwch(bottom_blob, top_blob, opt.num_threads); break;
-    case 14: permute_arm_fp32::permute4d_wcdh(bottom_blob, top_blob, opt.num_threads); break;
-    case 15: permute_arm_fp32::permute4d_cwdh(bottom_blob, top_blob, opt.num_threads); break;
-    case 16: permute_arm_fp32::permute4d_dcwh(bottom_blob, top_blob, opt.num_threads); break;
-    case 17: permute_arm_fp32::permute4d_cdwh(bottom_blob, top_blob, opt.num_threads); break;
-    case 18: permute_arm_fp32::permute4d_hdcw(bottom_blob, top_blob, opt.num_threads); break;
-    case 19: permute_arm_fp32::permute4d_dhcw(bottom_blob, top_blob, opt.num_threads); break;
-    case 20: permute_arm_fp32::permute4d_hcdw(bottom_blob, top_blob, opt.num_threads); break;
-    case 21: permute_arm_fp32::permute4d_chdw(bottom_blob, top_blob, opt.num_threads); break;
-    case 22: permute_arm_fp32::permute4d_dchw(bottom_blob, top_blob, opt.num_threads); break;
-    case 23: permute_arm_fp32::permute4d_cdhw(bottom_blob, top_blob, opt.num_threads); break;
+    case 1: permute_arm_fp32::permute4d_hwdc(bottom_blob, top_blob, nT); break;
+    case 2: permute_arm_fp32::permute4d_wdhc(bottom_blob, top_blob, nT); break;
+    case 3: permute_arm_fp32::permute4d_dwhc(bottom_blob, top_blob, nT); break;
+    case 4: permute_arm_fp32::permute4d_hdwc(bottom_blob, top_blob, nT); break;
+    case 5: permute_arm_fp32::permute4d_dhwc(bottom_blob, top_blob, nT); break;
+    case 6: permute_arm_fp32::permute4d_whcd(bottom_blob, top_blob, nT); break;
+    case 7: permute_arm_fp32::permute4d_hwcd(bottom_blob, top_blob, nT); break;
+    case 8: permute_arm_fp32::permute4d_wchd(bottom_blob, top_blob, nT); break;
+    case 9: permute_arm_fp32::permute4d_cwhd(bottom_blob, top_blob, nT); break;
+    case 10: permute_arm_fp32::permute4d_hcwd(bottom_blob, top_blob, nT); break;
+    case 11: permute_arm_fp32::permute4d_chwd(bottom_blob, top_blob, nT); break;
+    case 12: permute_arm_fp32::permute4d_wdch(bottom_blob, top_blob, nT); break;
+    case 13: permute_arm_fp32::permute4d_dwch(bottom_blob, top_blob, nT); break;
+    case 14: permute_arm_fp32::permute4d_wcdh(bottom_blob, top_blob, nT); break;
+    case 15: permute_arm_fp32::permute4d_cwdh(bottom_blob, top_blob, nT); break;
+    case 16: permute_arm_fp32::permute4d_dcwh(bottom_blob, top_blob, nT); break;
+    case 17: permute_arm_fp32::permute4d_cdwh(bottom_blob, top_blob, nT); break;
+    case 18: permute_arm_fp32::permute4d_hdcw(bottom_blob, top_blob, nT); break;
+    case 19: permute_arm_fp32::permute4d_dhcw(bottom_blob, top_blob, nT); break;
+    case 20: permute_arm_fp32::permute4d_hcdw(bottom_blob, top_blob, nT); break;
+    case 21: permute_arm_fp32::permute4d_chdw(bottom_blob, top_blob, nT); break;
+    case 22: permute_arm_fp32::permute4d_dchw(bottom_blob, top_blob, nT); break;
+    case 23: permute_arm_fp32::permute4d_cdhw(bottom_blob, top_blob, nT); break;
     }
 
     return 0;
