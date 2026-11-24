@@ -1190,27 +1190,64 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride_bf16s_fp16s(const u
 static void permute_spatial_pack4_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
-    for (; i + 1 < rows; i += 2)
+    for (; i + 3 < rows; i += 4)
     {
         int j = 0;
-        for (; j + 1 < cols; j += 2)
+        for (; j + 3 < cols; j += 4)
         {
-            permute_spatial2x2_pack4_stride_bf16s_fp16s(ptr + i * stride + j * 4, stride, outptr + j * outstride + i * 4, outstride);
+            const unsigned short* p = ptr + i * stride + j * 4;
+            unsigned short* out = outptr + j * outstride + i * 4;
+            uint16x4_t _r00 = vld1_u16(p + 0 * stride + 0);
+            uint16x4_t _r01 = vld1_u16(p + 0 * stride + 4);
+            uint16x4_t _r02 = vld1_u16(p + 0 * stride + 8);
+            uint16x4_t _r03 = vld1_u16(p + 0 * stride + 12);
+            uint16x4_t _r10 = vld1_u16(p + 1 * stride + 0);
+            uint16x4_t _r11 = vld1_u16(p + 1 * stride + 4);
+            uint16x4_t _r12 = vld1_u16(p + 1 * stride + 8);
+            uint16x4_t _r13 = vld1_u16(p + 1 * stride + 12);
+            uint16x4_t _r20 = vld1_u16(p + 2 * stride + 0);
+            uint16x4_t _r21 = vld1_u16(p + 2 * stride + 4);
+            uint16x4_t _r22 = vld1_u16(p + 2 * stride + 8);
+            uint16x4_t _r23 = vld1_u16(p + 2 * stride + 12);
+            uint16x4_t _r30 = vld1_u16(p + 3 * stride + 0);
+            uint16x4_t _r31 = vld1_u16(p + 3 * stride + 4);
+            uint16x4_t _r32 = vld1_u16(p + 3 * stride + 8);
+            uint16x4_t _r33 = vld1_u16(p + 3 * stride + 12);
+
+            vst1_u16(out + 0 * outstride + 0, _r00);
+            vst1_u16(out + 0 * outstride + 4, _r10);
+            vst1_u16(out + 0 * outstride + 8, _r20);
+            vst1_u16(out + 0 * outstride + 12, _r30);
+            vst1_u16(out + 1 * outstride + 0, _r01);
+            vst1_u16(out + 1 * outstride + 4, _r11);
+            vst1_u16(out + 1 * outstride + 8, _r21);
+            vst1_u16(out + 1 * outstride + 12, _r31);
+            vst1_u16(out + 2 * outstride + 0, _r02);
+            vst1_u16(out + 2 * outstride + 4, _r12);
+            vst1_u16(out + 2 * outstride + 8, _r22);
+            vst1_u16(out + 2 * outstride + 12, _r32);
+            vst1_u16(out + 3 * outstride + 0, _r03);
+            vst1_u16(out + 3 * outstride + 4, _r13);
+            vst1_u16(out + 3 * outstride + 8, _r23);
+            vst1_u16(out + 3 * outstride + 12, _r33);
         }
         for (; j < cols; j++)
         {
-            __m128i _v0 = _mm_loadl_epi64((const __m128i*)(ptr + i * stride + j * 4));
-            _mm_storel_epi64((__m128i*)(outptr + j * outstride + i * 4), _v0);
-            __m128i _v1 = _mm_loadl_epi64((const __m128i*)(ptr + (i + 1) * stride + j * 4));
-            _mm_storel_epi64((__m128i*)(outptr + j * outstride + (i + 1) * 4), _v1);
+            const unsigned short* p = ptr + i * stride + j * 4;
+            unsigned short* out = outptr + j * outstride + i * 4;
+            vst1_u16(out + 0, vld1_u16(p + 0 * stride));
+            vst1_u16(out + 4, vld1_u16(p + 1 * stride));
+            vst1_u16(out + 8, vld1_u16(p + 2 * stride));
+            vst1_u16(out + 12, vld1_u16(p + 3 * stride));
         }
     }
     for (; i < rows; i++)
     {
         for (int j = 0; j < cols; j++)
         {
-            __m128i _v0 = _mm_loadl_epi64((const __m128i*)(ptr + i * stride + j * 4));
-            _mm_storel_epi64((__m128i*)(outptr + j * outstride + i * 4), _v0);
+            const unsigned short* p = ptr + i * stride + j * 4;
+            unsigned short* out = outptr + j * outstride + i * 4;
+            vst1_u16(out, vld1_u16(p));
         }
     }
 }
@@ -1272,27 +1309,64 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride_bf16s_fp16s(const u
 static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
-    for (; i + 1 < rows; i += 2)
+    for (; i + 3 < rows; i += 4)
     {
         int j = 0;
-        for (; j + 1 < cols; j += 2)
+        for (; j + 3 < cols; j += 4)
         {
-            permute_spatial2x2_pack8_stride_bf16s_fp16s(ptr + i * stride + j * 8, stride, outptr + j * outstride + i * 8, outstride);
+            const unsigned short* p = ptr + i * stride + j * 8;
+            unsigned short* out = outptr + j * outstride + i * 8;
+            uint16x8_t _r00 = vld1q_u16(p + 0 * stride + 0);
+            uint16x8_t _r01 = vld1q_u16(p + 0 * stride + 8);
+            uint16x8_t _r02 = vld1q_u16(p + 0 * stride + 16);
+            uint16x8_t _r03 = vld1q_u16(p + 0 * stride + 24);
+            uint16x8_t _r10 = vld1q_u16(p + 1 * stride + 0);
+            uint16x8_t _r11 = vld1q_u16(p + 1 * stride + 8);
+            uint16x8_t _r12 = vld1q_u16(p + 1 * stride + 16);
+            uint16x8_t _r13 = vld1q_u16(p + 1 * stride + 24);
+            uint16x8_t _r20 = vld1q_u16(p + 2 * stride + 0);
+            uint16x8_t _r21 = vld1q_u16(p + 2 * stride + 8);
+            uint16x8_t _r22 = vld1q_u16(p + 2 * stride + 16);
+            uint16x8_t _r23 = vld1q_u16(p + 2 * stride + 24);
+            uint16x8_t _r30 = vld1q_u16(p + 3 * stride + 0);
+            uint16x8_t _r31 = vld1q_u16(p + 3 * stride + 8);
+            uint16x8_t _r32 = vld1q_u16(p + 3 * stride + 16);
+            uint16x8_t _r33 = vld1q_u16(p + 3 * stride + 24);
+
+            vst1q_u16(out + 0 * outstride + 0, _r00);
+            vst1q_u16(out + 0 * outstride + 8, _r10);
+            vst1q_u16(out + 0 * outstride + 16, _r20);
+            vst1q_u16(out + 0 * outstride + 24, _r30);
+            vst1q_u16(out + 1 * outstride + 0, _r01);
+            vst1q_u16(out + 1 * outstride + 8, _r11);
+            vst1q_u16(out + 1 * outstride + 16, _r21);
+            vst1q_u16(out + 1 * outstride + 24, _r31);
+            vst1q_u16(out + 2 * outstride + 0, _r02);
+            vst1q_u16(out + 2 * outstride + 8, _r12);
+            vst1q_u16(out + 2 * outstride + 16, _r22);
+            vst1q_u16(out + 2 * outstride + 24, _r32);
+            vst1q_u16(out + 3 * outstride + 0, _r03);
+            vst1q_u16(out + 3 * outstride + 8, _r13);
+            vst1q_u16(out + 3 * outstride + 16, _r23);
+            vst1q_u16(out + 3 * outstride + 24, _r33);
         }
         for (; j < cols; j++)
         {
-            __m128i _v0 = _mm_loadu_si128((const __m128i*)(ptr + i * stride + j * 8));
-            _mm_storeu_si128((__m128i*)(outptr + j * outstride + i * 8), _v0);
-            __m128i _v1 = _mm_loadu_si128((const __m128i*)(ptr + (i + 1) * stride + j * 8));
-            _mm_storeu_si128((__m128i*)(outptr + j * outstride + (i + 1) * 8), _v1);
+            const unsigned short* p = ptr + i * stride + j * 8;
+            unsigned short* out = outptr + j * outstride + i * 8;
+            vst1q_u16(out + 0, vld1q_u16(p + 0 * stride));
+            vst1q_u16(out + 8, vld1q_u16(p + 1 * stride));
+            vst1q_u16(out + 16, vld1q_u16(p + 2 * stride));
+            vst1q_u16(out + 24, vld1q_u16(p + 3 * stride));
         }
     }
     for (; i < rows; i++)
     {
         for (int j = 0; j < cols; j++)
         {
-            __m128i _v0 = _mm_loadu_si128((const __m128i*)(ptr + i * stride + j * 8));
-            _mm_storeu_si128((__m128i*)(outptr + j * outstride + i * 8), _v0);
+            const unsigned short* p = ptr + i * stride + j * 8;
+            unsigned short* out = outptr + j * outstride + i * 8;
+            vst1q_u16(out, vld1q_u16(p));
         }
     }
 }
