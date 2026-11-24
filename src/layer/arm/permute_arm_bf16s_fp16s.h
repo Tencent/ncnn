@@ -31,15 +31,11 @@ static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsig
 
 static NCNN_FORCEINLINE void permute_transpose4x4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
 {
-    uint16x4_t _r0 = vld1_u16(ptr);
-    uint16x4_t _r1 = vld1_u16(ptr + 4);
-    uint16x4_t _r2 = vld1_u16(ptr + 8);
-    uint16x4_t _r3 = vld1_u16(ptr + 12);
-    transpose4x4_u16(_r0, _r1, _r2, _r3);
-    vst1_u16(outptr, _r0);
-    vst1_u16(outptr + 4, _r1);
-    vst1_u16(outptr + 8, _r2);
-    vst1_u16(outptr + 12, _r3);
+    uint16x4x4_t _v = vld4_u16(ptr);
+    vst1_u16(outptr, _v.val[0]);
+    vst1_u16(outptr + 4, _v.val[1]);
+    vst1_u16(outptr + 8, _v.val[2]);
+    vst1_u16(outptr + 12, _v.val[3]);
 }
 
 static NCNN_FORCEINLINE void permute_transpose4x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
@@ -470,26 +466,24 @@ static NCNN_FORCEINLINE void permute_transpose16x1_stride_bf16s_fp16s(const unsi
 
 static NCNN_FORCEINLINE void permute_transpose8x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
-    __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
-    __m128i _v0 = _r0;
-    outptr[0] = (unsigned short)_mm_extract_epi16(_v0, 0);
-    outptr[1 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 1);
-    outptr[2 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 2);
-    outptr[3 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 3);
-    outptr[4 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 4);
-    outptr[5 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 5);
-    outptr[6 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 6);
-    outptr[7 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 7);
+    uint16x8_t _v = vld1q_u16(ptr);
+    outptr[0] = vgetq_lane_u16(_v, 0);
+    outptr[1 * outstride] = vgetq_lane_u16(_v, 1);
+    outptr[2 * outstride] = vgetq_lane_u16(_v, 2);
+    outptr[3 * outstride] = vgetq_lane_u16(_v, 3);
+    outptr[4 * outstride] = vgetq_lane_u16(_v, 4);
+    outptr[5 * outstride] = vgetq_lane_u16(_v, 5);
+    outptr[6 * outstride] = vgetq_lane_u16(_v, 6);
+    outptr[7 * outstride] = vgetq_lane_u16(_v, 7);
 }
 
 static NCNN_FORCEINLINE void permute_transpose4x1_stride_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr, size_t outstride)
 {
-    __m128i _r0 = _mm_loadl_epi64((const __m128i*)ptr);
-    __m128i _v0 = _r0;
-    outptr[0] = (unsigned short)_mm_extract_epi16(_v0, 0);
-    outptr[1 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 1);
-    outptr[2 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 2);
-    outptr[3 * outstride] = (unsigned short)_mm_extract_epi16(_v0, 3);
+    uint16x4_t _v = vld1_u16(ptr);
+    outptr[0] = vget_lane_u16(_v, 0);
+    outptr[1 * outstride] = vget_lane_u16(_v, 1);
+    outptr[2 * outstride] = vget_lane_u16(_v, 2);
+    outptr[3 * outstride] = vget_lane_u16(_v, 3);
 }
 
 static void permute_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int cols)
@@ -910,6 +904,22 @@ static void permute_transpose_pack4to4_bf16s_fp16s(const unsigned short* ptr, si
     }
 }
 
+static void permute_transpose_pack4to4_tiled_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int nT)
+{
+    const int tile_size = 32;
+    #pragma omp parallel for num_threads(nT)
+    for (int x = 0; x < cols; x += 4)
+    {
+        const unsigned short* p = ptr + (size_t)x * 4;
+        unsigned short* out = outptr + (size_t)(x / 4) * outstride;
+        for (int y = 0; y < rows; y += tile_size * 4)
+        {
+            const int tile_rows = std::min(tile_size * 4, rows - y);
+            permute_transpose_pack4to4_bf16s_fp16s(p + (size_t)(y / 4) * stride, stride, out + (size_t)y * 4, outstride, tile_rows, 4);
+        }
+    }
+}
+
 #if __AVX__
 static void permute_transpose_pack4to8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
@@ -962,6 +972,22 @@ static void permute_transpose_pack8to4_bf16s_fp16s(const unsigned short* ptr, si
             const unsigned short* p = ptr + (y / 8) * stride + x * 8;
             unsigned short* out = outptr + (x / 4) * outstride + y * 4;
             permute_transpose8x4_bf16s_fp16s(p, out);
+        }
+    }
+}
+
+static void permute_transpose_pack8to4_tiled_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int nT)
+{
+    const int tile_size = 16;
+    #pragma omp parallel for num_threads(nT)
+    for (int x = 0; x < cols; x += 4)
+    {
+        const unsigned short* p = ptr + (size_t)x * 8;
+        unsigned short* out = outptr + (size_t)(x / 4) * outstride;
+        for (int y = 0; y < rows; y += tile_size * 8)
+        {
+            const int tile_rows = std::min(tile_size * 8, rows - y);
+            permute_transpose_pack8to4_bf16s_fp16s(p + (size_t)(y / 8) * stride, stride, out + (size_t)y * 4, outstride, tile_rows, 4);
         }
     }
 }
@@ -1570,10 +1596,11 @@ static void permute_transpose_blocks2_bf16s_fp16s(const unsigned short* ptr, siz
         int i = 0;
         for (; i + 1 < rows; i += 2)
         {
-            uint16x4_t _a = vld1_u16(p);
-            uint16x4_t _b = vld1_u16(p + stride);
-            vst1_u16(out0, vcombine_u16(vget_low_u16(_a), vget_low_u16(_b)));
-            vst1_u16(out1, vcombine_u16(vget_high_u16(_a), vget_high_u16(_b)));
+            uint32x2_t _a = vreinterpret_u32_u16(vld1_u16(p));
+            uint32x2_t _b = vreinterpret_u32_u16(vld1_u16(p + stride));
+            uint32x2x2_t _ab = vzip_u32(_a, _b);
+            vst1_u16(out0, vreinterpret_u16_u32(_ab.val[0]));
+            vst1_u16(out1, vreinterpret_u16_u32(_ab.val[1]));
             p += stride * 2;
             out0 += 4;
             out1 += 4;
@@ -2427,7 +2454,21 @@ static void permute_channels_axis_input_stride_bf16s_fp16s(const Mat& bottom_blo
 
 static void permute_transpose_matrix_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    (void)nT;
+    if (size == 1 && rows >= 128 && cols >= 64)
+    {
+        const int tile_size = rows >= 512 && cols >= 512 ? 16 : 32;
+        #pragma omp parallel for num_threads(nT)
+        for (int i = 0; i < rows; i += tile_size)
+        {
+            const int tile_rows = std::min(tile_size, rows - i);
+            for (int j = 0; j < cols; j += tile_size)
+            {
+                const int tile_cols = std::min(tile_size, cols - j);
+                permute_transpose_blocks_bf16s_fp16s(ptr + (size_t)i * stride + j, stride, outptr + (size_t)j * outstride + i, outstride, tile_rows, tile_cols, 1);
+            }
+        }
+        return;
+    }
 
     // scalar matrices keep the full register transpose width
 #if __AVX512F__
@@ -2564,6 +2605,18 @@ static void permute2d_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int nT)
     if (elempack == 1 && out_elempack == 1)
     {
         permute_transpose_matrix_bf16s_fp16s(bottom_blob, w, top_blob, h, h, w, 1, nT);
+        return;
+    }
+
+    if (elempack == 4 && out_elempack == 4 && w >= 64 && h >= 64)
+    {
+        permute_transpose_pack4to4_tiled_bf16s_fp16s((const unsigned short*)bottom_blob, (size_t)w * 4, (unsigned short*)top_blob, (size_t)top_blob.w * 4, h * 4, w, nT);
+        return;
+    }
+
+    if (elempack == 8 && out_elempack == 4 && w >= 64 && h >= 64)
+    {
+        permute_transpose_pack8to4_tiled_bf16s_fp16s((const unsigned short*)bottom_blob, (size_t)w * 8, (unsigned short*)top_blob, (size_t)top_blob.w * 4, h * 8, w, nT);
         return;
     }
 

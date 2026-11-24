@@ -838,6 +838,22 @@ static void permute_transpose_pack4to4(const float* ptr, size_t stride, float* o
     }
 }
 
+static void permute_transpose_pack4to4_tiled(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int nT)
+{
+    const int tile_size = 32;
+    #pragma omp parallel for num_threads(nT)
+    for (int x = 0; x < cols; x += 4)
+    {
+        const float* p = ptr + (size_t)x * 4;
+        float* out = outptr + (size_t)(x / 4) * outstride;
+        for (int y = 0; y < rows; y += tile_size * 4)
+        {
+            const int tile_rows = std::min(tile_size * 4, rows - y);
+            permute_transpose_pack4to4(p + (size_t)(y / 4) * stride, stride, out + (size_t)y * 4, outstride, tile_rows, 4);
+        }
+    }
+}
+
 #if __AVX__
 static void permute_transpose_pack4to8(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
@@ -2343,7 +2359,21 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
 
 static void permute_transpose_matrix(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    (void)nT;
+    if (size == 1 && rows >= 128 && cols >= 64)
+    {
+        const int tile_size = 16;
+        #pragma omp parallel for num_threads(nT)
+        for (int i = 0; i < rows; i += tile_size)
+        {
+            const int tile_rows = std::min(tile_size, rows - i);
+            for (int j = 0; j < cols; j += tile_size)
+            {
+                const int tile_cols = std::min(tile_size, cols - j);
+                permute_transpose_blocks(ptr + (size_t)i * stride + j, stride, outptr + (size_t)j * outstride + i, outstride, tile_rows, tile_cols, 1);
+            }
+        }
+        return;
+    }
 
     // scalar matrices keep the full register transpose width
 #if __AVX512F__
@@ -2478,6 +2508,12 @@ static void permute2d(const Mat& bottom_blob, Mat& top_blob, int nT)
     if (elempack == 1 && out_elempack == 1)
     {
         permute_transpose_matrix(bottom_blob, w, top_blob, h, h, w, 1, nT);
+        return;
+    }
+
+    if (elempack == 4 && out_elempack == 4 && w >= 64 && h >= 64)
+    {
+        permute_transpose_pack4to4_tiled((const float*)bottom_blob, (size_t)w * 4, (float*)top_blob, (size_t)top_blob.w * 4, h * 4, w, nT);
         return;
     }
 
