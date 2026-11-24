@@ -10,8 +10,12 @@
 #include <stdio.h>
 #include <string.h>
 
-static int permute_max_elempack()
+static int permute_max_elempack(int bits)
 {
+#if __ARM_NEON && __aarch64__
+    if (bits == 16 && ncnn::cpu_support_arm_asimdhp())
+        return 8;
+#endif
 #if NCNN_AVX512
     if (ncnn::cpu_support_x86_avx512())
         return 16;
@@ -83,7 +87,8 @@ static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, 
     ncnn::Option opt;
     opt.num_threads = threads;
     opt.use_packing_layout = packing;
-    const int orders = dims == 2 ? 2 : dims == 3 ? 6 : 24;
+    const int orders = dims == 2 ? 2 : dims == 3 ? 6
+                       : 24;
     for (int o = 0; o < orders; o++)
     {
         ncnn::ParamDict pd;
@@ -118,7 +123,8 @@ static int test_permute_packing(ncnn::Layer* op, int dims, int w, int h, int d, 
             {
                 const int axis = shape[order[dims - 1]];
                 expected_pack = 1;
-                for (int p = 4; p <= permute_max_elempack(); p *= 2)
+                const int max_pack = dims == 2 ? 4 : permute_max_elempack(bits);
+                for (int p = 4; p <= max_pack; p *= 2)
                 {
                     if (axis % p == 0)
                         expected_pack = p;
@@ -173,7 +179,7 @@ static int test_permute_allocation(ncnn::Layer* op)
     const int packs[] = {1, 4, 8, 16};
     for (int bits = 16; bits <= 32; bits *= 2)
     {
-        for (int i = 0; i < 4 && packs[i] <= permute_max_elempack(); i++)
+        for (int i = 0; i < 4 && packs[i] <= permute_max_elempack(bits); i++)
         {
             ncnn::Mat a(8, 8, 2, (size_t)(bits / 8 * packs[i]), packs[i]);
             for (int order = 0; order < 6; order++)
@@ -303,7 +309,7 @@ int main()
     {
         for (int dims = 2; dims <= 4 && !ret; dims++)
         {
-            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
             {
                 ret = test_permute_packing(op, dims, 7, 5, 3, 2, packs[p], bits, true, 1, true)
                       || test_permute_packing(op, dims, 8, 16, 4, 2, packs[p], bits, true, 2, false)
@@ -316,7 +322,7 @@ int main()
     }
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
-        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
         {
             // exercise pack16 on each output packing axis and unpacked spatial permutations
             ret = test_permute_packing(op, 4, 16, 16, 16, 2, packs[p], bits, true, 2, true)
@@ -332,7 +338,7 @@ int main()
     // single channel groups cover large spatial matrices and multiple slices
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
-        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
         {
             ret = test_permute_packing(op, 3, 4096, 16, 1, 1, packs[p], bits, true, 4, true)
                   || test_permute_packing(op, 4, 65, 1, 513, 1, packs[p], bits, true, 4, true)
@@ -355,7 +361,7 @@ int main()
     {
         for (int threads = 1; threads <= 4 && !ret; threads *= 2)
         {
-            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
             {
                 for (int packing = 0; packing < 2 && !ret; packing++)
                 {
@@ -391,7 +397,7 @@ int main()
     // degenerate packed planes and a few long records with multiple slices
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
-        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
         {
             ret = test_permute_packing(op, 3, 4097, 1, 1, 2, packs[p], bits, true, 1, true)
                   || test_permute_packing(op, 3, 1, 4097, 1, 2, packs[p], bits, true, 1, true);
@@ -401,7 +407,7 @@ int main()
     // explicit channel strides must survive every slice and output-group traversal
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
-        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
         {
             ret = test_permute_packing(op, 4, 8, 16, 4, 17, packs[p], bits, true, 1, true, 5)
                   || test_permute_packing(op, 4, 8, 16, 4, 17, packs[p], bits, true, 8, true, 5)
@@ -412,7 +418,7 @@ int main()
     // a one-dimensional permutation always aliases the input, including packing disabled
     for (int bits = 16; bits <= 32 && !ret; bits *= 2)
     {
-        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+        for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits) && !ret; p++)
         {
             ncnn::Mat a(7, (size_t)(bits / 8 * packs[p]), packs[p]);
             for (int packing = 0; packing < 2; packing++)
@@ -443,7 +449,7 @@ int main()
         }
     }
     if (!ret) ret = test_permute_allocation(op);
-    for (int p = 0; p < 4 && packs[p] <= permute_max_elempack() && !ret; p++)
+    for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(32) && !ret; p++)
         ret = test_permute_packing(op, 4, 17, 9, 5, 3, packs[p], 32, true, 2, true);
 #if NCNN_STRING && NCNN_BATCH
     if (!ret) ret = test_permute_batch(op);

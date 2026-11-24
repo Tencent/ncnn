@@ -185,13 +185,26 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     const int last_axis = axes[dims - 1];
     const int input_last_axis = dims == 2 ? 1 : 3;
+
+    int max_out_elempack = 4;
+#if __ARM_NEON && __aarch64__ && NCNN_ARM82
+    if (scalar_size == 2 && dims >= 3 && cpu_support_arm_asimdhp())
+        max_out_elempack = 8;
+#endif
+
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
         if (last_axis == input_last_axis)
+        {
             out_elempack = in_elempack;
+        }
         else
-            out_elempack = out_shape[dims - 1] % 4 == 0 ? 4 : 1;
+        {
+            const int axis_size = out_shape[dims - 1];
+            out_elempack = axis_size % max_out_elempack == 0 ? max_out_elempack : axis_size % 4 == 0 ? 4
+                           : 1;
+        }
     }
 
     const size_t out_elemsize = (size_t)scalar_size * out_elempack;
