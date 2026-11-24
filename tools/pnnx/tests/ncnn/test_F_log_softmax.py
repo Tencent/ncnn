@@ -107,8 +107,10 @@ def test():
     import test_F_log_softmax_ncnn
     b = test_F_log_softmax_ncnn.test_inference()
 
+    if len(a) != len(b):
+        return False
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if a0.shape != b0.shape or not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 
