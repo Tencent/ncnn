@@ -85,16 +85,16 @@ int Crop::load_param(const ParamDict& pd)
     if (!starts_expr.empty() && !ends_expr.empty())
         numpy_style_slice = true;
 
-    if (outw == 0 && outh == 0 && outd == 0 && outc == 0 && woffset2 == 0 && hoffset2 == 0 && doffset2 == 0 && coffset2 == 0 && !numpy_style_slice)
-    {
-        one_blob_only = false;
-    }
-
     // Crop output sizes default to 0, so an omitted key and an explicitly written
     // 0 are indistinguishable once loaded. An omitted size means "keep the
     // remaining extent", which the numpy-style slice path already spells -233,
     // so map only the omitted keys to -233. An explicitly written 0 keeps its
     // historical "empty output" meaning instead of silently becoming a full crop.
+    //
+    // This must run before the reference-mode detection below: a single-input
+    // model that omits every output size would otherwise look exactly like the
+    // two-input reference encoding (all zeros) and be flagged one_blob_only=false,
+    // which makes the vector overload read a non-existent bottom_blobs[1].
     if (pd.type(3) == 0)
         outw = -233;
     if (pd.type(4) == 0)
@@ -103,6 +103,11 @@ int Crop::load_param(const ParamDict& pd)
         outd = -233;
     if (pd.type(5) == 0)
         outc = -233;
+
+    if (outw == 0 && outh == 0 && outd == 0 && outc == 0 && woffset2 == 0 && hoffset2 == 0 && doffset2 == 0 && coffset2 == 0 && !numpy_style_slice)
+    {
+        one_blob_only = false;
+    }
 
     // count reference blobs
     if (!starts_expr.empty() || !ends_expr.empty() || !axes_expr.empty())

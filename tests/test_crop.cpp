@@ -338,6 +338,24 @@ static int crop_single_input(const ncnn::ParamDict& pd, const ncnn::Mat& a, ncnn
     return ret;
 }
 
+// Load a Crop and report one_blob_only: the net loader uses this flag to decide
+// whether to call the single-blob or the vector forward(). A single-input crop
+// whose output sizes are all omitted must NOT be mistaken for the two-input
+// reference encoding (all zeros), otherwise the vector overload reads a
+// non-existent bottom_blobs[1].
+static int crop_load_one_blob_only(const ncnn::ParamDict& pd)
+{
+    ncnn::Layer* op = ncnn::create_layer("Crop");
+    if (op->load_param(pd) != 0)
+    {
+        delete op;
+        return -2;
+    }
+    const int one_blob_only = op->one_blob_only;
+    delete op;
+    return one_blob_only;
+}
+
 // A single-input Crop keeps the remaining extent for every output size key that is
 // omitted (#7285), keeps the historical "explicitly written 0 means empty output"
 // reading, and honours the documented -233 "keep the remaining extent" value.
@@ -436,8 +454,65 @@ static int test_crop_output_size_sentinels()
         }
     }
 
+    {
+        // A single-input crop that omits EVERY output size key (specified only by
+        // offsets) must stay single-input. Before the fix the all-omitted keys
+        // still read as four zeros at the reference-mode check, so the layer was
+        // mis-flagged one_blob_only=false and the net would read bottom_blobs[1].
+        ncnn::ParamDict pd;
+        pd.set(0, 1); // woffset — a crop specified purely by its offset
+
+        const int one_blob_only = crop_load_one_blob_only(pd);
+        if (one_blob_only != 1)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels all omitted: one_blob_only=%d, expected 1\n", one_blob_only);
+            return -1;
+        }
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != a3.w - 1 || out.h != a3.h || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels all omitted: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
+            return -1;
+        }
+
+        for (int q = 0; q < a3.c; q++)
+        {
+            for (int y = 0; y < out.h; y++)
+            {
+                for (int x = 0; x < out.w; x++)
+                {
+                    if (crop_pixel(out, x, y, 0, q) != crop_pixel(a3, x + 1, y, 0, q))
+                    {
+                        fprintf(stderr, "test_crop_output_size_sentinels all omitted: value mismatch q=%d y=%d x=%d\n", q, y, x);
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        // The two-input reference encoding (explicitly written zeros for every
+        // output size) must still be recognised as needing a reference blob.
+        ncnn::ParamDict pd;
+        pd.set(3, 0);  // outw
+        pd.set(4, 0);  // outh
+        pd.set(14, 0); // outd
+        pd.set(5, 0);  // outc
+
+        const int one_blob_only = crop_load_one_blob_only(pd);
+        if (one_blob_only != 0)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels explicit all-zero: one_blob_only=%d, expected 0\n", one_blob_only);
+            return -1;
+        }
+    }
+
     return 0;
 }
+
 
 // the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
