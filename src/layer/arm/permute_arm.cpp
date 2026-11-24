@@ -391,7 +391,7 @@ static void permute_transpose2d(const float* ptr, size_t stride, float* outptr, 
 
 // spatial transpose within one input channel group
 // outcstep is used when unpacking
-static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+static inline void permute_spatial2x2_pack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
     uint32x4_t _v0 = vld1q_u32((const unsigned int*)ptr);
     vst1q_u32((unsigned int*)outptr, _v0);

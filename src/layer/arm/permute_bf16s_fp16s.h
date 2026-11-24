@@ -659,7 +659,7 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 
 // spatial transpose within one input channel group
 // outcstep is used when unpacking
-static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static inline void permute_spatial2x2_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     uint16x8_t _a = vld1q_u16((const unsigned short*)ptr);
     uint16x8_t _b = vld1q_u16((const unsigned short*)(ptr + stride));
@@ -738,7 +738,7 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
         permute_unpack4_stride_bf16s_fp16s(ptr + x * 4, stride, outptr + x * outstride, outcstep, rows);
 }
 
-static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
+static inline void permute_spatial2x2_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
     permute_f32x8 _a = permute_load_f32x8((const float*)ptr);
     permute_f32x8 _b = permute_load_f32x8((const float*)(ptr + stride));
