@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -43,8 +44,25 @@ def test():
     import test_F_glu_pnnx
     x0p, y0p, y1p, z0p, z1p, z2p = test_F_glu_pnnx.test_inference()
 
-    return torch.equal(x0, x0p) and torch.equal(y0, y0p) and torch.equal(y1, y1p) \
-            and torch.equal(z0, z0p) and torch.equal(z1, z1p) and torch.equal(z2, z2p)
+    if not (torch.equal(x0, x0p) and torch.equal(y0, y0p) and torch.equal(y1, y1p) and torch.equal(z0, z0p) and torch.equal(z1, z1p) and torch.equal(z2, z2p)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y, z))
+    torch.export.save(ep, "test_F_glu_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_F_glu_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_F_glu_export_pnnx
+    x0p_export, y0p_export, y1p_export, z0p_export, z1p_export, z2p_export = test_F_glu_export_pnnx.test_inference()
+
+    return torch.equal(x0, x0p_export) and torch.equal(y0, y0p_export) and torch.equal(y1, y1p_export) \
+            and torch.equal(z0, z0p_export) and torch.equal(z1, z1p_export) and torch.equal(z2, z2p_export)
 
 if __name__ == "__main__":
     if test():

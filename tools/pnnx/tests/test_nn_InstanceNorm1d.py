@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -44,7 +45,24 @@ def test():
     import test_nn_InstanceNorm1d_pnnx
     b = test_nn_InstanceNorm1d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    if not (torch.equal(a, b)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_nn_InstanceNorm1d_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_nn_InstanceNorm1d_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_nn_InstanceNorm1d_export_pnnx
+    c = test_nn_InstanceNorm1d_export_pnnx.test_inference()
+
+    return torch.equal(a, c)
 
 if __name__ == "__main__":
     if test():

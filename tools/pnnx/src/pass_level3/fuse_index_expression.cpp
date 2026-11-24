@@ -29,13 +29,14 @@ static std::string fuse_attribute_expression(Operator* op_expr)
 
         std::string attr_expr;
 
-        int count = attr.shape[0];
+        int count = attr.shape.empty() ? 1 : attr.shape[0];
 
         if (attr.type == 9)
         {
             // bool
             const char* pdata = (const char*)attr.data.data();
-            attr_expr += "[";
+            if (!attr.shape.empty())
+                attr_expr += "[";
             for (int j = 0; j < count; j++)
             {
                 const char* ls = pdata[j] != 0 ? "True" : "False";
@@ -44,13 +45,15 @@ static std::string fuse_attribute_expression(Operator* op_expr)
                 if (j != count - 1)
                     attr_expr += ",";
             }
-            attr_expr += "]";
+            if (!attr.shape.empty())
+                attr_expr += "]";
         }
         else if (attr.type == 5)
         {
             // i64
             const int64_t* pdata = (const int64_t*)attr.data.data();
-            attr_expr += "[";
+            if (!attr.shape.empty())
+                attr_expr += "[";
             for (int j = 0; j < count; j++)
             {
                 int64_t n = pdata[j];
@@ -59,7 +62,8 @@ static std::string fuse_attribute_expression(Operator* op_expr)
                 if (j != count - 1)
                     attr_expr += ",";
             }
-            attr_expr += "]";
+            if (!attr.shape.empty())
+                attr_expr += "]";
         }
         else
         {

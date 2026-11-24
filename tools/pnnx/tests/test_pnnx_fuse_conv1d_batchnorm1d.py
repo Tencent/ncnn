@@ -74,6 +74,23 @@ def test():
     import test_pnnx_fuse_conv1d_batchnorm1d_pnnx
     b = test_pnnx_fuse_conv1d_batchnorm1d_pnnx.test_inference()
 
+    if not (torch.allclose(a, b, 1e-4, 1e-4)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_pnnx_fuse_conv1d_batchnorm1d_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_pnnx_fuse_conv1d_batchnorm1d_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_pnnx_fuse_conv1d_batchnorm1d_export_pnnx
+    b = test_pnnx_fuse_conv1d_batchnorm1d_export_pnnx.test_inference()
+
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
