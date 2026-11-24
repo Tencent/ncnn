@@ -13,28 +13,19 @@
 
 #include "arm_usability.h"
 #include "cpu.h"
-#include "permute_arm_sse2.h"
-#include "permute_arm_sse2_u16.h"
+#include "permute_arm_neon.h"
 
 namespace ncnn {
 
 namespace permute_arm_fp32 {
 
-#define __SSE2__ 1
 #include "permute_arm_fp32.h"
-#undef __SSE2__
 
 } // namespace permute_arm_fp32
 
 namespace permute_arm_bf16s_fp16s_kernel {
 
-#define __m128i  permute_u16_m128i
-#define __SSE2__ 1
-#define __AVX__  1
 #include "permute_arm_bf16s_fp16s.h"
-#undef __AVX__
-#undef __SSE2__
-#undef __m128i
 
 } // namespace permute_arm_bf16s_fp16s_kernel
 
