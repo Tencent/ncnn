@@ -439,7 +439,6 @@ static int test_crop_output_size_sentinels()
     return 0;
 }
 
-
 // the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
 {
