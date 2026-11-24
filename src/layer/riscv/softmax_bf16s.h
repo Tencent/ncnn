@@ -5,100 +5,156 @@
 int softmax_bf16s_zvfbfmin(Mat& bottom_top_blob, int axis, const Option& opt);
 #endif
 
-static void softmax_bf16s_pack(unsigned short* _ptr, int elemcount, size_t stride, int size, float* _maxptr, float* _sumptr);
-
-// softmax over a contiguous run of elemcount * elempack bf16 values
-// when packed, the elempack lanes of every packed element are independent
-// batches and must be reduced separately
-static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, float* _scratch)
-{
-    const int size = elemcount * elempack;
-
-    if (elempack > 1)
-    {
-        softmax_bf16s_pack(_ptr, elemcount, elempack, elempack, _scratch, _scratch + elempack);
-        return;
-    }
-
 #if __riscv_vector
+#if __riscv_xtheadvector
+// FIXME inline causes illegal instruction :(
+__attribute__((noinline)) static vfloat32m4_t
+softmax_bf16s_reset_tails(vfloat32m4_t x, size_t vl, float v)
+{
+    const size_t vlm4 = __riscv_vsetvlmax_e32m4();
+    vbool8_t _vl_mask = __riscv_vmsgeu_vx_u32m4_b8(__riscv_vid_v_u32m4(vlm4), vl, vlm4);
+    x = __riscv_vfmerge_vfm_f32m4(x, v, _vl_mask, vlm4);
+    return x;
+}
+#endif // __riscv_xtheadvector
+#endif // __riscv_vector
+
+static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack)
+{
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
     unsigned long old_fxcr = csrr_fxcr();
     // enable BF16 with round-to-nearest-even
     old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
 #endif
 
-    const size_t vlm4 = __riscv_vsetvlmax_e32m4();
+    const int size = elemcount * elempack;
+
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+
+    // full vl chunks keep every chunk aligned with the packn lanes of _max and _sum
+    const size_t vl = __riscv_vsetvlmax_e16m2();
 
     // reduce max
-    vfloat32m4_t _max = __riscv_vfmv_v_f_f32m4(-FLT_MAX, vlm4);
+    vfloat32m4_t _max = __riscv_vfmv_v_f_f32m4(-FLT_MAX, vl);
     {
         const unsigned short* ptr = _ptr;
 
-        int n = size;
+        int n = size / vl * vl;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
             _max = __riscv_vfmax_vv_f32m4(_max, _p, vl);
-
             ptr += vl;
             n -= vl;
         }
+        int remain = size % vl;
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e16m2(remain);
+            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vlr), vlr);
+#if __riscv_xtheadvector
+            // xtheadvector does not support tail undisturbed policy
+            _p = softmax_bf16s_reset_tails(_p, vlr, -FLT_MAX);
+            _max = __riscv_vfmax_vv_f32m4(_max, _p, vl);
+#else  // __riscv_xtheadvector
+            _max = __riscv_vfmax_vv_f32m4_tu(_max, _max, _p, vlr);
+#endif // __riscv_xtheadvector
+        }
     }
 
-    vfloat32m1_t _max1 = __riscv_vfmv_s_f_f32m1(-FLT_MAX, __riscv_vsetvlmax_e32m1());
-    _max1 = __riscv_vfredmax_vs_f32m4_f32m1(_max, _max1, vlm4);
-    const float max = __riscv_vfmv_f_s_f32m1_f32(_max1);
-    const vfloat32m4_t _vmax = __riscv_vfmv_v_f_f32m4(max, vlm4);
-
-    // reduce exp(x - max)
-    vfloat32m4_t _sum = __riscv_vfmv_v_f_f32m4(0.f, vlm4);
+    if (elempack == packn)
     {
-        const unsigned short* ptr = _ptr;
+        // reduce max nn,nn to nn
+        // broadcast nn to nn,nn
 
-        int n = size;
+        vfloat32m2_t _max0 = __riscv_vfmax_vv_f32m2(__riscv_vget_v_f32m4_f32m2(_max, 0), __riscv_vget_v_f32m4_f32m2(_max, 1), __riscv_vsetvlmax_e32m2());
+        _max = __riscv_vcreate_v_f32m2_f32m4(_max0, _max0);
+    }
+    if (elempack == 1)
+    {
+        // reduce max n,n,n,n to 1
+        // broadcast 1 to n,n,n,n
+
+        vfloat32m1_t _max0 = __riscv_vfmv_s_f_f32m1(-FLT_MAX, __riscv_vsetvlmax_e32m1());
+        _max0 = __riscv_vfredmax_vs_f32m4_f32m1(_max, _max0, vl);
+        _max = __riscv_vfmv_v_f_f32m4(__riscv_vfmv_f_s_f32m1_f32(_max0), vl);
+    }
+
+    // reduce exp(x - max) and store back to bf16
+    vfloat32m4_t _sum = __riscv_vfmv_v_f_f32m4(0.f, vl);
+    {
+        unsigned short* ptr = _ptr;
+
+        int n = size / vl * vl;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _vmax, vl), vl);
+            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _max, vl), vl);
+            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
             _sum = __riscv_vfadd_vv_f32m4(_sum, _p, vl);
-
             ptr += vl;
             n -= vl;
         }
+        int remain = size % vl;
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e16m2(remain);
+            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vlr), vlr);
+            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _max, vlr), vlr);
+            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vlr), vlr);
+#if __riscv_xtheadvector
+            // xtheadvector does not support tail undisturbed policy
+            _p = softmax_bf16s_reset_tails(_p, vlr, 0.f);
+            _sum = __riscv_vfadd_vv_f32m4(_sum, _p, vl);
+#else  // __riscv_xtheadvector
+            _sum = __riscv_vfadd_vv_f32m4_tu(_sum, _sum, _p, vlr);
+#endif // __riscv_xtheadvector
+        }
     }
 
-    vfloat32m1_t _sum1 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
-    _sum1 = __riscv_vfredusum_vs_f32m4_f32m1(_sum, _sum1, vlm4);
-    const float sum = __riscv_vfmv_f_s_f32m1_f32(_sum1);
-    const vfloat32m4_t _isum = __riscv_vfmv_v_f_f32m4(1.f / sum, vlm4);
+    if (elempack == packn)
+    {
+        // reduce sum nn,nn to nn
+        // broadcast nn to nn,nn
+
+        vfloat32m2_t _sum0 = __riscv_vfadd_vv_f32m2(__riscv_vget_v_f32m4_f32m2(_sum, 0), __riscv_vget_v_f32m4_f32m2(_sum, 1), __riscv_vsetvlmax_e32m2());
+        _sum = __riscv_vcreate_v_f32m2_f32m4(_sum0, _sum0);
+    }
+    if (elempack == 1)
+    {
+        // reduce sum n,n,n,n to 1
+        // broadcast 1 to n,n,n,n
+
+        vfloat32m1_t _sum0 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+        _sum0 = __riscv_vfredusum_vs_f32m4_f32m1(_sum, _sum0, vl);
+        _sum = __riscv_vfmv_v_f_f32m4(__riscv_vfmv_f_s_f32m1_f32(_sum0), vl);
+    }
+
+    _sum = __riscv_vfrdiv_vf_f32m4(_sum, 1.f, vl);
 
     // div sum
     {
         unsigned short* ptr = _ptr;
 
-        int n = size;
+        int n = size / vl * vl;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _vmax, vl), vl);
-            _p = __riscv_vfmul_vv_f32m4(_p, _isum, vl);
+            _p = __riscv_vfmul_vv_f32m4(_p, _sum, vl);
             __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
-
             ptr += vl;
             n -= vl;
         }
+        int remain = size % vl;
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e16m2(remain);
+            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vlr), vlr);
+            _p = __riscv_vfmul_vv_f32m4(_p, _sum, vlr);
+            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vlr), vlr);
+        }
     }
-
-#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
-    // restore FXCR while retaining accrued exception flags, including FE
-    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
-#endif
 #else  // __riscv_vector
     float max = -FLT_MAX;
     {
@@ -110,14 +166,17 @@ static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, flo
         }
     }
 
-    // reduce exp(x - max)
+    // reduce exp(x - max) and store back to bf16
     float sum = 0.f;
     {
-        const unsigned short* ptr = _ptr;
+        unsigned short* ptr = _ptr;
 
         for (int i = 0; i < size; i++)
         {
-            sum += expf(bfloat16_to_float32(*ptr++) - max);
+            float v = expf(bfloat16_to_float32(*ptr) - max);
+            *ptr = float32_to_bfloat16(v);
+            sum += v;
+            ptr++;
         }
     }
 
@@ -129,44 +188,56 @@ static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, flo
 
         for (int i = 0; i < size; i++)
         {
-            float v = expf(bfloat16_to_float32(*ptr) - max) * sum;
-            *ptr++ = float32_to_bfloat16(v);
+            *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * sum);
+            ptr++;
         }
     }
 #endif // __riscv_vector
+
+#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
+    // restore FXCR while retaining accrued exception flags, including FE
+    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
+#endif
 }
 
-// softmax across elemcount values with stride between them
-// max and reciprocal sum are kept in the fp32 scratch buffer _maxptr / _sumptr
-static void softmax_bf16s_pack(unsigned short* _ptr, int elemcount, size_t stride, int size, float* _maxptr, float* _sumptr)
+// max and sum are kept per lane, so _maxptr and _sumptr hold size1 * elempack values
+// when the reduced axis is packed, the elempack lanes of every position are folded
+// and broadcast back before use
+static void softmax_bf16s(unsigned short* _ptr, int elemcount, int elempack, size_t stride, int size1, float* _maxptr, float* _sumptr)
 {
-#if __riscv_vector
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
     unsigned long old_fxcr = csrr_fxcr();
     // enable BF16 with round-to-nearest-even
     old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
 #endif
 
+    const int size = size1 * elempack;
+
     // init max / sum
     {
         float* maxptr = _maxptr;
         float* sumptr = _sumptr;
 
-        vfloat32m4_t _negmax = __riscv_vfmv_v_f_f32m4(-FLT_MAX, __riscv_vsetvlmax_e32m4());
-        vfloat32m4_t _zero = __riscv_vfmv_v_f_f32m4(0.f, __riscv_vsetvlmax_e32m4());
-
+#if __riscv_vector
+        vfloat32m8_t _negmax = __riscv_vfmv_v_f_f32m8(-FLT_MAX, __riscv_vsetvlmax_e32m8());
+        vfloat32m8_t _zero = __riscv_vfmv_v_f_f32m8(0.f, __riscv_vsetvlmax_e32m8());
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m4(n);
-
-            __riscv_vse32_v_f32m4(maxptr, _negmax, vl);
-            __riscv_vse32_v_f32m4(sumptr, _zero, vl);
-
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            __riscv_vse32_v_f32m8(maxptr, _negmax, vl);
+            __riscv_vse32_v_f32m8(sumptr, _zero, vl);
+            n -= vl;
             maxptr += vl;
             sumptr += vl;
-            n -= vl;
         }
+#else  // __riscv_vector
+        for (int j = 0; j < size; j++)
+        {
+            *maxptr++ = -FLT_MAX;
+            *sumptr++ = 0.f;
+        }
+#endif // __riscv_vector
     }
 
     // reduce max
@@ -175,297 +246,156 @@ static void softmax_bf16s_pack(unsigned short* _ptr, int elemcount, size_t strid
         const unsigned short* ptr = _ptr + i * stride;
         float* maxptr = _maxptr;
 
+#if __riscv_vector
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
-            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-            vfloat32m4_t _max = __riscv_vle32_v_f32m4(maxptr, vl);
-            _max = __riscv_vfmax_vv_f32m4(_max, _p, vl);
-            __riscv_vse32_v_f32m4(maxptr, _max, vl);
-
+            size_t vl = __riscv_vsetvl_e16m4(n);
+            vfloat32m8_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m4(ptr, vl), vl);
+            vfloat32m8_t _max = __riscv_vle32_v_f32m8(maxptr, vl);
+            _max = __riscv_vfmax_vv_f32m8(_max, _p, vl);
+            __riscv_vse32_v_f32m8(maxptr, _max, vl);
+            n -= vl;
             ptr += vl;
             maxptr += vl;
-            n -= vl;
         }
+#else  // __riscv_vector
+        for (int j = 0; j < size; j++)
+        {
+            *maxptr = std::max(*maxptr, bfloat16_to_float32(*ptr));
+            ptr++;
+            maxptr++;
+        }
+#endif // __riscv_vector
     }
 
-    // reduce exp(x - max)
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 2;
+
+    if (elempack == packn)
+    {
+        // reduce max nn to 1
+        // broadcast 1 to nn
+
+        const size_t vlm2 = __riscv_vsetvlmax_e32m2();
+
+        float* maxptr = _maxptr;
+        for (int j = 0; j < size1; j++)
+        {
+            vfloat32m1_t _max0 = __riscv_vfmv_s_f_f32m1(-FLT_MAX, __riscv_vsetvlmax_e32m1());
+            _max0 = __riscv_vfredmax_vs_f32m2_f32m1(__riscv_vle32_v_f32m2(maxptr, vlm2), _max0, vlm2);
+            __riscv_vse32_v_f32m2(maxptr, __riscv_vfmv_v_f_f32m2(__riscv_vfmv_f_s_f32m1_f32(_max0), vlm2), vlm2);
+            maxptr += vlm2;
+        }
+    }
+#endif // __riscv_vector
+
+    // reduce exp(x - max) and store back to bf16
     for (int i = 0; i < elemcount; i++)
     {
-        const unsigned short* ptr = _ptr + i * stride;
+        unsigned short* ptr = _ptr + i * stride;
         const float* maxptr = _maxptr;
         float* sumptr = _sumptr;
 
+#if __riscv_vector
         int n = size;
         while (n > 0)
         {
             size_t vl = __riscv_vsetvl_e16m2(n);
-
             vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
             vfloat32m4_t _max = __riscv_vle32_v_f32m4(maxptr, vl);
             _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _max, vl), vl);
+            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
             vfloat32m4_t _sum = __riscv_vle32_v_f32m4(sumptr, vl);
             _sum = __riscv_vfadd_vv_f32m4(_sum, _p, vl);
             __riscv_vse32_v_f32m4(sumptr, _sum, vl);
-
+            n -= vl;
             ptr += vl;
             maxptr += vl;
             sumptr += vl;
-            n -= vl;
         }
+#else  // __riscv_vector
+        for (int j = 0; j < size; j++)
+        {
+            float v = expf(bfloat16_to_float32(*ptr) - *maxptr);
+            *ptr = float32_to_bfloat16(v);
+            *sumptr += v;
+            ptr++;
+            maxptr++;
+            sumptr++;
+        }
+#endif // __riscv_vector
     }
 
-    // reciprocal sum
+#if __riscv_vector
+    if (elempack == packn)
+    {
+        // reduce sum nn to 1
+        // broadcast 1 / sum to nn
+
+        const size_t vlm2 = __riscv_vsetvlmax_e32m2();
+
+        float* sumptr = _sumptr;
+        for (int j = 0; j < size1; j++)
+        {
+            vfloat32m1_t _sum0 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
+            _sum0 = __riscv_vfredusum_vs_f32m2_f32m1(__riscv_vle32_v_f32m2(sumptr, vlm2), _sum0, vlm2);
+            __riscv_vse32_v_f32m2(sumptr, __riscv_vfmv_v_f_f32m2(1.f / __riscv_vfmv_f_s_f32m1_f32(_sum0), vlm2), vlm2);
+            sumptr += vlm2;
+        }
+    }
+#endif // __riscv_vector
+    if (elempack == 1)
     {
         float* sumptr = _sumptr;
 
+#if __riscv_vector
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m4(n);
-
-            vfloat32m4_t _sum = __riscv_vle32_v_f32m4(sumptr, vl);
-            _sum = __riscv_vfrdiv_vf_f32m4(_sum, 1.f, vl);
-            __riscv_vse32_v_f32m4(sumptr, _sum, vl);
-
-            sumptr += vl;
+            size_t vl = __riscv_vsetvl_e32m8(n);
+            vfloat32m8_t _sum = __riscv_vle32_v_f32m8(sumptr, vl);
+            _sum = __riscv_vfrdiv_vf_f32m8(_sum, 1.f, vl);
+            __riscv_vse32_v_f32m8(sumptr, _sum, vl);
             n -= vl;
+            sumptr += vl;
         }
+#else  // __riscv_vector
+        for (int j = 0; j < size; j++)
+        {
+            *sumptr = 1.f / *sumptr;
+            sumptr++;
+        }
+#endif // __riscv_vector
     }
 
     // div sum
     for (int i = 0; i < elemcount; i++)
     {
         unsigned short* ptr = _ptr + i * stride;
-        const float* maxptr = _maxptr;
         const float* sumptr = _sumptr;
 
-        int n = size;
-        while (n > 0)
-        {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
-            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-            vfloat32m4_t _max = __riscv_vle32_v_f32m4(maxptr, vl);
-            vfloat32m4_t _sum = __riscv_vle32_v_f32m4(sumptr, vl);
-            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _max, vl), vl);
-            _p = __riscv_vfmul_vv_f32m4(_p, _sum, vl);
-            __riscv_vse16_v_u16m2(ptr, float2bfloat_rvv(_p, vl), vl);
-
-            ptr += vl;
-            maxptr += vl;
-            sumptr += vl;
-            n -= vl;
-        }
-    }
-
-#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
-    // restore FXCR while retaining accrued exception flags, including FE
-    csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
-#endif
-#else  // __riscv_vector
-    // init max / sum
-    for (int j = 0; j < size; j++)
-    {
-        _maxptr[j] = -FLT_MAX;
-        _sumptr[j] = 0.f;
-    }
-
-    // reduce max
-    for (int i = 0; i < elemcount; i++)
-    {
-        const unsigned short* ptr = _ptr + i * stride;
-
-        for (int j = 0; j < size; j++)
-        {
-            _maxptr[j] = std::max(_maxptr[j], bfloat16_to_float32(ptr[j]));
-        }
-    }
-
-    // reduce exp(x - max)
-    for (int i = 0; i < elemcount; i++)
-    {
-        const unsigned short* ptr = _ptr + i * stride;
-
-        for (int j = 0; j < size; j++)
-        {
-            _sumptr[j] += expf(bfloat16_to_float32(ptr[j]) - _maxptr[j]);
-        }
-    }
-
-    // reciprocal sum
-    for (int j = 0; j < size; j++)
-    {
-        _sumptr[j] = 1.f / _sumptr[j];
-    }
-
-    // div sum
-    for (int i = 0; i < elemcount; i++)
-    {
-        unsigned short* ptr = _ptr + i * stride;
-
-        for (int j = 0; j < size; j++)
-        {
-            float v = expf(bfloat16_to_float32(ptr[j]) - _maxptr[j]) * _sumptr[j];
-            ptr[j] = float32_to_bfloat16(v);
-        }
-    }
-#endif // __riscv_vector
-}
-
-
 #if __riscv_vector
-// softmax across a packed bf16 axis
-// every group of elempack consecutive bf16 values holds elempack values of the
-// reduced axis, so after the per lane max/sum accumulation the elempack lanes of
-// each position have to be folded back to one scalar (like fp32 softmax_packn)
-static void softmax_bf16s_packn(unsigned short* _ptr, int elemcount, size_t stride, int size1, int elempack, float* _maxptr)
-{
-    const int size = size1 * elempack;
-
-    float* maxptr = _maxptr;
-    float* sumptr = maxptr + size;
-    float* invsumptr = sumptr + size;
-
-    const size_t vlm4 = __riscv_vsetvlmax_e32m4();
-    const size_t vlm2 = __riscv_vsetvlmax_e32m2();
-    const size_t vlm1 = __riscv_vsetvlmax_e32m1();
-
-#if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
-    unsigned long old_fxcr = csrr_fxcr();
-    // enable BF16 with round-to-nearest-even
-    old_fxcr = csrrw_fxcr((old_fxcr | (1ul << 31)) & ~(7ul << 24));
-#endif
-
-    // init max / sum
-    {
-        vfloat32m4_t _negmax = __riscv_vfmv_v_f_f32m4(-FLT_MAX, vlm4);
-        vfloat32m4_t _zero = __riscv_vfmv_v_f_f32m4(0.f, vlm4);
-
-        float* mp = maxptr;
-        float* sp = sumptr;
-
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m4(n);
-
-            __riscv_vse32_v_f32m4(mp, _negmax, vl);
-            __riscv_vse32_v_f32m4(sp, _zero, vl);
-
-            mp += vl;
-            sp += vl;
+            size_t vl = __riscv_vsetvl_e16m4(n);
+            vfloat32m8_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m4(ptr, vl), vl);
+            vfloat32m8_t _sum = __riscv_vle32_v_f32m8(sumptr, vl);
+            _p = __riscv_vfmul_vv_f32m8(_p, _sum, vl);
+            __riscv_vse16_v_u16m4(ptr, float2bfloat_rvv(_p, vl), vl);
             n -= vl;
-        }
-    }
-
-    // reduce max per lane
-    for (int i = 0; i < elemcount; i++)
-    {
-        const unsigned short* ptr = _ptr + i * stride;
-        float* mp = maxptr;
-
-        int n = size;
-        while (n > 0)
-        {
-            size_t vl = __riscv_vsetvl_e16m2(n);
-
-            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr, vl), vl);
-            vfloat32m4_t _max = __riscv_vle32_v_f32m4(mp, vl);
-            _max = __riscv_vfmax_vv_f32m4(_max, _p, vl);
-            __riscv_vse32_v_f32m4(mp, _max, vl);
-
             ptr += vl;
-            mp += vl;
-            n -= vl;
+            sumptr += vl;
         }
-    }
-
-    // fold the elempack lanes of every position to one max
-    for (int j = 0; j < size1; j++)
-    {
-        vfloat32m2_t _max = __riscv_vle32_v_f32m2(maxptr + j * elempack, vlm2);
-        vfloat32m1_t _acc = __riscv_vfmv_s_f_f32m1(-FLT_MAX, vlm1);
-        _acc = __riscv_vfredmax_vs_f32m2_f32m1(_max, _acc, vlm2);
-        maxptr[j * elempack] = __riscv_vfmv_f_s_f32m1_f32(_acc);
-    }
-
-    // reduce exp(x - max) per lane
-    for (int i = 0; i < elemcount; i++)
-    {
-        const unsigned short* ptr = _ptr + i * stride;
-
-        int j = 0;
-        while (j + 1 < size1)
+#else  // __riscv_vector
+        for (int j = 0; j < size; j++)
         {
-            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr + j * elempack, vlm4), vlm4);
-            vfloat32m2_t _m0 = __riscv_vfmv_v_f_f32m2(maxptr[j * elempack], vlm2);
-            vfloat32m2_t _m1 = __riscv_vfmv_v_f_f32m2(maxptr[(j + 1) * elempack], vlm2);
-            vfloat32m4_t _max = __riscv_vcreate_v_f32m2_f32m4(_m0, _m1);
-            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _max, vlm4), vlm4);
-
-            vfloat32m4_t _sum = __riscv_vle32_v_f32m4(sumptr + j * elempack, vlm4);
-            _sum = __riscv_vfadd_vv_f32m4(_sum, _p, vlm4);
-            __riscv_vse32_v_f32m4(sumptr + j * elempack, _sum, vlm4);
-
-            j += 2;
+            *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * *sumptr);
+            ptr++;
+            sumptr++;
         }
-        if (j < size1)
-        {
-            vfloat32m2_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m1(ptr + j * elempack, vlm2), vlm2);
-            vfloat32m2_t _max = __riscv_vfmv_v_f_f32m2(maxptr[j * elempack], vlm2);
-            _p = exp_ps(__riscv_vfsub_vv_f32m2(_p, _max, vlm2), vlm2);
-
-            vfloat32m2_t _sum = __riscv_vle32_v_f32m2(sumptr + j * elempack, vlm2);
-            _sum = __riscv_vfadd_vv_f32m2(_sum, _p, vlm2);
-            __riscv_vse32_v_f32m2(sumptr + j * elempack, _sum, vlm2);
-        }
-    }
-
-    // fold the sums of every position and keep the reciprocal
-    for (int j = 0; j < size1; j++)
-    {
-        vfloat32m2_t _sum = __riscv_vle32_v_f32m2(sumptr + j * elempack, vlm2);
-        vfloat32m1_t _acc = __riscv_vfmv_s_f_f32m1(0.f, vlm1);
-        _acc = __riscv_vfredusum_vs_f32m2_f32m1(_sum, _acc, vlm2);
-        const float sum = __riscv_vfmv_f_s_f32m1_f32(_acc);
-        invsumptr[j] = 1.f / sum;
-    }
-
-    // div sum
-    for (int i = 0; i < elemcount; i++)
-    {
-        unsigned short* ptr = _ptr + i * stride;
-
-        int j = 0;
-        while (j + 1 < size1)
-        {
-            vfloat32m4_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m2(ptr + j * elempack, vlm4), vlm4);
-            vfloat32m2_t _m0 = __riscv_vfmv_v_f_f32m2(maxptr[j * elempack], vlm2);
-            vfloat32m2_t _m1 = __riscv_vfmv_v_f_f32m2(maxptr[(j + 1) * elempack], vlm2);
-            vfloat32m4_t _max = __riscv_vcreate_v_f32m2_f32m4(_m0, _m1);
-            vfloat32m2_t _is0 = __riscv_vfmv_v_f_f32m2(invsumptr[j], vlm2);
-            vfloat32m2_t _is1 = __riscv_vfmv_v_f_f32m2(invsumptr[j + 1], vlm2);
-            vfloat32m4_t _isum = __riscv_vcreate_v_f32m2_f32m4(_is0, _is1);
-
-            _p = exp_ps(__riscv_vfsub_vv_f32m4(_p, _max, vlm4), vlm4);
-            _p = __riscv_vfmul_vv_f32m4(_p, _isum, vlm4);
-            __riscv_vse16_v_u16m2(ptr + j * elempack, float2bfloat_rvv(_p, vlm4), vlm4);
-
-            j += 2;
-        }
-        if (j < size1)
-        {
-            vfloat32m2_t _p = bfloat2float_rvv(__riscv_vle16_v_u16m1(ptr + j * elempack, vlm2), vlm2);
-            vfloat32m2_t _max = __riscv_vfmv_v_f_f32m2(maxptr[j * elempack], vlm2);
-            vfloat32m2_t _isum = __riscv_vfmv_v_f_f32m2(invsumptr[j], vlm2);
-
-            _p = exp_ps(__riscv_vfsub_vv_f32m2(_p, _max, vlm2), vlm2);
-            _p = __riscv_vfmul_vv_f32m2(_p, _isum, vlm2);
-            __riscv_vse16_v_u16m1(ptr + j * elempack, float2bfloat_rvv(_p, vlm2), vlm2);
-        }
+#endif // __riscv_vector
     }
 
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
@@ -473,7 +403,6 @@ static void softmax_bf16s_packn(unsigned short* _ptr, int elemcount, size_t stri
     csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
 }
-#endif // __riscv_vector
 
 static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
 {
@@ -498,9 +427,7 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
 
         const int size = w * elempack;
 
-        softmax_bf16s(ptr, size, 1, 0);
-
-        return 0;
+        softmax_bf16s(ptr, size, 1);
     }
 
     if (dims == 2 && positive_axis == 0)
@@ -509,7 +436,7 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
         const size_t stride = (size_t)w * elempack;
 
-        Mat maxsum(sizen * (elempack + 1), 2, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat maxsum(sizen * elempack, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
@@ -521,48 +448,24 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
             const int size1 = std::min(sizen, size - i);
 
             float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + sizen * elempack;
 
             unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
 
-#if __riscv_vector
-            if (elempack > 1)
-            {
-                softmax_bf16s_packn(ptr, h, stride, size1, elempack, maxsumptr);
-            }
-            else
-#endif // __riscv_vector
-            {
-                float* maxptr = maxsumptr;
-                float* sumptr = maxptr + size1;
-
-                softmax_bf16s_pack(ptr, h, stride, size1, maxptr, sumptr);
-            }
+            softmax_bf16s(ptr, h, elempack, stride, size1, maxptr, sumptr);
         }
-
-        return 0;
     }
 
     if (dims == 2 && positive_axis == 1)
     {
-        Mat maxsum;
-        if (elempack > 1)
-        {
-            maxsum.create(2 * elempack, opt.num_threads, 4u, opt.workspace_allocator);
-            if (maxsum.empty())
-                return -100;
-        }
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
 
-            float* scratch = elempack > 1 ? maxsum.channel(get_omp_thread_num()) : 0;
-
-            softmax_bf16s(ptr, w, elempack, scratch);
+            softmax_bf16s(ptr, w, elempack);
         }
-
-        return 0;
     }
 
     if ((dims == 3 || dims == 4) && positive_axis == 0)
@@ -571,7 +474,7 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
         const int sizen = (size + (opt.num_threads - 1)) / opt.num_threads;
         const size_t stride = bottom_top_blob.cstep * elempack;
 
-        Mat maxsum(sizen * (elempack + 1), 2, opt.num_threads, 4u, opt.workspace_allocator);
+        Mat maxsum(sizen * elempack, 2, opt.num_threads, 4u, opt.workspace_allocator);
         if (maxsum.empty())
             return -100;
 
@@ -583,25 +486,13 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
             const int size1 = std::min(sizen, size - i);
 
             float* maxsumptr = maxsum.channel(get_omp_thread_num());
+            float* maxptr = maxsumptr;
+            float* sumptr = maxptr + sizen * elempack;
 
             unsigned short* ptr = (unsigned short*)bottom_top_blob + i * elempack;
 
-#if __riscv_vector
-            if (elempack > 1)
-            {
-                softmax_bf16s_packn(ptr, channels, stride, size1, elempack, maxsumptr);
-            }
-            else
-#endif // __riscv_vector
-            {
-                float* maxptr = maxsumptr;
-                float* sumptr = maxptr + size1;
-
-                softmax_bf16s_pack(ptr, channels, stride, size1, maxptr, sumptr);
-            }
+            softmax_bf16s(ptr, channels, elempack, stride, size1, maxptr, sumptr);
         }
-
-        return 0;
     }
 
     if ((dims == 3 && positive_axis == 1) || (dims == 4 && positive_axis == 2))
@@ -623,38 +514,24 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
                 float* maxptr = maxsumptr;
                 float* sumptr = maxptr + size;
 
-                softmax_bf16s_pack(ptr, h, size, size, maxptr, sumptr);
+                softmax_bf16s(ptr, h, 1, size, size, maxptr, sumptr);
             }
         }
-
-        return 0;
     }
 
     if (dims == 3 && positive_axis == 2)
     {
-        Mat maxsum;
-        if (elempack > 1)
-        {
-            maxsum.create(2 * elempack, opt.num_threads, 4u, opt.workspace_allocator);
-            if (maxsum.empty())
-                return -100;
-        }
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
-            float* scratch = elempack > 1 ? maxsum.channel(get_omp_thread_num()) : 0;
-
             for (int i = 0; i < h; i++)
             {
-                softmax_bf16s(ptr, w, elempack, scratch);
+                softmax_bf16s(ptr, w, elempack);
                 ptr += w * elempack;
             }
         }
-
-        return 0;
     }
 
     if (dims == 4 && positive_axis == 1)
@@ -674,40 +551,26 @@ static int softmax_bf16s(Mat& bottom_top_blob, int axis, const Option& opt)
             float* maxptr = maxsumptr;
             float* sumptr = maxptr + size;
 
-            softmax_bf16s_pack(ptr, d, size, size, maxptr, sumptr);
+            softmax_bf16s(ptr, d, 1, size, size, maxptr, sumptr);
         }
-
-        return 0;
     }
 
     if (dims == 4 && positive_axis == 3)
     {
-        Mat maxsum;
-        if (elempack > 1)
-        {
-            maxsum.create(2 * elempack, opt.num_threads, 4u, opt.workspace_allocator);
-            if (maxsum.empty())
-                return -100;
-        }
-
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
 
-            float* scratch = elempack > 1 ? maxsum.channel(get_omp_thread_num()) : 0;
-
             for (int i = 0; i < d; i++)
             {
                 for (int j = 0; j < h; j++)
                 {
-                    softmax_bf16s(ptr, w, elempack, scratch);
+                    softmax_bf16s(ptr, w, elempack);
                     ptr += w * elempack;
                 }
             }
         }
-
-        return 0;
     }
 
     return 0;
