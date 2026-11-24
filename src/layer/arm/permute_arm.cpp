@@ -9,6 +9,7 @@
 
 #include <string.h>
 
+#include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
@@ -54,7 +55,7 @@ static const int permute_axes_4d[24][4] = {
     {3, 2, 1, 0}
 };
 
-static NCNN_FORCEINLINE size_t permute_fallback_input_offset(const Mat& bottom_blob, const int* pos, int scalar_size)
+static NCNN_FORCEINLINE size_t permute_input_offset(const Mat& bottom_blob, const int* pos, int scalar_size)
 {
     const int elempack = bottom_blob.elempack;
     const int dims = bottom_blob.dims;
@@ -85,7 +86,7 @@ static NCNN_FORCEINLINE size_t permute_fallback_input_offset(const Mat& bottom_b
     return offset;
 }
 
-static NCNN_FORCEINLINE size_t permute_fallback_output_offset(const Mat& top_blob, const int* pos, int inner, int scalar_size)
+static NCNN_FORCEINLINE size_t permute_output_offset(const Mat& top_blob, const int* pos, int inner, int scalar_size)
 {
     const int elempack = top_blob.elempack;
     const int dims = top_blob.dims;
@@ -113,19 +114,6 @@ static NCNN_FORCEINLINE size_t permute_fallback_output_offset(const Mat& top_blo
 }
 
 #if __ARM_NEON && __aarch64__
-static NCNN_FORCEINLINE void permute_transpose4x4(float32x4_t& r0, float32x4_t& r1, float32x4_t& r2, float32x4_t& r3)
-{
-    float32x4_t _t0 = vtrn1q_f32(r0, r1);
-    float32x4_t _t1 = vtrn2q_f32(r0, r1);
-    float32x4_t _t2 = vtrn1q_f32(r2, r3);
-    float32x4_t _t3 = vtrn2q_f32(r2, r3);
-
-    r0 = vcombine_f32(vget_low_f32(_t0), vget_low_f32(_t2));
-    r1 = vcombine_f32(vget_low_f32(_t1), vget_low_f32(_t3));
-    r2 = vcombine_f32(vget_high_f32(_t0), vget_high_f32(_t2));
-    r3 = vcombine_f32(vget_high_f32(_t1), vget_high_f32(_t3));
-}
-
 static NCNN_FORCEINLINE float32x4_t permute_load_c4(const Mat& bottom_blob, int cbase, int h, int w)
 {
     const int elempack = bottom_blob.elempack;
@@ -164,8 +152,8 @@ static int permute2d(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 float32x4_t _r1 = vld1q_f32((const float*)bottom_blob.row(y + 1) + x);
                 float32x4_t _r2 = vld1q_f32((const float*)bottom_blob.row(y + 2) + x);
                 float32x4_t _r3 = vld1q_f32((const float*)bottom_blob.row(y + 3) + x);
-                permute_transpose4x4(_r0, _r1, _r2, _r3);
-                permute_transpose4x4(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                 float* outptr = (float*)top_blob.row(x / 4) + y * 4;
                 vst1q_f32(outptr + 0, _r0);
@@ -188,7 +176,7 @@ static int permute2d(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 float32x4_t _r1 = vld1q_f32((const float*)bottom_blob.row(y + 1) + x);
                 float32x4_t _r2 = vld1q_f32((const float*)bottom_blob.row(y + 2) + x);
                 float32x4_t _r3 = vld1q_f32((const float*)bottom_blob.row(y + 3) + x);
-                permute_transpose4x4(_r0, _r1, _r2, _r3);
+                transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                 vst1q_f32((float*)top_blob.row(x + 0) + y, _r0);
                 vst1q_f32((float*)top_blob.row(x + 1) + y, _r1);
@@ -208,8 +196,8 @@ static int permute2d(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             for (int x = 0; x < w; x += 4)
             {
                 float32x4x4_t _r = vld4q_f32(ptr + x * 4);
-                permute_transpose4x4(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
-                permute_transpose4x4(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
+                transpose4x4_ps(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
+                transpose4x4_ps(_r.val[0], _r.val[1], _r.val[2], _r.val[3]);
 
                 float* outptr = (float*)top_blob.row(x / 4) + y * 16;
                 vst1q_f32(outptr + 0, _r.val[0]);
@@ -302,7 +290,7 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                         float32x4_t _r1 = vld1q_f32(ptr + (y + 1) * w + x);
                         float32x4_t _r2 = vld1q_f32(ptr + (y + 2) * w + x);
                         float32x4_t _r3 = vld1q_f32(ptr + (y + 3) * w + x);
-                        permute_transpose4x4(_r0, _r1, _r2, _r3);
+                        transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                         vst1q_f32(outptr + (x + 0) * outw + y, _r0);
                         vst1q_f32(outptr + (x + 1) * outw + y, _r1);
@@ -334,7 +322,7 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                             _t[c][1] = _r[1][c];
                             _t[c][2] = _r[2][c];
                             _t[c][3] = _r[3][c];
-                            permute_transpose4x4(_t[c][0], _t[c][1], _t[c][2], _t[c][3]);
+                            transpose4x4_ps(_t[c][0], _t[c][1], _t[c][2], _t[c][3]);
                         }
 
                         for (int j = 0; j < 4; j++)
@@ -343,7 +331,7 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                             float32x4_t _u1 = _t[1][j];
                             float32x4_t _u2 = _t[2][j];
                             float32x4_t _u3 = _t[3][j];
-                            permute_transpose4x4(_u0, _u1, _u2, _u3);
+                            transpose4x4_ps(_u0, _u1, _u2, _u3);
 
                             float* out = outptr + ((x + j) * outw + y) * 4;
                             vst1q_f32(out, _u0);
@@ -372,7 +360,7 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                     float32x4_t _r1 = permute_load_c4(bottom_blob, c, y + 1, x);
                     float32x4_t _r2 = permute_load_c4(bottom_blob, c, y + 2, x);
                     float32x4_t _r3 = permute_load_c4(bottom_blob, c, y + 3, x);
-                    permute_transpose4x4(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                     float* outbase = (float*)top_blob.channel(y / 4);
                     for (int l = 0; l < 4; l++)
@@ -403,7 +391,7 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
                     float32x4_t _r1 = permute_load_c4(bottom_blob, c, y, x + 1);
                     float32x4_t _r2 = permute_load_c4(bottom_blob, c, y, x + 2);
                     float32x4_t _r3 = permute_load_c4(bottom_blob, c, y, x + 3);
-                    permute_transpose4x4(_r0, _r1, _r2, _r3);
+                    transpose4x4_ps(_r0, _r1, _r2, _r3);
 
                     float* outbase = (float*)top_blob.channel(x / 4);
                     for (int l = 0; l < 4; l++)
@@ -558,8 +546,8 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             for (int j = 0; j < inner_size; j++)
             {
                 in_pos[last_axis] = j;
-                const size_t src_offset = permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
-                const size_t dst_offset = permute_fallback_output_offset(top_blob, out_pos, j, scalar_size);
+                const size_t src_offset = permute_input_offset(bottom_blob, in_pos, scalar_size);
+                const size_t dst_offset = permute_output_offset(top_blob, out_pos, j, scalar_size);
                 memcpy(top_ptr + dst_offset, bottom_ptr + src_offset, scalar_size);
             }
             continue;
@@ -573,8 +561,8 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (last_axis == 2)
                 in_step = (size_t)in_w * in_h * in_elemsize;
 
-            const unsigned char* inptr = bottom_ptr + permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
-            unsigned char* outptr = top_ptr + permute_fallback_output_offset(top_blob, out_pos, 0, scalar_size);
+            const unsigned char* inptr = bottom_ptr + permute_input_offset(bottom_blob, in_pos, scalar_size);
+            unsigned char* outptr = top_ptr + permute_output_offset(top_blob, out_pos, 0, scalar_size);
 
             if (out_elempack == 1)
             {
@@ -635,8 +623,8 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
         else
         {
-            const unsigned char* inbase = bottom_ptr + permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
-            unsigned char* outbase = top_ptr + permute_fallback_output_offset(top_blob, out_pos, 0, scalar_size);
+            const unsigned char* inbase = bottom_ptr + permute_input_offset(bottom_blob, in_pos, scalar_size);
+            unsigned char* outbase = top_ptr + permute_output_offset(top_blob, out_pos, 0, scalar_size);
 
             if (in_elempack == out_elempack && in_elempack > 1)
             {
@@ -649,7 +637,7 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             }
             else
             {
-                const size_t spatial_offset = permute_fallback_input_offset(bottom_blob, in_pos, scalar_size);
+                const size_t spatial_offset = permute_input_offset(bottom_blob, in_pos, scalar_size);
                 for (int j = 0; j < inner_size; j++)
                 {
                     const size_t src_offset = (size_t)(j / in_elempack) * bottom_blob.cstep * in_elemsize + (j % in_elempack) * scalar_size;
