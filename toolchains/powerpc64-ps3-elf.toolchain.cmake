@@ -29,6 +29,13 @@ endif()
 set(CMAKE_C_FLAGS "-mcpu=cell -maltivec -mabi=altivec")
 set(CMAKE_CXX_FLAGS "-mcpu=cell -maltivec -mabi=altivec")
 
+# without these the crt0 module setup calls _sys_process_exit(1) before main.
+# ppu-gcc's own spec links the same set for a hosted ps3 elf. these have to be
+# standard libraries rather than linker flags: flags are emitted before the
+# objects, so the linker would scan the archives before it has seen a reference.
+set(CMAKE_C_STANDARD_LIBRARIES_INIT "-mhard-float -L${PS3DEV}/ppu/lib -lrsx -lgcm_sys -lio -lsysutil -lrt -llv2 -lm")
+set(CMAKE_CXX_STANDARD_LIBRARIES_INIT "${CMAKE_C_STANDARD_LIBRARIES_INIT}")
+
 # NOTE the produced ELF is not directly runnable by rpcs3/ps3
 # the ps3 elf toolchain links newlib with empty import stub metadata (.lib.stub)
 # the import table must be generated after linking by running the sdk sprxlinker on the ELF
