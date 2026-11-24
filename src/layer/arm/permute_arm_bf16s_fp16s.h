@@ -1352,6 +1352,21 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack8_stride_bf16s_fp16s(const u
 
 static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
+    if (rows >= 255 && cols >= 255)
+    {
+        const int tile_size = 32;
+        for (int i = 0; i < rows; i += tile_size)
+        {
+            const int tile_rows = std::min(tile_size, rows - i);
+            for (int j = 0; j < cols; j += tile_size)
+            {
+                const int tile_cols = std::min(tile_size, cols - j);
+                permute_spatial_pack8_bf16s_fp16s(ptr + (size_t)i * stride + (size_t)j * 8, stride, outptr + (size_t)j * outstride + (size_t)i * 8, outstride, tile_rows, tile_cols);
+            }
+        }
+        return;
+    }
+
     int i = 0;
     for (; i + 3 < rows; i += 4)
     {
