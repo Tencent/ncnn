@@ -185,4 +185,80 @@ static NCNN_FORCEINLINE void transpose8x8_epi16(permute_u16_m128i& _r0, permute_
     _r7 = _mm_unpackhi_epi64(_tmpb, _tmpf);
 }
 
+struct __m256i
+{
+    permute_u16_m128i lo;
+    permute_u16_m128i hi;
+};
+
+struct __m256
+{
+    permute_u16_m128i lo;
+    permute_u16_m128i hi;
+};
+
+static NCNN_FORCEINLINE __m256 _mm256_loadu_ps(const float* ptr)
+{
+    __m256 v;
+    v.lo = vld1q_u16((const unsigned short*)ptr);
+    v.hi = vld1q_u16((const unsigned short*)ptr + 8);
+    return v;
+}
+
+static NCNN_FORCEINLINE void _mm256_storeu_ps(float* ptr, __m256 v)
+{
+    vst1q_u16((unsigned short*)ptr, v.lo);
+    vst1q_u16((unsigned short*)ptr + 8, v.hi);
+}
+
+static NCNN_FORCEINLINE __m256i _mm256_loadu_si256(const __m256i* ptr)
+{
+    __m256i v;
+    v.lo = vld1q_u16((const unsigned short*)ptr);
+    v.hi = vld1q_u16((const unsigned short*)ptr + 8);
+    return v;
+}
+
+static NCNN_FORCEINLINE void _mm256_storeu_si256(__m256i* ptr, __m256i v)
+{
+    vst1q_u16((unsigned short*)ptr, v.lo);
+    vst1q_u16((unsigned short*)ptr + 8, v.hi);
+}
+
+static NCNN_FORCEINLINE __m256i _mm256_unpacklo_epi16(__m256i a, __m256i b)
+{
+    __m256i v;
+    v.lo = _mm_unpacklo_epi16(a.lo, b.lo);
+    v.hi = _mm_unpacklo_epi16(a.hi, b.hi);
+    return v;
+}
+
+static NCNN_FORCEINLINE __m256i _mm256_unpackhi_epi16(__m256i a, __m256i b)
+{
+    __m256i v;
+    v.lo = _mm_unpackhi_epi16(a.lo, b.lo);
+    v.hi = _mm_unpackhi_epi16(a.hi, b.hi);
+    return v;
+}
+
+static NCNN_FORCEINLINE permute_u16_m128i _mm256_castsi256_si128(__m256i v)
+{
+    return v.lo;
+}
+
+static NCNN_FORCEINLINE permute_u16_m128i _mm256_extractf128_si256(__m256i v, const int imm)
+{
+    return imm ? v.hi : v.lo;
+}
+
+static NCNN_FORCEINLINE __m256 _mm256_permute2f128_ps(__m256 a, __m256 b, const int imm)
+{
+    __m256 v;
+    const int l0 = (imm >> 0) & 3;
+    const int l1 = (imm >> 4) & 3;
+    v.lo = (l0 & 2) ? (l0 & 1 ? b.hi : b.lo) : (l0 & 1 ? a.hi : a.lo);
+    v.hi = (l1 & 2) ? (l1 & 1 ? b.hi : b.lo) : (l1 & 1 ? a.hi : a.lo);
+    return v;
+}
+
 #endif // NCNN_PERMUTE_ARM_SSE2_U16_H

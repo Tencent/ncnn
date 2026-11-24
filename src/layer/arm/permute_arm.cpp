@@ -30,7 +30,9 @@ namespace permute_arm_bf16s_fp16s_kernel {
 
 #define __m128i  permute_u16_m128i
 #define __SSE2__ 1
+#define __AVX__  1
 #include "permute_arm_bf16s_fp16s.h"
+#undef __AVX__
 #undef __SSE2__
 #undef __m128i
 
@@ -39,9 +41,6 @@ namespace permute_arm_bf16s_fp16s_kernel {
 int permute_arm_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int order_type, int nT)
 {
     using namespace permute_arm_bf16s_fp16s_kernel;
-
-    if (bottom_blob.elempack > 4 || top_blob.elempack > 4)
-        return -1;
 
     if (bottom_blob.dims == 2)
     {
