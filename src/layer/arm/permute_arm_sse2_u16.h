@@ -246,4 +246,10 @@ static NCNN_FORCEINLINE __m256 _mm256_permute2f128_ps(__m256 a, __m256 b, const 
     return v;
 }
 
+static NCNN_FORCEINLINE permute_u16_m128i permute_deinterleave_u16(permute_u16_m128i v)
+{
+    uint16x8x2_t _v = vuzpq_u16(v, v);
+    return vcombine_u16(vget_low_u16(_v.val[0]), vget_low_u16(_v.val[1]));
+}
+
 #endif // NCNN_PERMUTE_ARM_SSE2_U16_H

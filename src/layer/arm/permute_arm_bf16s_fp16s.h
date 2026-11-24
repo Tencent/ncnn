@@ -24,9 +24,7 @@ static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsig
     __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
     __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
     __m128i _v0 = _mm_unpacklo_epi64(_t0, _t1);
-    _v0 = _mm_shufflelo_epi16(_v0, _MM_SHUFFLE(3, 1, 2, 0));
-    _v0 = _mm_shufflehi_epi16(_v0, _MM_SHUFFLE(3, 1, 2, 0));
-    _v0 = _mm_shuffle_epi32(_v0, _MM_SHUFFLE(3, 1, 2, 0));
+    _v0 = permute_deinterleave_u16(_v0);
     _mm_storel_epi64((__m128i*)outptr, _v0);
     _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_v0, 8));
 }
@@ -123,9 +121,7 @@ static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsig
     __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
     __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
     __m128i _v0 = _mm_unpacklo_epi64(_t0, _t1);
-    _v0 = _mm_shufflelo_epi16(_v0, _MM_SHUFFLE(3, 1, 2, 0));
-    _v0 = _mm_shufflehi_epi16(_v0, _MM_SHUFFLE(3, 1, 2, 0));
-    _v0 = _mm_shuffle_epi32(_v0, _MM_SHUFFLE(3, 1, 2, 0));
+    _v0 = permute_deinterleave_u16(_v0);
     int _p4;
     memcpy(&_p4, ptr + 4 * stride, 4);
     __m128i _r4 = _mm_cvtsi32_si128(_p4);
@@ -141,9 +137,7 @@ static NCNN_FORCEINLINE void permute_transpose2x8_stride_bf16s_fp16s(const unsig
     __m128i _t2 = _mm_unpacklo_epi32(_r4, _r5);
     __m128i _t3 = _mm_unpacklo_epi32(_r6, _r7);
     __m128i _v1 = _mm_unpacklo_epi64(_t2, _t3);
-    _v1 = _mm_shufflelo_epi16(_v1, _MM_SHUFFLE(3, 1, 2, 0));
-    _v1 = _mm_shufflehi_epi16(_v1, _MM_SHUFFLE(3, 1, 2, 0));
-    _v1 = _mm_shuffle_epi32(_v1, _MM_SHUFFLE(3, 1, 2, 0));
+    _v1 = permute_deinterleave_u16(_v1);
     _mm_storeu_si128((__m128i*)outptr, _mm_unpacklo_epi64(_v0, _v1));
     _mm_storeu_si128((__m128i*)(outptr + outstride), _mm_unpackhi_epi64(_v0, _v1));
 }
@@ -244,9 +238,7 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsi
     __m128i _t0 = _mm_unpacklo_epi32(_r0, _r1);
     __m128i _t1 = _mm_unpacklo_epi32(_r2, _r3);
     __m128i _v0 = _mm_unpacklo_epi64(_t0, _t1);
-    _v0 = _mm_shufflelo_epi16(_v0, _MM_SHUFFLE(3, 1, 2, 0));
-    _v0 = _mm_shufflehi_epi16(_v0, _MM_SHUFFLE(3, 1, 2, 0));
-    _v0 = _mm_shuffle_epi32(_v0, _MM_SHUFFLE(3, 1, 2, 0));
+    _v0 = permute_deinterleave_u16(_v0);
     int _p4;
     memcpy(&_p4, ptr + 4 * stride, 4);
     __m128i _r4 = _mm_cvtsi32_si128(_p4);
@@ -262,9 +254,7 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsi
     __m128i _t2 = _mm_unpacklo_epi32(_r4, _r5);
     __m128i _t3 = _mm_unpacklo_epi32(_r6, _r7);
     __m128i _v1 = _mm_unpacklo_epi64(_t2, _t3);
-    _v1 = _mm_shufflelo_epi16(_v1, _MM_SHUFFLE(3, 1, 2, 0));
-    _v1 = _mm_shufflehi_epi16(_v1, _MM_SHUFFLE(3, 1, 2, 0));
-    _v1 = _mm_shuffle_epi32(_v1, _MM_SHUFFLE(3, 1, 2, 0));
+    _v1 = permute_deinterleave_u16(_v1);
     int _p8;
     memcpy(&_p8, ptr + 8 * stride, 4);
     __m128i _r8 = _mm_cvtsi32_si128(_p8);
@@ -280,9 +270,7 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsi
     __m128i _t4 = _mm_unpacklo_epi32(_r8, _r9);
     __m128i _t5 = _mm_unpacklo_epi32(_r10, _r11);
     __m128i _v2 = _mm_unpacklo_epi64(_t4, _t5);
-    _v2 = _mm_shufflelo_epi16(_v2, _MM_SHUFFLE(3, 1, 2, 0));
-    _v2 = _mm_shufflehi_epi16(_v2, _MM_SHUFFLE(3, 1, 2, 0));
-    _v2 = _mm_shuffle_epi32(_v2, _MM_SHUFFLE(3, 1, 2, 0));
+    _v2 = permute_deinterleave_u16(_v2);
     int _p12;
     memcpy(&_p12, ptr + 12 * stride, 4);
     __m128i _r12 = _mm_cvtsi32_si128(_p12);
@@ -298,9 +286,7 @@ static NCNN_FORCEINLINE void permute_transpose2x16_stride_bf16s_fp16s(const unsi
     __m128i _t6 = _mm_unpacklo_epi32(_r12, _r13);
     __m128i _t7 = _mm_unpacklo_epi32(_r14, _r15);
     __m128i _v3 = _mm_unpacklo_epi64(_t6, _t7);
-    _v3 = _mm_shufflelo_epi16(_v3, _MM_SHUFFLE(3, 1, 2, 0));
-    _v3 = _mm_shufflehi_epi16(_v3, _MM_SHUFFLE(3, 1, 2, 0));
-    _v3 = _mm_shuffle_epi32(_v3, _MM_SHUFFLE(3, 1, 2, 0));
+    _v3 = permute_deinterleave_u16(_v3);
     __m128i _a0 = _mm_unpacklo_epi64(_v0, _v1);
     __m128i _a1 = _mm_unpacklo_epi64(_v2, _v3);
     __m128i _b0 = _mm_unpackhi_epi64(_v0, _v1);
