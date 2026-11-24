@@ -892,8 +892,7 @@ static void permute_transpose_pack4to1_bf16s_fp16s(const unsigned short* ptr, si
         {
             const unsigned short* p = ptr + (y / 4) * stride + x * 4;
             unsigned short* out = outptr + x * outstride + y;
-            __m128i _v = _mm_loadl_epi64((const __m128i*)p);
-            _mm_storel_epi64((__m128i*)out, _v);
+            vst1_u16(out, vld1_u16(p));
         }
     }
 }
@@ -1571,11 +1570,10 @@ static void permute_transpose_blocks2_bf16s_fp16s(const unsigned short* ptr, siz
         int i = 0;
         for (; i + 1 < rows; i += 2)
         {
-            __m128i _a = _mm_loadl_epi64((const __m128i*)p);
-            __m128i _b = _mm_loadl_epi64((const __m128i*)(p + stride));
-            __m128i _v = _mm_unpacklo_epi32(_a, _b);
-            _mm_storel_epi64((__m128i*)out0, _v);
-            _mm_storel_epi64((__m128i*)out1, _mm_srli_si128(_v, 8));
+            uint16x4_t _a = vld1_u16(p);
+            uint16x4_t _b = vld1_u16(p + stride);
+            vst1_u16(out0, vcombine_u16(vget_low_u16(_a), vget_low_u16(_b)));
+            vst1_u16(out1, vcombine_u16(vget_high_u16(_a), vget_high_u16(_b)));
             p += stride * 2;
             out0 += 4;
             out1 += 4;
@@ -1798,8 +1796,7 @@ static void permute3d_pack1to4_bf16s_fp16s(const unsigned short* ptr, unsigned s
         unsigned short* out = outptr + c * outcstep;
         for (int x = 0; x < w; x++)
         {
-            __m128i _v = _mm_loadl_epi64((const __m128i*)p);
-            _mm_storel_epi64((__m128i*)out, _v);
+            vst1_u16(out, vld1_u16(p));
             p += wstep;
             out += outwstep;
         }
@@ -1883,8 +1880,7 @@ static void permute3d_pack4to1_bf16s_fp16s(const unsigned short* ptr, unsigned s
         unsigned short* out = outptr + c * 4;
         for (int x = 0; x < w; x++)
         {
-            __m128i _v = _mm_loadl_epi64((const __m128i*)p);
-            _mm_storel_epi64((__m128i*)out, _v);
+            vst1_u16(out, vld1_u16(p));
             p += wstep;
             out += outwstep;
         }
