@@ -306,6 +306,94 @@ static int test_crop_load_param()
 }
 #endif // NCNN_VALIDATION
 
+// test_layer() above decides the single/multi blob mode itself and drops a non-zero
+// forward() return as "configuration not supported by this layer", so an empty crop compared
+// against an empty reference crop still reports success. Assert the single-blob result here:
+// returning -100 or producing an empty blob has to fail the test.
+static float crop_pixel(const ncnn::Mat& m, int x, int y, int z, int q)
+{
+    const float* p = m.channel(q);
+    if (m.dims == 3)
+        return p[y * m.w + x];
+    return p[(z * m.h + y) * m.w + x];
+}
+
+static int test_crop_unset_output_size()
+{
+    for (int dims = 3; dims <= 4; dims++)
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 0);  // woffset
+        pd.set(1, 0);  // hoffset
+        pd.set(13, 0); // doffset
+        pd.set(2, 0);  // coffset
+        pd.set(3, 2);  // outw
+        pd.set(4, 1);  // outh
+        pd.set(14, 0); // outd, unset
+        pd.set(5, 0);  // outc, unset - the case this PR fixes
+        pd.set(6, 0);  // woffset2
+        pd.set(7, 0);  // hoffset2
+        pd.set(15, 0); // doffset2
+        pd.set(8, 0);  // coffset2
+
+        const ncnn::Mat a = dims == 3 ? RandomMat(4, 3, 2) : RandomMat(4, 3, 3, 2);
+
+        ncnn::Layer* op = ncnn::create_layer("Crop");
+        if (op->load_param(pd) != 0)
+        {
+            fprintf(stderr, "test_crop_unset_output_size load_param failed dims=%d\n", dims);
+            delete op;
+            return -1;
+        }
+
+        ncnn::Option opt;
+        opt.num_threads = 1;
+
+        ncnn::Mat out;
+        op->create_pipeline(opt);
+        const int ret = op->forward(a, out, opt);
+        op->destroy_pipeline(opt);
+        delete op;
+
+        if (ret != 0)
+        {
+            fprintf(stderr, "test_crop_unset_output_size forward returned %d dims=%d\n", ret, dims);
+            return -1;
+        }
+
+        const bool shape_ok = dims == 3
+                              ? (out.w == 2 && out.h == 1 && out.c == a.c)
+                              : (out.w == 2 && out.h == 1 && out.d == a.d && out.c == a.c);
+        if (out.empty() || !shape_ok)
+        {
+            fprintf(stderr, "test_crop_unset_output_size empty/shape mismatch dims=%d out=(%d %d %d %d)\n",
+                    dims, out.w, out.h, out.d, out.c);
+            return -1;
+        }
+
+        const int dcount = dims == 3 ? 1 : a.d;
+        for (int q = 0; q < a.c; q++)
+        {
+            for (int z = 0; z < dcount; z++)
+            {
+                for (int x = 0; x < out.w; x++)
+                {
+                    const float v = crop_pixel(out, x, 0, z, q);
+                    const float e = crop_pixel(a, x, 0, z, q);
+                    if (v != e)
+                    {
+                        fprintf(stderr, "test_crop_unset_output_size value mismatch dims=%d q=%d z=%d x=%d %f != %f\n",
+                                dims, q, z, x, v, e);
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 // the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
 {
@@ -324,6 +412,7 @@ int main()
            || test_crop_9(RandomMat(20, 20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_9(RandomMat(15, 15, 15, 36))
            || test_crop_9(RandomMat(16, 16, 16, 33))
+           || test_crop_unset_output_size()
 #if NCNN_VALIDATION
            || test_crop_load_param()
 #endif // NCNN_VALIDATION
