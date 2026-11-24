@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -43,8 +44,30 @@ def test():
     import test_Tensor_index_put_pnnx
     b = test_Tensor_index_put_pnnx.test_inference()
 
+    if len(a) != len(b):
+        return False
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
+            return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, y, z, w))
+    torch.export.save(ep, "test_Tensor_index_put_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_Tensor_index_put_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_Tensor_index_put_export_pnnx
+    c = test_Tensor_index_put_export_pnnx.test_inference()
+
+    if len(a) != len(c):
+        return False
+    for a0, c0 in zip(a, c):
+        if not torch.equal(a0, c0):
             return False
     return True
 

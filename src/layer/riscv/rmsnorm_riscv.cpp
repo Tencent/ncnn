@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "rmsnorm_bf16s.h"
+#endif
+
 RMSNorm_riscv::RMSNorm_riscv()
 {
 #if __riscv_vector
@@ -23,6 +27,9 @@ RMSNorm_riscv::RMSNorm_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 }
 
@@ -232,13 +239,21 @@ static void rmsnorm(float* ptr, const float* gamma_ptr, float eps, int elemcount
 
 int RMSNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     const int elembits = bottom_top_blob.elembits();
-    if (opt.use_fp16_storage && elembits == 16)
+#endif
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif // NCNN_ZFH
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+    {
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+    }
+#endif
 
     const int elempack = bottom_top_blob.elempack;
     const int dims = bottom_top_blob.dims;
@@ -334,5 +349,14 @@ int RMSNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+#if NCNN_BF16
+int RMSNorm_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    rmsnorm_bf16s(bottom_top_blob, gamma_data, eps, affine_size, opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

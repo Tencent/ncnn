@@ -48,6 +48,7 @@ int Deconvolution_vulkan::load_param(const ParamDict& pd)
 int Deconvolution_vulkan::create_pipeline(const Option& opt)
 {
     Option opt_cm = opt;
+    bool use_qcom_cooperative_matrix = false;
 
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
@@ -128,6 +129,20 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             VkComponentTypeKHR coopmat_acctype;
             vkdev->info.get_optimal_cooperative_matrix_mnk(size, maxk * num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
             opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
+            use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion() && opt_cm.use_subgroup_ops;
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_cooperative_matrix = false;
+            if (opt_cm.use_bf16_storage || opt_cm.use_bf16_packed || !vkdev->info.support_fp16_arithmetic())
+                use_qcom_cooperative_matrix = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                    || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                    || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                    || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
+                use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
             {
@@ -253,35 +268,64 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             }
 
             weight_data_packed.create(coopmat_N * coopmat_K * UNROLL_SG_N * UNROLL_WG_N * kk, blocks_n);
-            for (int bn = 0; bn < blocks_n; bn++)
+            if (use_qcom_cooperative_matrix)
             {
-                float* p = weight_data_packed.row(bn);
-
-                int k = 0;
-                for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
+                for (int bn = 0; bn < blocks_n; bn++)
                 {
-                    // const int ki = k * coopmat_K;
+                    float* p = weight_data_packed.row(bn);
 
-                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                    int k = 0;
+                    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
                     {
-                        for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
                         {
-                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
                             {
-                                for (int i = 0; i < coopmat_K; i++)
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
                                 {
-                                    for (int j = 0; j < coopmat_N; j++)
+                                    for (int i = 0; i < coopmat_N; i++)
                                     {
-                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
-                                        const int gki = (k + zk) * coopmat_K + i;
+                                        for (int j = 0; j < coopmat_K; j++)
+                                        {
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + i;
+                                            const int gki = (k + zk) * coopmat_K + j;
 
-                                        if (gni < maxk * num_output && gki < num_input)
-                                        {
-                                            *p++ = weight_data_r2[gni * num_input + gki];
+                                            if (gni < maxk * num_output && gki < num_input)
+                                            {
+                                                *p++ = weight_data_r2[gni * num_input + gki];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
                                         }
-                                        else
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (; k < kk; k++)
+                    {
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_N; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_K; j++)
                                         {
-                                            *p++ = 0.f;
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + i;
+                                            const int gki = k * coopmat_K + j;
+
+                                            if (gni < maxk * num_output && gki < num_input)
+                                            {
+                                                *p++ = weight_data_r2[gni * num_input + gki];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
                                         }
                                     }
                                 }
@@ -289,31 +333,71 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
                         }
                     }
                 }
-                for (; k < kk; k++)
+            }
+            else
+            {
+                for (int bn = 0; bn < blocks_n; bn++)
                 {
-                    // const int ki = k * coopmat_K;
+                    float* p = weight_data_packed.row(bn);
 
-                    for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                    int k = 0;
+                    for (; k + UNROLL_SG_K - 1 < kk; k += UNROLL_SG_K)
                     {
-                        // for (int zk = 0; zk < UNROLL_SG_K; zk++)
-                        {
-                            for (int zn = 0; zn < UNROLL_SG_N; zn++)
-                            {
-                                for (int i = 0; i < coopmat_K; i++)
-                                {
-                                    for (int j = 0; j < coopmat_N; j++)
-                                    {
-                                        const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
-                                        // const int gki = (k + zk) * coopmat_K + i;
-                                        const int gki = k * coopmat_K + i;
+                        // const int ki = k * coopmat_K;
 
-                                        if (gni < maxk * num_output && gki < num_input)
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
                                         {
-                                            *p++ = weight_data_r2[gni * num_input + gki];
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            const int gki = (k + zk) * coopmat_K + i;
+
+                                            if (gni < maxk * num_output && gki < num_input)
+                                            {
+                                                *p++ = weight_data_r2[gni * num_input + gki];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
                                         }
-                                        else
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (; k < kk; k++)
+                    {
+                        // const int ki = k * coopmat_K;
+
+                        for (int wn = 0; wn < UNROLL_WG_N; wn++)
+                        {
+                            // for (int zk = 0; zk < UNROLL_SG_K; zk++)
+                            {
+                                for (int zn = 0; zn < UNROLL_SG_N; zn++)
+                                {
+                                    for (int i = 0; i < coopmat_K; i++)
+                                    {
+                                        for (int j = 0; j < coopmat_N; j++)
                                         {
-                                            *p++ = 0.f;
+                                            const int gni = ((bn * UNROLL_WG_N + wn) * UNROLL_SG_N + zn) * coopmat_N + j;
+                                            // const int gki = (k + zk) * coopmat_K + i;
+                                            const int gki = k * coopmat_K + i;
+
+                                            if (gni < maxk * num_output && gki < num_input)
+                                            {
+                                                *p++ = weight_data_r2[gni * num_input + gki];
+                                            }
+                                            else
+                                            {
+                                                *p++ = 0.f;
+                                            }
                                         }
                                     }
                                 }
@@ -344,7 +428,14 @@ int Deconvolution_vulkan::create_pipeline(const Option& opt)
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
             pipeline_deconvolution_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_deconvolution_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_cm, opt_cm, specializations);
+            if (use_qcom_cooperative_matrix)
+            {
+                specializations.resize(17);
+                specializations[16].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
+                pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_cm_qcom, opt_cm, specializations);
+            }
+            else
+                pipeline_deconvolution_gemm->create(LayerShaderType::deconvolution_gemm_cm, opt_cm, specializations);
         }
         else
         {
