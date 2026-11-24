@@ -70,7 +70,7 @@ static NCNN_FORCEINLINE void permute_transpose8x4_bf16s_fp16s(const unsigned sho
     __m128i _r1 = _mm_loadu_si128((const __m128i*)(ptr + 8));
     __m128i _r2 = _mm_loadu_si128((const __m128i*)(ptr + 16));
     __m128i _r3 = _mm_loadu_si128((const __m128i*)(ptr + 24));
-    transpose8x4_epi16(_r0, _r1, _r2, _r3);
+    transpose8x4_u16(_r0, _r1, _r2, _r3);
     _mm_storeu_si128((__m128i*)(outptr), _r0);
     _mm_storeu_si128((__m128i*)(outptr + 8), _r1);
     _mm_storeu_si128((__m128i*)(outptr + 16), _r2);
@@ -85,7 +85,7 @@ static NCNN_FORCEINLINE void permute_transpose8x4_stride_bf16s_fp16s(const unsig
     __m128i _r1 = _mm_loadu_si128((const __m128i*)(ptr + stride));
     __m128i _r2 = _mm_loadu_si128((const __m128i*)(ptr + 2 * stride));
     __m128i _r3 = _mm_loadu_si128((const __m128i*)(ptr + 3 * stride));
-    transpose8x4_epi16(_r0, _r1, _r2, _r3);
+    transpose8x4_u16(_r0, _r1, _r2, _r3);
     _mm_storel_epi64((__m128i*)(outptr), _r0);
     _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_r0, 8));
     _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _r1);
@@ -191,7 +191,7 @@ static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsig
     __m128i _r5 = _mm_loadl_epi64((const __m128i*)(ptr + 5 * stride));
     __m128i _r6 = _mm_loadl_epi64((const __m128i*)(ptr + 6 * stride));
     __m128i _r7 = _mm_loadl_epi64((const __m128i*)(ptr + 7 * stride));
-    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+    transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
     _mm_storeu_si128((__m128i*)(outptr), _r0);
     _mm_storeu_si128((__m128i*)(outptr + outstride), _r1);
     _mm_storeu_si128((__m128i*)(outptr + 2 * outstride), _r2);
@@ -208,7 +208,7 @@ static NCNN_FORCEINLINE void permute_transpose8x8_stride_bf16s_fp16s(const unsig
     __m128i _r5 = _mm_loadu_si128((const __m128i*)(ptr + 5 * stride));
     __m128i _r6 = _mm_loadu_si128((const __m128i*)(ptr + 6 * stride));
     __m128i _r7 = _mm_loadu_si128((const __m128i*)(ptr + 7 * stride));
-    transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+    transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
     _mm_storeu_si128((__m128i*)(outptr), _r0);
     _mm_storeu_si128((__m128i*)(outptr + outstride), _r1);
     _mm_storeu_si128((__m128i*)(outptr + 2 * outstride), _r2);
