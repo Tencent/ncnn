@@ -12,6 +12,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "layernorm_bf16s.h"
+#endif
+
 LayerNorm_riscv::LayerNorm_riscv()
 {
 #if __riscv_vector
@@ -23,6 +27,9 @@ LayerNorm_riscv::LayerNorm_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 }
 
@@ -77,6 +84,7 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     }
 
     vfloat32m8_t _mean;
+    float mean = 0.f;
     if (elempack == packn)
     {
         // reduce sum n,n,n,n,n,n,n,n to n
@@ -95,9 +103,8 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 
         vfloat32m1_t _sum0 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
         _sum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sum, _sum0, __riscv_vsetvlmax_e32m8());
-        vfloat32m1_t _mean0 = __riscv_vfdiv_vf_f32m1(_sum0, elemcount, __riscv_vsetvlmax_e32m1());
-        _mean = __riscv_vset_v_f32m1_f32m8(__riscv_vundefined_f32m8(), 0, _mean0);
-        _mean = __riscv_vrgather_vx_f32m8(_mean, 0, __riscv_vsetvlmax_e32m8());
+        mean = __riscv_vfmv_f_s_f32m1_f32(_sum0) / elemcount;
+        _mean = __riscv_vfmv_v_f_f32m8(mean, __riscv_vsetvlmax_e32m8());
     }
 
     // reduce sqsum
@@ -111,7 +118,7 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
         {
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr0, vl);
             _p = __riscv_vfsub_vv_f32m8(_p, _mean, vl);
-            _sqsum = __riscv_vfmadd_vv_f32m8(_p, _p, _sqsum, vl);
+            _sqsum = __riscv_vfmacc_vv_f32m8(_sqsum, _p, _p, vl);
             ptr0 += vl;
             n -= vl;
         }
@@ -124,15 +131,17 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 #if __riscv_xtheadvector
             // xtheadvector does not support tail undisturbed policy
             _p = reset_tails(_p, vlr, 0.f);
-            _sqsum = __riscv_vfmadd_vv_f32m8(_p, _p, _sqsum, vl);
+            _sqsum = __riscv_vfmacc_vv_f32m8(_sqsum, _p, _p, vl);
 #else  // __riscv_xtheadvector
-            _p = __riscv_vfmul_vv_f32m8(_p, _p, vlr);
-            _sqsum = __riscv_vfadd_vv_f32m8_tu(_sqsum, _sqsum, _p, vlr);
+            _sqsum = __riscv_vfmacc_vv_f32m8_tu(_sqsum, _p, _p, vlr);
 #endif // __riscv_xtheadvector
         }
     }
 
-    vfloat32m8_t _var;
+    // a = 1.f / sqrtf(var + eps);
+    // b = -mean * a;
+    vfloat32m8_t _a;
+    vfloat32m8_t _b;
     if (elempack == packn)
     {
         // reduce sqsum n,n,n,n,n,n,n,n to n
@@ -142,7 +151,11 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
         vfloat32m2_t _sqsum2 = __riscv_vfadd_vv_f32m2(__riscv_vget_v_f32m4_f32m2(_sqsum0, 0), __riscv_vget_v_f32m4_f32m2(_sqsum0, 1), __riscv_vsetvlmax_e32m2());
         vfloat32m1_t _sqsum4 = __riscv_vfadd_vv_f32m1(__riscv_vget_v_f32m2_f32m1(_sqsum2, 0), __riscv_vget_v_f32m2_f32m1(_sqsum2, 1), __riscv_vsetvlmax_e32m1());
         vfloat32m1_t _var4 = __riscv_vfdiv_vf_f32m1(_sqsum4, elemcount, __riscv_vsetvlmax_e32m1());
-        _var = __riscv_vcreate_v_f32m1_f32m8(_var4, _var4, _var4, _var4, _var4, _var4, _var4, _var4);
+        vfloat32m1_t _mean4 = __riscv_vget_v_f32m8_f32m1(_mean, 0);
+        vfloat32m1_t _a4 = __riscv_vfrdiv_vf_f32m1(__riscv_vfsqrt_v_f32m1(__riscv_vfadd_vf_f32m1(_var4, eps, __riscv_vsetvlmax_e32m1()), __riscv_vsetvlmax_e32m1()), 1.f, __riscv_vsetvlmax_e32m1());
+        vfloat32m1_t _b4 = __riscv_vfmul_vv_f32m1(__riscv_vfsgnjn_vv_f32m1(_mean4, _mean4, __riscv_vsetvlmax_e32m1()), _a4, __riscv_vsetvlmax_e32m1());
+        _a = __riscv_vcreate_v_f32m1_f32m8(_a4, _a4, _a4, _a4, _a4, _a4, _a4, _a4);
+        _b = __riscv_vcreate_v_f32m1_f32m8(_b4, _b4, _b4, _b4, _b4, _b4, _b4, _b4);
     }
     else // if (elempack == 1)
     {
@@ -151,15 +164,12 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 
         vfloat32m1_t _sqsum0 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
         _sqsum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sqsum, _sqsum0, __riscv_vsetvlmax_e32m8());
-        vfloat32m1_t _var0 = __riscv_vfdiv_vf_f32m1(_sqsum0, elemcount, __riscv_vsetvlmax_e32m1());
-        _var = __riscv_vset_v_f32m1_f32m8(__riscv_vundefined_f32m8(), 0, _var0);
-        _var = __riscv_vrgather_vx_f32m8(_var, 0, __riscv_vsetvlmax_e32m8());
+        const float var = __riscv_vfmv_f_s_f32m1_f32(_sqsum0) / elemcount;
+        const float a = 1.f / sqrtf(var + eps);
+        const float b = -mean * a;
+        _a = __riscv_vfmv_v_f_f32m8(a, __riscv_vsetvlmax_e32m8());
+        _b = __riscv_vfmv_v_f_f32m8(b, __riscv_vsetvlmax_e32m8());
     }
-
-    // a = 1.f / sqrtf(var + eps);
-    // b = -mean * a;
-    vfloat32m8_t _a = __riscv_vfrdiv_vf_f32m8(__riscv_vfsqrt_v_f32m8(__riscv_vfadd_vf_f32m8(_var, eps, __riscv_vsetvlmax_e32m8()), __riscv_vsetvlmax_e32m8()), 1.f, __riscv_vsetvlmax_e32m8());
-    vfloat32m8_t _b = __riscv_vfmul_vv_f32m8(__riscv_vfsgnjn_vv_f32m8(_mean, _mean, __riscv_vsetvlmax_e32m8()), _a, __riscv_vsetvlmax_e32m8());
 
     if (gamma_ptr && beta_ptr)
     {
@@ -268,17 +278,24 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
     }
     else
     {
-        int n = size;
+        // full vl chunks keep every chunk aligned with the packn lanes of _a and _b
+        const size_t vl = __riscv_vsetvlmax_e32m8();
+        int n = size / vl * vl;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e32m8(n);
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
             _p = __riscv_vfmadd_vv_f32m8(_p, _a, _b, vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
-            n -= vl;
             ptr += vl;
-            gamma_ptr += vl;
-            beta_ptr += vl;
+            n -= vl;
+        }
+        int remain = size % vl;
+        if (remain > 0)
+        {
+            size_t vlr = __riscv_vsetvl_e32m8(remain);
+            vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vlr);
+            _p = __riscv_vfmadd_vv_f32m8(_p, _a, _b, vlr);
+            __riscv_vse32_v_f32m8(ptr, _p, vlr);
         }
     }
 #else  // __riscv_vector
@@ -321,13 +338,21 @@ static void layernorm(float* ptr, const float* gamma_ptr, const float* beta_ptr,
 
 int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     const int elembits = bottom_top_blob.elembits();
-    if (opt.use_fp16_storage && elembits == 16)
+#endif
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif // NCNN_ZFH
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+    {
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+    }
+#endif // NCNN_BF16
 
     const int elempack = bottom_top_blob.elempack;
     const int dims = bottom_top_blob.dims;
@@ -419,5 +444,100 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     return 0;
 }
+
+#if NCNN_BF16
+int LayerNorm_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const int elempack = bottom_top_blob.elempack;
+    const int dims = bottom_top_blob.dims;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+
+    if (dims == 1)
+    {
+        unsigned short* ptr = bottom_top_blob;
+        layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * elempack, 1);
+    }
+
+    if (dims == 2)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < h; i++)
+        {
+            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
+            layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
+        }
+    }
+
+    if (dims == 3)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int i = 0; i < h; i++)
+                {
+                    unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
+                    layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
+                }
+            }
+        }
+        else // if (affine_size == size)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel(q);
+                layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
+            }
+        }
+    }
+
+    if (dims == 4)
+    {
+        if (affine_size == w)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        unsigned short* ptr = bottom_top_blob.channel(q).depth(z).row<unsigned short>(i);
+                        layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
+                    }
+                }
+            }
+        }
+        else if (affine_size == w * h)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                for (int z = 0; z < d; z++)
+                {
+                    unsigned short* ptr = bottom_top_blob.channel(q).depth(z);
+                    layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
+                }
+            }
+        }
+        else // if (affine_size == w * h * d)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                unsigned short* ptr = bottom_top_blob.channel(q);
+                layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
