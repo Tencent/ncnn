@@ -413,103 +413,39 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
 }
 #endif // __ARM_NEON && __aarch64__
 
-Permute_arm::Permute_arm()
+static void permute_axes(const Mat& bottom_blob, Mat& top_blob, const int* axes, int dims, const Option& opt)
 {
-#if __ARM_NEON
-    support_packing = true;
-    support_any_packing = true;
-#endif // __ARM_NEON
-}
-
-int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    const int dims = bottom_blob.dims;
-
-    if (dims == 1 || order_type == 0)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
     const int in_w = bottom_blob.w;
     const int in_h = bottom_blob.h;
     const int in_d = bottom_blob.d;
     const int in_c = bottom_blob.c;
     const int in_elempack = bottom_blob.elempack;
-
-    const int scalar_bits = bottom_blob.elembits();
-    if (scalar_bits != 16 && scalar_bits != 32)
-        return -100;
-
-    const int scalar_size = scalar_bits / 8;
+    const int scalar_size = bottom_blob.elembits() / 8;
 
     int in_shape[4] = {in_w, in_h, in_d, in_c * in_elempack};
     if (dims == 2)
         in_shape[1] *= in_elempack;
+
     int out_shape[4] = {1, 1, 1, 1};
-
-    const int* axes;
-    if (dims == 2)
-        axes = permute_axes_2d[order_type];
-    else if (dims == 3)
-        axes = permute_axes_3d[order_type];
-    else
-        axes = permute_axes_4d[order_type];
-
     for (int i = 0; i < dims; i++)
     {
         out_shape[i] = in_shape[axes[i]];
     }
 
     const int last_axis = axes[dims - 1];
-    const int input_last_axis = dims == 2 ? 1 : 3;
-
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
+        const int input_last_axis = dims == 2 ? 1 : 3;
         if (last_axis == input_last_axis)
         {
             out_elempack = in_elempack;
         }
         else
         {
-            const int axis_size = out_shape[dims - 1];
-            out_elempack = axis_size % 4 == 0 ? 4 : 1;
+            out_elempack = out_shape[dims - 1] % 4 == 0 ? 4 : 1;
         }
     }
-
-    const size_t out_elemsize = (size_t)scalar_size * out_elempack;
-
-    if (dims == 2)
-        top_blob.create(out_shape[0], out_shape[1] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (dims == 3)
-        top_blob.create(out_shape[0], out_shape[1], out_shape[2] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-    if (dims == 4)
-        top_blob.create(out_shape[0], out_shape[1], out_shape[2], out_shape[3] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-
-    if (top_blob.empty())
-        return -100;
-
-#if __ARM_NEON && __aarch64__
-    if (dims == 2 && order_type == 1 && scalar_size == 4)
-    {
-        int ret = permute2d(bottom_blob, top_blob, opt);
-        if (ret == 0)
-            return 0;
-    }
-    if (dims == 3 && scalar_size == 4)
-    {
-        int ret = permute3d(bottom_blob, top_blob, order_type, opt);
-        if (ret == 0)
-            return 0;
-    }
-    if (dims == 4 && scalar_size == 4)
-    {
-        int ret = permute4d(bottom_blob, top_blob, order_type, opt);
-        if (ret == 0)
-            return 0;
-    }
-#endif // __ARM_NEON && __aarch64__
 
     int outer_size = 1;
     for (int i = 0; i < dims - 1; i++)
@@ -646,6 +582,309 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 }
             }
         }
+    }
+}
+
+static void permute3d_hwc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 1, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_3d[1], 3, opt);
+}
+
+static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 2, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_3d[2], 3, opt);
+}
+
+static void permute3d_cwh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 3, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_3d[3], 3, opt);
+}
+
+static void permute3d_hcw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 4, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_3d[4], 3, opt);
+}
+
+static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 5, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_3d[5], 3, opt);
+}
+
+static void permute4d_hwdc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[1], 4, opt);
+}
+
+static void permute4d_wdhc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[2], 4, opt);
+}
+
+static void permute4d_dwhc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[3], 4, opt);
+}
+
+static void permute4d_hdwc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[4], 4, opt);
+}
+
+static void permute4d_dhwc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[5], 4, opt);
+}
+
+static void permute4d_whcd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 6, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[6], 4, opt);
+}
+
+static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[7], 4, opt);
+}
+
+static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[8], 4, opt);
+}
+
+static void permute4d_cwhd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 9, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[9], 4, opt);
+}
+
+static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[10], 4, opt);
+}
+
+static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[11], 4, opt);
+}
+
+static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[12], 4, opt);
+}
+
+static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[13], 4, opt);
+}
+
+static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[14], 4, opt);
+}
+
+static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[15], 4, opt);
+}
+
+static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[16], 4, opt);
+}
+
+static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[17], 4, opt);
+}
+
+static void permute4d_hdcw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 18, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[18], 4, opt);
+}
+
+static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[19], 4, opt);
+}
+
+static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[20], 4, opt);
+}
+
+static void permute4d_chdw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+#if __ARM_NEON && __aarch64__
+    const int scalar_size = bottom_blob.elembits() / 8;
+    if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 21, opt) == 0)
+        return;
+#endif // __ARM_NEON && __aarch64__
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[21], 4, opt);
+}
+
+static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[22], 4, opt);
+}
+
+static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    permute_axes(bottom_blob, top_blob, permute_axes_4d[23], 4, opt);
+}
+
+Permute_arm::Permute_arm()
+{
+#if __ARM_NEON
+    support_packing = true;
+    support_any_packing = true;
+#endif // __ARM_NEON
+}
+
+int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int dims = bottom_blob.dims;
+
+    if (dims == 1 || order_type == 0)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    if ((dims == 2 && order_type != 1) || (dims == 3 && (order_type < 1 || order_type > 5)) || (dims == 4 && (order_type < 1 || order_type > 23)))
+        return -1;
+
+    const int scalar_bits = bottom_blob.elembits();
+    if (scalar_bits != 16 && scalar_bits != 32)
+        return -100;
+
+    const int scalar_size = scalar_bits / 8;
+    const int in_w = bottom_blob.w;
+    const int in_h = bottom_blob.h;
+    const int in_d = bottom_blob.d;
+    const int in_c = bottom_blob.c;
+    const int in_elempack = bottom_blob.elempack;
+
+    int in_shape[4] = {in_w, in_h, in_d, in_c * in_elempack};
+    if (dims == 2)
+        in_shape[1] *= in_elempack;
+
+    const int* axes = dims == 2 ? permute_axes_2d[order_type] : dims == 3 ? permute_axes_3d[order_type]
+                      : permute_axes_4d[order_type];
+
+    int out_shape[4] = {1, 1, 1, 1};
+    for (int i = 0; i < dims; i++)
+    {
+        out_shape[i] = in_shape[axes[i]];
+    }
+
+    const int last_axis = axes[dims - 1];
+    const int input_last_axis = dims == 2 ? 1 : 3;
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        if (last_axis == input_last_axis)
+            out_elempack = in_elempack;
+        else
+            out_elempack = out_shape[dims - 1] % 4 == 0 ? 4 : 1;
+    }
+
+    const size_t out_elemsize = (size_t)scalar_size * out_elempack;
+    if (dims == 2)
+        top_blob.create(out_shape[0], out_shape[1] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (dims == 3)
+        top_blob.create(out_shape[0], out_shape[1], out_shape[2] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (dims == 4)
+        top_blob.create(out_shape[0], out_shape[1], out_shape[2], out_shape[3] / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+
+    if (top_blob.empty())
+        return -100;
+
+    if (dims == 2)
+    {
+#if __ARM_NEON && __aarch64__
+        if (scalar_size == 4 && permute2d(bottom_blob, top_blob, opt) == 0)
+            return 0;
+#endif // __ARM_NEON && __aarch64__
+        permute_axes(bottom_blob, top_blob, axes, dims, opt);
+        return 0;
+    }
+
+    if (dims == 3)
+    {
+        switch (order_type)
+        {
+        case 1: permute3d_hwc(bottom_blob, top_blob, opt); break;
+        case 2: permute3d_wch(bottom_blob, top_blob, opt); break;
+        case 3: permute3d_cwh(bottom_blob, top_blob, opt); break;
+        case 4: permute3d_hcw(bottom_blob, top_blob, opt); break;
+        case 5: permute3d_chw(bottom_blob, top_blob, opt); break;
+        }
+        return 0;
+    }
+
+    switch (order_type)
+    {
+    case 1: permute4d_hwdc(bottom_blob, top_blob, opt); break;
+    case 2: permute4d_wdhc(bottom_blob, top_blob, opt); break;
+    case 3: permute4d_dwhc(bottom_blob, top_blob, opt); break;
+    case 4: permute4d_hdwc(bottom_blob, top_blob, opt); break;
+    case 5: permute4d_dhwc(bottom_blob, top_blob, opt); break;
+    case 6: permute4d_whcd(bottom_blob, top_blob, opt); break;
+    case 7: permute4d_hwcd(bottom_blob, top_blob, opt); break;
+    case 8: permute4d_wchd(bottom_blob, top_blob, opt); break;
+    case 9: permute4d_cwhd(bottom_blob, top_blob, opt); break;
+    case 10: permute4d_hcwd(bottom_blob, top_blob, opt); break;
+    case 11: permute4d_chwd(bottom_blob, top_blob, opt); break;
+    case 12: permute4d_wdch(bottom_blob, top_blob, opt); break;
+    case 13: permute4d_dwch(bottom_blob, top_blob, opt); break;
+    case 14: permute4d_wcdh(bottom_blob, top_blob, opt); break;
+    case 15: permute4d_cwdh(bottom_blob, top_blob, opt); break;
+    case 16: permute4d_dcwh(bottom_blob, top_blob, opt); break;
+    case 17: permute4d_cdwh(bottom_blob, top_blob, opt); break;
+    case 18: permute4d_hdcw(bottom_blob, top_blob, opt); break;
+    case 19: permute4d_dhcw(bottom_blob, top_blob, opt); break;
+    case 20: permute4d_hcdw(bottom_blob, top_blob, opt); break;
+    case 21: permute4d_chdw(bottom_blob, top_blob, opt); break;
+    case 22: permute4d_dchw(bottom_blob, top_blob, opt); break;
+    case 23: permute4d_cdhw(bottom_blob, top_blob, opt); break;
     }
 
     return 0;
