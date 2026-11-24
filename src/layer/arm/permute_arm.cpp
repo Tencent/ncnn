@@ -341,18 +341,6 @@ static void permute_transpose2d(const float* ptr, size_t stride, float* outptr, 
 
 // spatial transpose within one input channel group
 // outcstep is used when unpacking
-static inline void permute_spatial2x2_pack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
-{
-    uint32x4_t _v0 = vld1q_u32((const unsigned int*)ptr);
-    vst1q_u32((unsigned int*)outptr, _v0);
-    uint32x4_t _v1 = vld1q_u32((const unsigned int*)(ptr + stride));
-    vst1q_u32((unsigned int*)(outptr + 4), _v1);
-    uint32x4_t _v2 = vld1q_u32((const unsigned int*)(ptr + 4));
-    vst1q_u32((unsigned int*)(outptr + outstride), _v2);
-    uint32x4_t _v3 = vld1q_u32((const unsigned int*)(ptr + stride + 4));
-    vst1q_u32((unsigned int*)(outptr + outstride + 4), _v3);
-}
-
 static void permute_spatial_pack4(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
@@ -601,14 +589,7 @@ static void permute_transpose_blocks(const float* ptr, size_t stride, float* out
     }
 }
 
-static void permute_unpack_spatial(const float* ptr, float* outptr, size_t outcstep, int size, int elempack)
-{
-    if (elempack == 4)
-    {
-        permute_unpack4_stride(ptr, 4, outptr, outcstep, size);
-        return;
-    }
-}
+
 
 // exchange the input channel axis with one output channel group
 // w is the remaining spatial extent; cstep includes input channel padding
@@ -1197,7 +1178,7 @@ static void permute4d_wdhc(const Mat& bottom_blob, Mat& top_blob, int nT)
             float* out = outptr + y * outhstep;
             for (int z = 0; z < d; z++)
             {
-                permute_unpack_spatial(p + z * dstep, out + z * outdstep, top_blob.cstep, w, elempack);
+                permute_unpack4_stride(p + z * dstep, 4, out + z * outdstep, top_blob.cstep, w);
             }
         }
     }

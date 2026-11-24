@@ -659,14 +659,6 @@ static void permute_transpose2d_bf16s_fp16s(const unsigned short* ptr, size_t st
 
 // spatial transpose within one input channel group
 // outcstep is used when unpacking
-static inline void permute_spatial2x2_pack4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
-{
-    uint16x8_t _a = vld1q_u16((const unsigned short*)ptr);
-    uint16x8_t _b = vld1q_u16((const unsigned short*)(ptr + stride));
-    vst1q_u16((unsigned short*)outptr, permute_zip1_u64(_a, _b));
-    vst1q_u16((unsigned short*)(outptr + outstride), permute_zip2_u64(_a, _b));
-}
-
 static void permute_spatial_pack4_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
 {
     int i = 0;
@@ -736,18 +728,6 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
 {
     for (int x = 0; x < cols; x++)
         permute_unpack4_stride_bf16s_fp16s(ptr + x * 4, stride, outptr + x * outstride, outcstep, rows);
-}
-
-static inline void permute_spatial2x2_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
-{
-    uint16x8_t _r00 = vld1q_u16(ptr);
-    uint16x8_t _r01 = vld1q_u16(ptr + 8);
-    uint16x8_t _r10 = vld1q_u16(ptr + stride);
-    uint16x8_t _r11 = vld1q_u16(ptr + stride + 8);
-    vst1q_u16(outptr, _r00);
-    vst1q_u16(outptr + 8, _r10);
-    vst1q_u16(outptr + outstride, _r01);
-    vst1q_u16(outptr + outstride + 8, _r11);
 }
 
 static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
