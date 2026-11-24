@@ -23,7 +23,6 @@ protected:
     int forward_generic(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-
 public:
     // pack4 weights, layout [maxk][inpack][outpack][4 in lane][4 out lane]
     Mat weight_data_tm;

@@ -11,6 +11,10 @@
 
 #include "fused_activation.h"
 
+#if __PPU__
+#include "gemm_powerpc_spu.h"
+#endif // __PPU__
+
 namespace ncnn {
 
 InnerProduct_powerpc::InnerProduct_powerpc()
@@ -153,6 +157,67 @@ int InnerProduct_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, const O
             num_output_elempack = num_output % 4 == 0 ? 4 : 1;
         }
 #endif
+
+#if __PPU__
+        // the spes take the aligned pack4 case; anything else, or a spe that
+        // fails to start, falls through to the ppe kernel
+        if (elempack == 4 && num_output_elempack == 4 && h % 4 == 0 && h >= 4)
+        {
+            const int M = h * 4;
+            const int N = num_output;
+            const int K = num_input;
+
+            Mat A(K, M / 4, (size_t)16u, 4, opt.workspace_allocator);
+            Mat BT(K, N / 4, (size_t)16u, 4, opt.workspace_allocator);
+            Mat C(N, M / 4, (size_t)16u, 4, opt.workspace_allocator);
+
+            if (!A.empty() && !BT.empty() && !C.empty())
+            {
+                // bottom_blob already has the A layout: packed row q is the K
+                // vec4 of real batch rows 4q..4q+3, lane t = batch row 4q+t
+                for (int q = 0; q < h; q++)
+                {
+                    memcpy(A.row(q), bottom_blob.row(q), (size_t)K * 4 * sizeof(float));
+                }
+
+                // weight_data_tm already has the BT layout: packed column
+                // group p is the K vec4 of output channels 4p..4p+3, lane t =
+                // output channel 4p+t
+                for (int p = 0; p < N / 4; p++)
+                {
+                    memcpy(BT.row(p), weight_data_tm.row(p), (size_t)K * 4 * sizeof(float));
+                }
+
+                if (gemm_transB_pack4_spu(A, BT, C, 1.f, 0.f, 0.f, 0) == 0)
+                {
+                    // C packed row q holds N vec4 whose lane t is batch row
+                    // 4q+t of output channel j, exactly what top_blob.row(q)
+                    // stores at float offset j*4; add bias and activation
+                    for (int q = 0; q < h; q++)
+                    {
+                        const float* cptr = C.row(q);
+                        float* outptr = top_blob.row(q);
+
+                        for (int j = 0; j < N; j++)
+                        {
+                            v4f32 _sum = __ncnn_altivec_load(cptr + j * 4);
+
+                            if (bias_term)
+                            {
+                                _sum = vec_add(_sum, __ncnn_altivec_fill_f32(bias_data[j]));
+                            }
+
+                            _sum = activation_ss_ps(_sum, activation_type, activation_params);
+
+                            __ncnn_altivec_store(outptr + j * 4, _sum);
+                        }
+                    }
+
+                    return 0;
+                }
+            }
+        }
+#endif // __PPU__
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)

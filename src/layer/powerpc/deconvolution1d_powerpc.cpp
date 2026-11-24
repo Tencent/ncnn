@@ -12,6 +12,10 @@
 #include "powerpc_mathfun.h"
 #endif // __ALTIVEC__
 
+#if __PPU__
+#include "gemm_powerpc_spu.h"
+#endif // __PPU__
+
 namespace ncnn {
 
 Deconvolution1D_powerpc::Deconvolution1D_powerpc()
@@ -222,38 +226,141 @@ int Deconvolution1D_powerpc::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
         const float* tm = weight_data_tm;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outpack; p++)
+#if __PPU__
+        // the spes take the aligned pack4 case: one gemm row per output
+        // position, one gemm column per output channel and one K step per
+        // (tap, input channel) pair. the tm taps are already flipped
+        bool spe_done = false;
+        if (outw % 4 == 0 && outw >= 4)
         {
-            v4f32 _bias = vec_splats(0.f);
-            if (bias_term)
-                _bias = __ncnn_altivec_load((const float*)bias_data + p * 4);
+            const int num_input = inpack * 4;
+            const int M = outw;
+            const int N = num_output;
+            const int K = kernel_w * num_input;
 
-            float* outptr = top_blob.row(p);
+            Mat A(K, M / 4, (size_t)16u, 4, opt.workspace_allocator);
+            Mat BT(K, N / 4, (size_t)16u, 4, opt.workspace_allocator);
+            Mat C(N, M / 4, (size_t)16u, 4, opt.workspace_allocator);
 
-            for (int x = 0; x < outw; x++)
+            if (!A.empty() && !BT.empty() && !C.empty())
             {
-                v4f32 _sum = _bias;
-
-                for (int q = 0; q < inpack; q++)
+                // A row q, vec4 k, lane t = output position s = 4q + t at K
+                // index k = tap * num_input + input channel, i.e. that input
+                // channel read at position s + tap
+                for (int q = 0; q < M / 4; q++)
                 {
-                    const float* sptr = bottom_blob_bordered.row(q) + (size_t)x * 4;
+                    float* aptr = A.row(q);
 
-                    for (int k = 0; k < kernel_w; k++)
+                    for (int tap = 0; tap < kernel_w; tap++)
                     {
-                        v4f32 _val = __ncnn_altivec_load(sptr + k * 4);
-                        const float* kptr = tm + ((size_t)(p * inpack + q) * kernel_w + k) * 16;
+                        for (int c = 0; c < num_input; c++)
+                        {
+                            const size_t k = (size_t)tap * num_input + c;
+                            const float* sptr = bottom_blob_bordered.row(c / 4);
+                            const int cl = c % 4;
 
-                        _sum = vec_madd(vec_splat(_val, 0), __ncnn_altivec_load(kptr + 0), _sum);
-                        _sum = vec_madd(vec_splat(_val, 1), __ncnn_altivec_load(kptr + 4), _sum);
-                        _sum = vec_madd(vec_splat(_val, 2), __ncnn_altivec_load(kptr + 8), _sum);
-                        _sum = vec_madd(vec_splat(_val, 3), __ncnn_altivec_load(kptr + 12), _sum);
+                            for (int t = 0; t < 4; t++)
+                            {
+                                const int s = 4 * q + t;
+                                aptr[k * 4 + t] = sptr[(size_t)(s + tap) * 4 + cl];
+                            }
+                        }
                     }
                 }
 
-                _sum = activation_ps(_sum, activation_type, activation_params);
+                // BT row p, vec4 k, lane j = weight of output channel 4p + j
+                // at that tap / input channel. tm groups p, then q, then tap,
+                // then l whereas k groups tap, then q, then l, so this is not
+                // a memcpy
+                for (int p = 0; p < N / 4; p++)
+                {
+                    float* bptr0 = BT.row(p);
 
-                __ncnn_altivec_store(outptr + (size_t)x * 4, _sum);
+                    for (int tap = 0; tap < kernel_w; tap++)
+                    {
+                        for (int q = 0; q < inpack; q++)
+                        {
+                            for (int l = 0; l < 4; l++)
+                            {
+                                const float* kptr = tm + (((size_t)(p * inpack + q) * kernel_w + tap) * 16) + l * 4;
+                                float* bptr = bptr0 + ((size_t)tap * num_input + q * 4 + l) * 4;
+
+                                for (int j = 0; j < 4; j++)
+                                    bptr[j] = kptr[j];
+                            }
+                        }
+                    }
+                }
+
+                if (gemm_transB_pack4_spu(A, BT, C, 1.f, 0.f, 0.f, 0) == 0)
+                {
+                    // C row q, vec4 j, lane t = out(position 4q + t, channel
+                    // j), so top_blob.row(p) at position s wants the vec4
+                    // whose lane j' is out(s, channel 4p + j')
+                    for (int p = 0; p < N / 4; p++)
+                    {
+                        float* outptr = top_blob.row(p);
+
+                        for (int s = 0; s < M; s++)
+                        {
+                            const float* cptr = C.row(s / 4);
+                            const int lane = s % 4;
+
+                            float tmp[4];
+                            for (int j = 0; j < 4; j++)
+                                tmp[j] = cptr[(4 * p + j) * 4 + lane];
+
+                            v4f32 _sum = __ncnn_altivec_load(tmp);
+
+                            if (bias_term)
+                                _sum = vec_add(_sum, __ncnn_altivec_load((const float*)bias_data + p * 4));
+
+                            _sum = activation_ps(_sum, activation_type, activation_params);
+
+                            __ncnn_altivec_store(outptr + (size_t)s * 4, _sum);
+                        }
+                    }
+
+                    spe_done = true;
+                }
+            }
+        }
+        if (!spe_done)
+#endif // __PPU__
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int p = 0; p < outpack; p++)
+            {
+                v4f32 _bias = vec_splats(0.f);
+                if (bias_term)
+                    _bias = __ncnn_altivec_load((const float*)bias_data + p * 4);
+
+                float* outptr = top_blob.row(p);
+
+                for (int x = 0; x < outw; x++)
+                {
+                    v4f32 _sum = _bias;
+
+                    for (int q = 0; q < inpack; q++)
+                    {
+                        const float* sptr = bottom_blob_bordered.row(q) + (size_t)x * 4;
+
+                        for (int k = 0; k < kernel_w; k++)
+                        {
+                            v4f32 _val = __ncnn_altivec_load(sptr + k * 4);
+                            const float* kptr = tm + ((size_t)(p * inpack + q) * kernel_w + k) * 16;
+
+                            _sum = vec_madd(vec_splat(_val, 0), __ncnn_altivec_load(kptr + 0), _sum);
+                            _sum = vec_madd(vec_splat(_val, 1), __ncnn_altivec_load(kptr + 4), _sum);
+                            _sum = vec_madd(vec_splat(_val, 2), __ncnn_altivec_load(kptr + 8), _sum);
+                            _sum = vec_madd(vec_splat(_val, 3), __ncnn_altivec_load(kptr + 12), _sum);
+                        }
+                    }
+
+                    _sum = activation_ps(_sum, activation_type, activation_params);
+
+                    __ncnn_altivec_store(outptr + (size_t)x * 4, _sum);
+                }
             }
         }
 
