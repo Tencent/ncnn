@@ -861,8 +861,7 @@ static void permute_transpose_pack1to4_bf16s_fp16s(const unsigned short* ptr, si
         {
             const unsigned short* p = ptr + y * stride + x;
             unsigned short* out = outptr + (x / 4) * outstride + y * 4;
-            __m128i _v = _mm_loadl_epi64((const __m128i*)p);
-            _mm_storel_epi64((__m128i*)out, _v);
+            vst1_u16(out, vld1_u16(p));
         }
     }
 }
