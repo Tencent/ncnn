@@ -1304,6 +1304,13 @@ void GpuInfoPrivate::query_extension_features()
         // emulated cooperative matrix on amd rdna2 is slow
         switch (physicalDeviceProperties.deviceID)
         {
+        case 0x13c0: // Granite Ridge 610M
+        case 0x1435: // Sephiroth (Steam Deck OLED)
+        case 0x1506: // Mendocino 610M
+        case 0x163f: // VanGogh (Steam Deck)
+        case 0x164d: // Rembrandt
+        case 0x164e: // Raphael 610M
+        case 0x1681: // Rembrandt 660M/680M
         case 0x73a1: // V620
         case 0x73a2: // W6900X
         case 0x73a3: // W6800
