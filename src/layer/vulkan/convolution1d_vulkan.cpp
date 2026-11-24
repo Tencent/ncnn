@@ -46,6 +46,10 @@ int Convolution1D_vulkan::load_param(const ParamDict& pd)
 int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
+    const bool use_fp16_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix
+            && (opt.use_fp16_storage || opt.use_fp16_packed) && !opt.use_bf16_storage && !opt.use_bf16_packed;
+    Option opt_cm = opt;
+    bool use_qcom_cooperative_matrix = false;
 
     const int maxk = kernel_w;
     int num_input = weight_data_size / maxk / num_output;
@@ -79,13 +83,29 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
 
     if (use_gemm)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed);
+        use_cooperative_matrix = use_fp16_cooperative_matrix;
 
         if (use_cooperative_matrix)
         {
             int size = 1024;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            VkComponentTypeKHR coopmat_acctype;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input * maxk, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
+            opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
+            use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion();
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_cooperative_matrix = false;
+            if (!vkdev->info.support_fp16_arithmetic())
+                use_qcom_cooperative_matrix = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                    || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                    || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                    || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
+                use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
             {
@@ -265,7 +285,14 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution1d_gemm = new Pipeline(vkdev);
             pipeline_convolution1d_gemm->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution1d_gemm->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution1d_gemm->create(LayerShaderType::convolution1d_gemm_cm, opt, specializations);
+            if (use_qcom_cooperative_matrix)
+            {
+                specializations.resize(25);
+                specializations[24].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
+                pipeline_convolution1d_gemm->create(LayerShaderType::convolution1d_gemm_cm_qcom, opt_cm, specializations);
+            }
+            else
+                pipeline_convolution1d_gemm->create(LayerShaderType::convolution1d_gemm_cm, opt_cm, specializations);
         }
         else
         {
@@ -335,13 +362,29 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
     }
     else if (is_conv1x1s1d1)
     {
-        use_cooperative_matrix = vkdev->info.support_cooperative_matrix() && opt.use_cooperative_matrix && (opt.use_fp16_storage || opt.use_fp16_packed) && num_input >= 8 && num_output >= 8;
+        use_cooperative_matrix = use_fp16_cooperative_matrix && num_input >= 8 && num_output >= 8;
 
         if (use_cooperative_matrix)
         {
             int size = 1024;
 
-            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size);
+            VkComponentTypeKHR coopmat_acctype;
+            vkdev->info.get_optimal_cooperative_matrix_mnk(size, num_output, num_input, VK_COMPONENT_TYPE_FLOAT16_KHR, opt.use_fp16_arithmetic ? VK_COMPONENT_TYPE_FLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M, coopmat_N, coopmat_K, coopmat_subgroup_size, coopmat_acctype);
+            opt_cm.use_fp16_arithmetic = coopmat_acctype == VK_COMPONENT_TYPE_FLOAT16_KHR;
+
+            use_qcom_cooperative_matrix = vkdev->info.support_cooperative_matrix_conversion();
+            const uint32_t qcom_required_subgroup_ops = VK_SUBGROUP_FEATURE_BASIC_BIT;
+            if ((vkdev->info.support_subgroup_ops() & qcom_required_subgroup_ops) != qcom_required_subgroup_ops)
+                use_qcom_cooperative_matrix = false;
+            if (!vkdev->info.support_fp16_arithmetic())
+                use_qcom_cooperative_matrix = false;
+
+            // qcom conversion assigns a row or column to each subgroup invocation
+            if (coopmat_M < 4 || (coopmat_M & (coopmat_M - 1)) || coopmat_M > coopmat_subgroup_size
+                    || (coopmat_subgroup_size & (coopmat_subgroup_size - 1)) || coopmat_N < 8 || coopmat_N > 64 || (coopmat_N & (coopmat_N - 1))
+                    || (coopmat_N != coopmat_subgroup_size && coopmat_N * 2 != coopmat_subgroup_size && coopmat_N * 4 != coopmat_subgroup_size)
+                    || (opt_cm.use_fp16_arithmetic && coopmat_N < 16) || coopmat_K != 16)
+                use_qcom_cooperative_matrix = false;
 
             if (coopmat_M == 0)
             {
@@ -492,7 +535,14 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution1d_1x1s1d1 = new Pipeline(vkdev);
             pipeline_convolution1d_1x1s1d1->set_subgroup_size(coopmat_subgroup_size);
             pipeline_convolution1d_1x1s1d1->set_local_size_xyz(coopmat_subgroup_size * UNROLL_WG_M * UNROLL_WG_N, 1, 1);
-            pipeline_convolution1d_1x1s1d1->create(LayerShaderType::convolution1d_1x1s1d1_cm, opt, specializations);
+            if (use_qcom_cooperative_matrix)
+            {
+                specializations.resize(21);
+                specializations[20].u32 = opt_cm.use_fp16_arithmetic ? coopmat_N / 2 : coopmat_N;
+                pipeline_convolution1d_1x1s1d1->create(LayerShaderType::convolution1d_1x1s1d1_cm_qcom, opt_cm, specializations);
+            }
+            else
+                pipeline_convolution1d_1x1s1d1->create(LayerShaderType::convolution1d_1x1s1d1_cm, opt_cm, specializations);
         }
         else
         {

@@ -5585,6 +5585,7 @@ int Gemm_x86::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             }
 
             // cast to fp32
+            if (C.elembits() == 16)
             {
                 Option opt_cast = opt;
                 opt_cast.blob_allocator = opt.workspace_allocator;

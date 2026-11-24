@@ -50,6 +50,7 @@ static int test_command_upload_download(const ncnn::Mat& a)
 static int test_command_clone(const ncnn::Mat& a)
 {
     ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
+    ncnn::VkBlobAllocator reuse_allocator(vkdev, 0);
 
     ncnn::VkAllocator* blob_allocator = vkdev->acquire_blob_allocator();
     ncnn::VkAllocator* staging_allocator = vkdev->acquire_staging_allocator();
@@ -65,6 +66,13 @@ static int test_command_clone(const ncnn::Mat& a)
     if (!vkdev->info.support_bf16_packed()) opt.use_bf16_packed = false;
     if (!vkdev->info.support_bf16_storage()) opt.use_bf16_storage = false;
 
+    ncnn::Option opt_reuse = opt;
+    opt_reuse.blob_vkallocator = &reuse_allocator;
+    ncnn::Mat new_data = a.clone();
+    new_data.fill(7.f);
+    ncnn::Mat new_result;
+    bool reused = false;
+
     const bool support_image_storage = vkdev->info.support_image_storage();
 
     ncnn::Mat d;
@@ -78,8 +86,19 @@ static int test_command_clone(const ncnn::Mat& a)
         ncnn::VkImageMat c1;
         ncnn::VkImageMat c2;
         ncnn::VkMat c3;
-        cmd.record_clone(a, b1, opt);
+        ncnn::VkMat source;
+        ncnn::VkMat prime;
+        // Leave source transfer-read before recording the old destination's last read.
+        cmd.record_clone(new_data, source, opt);
+        cmd.record_clone(source, prime, opt);
+        cmd.record_clone(a, b1, opt_reuse);
         cmd.record_clone(b1, b2, opt);
+
+        const VkBuffer buffer = b1.buffer();
+        const size_t offset = b1.buffer_offset();
+        b1.release();
+        cmd.record_clone(source, b1, opt_reuse);
+        reused = b1.buffer() == buffer && b1.buffer_offset() == offset;
 
         if (support_image_storage)
         {
@@ -95,13 +114,14 @@ static int test_command_clone(const ncnn::Mat& a)
             cmd.record_clone(b2, d, opt);
         }
 
+        cmd.record_clone(b1, new_result, opt);
         cmd.submit_and_wait();
     }
 
     vkdev->reclaim_blob_allocator(blob_allocator);
     vkdev->reclaim_staging_allocator(staging_allocator);
 
-    if (CompareMat(a, d, 0.001) != 0)
+    if (!reused || CompareMat(a, d, 0.001) != 0 || CompareMat(new_data, new_result, 0.001) != 0)
     {
         fprintf(stderr, "test_command_clone buffer failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
         return -1;

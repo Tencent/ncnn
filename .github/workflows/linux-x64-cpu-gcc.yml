@@ -41,6 +41,9 @@ permissions:
 jobs:
   linux-gcc:
     runs-on: ubuntu-latest
+    env:
+      CFLAGS: -march=x86-64
+      CXXFLAGS: -march=x86-64
     steps:
     - uses: actions/checkout@v7
     - name: update
@@ -102,8 +105,14 @@ jobs:
 
   asan:
     runs-on: ubuntu-latest
+    # GCC 16.2 includes the ASan stack alignment fix (GCC PR120201).
+    container: gcc:16.2.0-trixie@sha256:5c2f83335c97e233c80d2bc754bd5c46b2d9c32f236a765a4ac40a59f216c064
     steps:
     - uses: actions/checkout@v7
+    - name: install cmake
+      run: |
+        apt-get update
+        apt-get install -y --no-install-recommends cmake
     - name: build
       run: |
         mkdir build && cd build
