@@ -114,6 +114,32 @@ static void reduction_vector(const float* ptr, float* outptr, int size)
     }
 }
 
+// collapse adjacent spatial axes with the same reduction flag
+// channels are kept separate to preserve cstep
+static void reduction_collapse_axes(int& w, int& h, int& d, bool& reduce_w, bool& reduce_h, bool& reduce_d)
+{
+    if (reduce_w == reduce_h)
+    {
+        w *= h;
+        h = d;
+        reduce_h = reduce_d;
+        d = 1;
+        reduce_d = false;
+    }
+    if (reduce_h == reduce_d)
+    {
+        h *= d;
+        d = 1;
+        reduce_d = false;
+    }
+    if (reduce_w == reduce_h)
+    {
+        w *= h;
+        h = 1;
+        reduce_h = false;
+    }
+}
+
 template<typename Op, typename Op2>
 static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, float v0, const Option& opt)
 {
@@ -142,28 +168,7 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
         return 0;
     }
 
-    // collapse adjacent spatial axes with the same reduction flag
-    // channels are kept separate to preserve cstep
-    if (reduce_w == reduce_h)
-    {
-        w *= h;
-        h = d;
-        reduce_h = reduce_d;
-        d = 1;
-        reduce_d = false;
-    }
-    if (reduce_h == reduce_d)
-    {
-        h *= d;
-        d = 1;
-        reduce_d = false;
-    }
-    if (reduce_w == reduce_h)
-    {
-        w *= h;
-        h = 1;
-        reduce_h = false;
-    }
+    reduction_collapse_axes(w, h, d, reduce_w, reduce_h, reduce_d);
 
     if (reduce_w && h == 1 && d == 1)
     {
@@ -265,6 +270,284 @@ static int reduction_op(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool
     return 0;
 }
 
+static float reduction_sumexp(const float* ptr, int size, float max_value)
+{
+    float sum = 0.f;
+
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    __m512 _max16 = _mm512_set1_ps(max_value);
+    __m512 _sum16 = _mm512_setzero_ps();
+    for (; i + 15 < size; i += 16)
+    {
+        __m512 _p = _mm512_loadu_ps(ptr);
+        _sum16 = _mm512_add_ps(_sum16, exp512_ps(_mm512_sub_ps(_p, _max16)));
+        ptr += 16;
+    }
+#endif // __AVX512F__
+    __m256 _max8 = _mm256_set1_ps(max_value);
+    __m256 _sum8 = _mm256_setzero_ps();
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        _sum8 = _mm256_add_ps(_sum8, exp256_ps(_mm256_sub_ps(_p, _max8)));
+        ptr += 8;
+    }
+#endif // __AVX__
+    __m128 _max4 = _mm_set1_ps(max_value);
+    __m128 _sum4 = _mm_setzero_ps();
+    for (; i + 3 < size; i += 4)
+    {
+        __m128 _p = _mm_loadu_ps(ptr);
+        _sum4 = _mm_add_ps(_sum4, exp_ps(_mm_sub_ps(_p, _max4)));
+        ptr += 4;
+    }
+#if __AVX__
+#if __AVX512F__
+    _sum8 = _mm256_add_ps(_sum8, _mm256_add_ps(_mm512_castps512_ps256(_sum16), _mm512_extractf32x8_ps(_sum16, 1)));
+#endif // __AVX512F__
+    _sum4 = _mm_add_ps(_sum4, _mm_add_ps(_mm256_castps256_ps128(_sum8), _mm256_extractf128_ps(_sum8, 1)));
+#endif // __AVX__
+    sum = _mm_reduce_add_ps(_sum4);
+#endif // __SSE2__
+    for (; i < size; i++)
+    {
+        sum += expf(*ptr - max_value);
+        ptr++;
+    }
+
+    return sum;
+}
+
+static void reduction_vector_sumexp(const float* ptr, const float* maxptr, float* outptr, int size)
+{
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    for (; i + 15 < size; i += 16)
+    {
+        __m512 _p = _mm512_loadu_ps(ptr);
+        __m512 _max = _mm512_loadu_ps(maxptr);
+        __m512 _outp = _mm512_loadu_ps(outptr);
+        _outp = _mm512_add_ps(_outp, exp512_ps(_mm512_sub_ps(_p, _max)));
+        _mm512_storeu_ps(outptr, _outp);
+        ptr += 16;
+        maxptr += 16;
+        outptr += 16;
+    }
+#endif // __AVX512F__
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        __m256 _max = _mm256_loadu_ps(maxptr);
+        __m256 _outp = _mm256_loadu_ps(outptr);
+        _outp = _mm256_add_ps(_outp, exp256_ps(_mm256_sub_ps(_p, _max)));
+        _mm256_storeu_ps(outptr, _outp);
+        ptr += 8;
+        maxptr += 8;
+        outptr += 8;
+    }
+#endif // __AVX__
+    for (; i + 3 < size; i += 4)
+    {
+        __m128 _p = _mm_loadu_ps(ptr);
+        __m128 _max = _mm_loadu_ps(maxptr);
+        __m128 _outp = _mm_loadu_ps(outptr);
+        _outp = _mm_add_ps(_outp, exp_ps(_mm_sub_ps(_p, _max)));
+        _mm_storeu_ps(outptr, _outp);
+        ptr += 4;
+        maxptr += 4;
+        outptr += 4;
+    }
+#endif // __SSE2__
+    for (; i < size; i++)
+    {
+        *outptr += expf(*ptr - *maxptr);
+        ptr++;
+        maxptr++;
+        outptr++;
+    }
+}
+
+static void reduction_vector_addlog(const float* ptr, float* outptr, int size)
+{
+    int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+    for (; i + 15 < size; i += 16)
+    {
+        __m512 _p = _mm512_loadu_ps(ptr);
+        __m512 _outp = _mm512_loadu_ps(outptr);
+        _outp = _mm512_add_ps(_outp, log512_ps(_p));
+        _mm512_storeu_ps(outptr, _outp);
+        ptr += 16;
+        outptr += 16;
+    }
+#endif // __AVX512F__
+    for (; i + 7 < size; i += 8)
+    {
+        __m256 _p = _mm256_loadu_ps(ptr);
+        __m256 _outp = _mm256_loadu_ps(outptr);
+        _outp = _mm256_add_ps(_outp, log256_ps(_p));
+        _mm256_storeu_ps(outptr, _outp);
+        ptr += 8;
+        outptr += 8;
+    }
+#endif // __AVX__
+    for (; i + 3 < size; i += 4)
+    {
+        __m128 _p = _mm_loadu_ps(ptr);
+        __m128 _outp = _mm_loadu_ps(outptr);
+        _outp = _mm_add_ps(_outp, log_ps(_p));
+        _mm_storeu_ps(outptr, _outp);
+        ptr += 4;
+        outptr += 4;
+    }
+#endif // __SSE2__
+    for (; i < size; i++)
+    {
+        *outptr += logf(*ptr);
+        ptr++;
+        outptr++;
+    }
+}
+
+static int reduction_logsumexp(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, const Option& opt)
+{
+    using namespace reduction_x86_functor;
+
+    // subtracting the max keeps every exp argument non-positive
+    int ret = reduction_op<reduction_op_max, reduction_op_max>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, -FLT_MAX, opt);
+    if (ret != 0)
+        return ret;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    const int channels = a.c;
+
+    // the max is read back from b, the exp sums go to a buffer of the same shape
+    Mat sums;
+
+    // removing c from a 4d tensor makes d the output channel axis
+    // keep these planes separate because the output may have channel padding
+    if (a.dims == 4 && reduce_c && !reduce_w && !reduce_h && !reduce_d && b.dims == 3)
+    {
+        sums.create_like(b, opt.workspace_allocator);
+        if (sums.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int z = 0; z < d; z++)
+        {
+            Mat out = b.channel(z);
+            Mat sum = sums.channel(z);
+            sum.fill(0.f);
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q).depth(z);
+                reduction_vector_sumexp(ptr, out, sum, w * h);
+            }
+            reduction_vector_addlog(sum, out, w * h);
+        }
+        return 0;
+    }
+
+    reduction_collapse_axes(w, h, d, reduce_w, reduce_h, reduce_d);
+
+    if (reduce_w && h == 1 && d == 1 && reduce_c && channels > 1)
+    {
+        // every channel shares the global max, so the channel sums add up directly
+        sums.create(channels, a.elemsize, opt.workspace_allocator);
+        if (sums.empty())
+            return -100;
+
+        const float max_value = b[0];
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const float* ptr = a.channel(q);
+            sums[q] = reduction_sumexp(ptr, w, max_value);
+        }
+
+        b[0] = max_value + logf(reduction<reduction_op_add, reduction_op_add>(0.f, sums, channels));
+        return 0;
+    }
+
+    const int outw = reduce_w ? 1 : w;
+    const int outh = reduce_h ? 1 : h;
+    const int outd = reduce_d ? 1 : d;
+    const int outc = reduce_c ? 1 : channels;
+    const int size = b.w * b.h * b.d;
+
+    const int reduced_h = reduce_h ? h : 1;
+    const int reduced_d = reduce_d ? d : 1;
+    const int reduced_c = reduce_c ? channels : 1;
+
+    if (!reduce_w)
+    {
+        sums.create_like(b, opt.workspace_allocator);
+        if (sums.empty())
+            return -100;
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < outc * outd * outh; i++)
+    {
+        const int q = i / (outd * outh);
+        const int z = i / outh % outd;
+        const int y = i % outh;
+        const size_t offset = (size_t)i * outw;
+        float* outptr = (float*)b + offset / size * b.cstep + offset % size;
+        const float* ptr = (const float*)a + q * a.cstep + (z * h + y) * w;
+
+        if (reduce_w)
+        {
+            const float max_value = outptr[0];
+            float sum = 0.f;
+            for (int qc = 0; qc < reduced_c; qc++)
+            {
+                for (int zd = 0; zd < reduced_d; zd++)
+                {
+                    const float* ptr0 = ptr + qc * a.cstep + zd * w * h;
+                    for (int yh = 0; yh < reduced_h; yh++)
+                    {
+                        sum += reduction_sumexp(ptr0, w, max_value);
+                        ptr0 += w;
+                    }
+                }
+            }
+            outptr[0] = max_value + logf(sum);
+        }
+        else
+        {
+            float* sumptr = (float*)sums + offset / size * sums.cstep + offset % size;
+            for (int j = 0; j < outw; j++)
+                sumptr[j] = 0.f;
+            for (int qc = 0; qc < reduced_c; qc++)
+            {
+                for (int zd = 0; zd < reduced_d; zd++)
+                {
+                    const float* ptr0 = ptr + qc * a.cstep + zd * w * h;
+                    for (int yh = 0; yh < reduced_h; yh++)
+                    {
+                        reduction_vector_sumexp(ptr0, outptr, sumptr, outw);
+                        ptr0 += w;
+                    }
+                }
+            }
+            reduction_vector_addlog(sumptr, outptr, outw);
+        }
+    }
+
+    return 0;
+}
+
 static int reduction_fp32(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bool reduce_d, bool reduce_c, int operation, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__AVX512F__ && !__FMA__ && !__FMA4__
@@ -297,7 +580,7 @@ static int reduction_fp32(const Mat& a, Mat& b, bool reduce_w, bool reduce_h, bo
         return reduction_op<reduction_op_mul, reduction_op_mul>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 1.f, opt);
 
     if (operation == Reduction::ReductionOp_LogSumExp)
-        return reduction_op<reduction_op_sumexp, reduction_op_add>(a, b, reduce_w, reduce_h, reduce_d, reduce_c, 0.f, opt);
+        return reduction_logsumexp(a, b, reduce_w, reduce_h, reduce_d, reduce_c, opt);
 
     // should never reach here
     return -1;

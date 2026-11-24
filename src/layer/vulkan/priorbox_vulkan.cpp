@@ -51,7 +51,7 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
         if (flip)
             num_prior += num_min_size * num_aspect_ratio;
 
-        std::vector<vk_specialization_type> specializations(11 + 2);
+        std::vector<vk_specialization_type> specializations(12 + 2);
         specializations[0].i = flip;
         specializations[1].i = clip;
         specializations[2].f = offset;
@@ -63,8 +63,9 @@ int PriorBox_vulkan::create_pipeline(const Option& opt)
         specializations[8].i = num_max_size;
         specializations[9].i = num_aspect_ratio;
         specializations[10].i = num_prior;
-        specializations[11 + 0].i = shape_packed.w;
-        specializations[11 + 1].i = shape_packed.h;
+        specializations[11].i = center_mmdetection;
+        specializations[12 + 0].i = shape_packed.w;
+        specializations[12 + 1].i = shape_packed.h;
 
         pipeline_priorbox = new Pipeline(vkdev);
         pipeline_priorbox->set_optimal_local_size_xyz();
@@ -108,12 +109,14 @@ int PriorBox_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int PriorBox_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    cmd.record_upload(min_sizes, min_sizes_gpu, opt);
+    if (min_sizes.w > 0)
+        cmd.record_upload(min_sizes, min_sizes_gpu, opt);
 
     if (max_sizes.w > 0)
         cmd.record_upload(max_sizes, max_sizes_gpu, opt);
 
-    cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
+    if (aspect_ratios.w > 0)
+        cmd.record_upload(aspect_ratios, aspect_ratios_gpu, opt);
 
     if (opt.lightmode)
     {
@@ -189,9 +192,17 @@ int PriorBox_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
     float step_w = step_width;
     float step_h = step_height;
     if (step_w == -233)
+    {
         step_w = (float)image_w / w;
+        if (step_mmdetection)
+            step_w = ceilf((float)image_w / w);
+    }
     if (step_h == -233)
+    {
         step_h = (float)image_h / h;
+        if (step_mmdetection)
+            step_h = ceilf((float)image_h / h);
+    }
 
     int num_min_size = min_sizes_gpu.w;
     int num_max_size = max_sizes_gpu.w;
