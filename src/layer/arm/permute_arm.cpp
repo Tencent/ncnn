@@ -16,18 +16,6 @@
 
 namespace ncnn {
 
-struct permute_u16x16
-{
-    uint16x8_t lo;
-    uint16x8_t hi;
-};
-
-struct permute_f32x8
-{
-    float32x4_t lo;
-    float32x4_t hi;
-};
-
 static inline float32x4_t permute_movelh_f32(float32x4_t a, float32x4_t b)
 {
     return vcombine_f32(vget_low_f32(a), vget_low_f32(b));
@@ -91,44 +79,6 @@ static inline uint16x8_t permute_zip1_u64(uint16x8_t a, uint16x8_t b)
 static inline uint16x8_t permute_zip2_u64(uint16x8_t a, uint16x8_t b)
 {
     return vreinterpretq_u16_u64(vzip2q_u64(vreinterpretq_u64_u16(a), vreinterpretq_u64_u16(b)));
-}
-
-static inline permute_u16x16 permute_load_u16x16(const unsigned short* ptr)
-{
-    permute_u16x16 v;
-    v.lo = vld1q_u16(ptr);
-    v.hi = vld1q_u16(ptr + 8);
-    return v;
-}
-
-static inline void permute_store_u16x16(unsigned short* ptr, permute_u16x16 v)
-{
-    vst1q_u16(ptr, v.lo);
-    vst1q_u16(ptr + 8, v.hi);
-}
-
-static inline permute_f32x8 permute_load_f32x8(const float* ptr)
-{
-    permute_f32x8 v;
-    v.lo = vreinterpretq_f32_u16(vld1q_u16((const unsigned short*)ptr));
-    v.hi = vreinterpretq_f32_u16(vld1q_u16((const unsigned short*)ptr + 8));
-    return v;
-}
-
-static inline void permute_store_f32x8(float* ptr, permute_f32x8 v)
-{
-    vst1q_u16((unsigned short*)ptr, vreinterpretq_u16_f32(v.lo));
-    vst1q_u16((unsigned short*)ptr + 8, vreinterpretq_u16_f32(v.hi));
-}
-
-static inline permute_f32x8 permute_shuffle_f32x8_halves(permute_f32x8 a, permute_f32x8 b, const int imm)
-{
-    permute_f32x8 v;
-    const int l0 = (imm >> 0) & 3;
-    const int l1 = (imm >> 4) & 3;
-    v.lo = (l0 & 2) ? (l0 & 1 ? b.hi : b.lo) : (l0 & 1 ? a.hi : a.lo);
-    v.hi = (l1 & 2) ? (l1 & 1 ? b.hi : b.lo) : (l1 & 1 ? a.hi : a.lo);
-    return v;
 }
 
 static inline uint16x8_t permute_deinterleave_u16(uint16x8_t v)

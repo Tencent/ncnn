@@ -740,10 +740,14 @@ static void permute_spatial_pack4to1_bf16s_fp16s(const unsigned short* ptr, size
 
 static inline void permute_spatial2x2_pack8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-    permute_f32x8 _a = permute_load_f32x8((const float*)ptr);
-    permute_f32x8 _b = permute_load_f32x8((const float*)(ptr + stride));
-    permute_store_f32x8((float*)(outptr), permute_shuffle_f32x8_halves(_a, _b, 0x20));
-    permute_store_f32x8((float*)(outptr + outstride), permute_shuffle_f32x8_halves(_a, _b, 0x31));
+    uint16x8_t _r00 = vld1q_u16(ptr);
+    uint16x8_t _r01 = vld1q_u16(ptr + 8);
+    uint16x8_t _r10 = vld1q_u16(ptr + stride);
+    uint16x8_t _r11 = vld1q_u16(ptr + stride + 8);
+    vst1q_u16(outptr, _r00);
+    vst1q_u16(outptr + 8, _r10);
+    vst1q_u16(outptr + outstride, _r01);
+    vst1q_u16(outptr + outstride + 8, _r11);
 }
 
 static void permute_spatial_pack8_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride, int rows, int cols)
@@ -1026,10 +1030,14 @@ static void permute_transpose_blocks_bf16s_fp16s(const unsigned short* ptr, size
             unsigned short* out = outptr + j * outstride;
             for (int i = 0; i < rows; i++)
             {
-                permute_u16x16 _a = permute_load_u16x16((const unsigned short*)p);
-                permute_u16x16 _b = permute_load_u16x16((const unsigned short*)(p + size - 16));
-                permute_store_u16x16((unsigned short*)out, _a);
-                permute_store_u16x16((unsigned short*)(out + size - 16), _b);
+                uint16x8_t _a0 = vld1q_u16(p);
+                uint16x8_t _a1 = vld1q_u16(p + 8);
+                uint16x8_t _b0 = vld1q_u16(p + size - 16);
+                uint16x8_t _b1 = vld1q_u16(p + size - 8);
+                vst1q_u16(out, _a0);
+                vst1q_u16(out + 8, _a1);
+                vst1q_u16(out + size - 16, _b0);
+                vst1q_u16(out + size - 8, _b1);
                 p += stride;
                 out += size;
             }
