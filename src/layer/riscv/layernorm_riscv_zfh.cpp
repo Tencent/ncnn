@@ -62,6 +62,7 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
     }
 
     vfloat32m8_t _mean;
+    float mean = 0.f;
     if (elempack == packn)
     {
         // reduce sum nn,nn,nn,nn to nn
@@ -79,9 +80,8 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
 
         vfloat32m1_t _sum0 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
         _sum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sum, _sum0, __riscv_vsetvlmax_e32m8());
-        vfloat32m1_t _mean0 = __riscv_vfdiv_vf_f32m1(_sum0, elemcount, __riscv_vsetvlmax_e32m1());
-        _mean = __riscv_vset_v_f32m1_f32m8(__riscv_vundefined_f32m8(), 0, _mean0);
-        _mean = __riscv_vrgather_vx_f32m8(_mean, 0, __riscv_vsetvlmax_e32m8());
+        mean = __riscv_vfmv_f_s_f32m1_f32(_sum0) / elemcount;
+        _mean = __riscv_vfmv_v_f_f32m8(mean, __riscv_vsetvlmax_e32m8());
     }
 
     // reduce sqsum
@@ -95,7 +95,7 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
         {
             vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr0, vl), vl);
             _p = __riscv_vfsub_vv_f32m8(_p, _mean, vl);
-            _sqsum = __riscv_vfmadd_vv_f32m8(_p, _p, _sqsum, vl);
+            _sqsum = __riscv_vfmacc_vv_f32m8(_sqsum, _p, _p, vl);
             ptr0 += vl;
             n -= vl;
         }
@@ -108,15 +108,17 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
 #if __riscv_xtheadvector
             // xtheadvector does not support tail undisturbed policy
             _p = reset_tails(_p, vlr, 0.f);
-            _sqsum = __riscv_vfmadd_vv_f32m8(_p, _p, _sqsum, vl);
+            _sqsum = __riscv_vfmacc_vv_f32m8(_sqsum, _p, _p, vl);
 #else  // __riscv_xtheadvector
-            _p = __riscv_vfmul_vv_f32m8(_p, _p, vlr);
-            _sqsum = __riscv_vfadd_vv_f32m8_tu(_sqsum, _sqsum, _p, vlr);
+            _sqsum = __riscv_vfmacc_vv_f32m8_tu(_sqsum, _p, _p, vlr);
 #endif // __riscv_xtheadvector
         }
     }
 
-    vfloat32m8_t _var;
+    // a = 1.f / sqrtf(var + eps);
+    // b = -mean * a;
+    vfloat32m8_t _a;
+    vfloat32m8_t _b;
     if (elempack == packn)
     {
         // reduce sqsum nn,nn,nn,nn to nn
@@ -125,7 +127,11 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
         vfloat32m4_t _sqsum0 = __riscv_vfadd_vv_f32m4(__riscv_vget_v_f32m8_f32m4(_sqsum, 0), __riscv_vget_v_f32m8_f32m4(_sqsum, 1), __riscv_vsetvlmax_e32m4());
         vfloat32m2_t _sqsum2 = __riscv_vfadd_vv_f32m2(__riscv_vget_v_f32m4_f32m2(_sqsum0, 0), __riscv_vget_v_f32m4_f32m2(_sqsum0, 1), __riscv_vsetvlmax_e32m2());
         vfloat32m2_t _var2 = __riscv_vfdiv_vf_f32m2(_sqsum2, elemcount, __riscv_vsetvlmax_e32m2());
-        _var = __riscv_vcreate_v_f32m2_f32m8(_var2, _var2, _var2, _var2);
+        vfloat32m2_t _mean2 = __riscv_vget_v_f32m8_f32m2(_mean, 0);
+        vfloat32m2_t _a2 = __riscv_vfrdiv_vf_f32m2(__riscv_vfsqrt_v_f32m2(__riscv_vfadd_vf_f32m2(_var2, eps, __riscv_vsetvlmax_e32m2()), __riscv_vsetvlmax_e32m2()), 1.f, __riscv_vsetvlmax_e32m2());
+        vfloat32m2_t _b2 = __riscv_vfmul_vv_f32m2(__riscv_vfsgnjn_vv_f32m2(_mean2, _mean2, __riscv_vsetvlmax_e32m2()), _a2, __riscv_vsetvlmax_e32m2());
+        _a = __riscv_vcreate_v_f32m2_f32m8(_a2, _a2, _a2, _a2);
+        _b = __riscv_vcreate_v_f32m2_f32m8(_b2, _b2, _b2, _b2);
     }
     else // if (elempack == 1)
     {
@@ -134,15 +140,12 @@ static void layernorm_fp16s(__fp16* ptr, const float* gamma_ptr, const float* be
 
         vfloat32m1_t _sqsum0 = __riscv_vfmv_s_f_f32m1(0.f, __riscv_vsetvlmax_e32m1());
         _sqsum0 = __riscv_vfredusum_vs_f32m8_f32m1(_sqsum, _sqsum0, __riscv_vsetvlmax_e32m8());
-        vfloat32m1_t _var0 = __riscv_vfdiv_vf_f32m1(_sqsum0, elemcount, __riscv_vsetvlmax_e32m1());
-        _var = __riscv_vset_v_f32m1_f32m8(__riscv_vundefined_f32m8(), 0, _var0);
-        _var = __riscv_vrgather_vx_f32m8(_var, 0, __riscv_vsetvlmax_e32m8());
+        const float var = __riscv_vfmv_f_s_f32m1_f32(_sqsum0) / elemcount;
+        const float a = 1.f / sqrtf(var + eps);
+        const float b = -mean * a;
+        _a = __riscv_vfmv_v_f_f32m8(a, __riscv_vsetvlmax_e32m8());
+        _b = __riscv_vfmv_v_f_f32m8(b, __riscv_vsetvlmax_e32m8());
     }
-
-    // a = 1.f / sqrtf(var + eps);
-    // b = -mean * a;
-    vfloat32m8_t _a = __riscv_vfrdiv_vf_f32m8(__riscv_vfsqrt_v_f32m8(__riscv_vfadd_vf_f32m8(_var, eps, __riscv_vsetvlmax_e32m8()), __riscv_vsetvlmax_e32m8()), 1.f, __riscv_vsetvlmax_e32m8());
-    vfloat32m8_t _b = __riscv_vfmul_vv_f32m8(__riscv_vfsgnjn_vv_f32m8(_mean, _mean, __riscv_vsetvlmax_e32m8()), _a, __riscv_vsetvlmax_e32m8());
 
     if (gamma_ptr && beta_ptr)
     {
