@@ -875,8 +875,7 @@ static void permute_transpose_pack1to8_bf16s_fp16s(const unsigned short* ptr, si
         {
             const unsigned short* p = ptr + y * stride + x;
             unsigned short* out = outptr + (x / 8) * outstride + y * 8;
-            __m128i _v = _mm_loadu_si128((const __m128i*)p);
-            _mm_storeu_si128((__m128i*)out, _v);
+            vst1q_u16(out, vld1q_u16(p));
         }
     }
 }
