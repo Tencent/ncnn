@@ -33,27 +33,28 @@ static NCNN_FORCEINLINE void permute_transpose2x4_stride_bf16s_fp16s(const unsig
 
 static NCNN_FORCEINLINE void permute_transpose4x4_bf16s_fp16s(const unsigned short* ptr, unsigned short* outptr)
 {
-    __m128i _r0 = _mm_loadu_si128((const __m128i*)ptr);
-    __m128i _r1 = _mm_loadu_si128((const __m128i*)(ptr + 8));
-    __m128i _t0 = _mm_unpacklo_epi16(_r0, _r1);
-    __m128i _t1 = _mm_unpackhi_epi16(_r0, _r1);
-    _r0 = _mm_unpacklo_epi16(_t0, _t1);
-    _r1 = _mm_unpackhi_epi16(_t0, _t1);
-    _mm_storeu_si128((__m128i*)outptr, _r0);
-    _mm_storeu_si128((__m128i*)(outptr + 8), _r1);
+    uint16x4_t _r0 = vld1_u16(ptr);
+    uint16x4_t _r1 = vld1_u16(ptr + 4);
+    uint16x4_t _r2 = vld1_u16(ptr + 8);
+    uint16x4_t _r3 = vld1_u16(ptr + 12);
+    transpose4x4_u16(_r0, _r1, _r2, _r3);
+    vst1_u16(outptr, _r0);
+    vst1_u16(outptr + 4, _r1);
+    vst1_u16(outptr + 8, _r2);
+    vst1_u16(outptr + 12, _r3);
 }
 
 static NCNN_FORCEINLINE void permute_transpose4x4_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-    __m128i _r0 = _mm_loadl_epi64((const __m128i*)(ptr));
-    __m128i _r1 = _mm_loadl_epi64((const __m128i*)(ptr + stride));
-    __m128i _r2 = _mm_loadl_epi64((const __m128i*)(ptr + 2 * stride));
-    __m128i _r3 = _mm_loadl_epi64((const __m128i*)(ptr + 3 * stride));
-    transpose8x4_epi16(_r0, _r1, _r2, _r3);
-    _mm_storel_epi64((__m128i*)(outptr), _r0);
-    _mm_storel_epi64((__m128i*)(outptr + outstride), _mm_srli_si128(_r0, 8));
-    _mm_storel_epi64((__m128i*)(outptr + 2 * outstride), _r1);
-    _mm_storel_epi64((__m128i*)(outptr + 3 * outstride), _mm_srli_si128(_r1, 8));
+    uint16x4_t _r0 = vld1_u16(ptr);
+    uint16x4_t _r1 = vld1_u16(ptr + stride);
+    uint16x4_t _r2 = vld1_u16(ptr + 2 * stride);
+    uint16x4_t _r3 = vld1_u16(ptr + 3 * stride);
+    transpose4x4_u16(_r0, _r1, _r2, _r3);
+    vst1_u16(outptr, _r0);
+    vst1_u16(outptr + outstride, _r1);
+    vst1_u16(outptr + 2 * outstride, _r2);
+    vst1_u16(outptr + 3 * outstride, _r3);
 }
 
 #if __AVX__
