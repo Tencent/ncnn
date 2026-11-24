@@ -39,14 +39,7 @@ int Softplus_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& op
             _p = exp_ps(_p, vl);
             _p = __riscv_vfadd_vf_f32m8(_p, 1.f, vl);
             _p = log_ps(_p, vl);
-            if (has_threshold)
-            {
-                // exp_ps clamps large inputs; retain scalar overflow and NaN semantics.
-                _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, 88.f, vl), vl);
-                _p = __riscv_vfmerge_vfm_f32m8(_p, INFINITY, __riscv_vmfgt_vf_f32m8_b4(_x, 88.7228317f, vl), vl);
-                _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, threshold, vl), vl);
-                _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfne_vv_f32m8_b4(_x, _x, vl), vl);
-            }
+            _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, threshold, vl), vl);
             __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
@@ -83,13 +76,17 @@ int Softplus_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& o
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m8(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
+            vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+            const vfloat16m4_t _x = _p;
+            const vfloat32m8_t _x32 = __riscv_vfwcvt_f_f_v_f32m8(_x, vl);
+            const vbool4_t _mask = __riscv_vmfgt_vf_f32m8_b4(_x32, threshold, vl);
             _p = exp_ps(_p, vl);
-            _p = __riscv_vfadd_vf_f16m8(_p, (__fp16)1.f, vl);
+            _p = __riscv_vfadd_vf_f16m4(_p, (__fp16)1.f, vl);
             _p = log_ps(_p, vl);
-            __riscv_vse16_v_f16m8(ptr, _p, vl);
+            _p = __riscv_vmerge_vvm_f16m4(_p, _x, _mask, vl);
+            __riscv_vse16_v_f16m4(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;

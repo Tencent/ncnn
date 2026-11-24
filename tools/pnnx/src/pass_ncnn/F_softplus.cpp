@@ -3,8 +3,6 @@
 
 #include "pass_ncnn.h"
 
-#include <float.h>
-
 namespace pnnx {
 
 namespace ncnn {
@@ -22,14 +20,6 @@ pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params) const
-    {
-        const Parameter& threshold = captured_params.at("threshold");
-        if (threshold.type == 2) return true;
-        if (threshold.type == 3) return !(threshold.f < -FLT_MAX);
-        return threshold.type == 4 && (threshold.s == "inf" || threshold.s == "nan" || threshold.s == "nan.0" || threshold.s == "-nan" || threshold.s == "-nan.0");
-    }
-
     const char* type_str() const
     {
         return "Softplus";
@@ -42,13 +32,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        const Parameter& threshold = captured_params.at("threshold");
-        float value = FLT_MAX;
-        if (threshold.type == 2) value = (float)threshold.i;
-        if (threshold.type == 3 && threshold.f <= FLT_MAX) value = threshold.f;
-
-        // Positive infinity and NaN thresholds never select the linear branch for finite inputs.
-        op->params["0"] = value;
+        op->params["0"] = captured_params.at("threshold");
     }
 };
 

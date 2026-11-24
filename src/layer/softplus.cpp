@@ -16,7 +16,6 @@ Softplus::Softplus()
 int Softplus::load_param(const ParamDict& pd)
 {
     threshold = pd.get(0, FLT_MAX);
-    has_threshold = pd.type(0) != 0;
 
     return 0;
 }

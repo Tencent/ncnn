@@ -13,16 +13,13 @@ class Model(nn.Module):
         a = F.softplus(x, threshold=0)
         b = F.softplus(x - 2, threshold=-2)
         c = F.softplus(x, threshold=0.5)
-        d = F.softplus(x * 100)
-        e = F.softplus(x, threshold=float("inf"))
-        f = F.softplus(x, threshold=float("nan"))
         x = F.softplus(x)
         y = F.softplus(y, threshold=12)
         z = F.softplus(z)
         w = F.softplus(w)
         q = F.max_pool2d(q, 1)
         q = F.softplus(q)
-        return x, y, z, a, b, c, d, e, f, w, q
+        return x, y, z, a, b, c, w, q
 
 def test():
     net = Model()

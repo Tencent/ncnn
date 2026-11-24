@@ -19,7 +19,6 @@ public:
 
 public:
     float threshold;
-    int has_threshold;
 };
 
 } // namespace ncnn

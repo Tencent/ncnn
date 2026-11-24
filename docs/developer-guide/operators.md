@@ -2328,9 +2328,7 @@ y = x > threshold ? x : log(exp(x) + 1)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | threshold     | float | unset     | optional linear branch threshold |
-
-When the threshold is omitted, the original nonlinear computation is used for all inputs.
+| 0         | threshold     | float | FLT_MAX   | linear branch threshold |
 
 * input mat dims: 1d, 2d, 3d, 4d
 * output mat dims: same as input

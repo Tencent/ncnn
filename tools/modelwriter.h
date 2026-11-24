@@ -2765,8 +2765,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
         else if (layer->type == "Softplus")
         {
             ncnn::Softplus* op = (ncnn::Softplus*)layer;
+            ncnn::Softplus* op_default = (ncnn::Softplus*)layer_default;
 
-            if (op->has_threshold) fprintf(pp, " 0=%.8e", op->threshold);
+            fprintf_param_value(" 0=%.8e", threshold)
         }
         else if (layer->type == "Squeeze")
         {
