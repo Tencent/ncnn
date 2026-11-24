@@ -8,6 +8,8 @@
 
 namespace ncnn {
 
+int permute_arm_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int order_type, int nT);
+
 class Permute_arm : public Permute
 {
 public:

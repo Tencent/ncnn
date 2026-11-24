@@ -7,12 +7,90 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include <algorithm>
+#include <limits.h>
 #include <string.h>
 
 #include "arm_usability.h"
 #include "cpu.h"
+#include "permute_arm_sse2.h"
+#include "permute_arm_sse2_u16.h"
 
 namespace ncnn {
+
+namespace permute_arm_fp32 {
+
+#define __SSE2__ 1
+#include "permute_arm_fp32.h"
+#undef __SSE2__
+
+} // namespace permute_arm_fp32
+
+namespace permute_arm_bf16s_fp16s_kernel {
+
+#define __m128i  permute_u16_m128i
+#define __SSE2__ 1
+#include "permute_arm_bf16s_fp16s.h"
+#undef __SSE2__
+#undef __m128i
+
+} // namespace permute_arm_bf16s_fp16s_kernel
+
+int permute_arm_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, int order_type, int nT)
+{
+    using namespace permute_arm_bf16s_fp16s_kernel;
+
+    if (bottom_blob.elempack > 4 || top_blob.elempack > 4)
+        return -1;
+
+    if (bottom_blob.dims == 2)
+    {
+        permute2d_bf16s_fp16s(bottom_blob, top_blob, nT);
+        return 0;
+    }
+
+    if (bottom_blob.dims == 3)
+    {
+        switch (order_type)
+        {
+        case 1: permute3d_hwc_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+        case 2: permute3d_wch_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+        case 3: permute3d_cwh_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+        case 4: permute3d_hcw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+        case 5: permute3d_chw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+        }
+        return 0;
+    }
+
+    switch (order_type)
+    {
+    case 1: permute4d_hwdc_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 2: permute4d_wdhc_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 3: permute4d_dwhc_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 4: permute4d_hdwc_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 5: permute4d_dhwc_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 6: permute4d_whcd_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 7: permute4d_hwcd_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 8: permute4d_wchd_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 9: permute4d_cwhd_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 10: permute4d_hcwd_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 11: permute4d_chwd_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 12: permute4d_wdch_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 13: permute4d_dwch_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 14: permute4d_wcdh_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 15: permute4d_cwdh_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 16: permute4d_dcwh_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 17: permute4d_cdwh_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 18: permute4d_hdcw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 19: permute4d_dhcw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 20: permute4d_hcdw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 21: permute4d_chdw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 22: permute4d_dchw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    case 23: permute4d_cdhw_bf16s_fp16s(bottom_blob, top_blob, nT); break;
+    }
+
+    return 0;
+}
 
 static const int permute_axes_2d[2][2] = {
     {0, 1},
@@ -914,8 +992,6 @@ static void permute4d_pack1(const Mat& bottom_blob, Mat& top_blob, const Option&
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
-    const int d = bottom_blob.d;
-    const int channels = bottom_blob.c;
     const int outw = top_blob.w;
     const int outh = top_blob.h;
     const int outd = top_blob.d;
@@ -1524,6 +1600,61 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     if (top_blob.empty())
         return -100;
+
+    if (scalar_size == 2 && permute_arm_bf16s_fp16s(bottom_blob, top_blob, order_type, opt.num_threads) == 0)
+    {
+        return 0;
+    }
+
+    if (scalar_size == 4)
+    {
+        if (dims == 2)
+        {
+            permute_arm_fp32::permute2d(bottom_blob, top_blob, opt.num_threads);
+            return 0;
+        }
+
+        if (dims == 3)
+        {
+            switch (order_type)
+            {
+            case 1: permute_arm_fp32::permute3d_hwc(bottom_blob, top_blob, opt.num_threads); break;
+            case 2: permute_arm_fp32::permute3d_wch(bottom_blob, top_blob, opt.num_threads); break;
+            case 3: permute_arm_fp32::permute3d_cwh(bottom_blob, top_blob, opt.num_threads); break;
+            case 4: permute_arm_fp32::permute3d_hcw(bottom_blob, top_blob, opt.num_threads); break;
+            case 5: permute_arm_fp32::permute3d_chw(bottom_blob, top_blob, opt.num_threads); break;
+            }
+            return 0;
+        }
+
+        switch (order_type)
+        {
+        case 1: permute_arm_fp32::permute4d_hwdc(bottom_blob, top_blob, opt.num_threads); break;
+        case 2: permute_arm_fp32::permute4d_wdhc(bottom_blob, top_blob, opt.num_threads); break;
+        case 3: permute_arm_fp32::permute4d_dwhc(bottom_blob, top_blob, opt.num_threads); break;
+        case 4: permute_arm_fp32::permute4d_hdwc(bottom_blob, top_blob, opt.num_threads); break;
+        case 5: permute_arm_fp32::permute4d_dhwc(bottom_blob, top_blob, opt.num_threads); break;
+        case 6: permute_arm_fp32::permute4d_whcd(bottom_blob, top_blob, opt.num_threads); break;
+        case 7: permute_arm_fp32::permute4d_hwcd(bottom_blob, top_blob, opt.num_threads); break;
+        case 8: permute_arm_fp32::permute4d_wchd(bottom_blob, top_blob, opt.num_threads); break;
+        case 9: permute_arm_fp32::permute4d_cwhd(bottom_blob, top_blob, opt.num_threads); break;
+        case 10: permute_arm_fp32::permute4d_hcwd(bottom_blob, top_blob, opt.num_threads); break;
+        case 11: permute_arm_fp32::permute4d_chwd(bottom_blob, top_blob, opt.num_threads); break;
+        case 12: permute_arm_fp32::permute4d_wdch(bottom_blob, top_blob, opt.num_threads); break;
+        case 13: permute_arm_fp32::permute4d_dwch(bottom_blob, top_blob, opt.num_threads); break;
+        case 14: permute_arm_fp32::permute4d_wcdh(bottom_blob, top_blob, opt.num_threads); break;
+        case 15: permute_arm_fp32::permute4d_cwdh(bottom_blob, top_blob, opt.num_threads); break;
+        case 16: permute_arm_fp32::permute4d_dcwh(bottom_blob, top_blob, opt.num_threads); break;
+        case 17: permute_arm_fp32::permute4d_cdwh(bottom_blob, top_blob, opt.num_threads); break;
+        case 18: permute_arm_fp32::permute4d_hdcw(bottom_blob, top_blob, opt.num_threads); break;
+        case 19: permute_arm_fp32::permute4d_dhcw(bottom_blob, top_blob, opt.num_threads); break;
+        case 20: permute_arm_fp32::permute4d_hcdw(bottom_blob, top_blob, opt.num_threads); break;
+        case 21: permute_arm_fp32::permute4d_chdw(bottom_blob, top_blob, opt.num_threads); break;
+        case 22: permute_arm_fp32::permute4d_dchw(bottom_blob, top_blob, opt.num_threads); break;
+        case 23: permute_arm_fp32::permute4d_cdhw(bottom_blob, top_blob, opt.num_threads); break;
+        }
+        return 0;
+    }
 
     if (dims == 2)
     {
