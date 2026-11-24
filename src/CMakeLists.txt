@@ -761,6 +761,42 @@ if(NCNN_TARGET_ARCH STREQUAL "powerpc")
         # vsx is a superset of vmx, only valid on power7+ cpus
         target_compile_options(ncnn PRIVATE -mvsx)
     endif()
+
+    # ps3 cell spes. the ppe compiler defines __PPU__, which no other powerpc
+    # target does, so this stays out of the ppu-less powerpc builds.
+    if(CMAKE_CXX_COMPILER MATCHES "ps3-elf")
+        set(SPU_GEMM_SRC ${CMAKE_CURRENT_SOURCE_DIR}/layer/powerpc/gemm_powerpc_spu.c)
+        set(SPU_GEMM_ASM ${CMAKE_CURRENT_SOURCE_DIR}/layer/powerpc/gemm_powerpc_spu_asm.s)
+        set(SPU_GEMM_ELF ${CMAKE_CURRENT_BINARY_DIR}/gemm_powerpc_spu.elf)
+        set(SPU_GEMM_BIN ${CMAKE_CURRENT_BINARY_DIR}/gemm_powerpc_spu_bin)
+        set(SPU_GEMM_S ${CMAKE_CURRENT_BINARY_DIR}/gemm_powerpc_spu_bin.s)
+        set(SPU_GEMM_OBJ ${CMAKE_CURRENT_BINARY_DIR}/gemm_powerpc_spu_bin.o)
+
+        set(NCNN_PS3_BIN2S "${PS3DEV}/bin/bin2s" CACHE FILEPATH "bin2s used to embed the spe kernel")
+
+        add_custom_command(
+            OUTPUT ${SPU_GEMM_ELF}
+            COMMAND ${PS3DEV}/spu/bin/spu-gcc -O2 -fno-ipa-cp -I${PS3DEV}/spu/include
+                    ${SPU_GEMM_SRC} ${SPU_GEMM_ASM} -L${PS3DEV}/spu/lib -lsputhread -o ${SPU_GEMM_ELF}
+            DEPENDS ${SPU_GEMM_SRC} ${SPU_GEMM_ASM}
+            COMMENT "Building SPE gemm kernel"
+            VERBATIM
+        )
+        add_custom_command(
+            OUTPUT ${SPU_GEMM_OBJ}
+            COMMAND ${CMAKE_COMMAND} -E copy ${SPU_GEMM_ELF} ${SPU_GEMM_BIN}
+            COMMAND ${NCNN_PS3_BIN2S} -a 64 ${SPU_GEMM_BIN} > ${SPU_GEMM_S}
+            COMMAND ${PS3DEV}/ppu/bin/ppu-as -o ${SPU_GEMM_OBJ} ${SPU_GEMM_S}
+            DEPENDS ${SPU_GEMM_ELF}
+            COMMENT "Embedding SPE gemm kernel"
+            VERBATIM
+        )
+
+        target_sources(ncnn PRIVATE ${SPU_GEMM_OBJ} ${CMAKE_CURRENT_SOURCE_DIR}/layer/powerpc/gemm_powerpc_spu.cpp)
+        set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/layer/powerpc/gemm_powerpc_spu.cpp
+            PROPERTIES COMPILE_FLAGS "-I${PS3DEV}/ppu/include")
+        target_link_libraries(ncnn PUBLIC ${PS3DEV}/ppu/lib/liblv2.a)
+    endif()
 endif()
 
 if(NCNN_PPC64LE_VSX)
