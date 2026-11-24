@@ -11,9 +11,9 @@ namespace ncnn {
 
 #include "layernorm_bf16s.h"
 
-void layernorm_bf16s_zvfbfmin(Mat& bottom_top_blob, const float* gamma_data, const float* beta_data, float eps, int affine_size, const Option& opt)
+void layernorm_bf16s_zvfbfmin(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {
-    layernorm_bf16s(bottom_top_blob, gamma_data, beta_data, eps, affine_size, opt);
+    layernorm_bf16s(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
 }
 
 #endif // NCNN_BF16

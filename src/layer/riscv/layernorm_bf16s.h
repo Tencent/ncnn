@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
-void layernorm_bf16s_zvfbfmin(Mat& bottom_top_blob, const float* gamma_data, const float* beta_data, float eps, int affine_size, const Option& opt);
+void layernorm_bf16s_zvfbfmin(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack);
 #endif
 
 #if __riscv_vector
@@ -21,6 +21,14 @@ layernorm_bf16s_reset_tails(vfloat32m8_t x, size_t vl, float v)
 
 static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {
+#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
+    if (cpu_support_riscv_zvfbfmin())
+    {
+        layernorm_bf16s_zvfbfmin(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
+        return;
+    }
+#endif
+
 #if __riscv_xtheadvector && !(NCNN_ZVFBFMIN && __riscv_zvfbfmin)
     unsigned long old_fxcr = csrr_fxcr();
     // enable BF16 with round-to-nearest-even
@@ -296,103 +304,4 @@ static void layernorm_bf16s(unsigned short* ptr, const float* gamma_ptr, const f
     // restore FXCR while retaining accrued exception flags, including FE
     csrrw_fxcr(old_fxcr | (csrr_fxcr() & 0x3f));
 #endif
-}
-
-static void layernorm_bf16s(Mat& bottom_top_blob, const float* gamma_data, const float* beta_data, float eps, int affine_size, const Option& opt)
-{
-#if NCNN_RUNTIME_CPU && NCNN_ZVFBFMIN && __riscv_vector && !__riscv_zvfbfmin
-    if (cpu_support_riscv_zvfbfmin())
-    {
-        layernorm_bf16s_zvfbfmin(bottom_top_blob, gamma_data, beta_data, eps, affine_size, opt);
-        return;
-    }
-#endif
-
-    const int elempack = bottom_top_blob.elempack;
-    const int dims = bottom_top_blob.dims;
-    const int w = bottom_top_blob.w;
-    const int h = bottom_top_blob.h;
-    const int d = bottom_top_blob.d;
-    const int channels = bottom_top_blob.c;
-
-    if (dims == 1)
-    {
-        unsigned short* ptr = bottom_top_blob;
-        layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * elempack, 1);
-    }
-
-    if (dims == 2)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < h; i++)
-        {
-            unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
-            layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
-        }
-    }
-
-    if (dims == 3)
-    {
-        if (affine_size == w)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                for (int i = 0; i < h; i++)
-                {
-                    unsigned short* ptr = bottom_top_blob.channel(q).row<unsigned short>(i);
-                    layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
-                }
-            }
-        }
-        else // if (affine_size == w * h)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                unsigned short* ptr = bottom_top_blob.channel(q);
-                layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
-            }
-        }
-    }
-
-    if (dims == 4)
-    {
-        if (affine_size == w)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                for (int z = 0; z < d; z++)
-                {
-                    for (int i = 0; i < h; i++)
-                    {
-                        unsigned short* ptr = bottom_top_blob.channel(q).depth(z).row<unsigned short>(i);
-                        layernorm_bf16s(ptr, gamma_data, beta_data, eps, w, elempack);
-                    }
-                }
-            }
-        }
-        else if (affine_size == w * h)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                for (int z = 0; z < d; z++)
-                {
-                    unsigned short* ptr = bottom_top_blob.channel(q).depth(z);
-                    layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h, elempack);
-                }
-            }
-        }
-        else // if (affine_size == w * h * d)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                unsigned short* ptr = bottom_top_blob.channel(q);
-                layernorm_bf16s(ptr, gamma_data, beta_data, eps, w * h * d, elempack);
-            }
-        }
-    }
 }
