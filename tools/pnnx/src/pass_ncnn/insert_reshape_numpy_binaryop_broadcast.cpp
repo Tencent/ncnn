@@ -18,7 +18,7 @@ void insert_reshape_numpy_binaryop_broadcast(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "BinaryOp" && op->type != "FloorMod")
+            if (op->type != "BinaryOp")
                 continue;
 
             if (op->inputs.size() != 2)

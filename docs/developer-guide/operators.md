@@ -209,6 +209,8 @@ Operation type:
 - 9 = RPOW
 - 10 = ATAN2
 - 11 = RATAN2
+- 17 = REMAINDER (floor-mod of A by B)
+- 18 = RREMAINDER (floor-mod of B by A)
 
 # BNLL
 ```

@@ -52,8 +52,8 @@ MAKE_FUNCTION(binary_op_rfmod, (float)fmodf(y, x), fmod_ps(y, x, vl), fmod_ps(__
 MAKE_FUNCTION(binary_op_logaddexp, (float)(std::max(x, y) + log1pf(expf(std::min(x, y) - std::max(x, y)))), logaddexp_ps(x, y, vl), logaddexp_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), logaddexp_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
 MAKE_FUNCTION(binary_op_floor_divide, (float)floorf(x / y), floor_divide_ps(x, y, vl), floor_divide_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), floor_divide_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
 MAKE_FUNCTION(binary_op_rfloor_divide, (float)floorf(y / x), floor_divide_ps(y, x, vl), floor_divide_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), floor_divide_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
-MAKE_FUNCTION(binary_op_remainder, (float)remainderf(x, y), remainder_ps(x, y, vl), remainder_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), remainder_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
-MAKE_FUNCTION(binary_op_rremainder, (float)remainderf(y, x), remainder_ps(y, x, vl), remainder_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), remainder_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
+MAKE_FUNCTION(binary_op_remainder, (float)binaryop_remainder_scalar(x, y), remainder_ps(x, y, vl), remainder_ps(x, __riscv_vfmv_v_f_f32m8(y, vl), vl), remainder_ps(__riscv_vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rremainder, (float)binaryop_remainder_scalar(y, x), remainder_ps(y, x, vl), remainder_ps(__riscv_vfmv_v_f_f32m8(y, vl), x, vl), remainder_ps(y, __riscv_vfmv_v_f_f32m8(x, vl), vl))
 // *INDENT-ON*
 // clang-format on
 

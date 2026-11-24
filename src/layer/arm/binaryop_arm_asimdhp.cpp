@@ -404,8 +404,8 @@ MAKE_FUNCTION(binary_op_rfmod_fp16s, (__fp16)fmodf((float)y, (float)x), fmod_f16
 MAKE_FUNCTION(binary_op_logaddexp_fp16s, (__fp16)(std::max((float)x, (float)y) + log1pf(expf(std::min((float)x, (float)y) - std::max((float)x, (float)y)))), logaddexp_f16(x, y), logaddexpq_f16(x, y))
 MAKE_FUNCTION(binary_op_floor_divide_fp16s, (__fp16)floorf((float)x / (float)y), floor_divide_f16(x, y), floor_divideq_f16(x, y))
 MAKE_FUNCTION(binary_op_rfloor_divide_fp16s, (__fp16)floorf((float)y / (float)x), floor_divide_f16(y, x), floor_divideq_f16(y, x))
-MAKE_FUNCTION(binary_op_remainder_fp16s, (__fp16)remainderf((float)x, (float)y), remainder_f16(x, y), remainderq_f16(x, y))
-MAKE_FUNCTION(binary_op_rremainder_fp16s, (__fp16)remainderf((float)y, (float)x), remainder_f16(y, x), remainderq_f16(y, x))
+MAKE_FUNCTION(binary_op_remainder_fp16s, (__fp16)binaryop_remainder_scalar((float)x, (float)y), remainder_f16(x, y), remainderq_f16(x, y))
+MAKE_FUNCTION(binary_op_rremainder_fp16s, (__fp16)binaryop_remainder_scalar((float)y, (float)x), remainder_f16(y, x), remainderq_f16(y, x))
 // *INDENT-ON*
 // clang-format on
 

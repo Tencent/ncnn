@@ -676,13 +676,14 @@ _RVV_FLOAT16_FLOOR_DIVIDE_OP(2, 8)
 _RVV_FLOAT16_FLOOR_DIVIDE_OP(4, 4)
 _RVV_FLOAT16_FLOOR_DIVIDE_OP(8, 2)
 
-/* remainder(a,b) = a - round(a/b) * b */
-#define _RVV_FLOAT16_REMAINDER_OP(LMUL, MLEN)                                                               \
+/* remainder(a,b) = floor-mod from a nonzero fmod residual and divisor-sign correction */
+#define _RVV_FLOAT16_REMAINDER_OP(LMUL, MLEN) \
     static inline vfloat16m##LMUL##_t remainder_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
-    {                                                                                                       \
-        vfloat16m##LMUL##_t q = __riscv_vfdiv_vv_f16m##LMUL(a, b, vl);                                      \
-        vfloat16m##LMUL##_t rq = round_ps(q, vl);                                                           \
-        return __riscv_vfsub_vv_f16m##LMUL(a, __riscv_vfmul_vv_f16m##LMUL(rq, b, vl), vl);                  \
+    { \
+        const vfloat16m##LMUL##_t r = fmod_ps(a, b, vl); \
+        const vbool##MLEN##_t sign_diff = __riscv_vmxor_mm_b##MLEN(__riscv_vmflt_vf_f16m##LMUL##_b##MLEN(r, (__fp16)0.f, vl), __riscv_vmflt_vf_f16m##LMUL##_b##MLEN(b, (__fp16)0.f, vl), vl); \
+        const vbool##MLEN##_t mask = __riscv_vmand_mm_b##MLEN(__riscv_vmfne_vf_f16m##LMUL##_b##MLEN(r, (__fp16)0.f, vl), sign_diff, vl); \
+        return __riscv_vmerge_vvm_f16m##LMUL(r, __riscv_vfadd_vv_f16m##LMUL(r, b, vl), mask, vl); \
     }
 
 _RVV_FLOAT16_REMAINDER_OP(1, 16)

@@ -124,7 +124,7 @@ static int solve_slice_batch_axis(const Operator* op, int batch_axis, int input_
 
 static bool is_identity_op(const Operator* op)
 {
-    return op->type == "Noop" || op->type == "Tensor.clone" || op->type == "torch.clone";
+    return op->type == "Noop" || op->type == "Tensor.clone" || op->type == "torch.clone" || op->type == "Tensor.to";
 }
 
 static bool is_elementwise_op(const Operator* op)
@@ -240,7 +240,7 @@ static bool is_recurrent_op(const Operator* op)
 
 static bool is_binary_eltwise_op(const Operator* op)
 {
-    return op->type == "BinaryOp" || op->type == "FloorMod" || op->type == "Eltwise";
+    return op->type == "BinaryOp" || op->type == "Eltwise";
 }
 
 static bool is_layout_transparent_op(const Operator* op)

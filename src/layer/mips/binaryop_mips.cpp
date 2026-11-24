@@ -312,8 +312,8 @@ MAKE_FUNCTION(binary_op_rfmod, (float)fmodf(y, x), fmod_ps(y, x))
 MAKE_FUNCTION(binary_op_logaddexp, (float)(std::max(x, y) + log1pf(expf(std::min(x, y) - std::max(x, y)))), logaddexp_ps(x, y))
 MAKE_FUNCTION(binary_op_floor_divide, (float)floorf(x / y), floor_divide_ps(x, y))
 MAKE_FUNCTION(binary_op_rfloor_divide, (float)floorf(y / x), floor_divide_ps(y, x))
-MAKE_FUNCTION(binary_op_remainder, (float)remainderf(x, y), remainder_ps(x, y))
-MAKE_FUNCTION(binary_op_rremainder, (float)remainderf(y, x), remainder_ps(y, x))
+MAKE_FUNCTION(binary_op_remainder, (float)binaryop_remainder_scalar(x, y), remainder_ps(x, y))
+MAKE_FUNCTION(binary_op_rremainder, (float)binaryop_remainder_scalar(y, x), remainder_ps(y, x))
 // *INDENT-ON*
 // clang-format on
 

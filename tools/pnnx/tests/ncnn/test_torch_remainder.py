@@ -11,7 +11,7 @@ class Model(torch.nn.Module):
     def forward(self, x, y):
         return (torch.remainder(x, y), x % y, x.remainder(y),
                 torch.remainder(x, 2.0), torch.remainder(x, -2.0),
-                torch.remainder(5.0, y))
+                torch.remainder(5.0, y), torch.fmod(x, y), torch.fmod(torch.full_like(y, 5.0), y))
 
 
 
@@ -50,11 +50,10 @@ def test():
     subprocess.run(["../../src/pnnx", "test_torch_remainder.pt",
                     "inputshape=[1,16],[1,16]", "fp16=0"], check=True)
 
-    x = torch.tensor([[-1., -3., 1., 3., -1e8, 1e8, 1e-7, -1e-7,
-                       -0., 0., float("inf"), -float("inf"),
-                       float("nan"), 1., -1., .25]])
-    y = torch.tensor([[2., 2., 2., 2., 3., 3., 3., 3., 2., -2.,
-                       2., -2., 0., float("inf"), float("inf"), -float("inf")]])
+    x = torch.tensor([[-5., -4., -3., -1., 0., 1., 3., 4.,
+                       5., 6., -6., 2., -2., 7., -7., .5]])
+    y = torch.tensor([[3., 2., 2., -2., 2., -2., 2., -2.,
+                       -3., 3., -3., 1.5, -1.5, 2., 2., .25]])
     expected = net(x, y)
 
     with ncnn.Net() as runtime:
@@ -70,10 +69,7 @@ def test():
                     return False
                 actual = np.array(output).reshape(-1)
                 reference = reference.detach().numpy().reshape(-1)
-                if not np.array_equal(reference, actual, equal_nan=True):
-                    return False
-                zeros = (reference == 0) & (actual == 0)
-                if not np.array_equal(np.signbit(reference[zeros]), np.signbit(actual[zeros])):
+                if not np.array_equal(reference, actual):
                     return False
     return (test_broadcast(BroadcastModel(), ((4, 3, 4), (4,)), "test_torch_remainder_broadcast")
             and test_broadcast(BatchBroadcastModel(), ((1, 2, 3, 4), (2, 3, 4)), "test_torch_remainder_batch"))

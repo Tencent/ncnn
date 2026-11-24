@@ -932,13 +932,14 @@ _RVV_FLOAT32_FLOOR_DIVIDE_OP(2, 16)
 _RVV_FLOAT32_FLOOR_DIVIDE_OP(4, 8)
 _RVV_FLOAT32_FLOOR_DIVIDE_OP(8, 4)
 
-/* remainder(a,b) = a - round(a/b) * b */
-#define _RVV_FLOAT32_REMAINDER_OP(LMUL, MLEN)                                                               \
+/* remainder(a,b) = floor-mod from a nonzero fmod residual and divisor-sign correction */
+#define _RVV_FLOAT32_REMAINDER_OP(LMUL, MLEN) \
     static inline vfloat32m##LMUL##_t remainder_ps(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, size_t vl) \
-    {                                                                                                       \
-        vfloat32m##LMUL##_t q = __riscv_vfdiv_vv_f32m##LMUL(a, b, vl);                                      \
-        vfloat32m##LMUL##_t rq = round_ps(q, vl);                                                           \
-        return __riscv_vfsub_vv_f32m##LMUL(a, __riscv_vfmul_vv_f32m##LMUL(rq, b, vl), vl);                  \
+    { \
+        const vfloat32m##LMUL##_t r = fmod_ps(a, b, vl); \
+        const vbool##MLEN##_t sign_diff = __riscv_vmxor_mm_b##MLEN(__riscv_vmflt_vf_f32m##LMUL##_b##MLEN(r, 0.f, vl), __riscv_vmflt_vf_f32m##LMUL##_b##MLEN(b, 0.f, vl), vl); \
+        const vbool##MLEN##_t mask = __riscv_vmand_mm_b##MLEN(__riscv_vmfne_vf_f32m##LMUL##_b##MLEN(r, 0.f, vl), sign_diff, vl); \
+        return __riscv_vmerge_vvm_f32m##LMUL(r, __riscv_vfadd_vv_f32m##LMUL(r, b, vl), mask, vl); \
     }
 
 _RVV_FLOAT32_REMAINDER_OP(1, 32)

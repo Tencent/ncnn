@@ -771,9 +771,11 @@ static NCNN_FORCEINLINE v4f32 floor_divide_ps(v4f32 a, v4f32 b)
 
 static NCNN_FORCEINLINE v4f32 remainder_ps(v4f32 a, v4f32 b)
 {
-    v4f32 q = __msa_fdiv_w(a, b);
-    v4f32 rq = round_ps(q);
-    return __msa_fsub_w(a, __msa_fmul_w(rq, b));
+    const v4f32 zero = (v4f32)__msa_fill_w(0);
+    const v4f32 r = fmod_ps(a, b);
+    const v4i32 sign_diff = __msa_fclt_w(r, zero) ^ __msa_fclt_w(b, zero);
+    const v4i32 mask = ~__msa_fceq_w(r, zero) & sign_diff;
+    return (v4f32)__msa_bsel_v((v16u8)mask, (v16u8)r, (v16u8)__msa_fadd_w(r, b));
 }
 
 #endif // MSA_MATHFUN_H

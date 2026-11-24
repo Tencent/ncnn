@@ -560,13 +560,11 @@ static inline float32x4_t floor_divide_ps(const float32x4_t& x, const float32x4_
 
 static inline float32x4_t remainder_ps(const float32x4_t& x, const float32x4_t& y)
 {
-#if __aarch64__
-    float32x4_t q = vdivq_f32(x, y);
-#else
-    float32x4_t q = div_ps(x, y);
-#endif
-    float32x4_t rq = round_ps(q);
-    return vsubq_f32(x, vmulq_f32(rq, y));
+    const float32x4_t zero = vdupq_n_f32(0.f);
+    const float32x4_t r = fmod_ps(x, y);
+    const uint32x4_t sign_diff = veorq_u32(vcltq_f32(r, zero), vcltq_f32(y, zero));
+    const uint32x4_t mask = vandq_u32(vmvnq_u32(vceqq_f32(r, zero)), sign_diff);
+    return vbslq_f32(mask, vaddq_f32(r, y), r);
 }
 
 #include "neon_mathfun_tanh.h"
