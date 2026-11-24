@@ -16,7 +16,7 @@
 
 static int permute_max_elempack(int bits)
 {
-#if __ARM_NEON && __aarch64__
+#if __ARM_NEON && __aarch64__ && NCNN_ARM82
     if (bits == 16 && ncnn::cpu_support_arm_asimdhp())
         return 8;
 #endif

@@ -51,21 +51,6 @@ static inline uint16x8_t permute_set_u32(int v)
     return vreinterpretq_u16_u32(vcombine_u32(vdup_n_u32((unsigned int)v), vdup_n_u32(0)));
 }
 
-static inline uint16x8_t permute_shift_right_u16x8(uint16x8_t v, int imm)
-{
-    if (imm == 4)
-        return vextq_u16(v, vdupq_n_u16(0), 2);
-    if (imm == 8)
-        return vcombine_u16(vget_high_u16(v), vdup_n_u16(0));
-    if (imm == 12)
-        return vextq_u16(v, vdupq_n_u16(0), 6);
-
-    unsigned char idx[16];
-    for (int i = 0; i < 16; i++)
-        idx[i] = (unsigned char)(i + imm < 16 ? i + imm : 255);
-    return vreinterpretq_u16_u8(vqtbl1q_u8(vreinterpretq_u8_u16(v), vld1q_u8(idx)));
-}
-
 static inline uint16x8_t permute_zip1_u32(uint16x8_t a, uint16x8_t b)
 {
     return vreinterpretq_u16_u32(vzip1q_u32(vreinterpretq_u32_u16(a), vreinterpretq_u32_u16(b)));
@@ -147,10 +132,10 @@ static inline void permute_transpose4x2_stride(const float* ptr, size_t stride, 
 
 static inline void permute_transpose4x1_stride(const float* ptr, float* outptr, size_t outstride)
 {
-    memcpy(outptr, ptr, sizeof(float));
-    memcpy(outptr + outstride, ptr + 1, sizeof(float));
-    memcpy(outptr + 2 * outstride, ptr + 2, sizeof(float));
-    memcpy(outptr + 3 * outstride, ptr + 3, sizeof(float));
+    outptr[0] = ptr[0];
+    outptr[outstride] = ptr[1];
+    outptr[2 * outstride] = ptr[2];
+    outptr[3 * outstride] = ptr[3];
 }
 
 static void permute_pack4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride, int cols)
@@ -263,8 +248,8 @@ static void permute_transpose_pack1to4(const float* ptr, size_t stride, float* o
         {
             const float* p = ptr + y * stride + x;
             float* out = outptr + (x / 4) * outstride + y * 4;
-            uint32x4_t _v = vld1q_u32((const unsigned int*)p);
-            vst1q_u32((unsigned int*)out, _v);
+            float32x4_t _v = vld1q_f32(p);
+            vst1q_f32(out, _v);
         }
     }
 }
@@ -277,8 +262,8 @@ static void permute_transpose_pack4to1(const float* ptr, size_t stride, float* o
         {
             const float* p = ptr + (y / 4) * stride + x * 4;
             float* out = outptr + x * outstride + y;
-            uint32x4_t _v = vld1q_u32((const unsigned int*)p);
-            vst1q_u32((unsigned int*)out, _v);
+            float32x4_t _v = vld1q_f32(p);
+            vst1q_f32(out, _v);
         }
     }
 }
@@ -299,13 +284,13 @@ static void permute_transpose_pack4to4(const float* ptr, size_t stride, float* o
 static void permute_transpose_pack4to4_tiled(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int nT)
 {
     const int tile_size = 32;
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int x = 0; x < cols; x += 4)
     {
-        const float* p = ptr + (size_t)x * 4;
-        float* out = outptr + (size_t)(x / 4) * outstride;
         for (int y = 0; y < rows; y += tile_size * 4)
         {
+            const float* p = ptr + (size_t)x * 4;
+            float* out = outptr + (size_t)(x / 4) * outstride;
             const int tile_rows = std::min(tile_size * 4, rows - y);
             permute_transpose_pack4to4(p + (size_t)(y / 4) * stride, stride, out + (size_t)y * 4, outstride, tile_rows, 4);
         }
@@ -548,10 +533,10 @@ static void permute_transpose_blocks(const float* ptr, size_t stride, float* out
             float* out = outptr + j * outstride;
             for (int i = 0; i < rows; i++)
             {
-                uint32x2_t _a = vld1_u32((const unsigned int*)p);
-                uint32x2_t _b = vld1_u32((const unsigned int*)(p + size - 2));
-                vst1_u32((unsigned int*)out, _a);
-                vst1_u32((unsigned int*)(out + size - 2), _b);
+                float32x2_t _a = vld1_f32(p);
+                float32x2_t _b = vld1_f32(p + size - 2);
+                vst1_f32(out, _a);
+                vst1_f32(out + size - 2, _b);
                 p += stride;
                 out += size;
             }
@@ -566,10 +551,10 @@ static void permute_transpose_blocks(const float* ptr, size_t stride, float* out
             float* out = outptr + j * outstride;
             for (int i = 0; i < rows; i++)
             {
-                uint32x4_t _a = vld1q_u32((const unsigned int*)p);
-                uint32x4_t _b = vld1q_u32((const unsigned int*)(p + size - 4));
-                vst1q_u32((unsigned int*)out, _a);
-                vst1q_u32((unsigned int*)(out + size - 4), _b);
+                float32x4_t _a = vld1q_f32(p);
+                float32x4_t _b = vld1q_f32(p + size - 4);
+                vst1q_f32(out, _a);
+                vst1q_f32(out + size - 4, _b);
                 p += stride;
                 out += size;
             }
@@ -602,8 +587,8 @@ static void permute3d_pack1to4(const float* ptr, float* outptr, int w, int chann
         float* out = outptr + c * outcstep;
         for (int x = 0; x < w; x++)
         {
-            uint32x4_t _v = vld1q_u32((const unsigned int*)p);
-            vst1q_u32((unsigned int*)out, _v);
+            float32x4_t _v = vld1q_f32(p);
+            vst1q_f32(out, _v);
             p += wstep;
             out += outwstep;
         }
@@ -629,8 +614,8 @@ static void permute3d_pack4to1(const float* ptr, float* outptr, int w, int chann
         float* out = outptr + c * 4;
         for (int x = 0; x < w; x++)
         {
-            uint32x4_t _v = vld1q_u32((const unsigned int*)p);
-            vst1q_u32((unsigned int*)out, _v);
+            float32x4_t _v = vld1q_f32(p);
+            vst1q_f32(out, _v);
             p += wstep;
             out += outwstep;
         }
@@ -1274,7 +1259,7 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
         const size_t xstep = (size_t)elempack;
         const size_t outxstep = (size_t)top_blob.w * out_elempack;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -1292,7 +1277,7 @@ static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t ystep = (size_t)w * elempack;
     const size_t outystep = (size_t)out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1334,7 +1319,7 @@ static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t ystep = (size_t)w * elempack;
     const size_t outystep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1397,7 +1382,7 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
         const size_t xstep = (size_t)elempack;
         const size_t outxstep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -1415,7 +1400,7 @@ static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t ystep = (size_t)w * elempack;
     const size_t outystep = (size_t)out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1455,7 +1440,7 @@ static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t ystep = (size_t)w * elempack;
     const size_t outystep = (size_t)top_blob.w * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int y = 0; y < h; y++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1499,7 +1484,7 @@ static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)top_blob.w * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1544,7 +1529,7 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
         const size_t xstep = (size_t)elempack;
         const size_t outxstep = (size_t)top_blob.w * out_elempack;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -1562,7 +1547,7 @@ static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1604,7 +1589,7 @@ static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1647,7 +1632,7 @@ static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1692,7 +1677,7 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
         const size_t xstep = (size_t)elempack;
         const size_t outxstep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int x = 0; x < w; x++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -1710,7 +1695,7 @@ static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1751,7 +1736,7 @@ static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)top_blob.w * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1816,7 +1801,7 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
         const size_t ystep = (size_t)w * elempack;
         const size_t outystep = (size_t)top_blob.w * out_elempack;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -1838,7 +1823,7 @@ static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1879,7 +1864,7 @@ static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -1944,7 +1929,7 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
         const size_t ystep = (size_t)w * elempack;
         const size_t outystep = (size_t)top_blob.w * top_blob.h * out_elempack;
 
-        #pragma omp parallel for num_threads(nT)
+        #pragma omp parallel for collapse(2) num_threads(nT)
         for (int y = 0; y < h; y++)
         {
             for (int q = 0; q < top_blob.c; q++)
@@ -1966,7 +1951,7 @@ static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
@@ -2007,7 +1992,7 @@ static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, int nT)
     const size_t zstep = (size_t)w * h * elempack;
     const size_t outzstep = (size_t)top_blob.w * out_elempack;
 
-    #pragma omp parallel for num_threads(nT)
+    #pragma omp parallel for collapse(2) num_threads(nT)
     for (int z = 0; z < d; z++)
     {
         for (int q = 0; q < top_blob.c; q++)
