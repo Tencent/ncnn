@@ -6123,9 +6123,12 @@ static int gemm_BT_x86_wq_fp32(const Mat& A, const Mat& B, const Mat& B_scales, 
     const int nn_N = (N - 1) / TILE_N + 1;
     const int nn_K = (K - 1) / TILE_K + 1;
     const int num_threads = std::min(nT, nn_N);
-    const int mr = std::min(M, TILE_M);
-    const int nr = std::min(N, TILE_N);
+    // Round both workspace dimensions to make the topT row stride a multiple of 64 bytes.
+    const size_t mr = alignSize(std::min(M, TILE_M), 4);
+    const size_t nr = alignSize(std::min(N, TILE_N), 4);
     const int kr = std::min(K, TILE_K);
+    if (mr > (size_t)INT_MAX / kr || nr > (size_t)INT_MAX / kr)
+        return -100;
 
     Mat C_scaled = C;
     if (!C.empty() && beta != 1.f)
@@ -6138,15 +6141,17 @@ static int gemm_BT_x86_wq_fp32(const Mat& A, const Mat& B, const Mat& B_scales, 
             C_scaled[i] *= beta;
     }
 
-    Mat AT(mr * kr, nn_K, nn_M, 4u, opt.workspace_allocator);
-    Mat BT(nr * kr, 1, num_threads, 4u, opt.workspace_allocator);
+    Mat AT((int)(mr * kr), nn_K, nn_M, 4u, opt.workspace_allocator);
+    Mat BT((int)(nr * kr), 1, num_threads, 4u, opt.workspace_allocator);
     if (AT.empty() || BT.empty())
         return -100;
 
     Mat topT;
     if (nn_K > 1 || broadcast_type_C == 3 || output_transpose)
     {
-        topT.create(nr * mr, nn_M, num_threads, 4u, opt.workspace_allocator);
+        if (nr > (size_t)INT_MAX / mr)
+            return -100;
+        topT.create((int)(nr * mr), nn_M, num_threads, 4u, opt.workspace_allocator);
         if (topT.empty())
             return -100;
     }
@@ -6263,16 +6268,16 @@ int Gemm_x86::create_pipeline_int8sa(const Option& opt)
     {
         const int j = ppj * TILE_N;
         const int max_jj = std::min(N - j, TILE_N);
+        const int descale_count = block_count * max_jj;
 
         Mat BT_tile(BT_hstep, max_jj, (signed char*)BT_data_wq_int8 + (size_t)j * BT_hstep, (size_t)1u);
-        Mat BT_descales_tile(block_count * max_jj, (float*)BT_data_wq_int8_descales + (size_t)j * block_count, (size_t)4u);
+        Mat BT_descales_tile(descale_count, (float*)BT_data_wq_int8_descales + (size_t)j * block_count, (size_t)4u);
 
         pack_B_tile_wq_int8(B_data, B_data_quantize_scales, BT_tile, BT_descales_tile, j, max_jj, K, block_size);
         if (weight_block_quantize)
         {
             float* ptr = BT_descales_tile;
-            const size_t count = BT_descales_tile.total();
-            for (size_t g = 0; g < count; g++)
+            for (int g = 0; g < descale_count; g++)
                 ptr[g] = 1.f / ptr[g];
         }
     }

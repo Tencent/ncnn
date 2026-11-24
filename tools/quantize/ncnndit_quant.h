@@ -353,8 +353,12 @@ static int quantize_dit_gemm_blocks(const ncnn::Gemm* op, const DiTQuantizeParam
     const int K = op->constantK;
     const int N = op->constantN;
     const float* weights = op->B_data;
-    ncnn::Mat BT = op->B_data;
-    if (!op->transB)
+    ncnn::Mat BT;
+    if (op->transB)
+    {
+        BT = op->B_data;
+    }
+    else
     {
         BT.create(K, N);
         if (BT.empty())
