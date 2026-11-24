@@ -25,6 +25,7 @@
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
 #include "pass_ncnn/fuse_convert_rotaryembed.h"
+#include "pass_ncnn/fuse_convert_swiglu.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
@@ -129,6 +130,9 @@ void pass_ncnn(Graph& g, const std::vector<std::string>& module_operators)
     }
 
     ncnn::eliminate_noop(g);
+
+    // swish + mul -> swiglu
+    ncnn::fuse_convert_swiglu(g);
 
     ncnn::eliminate_reshape_binaryop_broadcast(g);
 

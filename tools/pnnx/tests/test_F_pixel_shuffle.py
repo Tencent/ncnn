@@ -4,6 +4,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -35,7 +36,24 @@ def test():
     import test_F_pixel_shuffle_pnnx
     b = test_F_pixel_shuffle_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    if not (torch.equal(a, b)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_F_pixel_shuffle_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_F_pixel_shuffle_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_F_pixel_shuffle_export_pnnx
+    c = test_F_pixel_shuffle_export_pnnx.test_inference()
+
+    return torch.equal(a, c)
 
 if __name__ == "__main__":
     if test():

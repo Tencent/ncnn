@@ -5,6 +5,9 @@
 
 #include <torch/script.h>
 #include <torch/csrc/jit/api/module.h>
+#include <torch/csrc/jit/ir/constants.h>
+#include <torch/csrc/jit/passes/constant_propagation.h>
+#include <torch/csrc/jit/passes/inliner.h>
 #include <torch/csrc/jit/passes/quantization/helper.h>
 
 namespace pnnx {
@@ -104,6 +107,106 @@ const torch::jit::Value* TorchGraphProxy::output(int i) const
 void TorchGraphProxy::dump() const
 {
     graph->dump();
+}
+
+static void specialize_dropout(torch::jit::Block* block, const torch::jit::Value* self, const torch::jit::Value* input, int rank, const torch::jit::Module& mod)
+{
+    for (auto it = block->nodes().begin(); it != block->nodes().end();)
+    {
+        torch::jit::Node* node = *it++;
+        for (auto child : node->blocks())
+        {
+            specialize_dropout(child, self, input, rank, mod);
+        }
+
+        if (node->kind() == c10::prim::GetAttr && node->input(0) == self)
+        {
+            const std::string& name = node->s(torch::jit::attr::name);
+            if (!mod.hasattr(name))
+                continue;
+            const auto value = mod.attr(name);
+            if (!value.isBool() && !value.isInt() && !value.isDouble())
+                continue;
+
+            torch::jit::WithInsertPoint guard(node);
+            node->output()->replaceAllUsesWith(node->owningGraph()->insertConstant(value));
+            node->destroy();
+        }
+        else if (node->kind() == c10::aten::dim && node->input(0) == input && rank >= 0)
+        {
+            torch::jit::WithInsertPoint guard(node);
+            node->output()->replaceAllUsesWith(node->owningGraph()->insertConstant((int64_t)rank));
+            node->destroy();
+        }
+    }
+}
+
+void write_dropout_alias(Operator* op, const TorchGraphProxy& graph, const TorchModuleProxy& mod)
+{
+    if (op->inputs.size() != 1 || op->outputs.size() != 1)
+        return;
+
+    // Resolve the serialized wrapper before fusion loses its Tensor object identity.
+    auto g = graph.graph->copy();
+    torch::jit::Inline(*g);
+    if (g->inputs().size() != 2 || g->outputs().size() != 1)
+        return;
+
+    const auto input = g->inputs()[1];
+    const int rank = op->inputs[0]->shape.empty() ? -1 : (int)op->inputs[0]->shape.size();
+    specialize_dropout(g->block(), g->inputs()[0], input, rank, mod.mod);
+    torch::jit::ConstantPropagation(g);
+
+    bool dropout = false;
+    bool squeeze = false;
+    bool unsqueeze = false;
+    bool view = false;
+    auto value = g->outputs()[0];
+    while (value != input)
+    {
+        const auto node = value->node();
+        const std::string type = node->kind().toDisplayString();
+        if (type == "aten::feature_dropout" || type == "aten::feature_dropout_")
+        {
+            if (dropout || node->inputs().size() != 3)
+                return;
+            const auto training = torch::jit::toIValue(node->input(2));
+            const auto probability = torch::jit::toIValue(node->input(1));
+            if (!(training && training->isBool() && !training->toBool())
+                    && !(probability && ((probability->isDouble() && probability->toDouble() == 0.) || (probability->isInt() && probability->toInt() == 0))))
+                return;
+            dropout = true;
+        }
+        else if (type == "aten::squeeze" || type == "aten::squeeze_")
+        {
+            if (squeeze || dropout || node->inputs().size() != 2)
+                return;
+            const auto dim = torch::jit::toIValue(node->input(1));
+            if (!dim || !dim->isInt() || dim->toInt() != 0)
+                return;
+            squeeze = true;
+            view |= type == "aten::squeeze";
+        }
+        else if (type == "aten::unsqueeze" || type == "aten::unsqueeze_")
+        {
+            if (unsqueeze || !squeeze || !dropout || node->inputs().size() != 2)
+                return;
+            const auto dim = torch::jit::toIValue(node->input(1));
+            if (!dim || !dim->isInt() || dim->toInt() != 0)
+                return;
+            unsqueeze = true;
+            view |= type == "aten::unsqueeze";
+        }
+        else
+        {
+            return;
+        }
+        value = node->input(0);
+    }
+    if (squeeze != unsqueeze)
+        return;
+
+    op->type = view ? "aten::alias" : "nn.Dropout";
 }
 
 class TorchTensorProxyPrivate
