@@ -5,29 +5,15 @@
 #include "mat.h"
 #include "riscv_usability.h"
 
-#if __riscv_vector
-#include <riscv_vector.h>
-#endif
-
 namespace ncnn {
 
 #if NCNN_BF16
 
 #include "instancenorm_bf16s.h"
 
-void instancenorm_bf16s_zvfbfmin(unsigned short* ptr, int size, float a, float b)
+void instancenorm_bf16s_zvfbfmin(unsigned short* ptr, const float* gamma_ptr, const float* beta_ptr, float eps, int elemcount, int elempack)
 {
-    instancenorm_bf16s(ptr, size, a, b);
-}
-
-void instancenorm_bf16s_compute_mean_var_zvfbfmin(const unsigned short* ptr, int size, float& mean, float& var)
-{
-    instancenorm_bf16s_compute_mean_var(ptr, size, mean, var);
-}
-
-void instancenorm_bf16s_packn_zvfbfmin(unsigned short* ptr, int size, int elempack, const float* gamma, const float* beta, float eps, int affine)
-{
-    instancenorm_bf16s_packn(ptr, size, elempack, gamma, beta, eps, affine);
+    instancenorm_bf16s(ptr, gamma_ptr, beta_ptr, eps, elemcount, elempack);
 }
 
 #endif // NCNN_BF16
