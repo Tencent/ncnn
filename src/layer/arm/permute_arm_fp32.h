@@ -1455,6 +1455,21 @@ static void permute_transpose_spatial(const float* ptr, size_t stride, float* ou
 
     if (elempack == 1)
     {
+        if (rows >= 256 && cols >= 256 && rows % 32 == 0 && cols % 32 == 0)
+        {
+            const int tile_size = 32;
+            for (int i = 0; i < rows; i += tile_size)
+            {
+                const int tile_rows = std::min(tile_size, rows - i);
+                for (int j = 0; j < cols; j += tile_size)
+                {
+                    const int tile_cols = std::min(tile_size, cols - j);
+                    permute_transpose_pack1(ptr + (size_t)i * stride + j, stride, outptr + (size_t)j * outstride + i, outstride, tile_rows, tile_cols);
+                }
+            }
+            return;
+        }
+
         permute_transpose_pack1(ptr, stride, outptr, outstride, rows, cols);
         return;
     }
