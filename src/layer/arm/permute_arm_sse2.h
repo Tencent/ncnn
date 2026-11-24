@@ -108,12 +108,6 @@ static NCNN_FORCEINLINE __m128 _mm_unpackhi_ps(__m128 a, __m128 b)
 #endif
 }
 
-static NCNN_FORCEINLINE __m128i _mm_srli_si128(__m128i v, int imm)
-{
-    (void)imm;
-    return vcombine_u32(vget_high_u32(v), vdup_n_u32(0));
-}
-
 static NCNN_FORCEINLINE void _mm_store_ss(float* ptr, __m128 v)
 {
     *ptr = vgetq_lane_f32(v, 0);
