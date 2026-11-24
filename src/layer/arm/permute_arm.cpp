@@ -28,42 +28,42 @@ struct permute_f32x8
     float32x4_t hi;
 };
 
-static NCNN_FORCEINLINE float32x4_t permute_movelh_f32(float32x4_t a, float32x4_t b)
+static inline float32x4_t permute_movelh_f32(float32x4_t a, float32x4_t b)
 {
     return vcombine_f32(vget_low_f32(a), vget_low_f32(b));
 }
 
-static NCNN_FORCEINLINE float32x4_t permute_movehl_f32(float32x4_t a, float32x4_t b)
+static inline float32x4_t permute_movehl_f32(float32x4_t a, float32x4_t b)
 {
     return vcombine_f32(vget_high_f32(b), vget_high_f32(a));
 }
 
-static NCNN_FORCEINLINE float32x4_t permute_load_f32x2(const float* ptr)
+static inline float32x4_t permute_load_f32x2(const float* ptr)
 {
     return vcombine_f32(vld1_f32(ptr), vdup_n_f32(0.f));
 }
 
-static NCNN_FORCEINLINE int permute_extract_u32(uint16x8_t v)
+static inline int permute_extract_u32(uint16x8_t v)
 {
     return (int)vgetq_lane_u32(vreinterpretq_u32_u16(v), 0);
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_loadl_u16x8(const unsigned short* ptr)
+static inline uint16x8_t permute_loadl_u16x8(const unsigned short* ptr)
 {
     return vcombine_u16(vld1_u16(ptr), vdup_n_u16(0));
 }
 
-static NCNN_FORCEINLINE void permute_storel_u16x8(unsigned short* ptr, uint16x8_t v)
+static inline void permute_storel_u16x8(unsigned short* ptr, uint16x8_t v)
 {
     vst1_u16(ptr, vget_low_u16(v));
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_set_u32(int v)
+static inline uint16x8_t permute_set_u32(int v)
 {
     return vreinterpretq_u16_u32(vcombine_u32(vdup_n_u32((unsigned int)v), vdup_n_u32(0)));
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_shift_right_u16x8(uint16x8_t v, int imm)
+static inline uint16x8_t permute_shift_right_u16x8(uint16x8_t v, int imm)
 {
     if (imm == 4)
         return vextq_u16(v, vdupq_n_u16(0), 2);
@@ -78,22 +78,22 @@ static NCNN_FORCEINLINE uint16x8_t permute_shift_right_u16x8(uint16x8_t v, int i
     return vreinterpretq_u16_u8(vqtbl1q_u8(vreinterpretq_u8_u16(v), vld1q_u8(idx)));
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_zip1_u32(uint16x8_t a, uint16x8_t b)
+static inline uint16x8_t permute_zip1_u32(uint16x8_t a, uint16x8_t b)
 {
     return vreinterpretq_u16_u32(vzip1q_u32(vreinterpretq_u32_u16(a), vreinterpretq_u32_u16(b)));
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_zip1_u64(uint16x8_t a, uint16x8_t b)
+static inline uint16x8_t permute_zip1_u64(uint16x8_t a, uint16x8_t b)
 {
     return vreinterpretq_u16_u64(vzip1q_u64(vreinterpretq_u64_u16(a), vreinterpretq_u64_u16(b)));
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_zip2_u64(uint16x8_t a, uint16x8_t b)
+static inline uint16x8_t permute_zip2_u64(uint16x8_t a, uint16x8_t b)
 {
     return vreinterpretq_u16_u64(vzip2q_u64(vreinterpretq_u64_u16(a), vreinterpretq_u64_u16(b)));
 }
 
-static NCNN_FORCEINLINE permute_u16x16 permute_load_u16x16(const unsigned short* ptr)
+static inline permute_u16x16 permute_load_u16x16(const unsigned short* ptr)
 {
     permute_u16x16 v;
     v.lo = vld1q_u16(ptr);
@@ -101,13 +101,13 @@ static NCNN_FORCEINLINE permute_u16x16 permute_load_u16x16(const unsigned short*
     return v;
 }
 
-static NCNN_FORCEINLINE void permute_store_u16x16(unsigned short* ptr, permute_u16x16 v)
+static inline void permute_store_u16x16(unsigned short* ptr, permute_u16x16 v)
 {
     vst1q_u16(ptr, v.lo);
     vst1q_u16(ptr + 8, v.hi);
 }
 
-static NCNN_FORCEINLINE permute_f32x8 permute_load_f32x8(const float* ptr)
+static inline permute_f32x8 permute_load_f32x8(const float* ptr)
 {
     permute_f32x8 v;
     v.lo = vreinterpretq_f32_u16(vld1q_u16((const unsigned short*)ptr));
@@ -115,13 +115,13 @@ static NCNN_FORCEINLINE permute_f32x8 permute_load_f32x8(const float* ptr)
     return v;
 }
 
-static NCNN_FORCEINLINE void permute_store_f32x8(float* ptr, permute_f32x8 v)
+static inline void permute_store_f32x8(float* ptr, permute_f32x8 v)
 {
     vst1q_u16((unsigned short*)ptr, vreinterpretq_u16_f32(v.lo));
     vst1q_u16((unsigned short*)ptr + 8, vreinterpretq_u16_f32(v.hi));
 }
 
-static NCNN_FORCEINLINE permute_f32x8 permute_shuffle_f32x8_halves(permute_f32x8 a, permute_f32x8 b, const int imm)
+static inline permute_f32x8 permute_shuffle_f32x8_halves(permute_f32x8 a, permute_f32x8 b, const int imm)
 {
     permute_f32x8 v;
     const int l0 = (imm >> 0) & 3;
@@ -131,7 +131,7 @@ static NCNN_FORCEINLINE permute_f32x8 permute_shuffle_f32x8_halves(permute_f32x8
     return v;
 }
 
-static NCNN_FORCEINLINE uint16x8_t permute_deinterleave_u16(uint16x8_t v)
+static inline uint16x8_t permute_deinterleave_u16(uint16x8_t v)
 {
     uint16x8x2_t _v = vuzpq_u16(v, v);
     return vcombine_u16(vget_low_u16(_v.val[0]), vget_low_u16(_v.val[1]));
@@ -139,7 +139,7 @@ static NCNN_FORCEINLINE uint16x8_t permute_deinterleave_u16(uint16x8_t v)
 
 #include "permute_bf16s_fp16s.h"
 
-static NCNN_FORCEINLINE void permute_transpose2x4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+static inline void permute_transpose2x4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
     float32x4_t _r0 = permute_load_f32x2(ptr);
     float32x4_t _r1 = permute_load_f32x2(ptr + stride);
@@ -153,7 +153,7 @@ static NCNN_FORCEINLINE void permute_transpose2x4_stride(const float* ptr, size_
     vst1q_f32(outptr + outstride, _b0);
 }
 
-static NCNN_FORCEINLINE void permute_transpose4x4(const float* ptr, float* outptr)
+static inline void permute_transpose4x4(const float* ptr, float* outptr)
 {
     float32x4_t _r0 = vld1q_f32(ptr);
     float32x4_t _r1 = vld1q_f32(ptr + 4);
@@ -166,7 +166,7 @@ static NCNN_FORCEINLINE void permute_transpose4x4(const float* ptr, float* outpt
     vst1q_f32(outptr + 12, _r3);
 }
 
-static NCNN_FORCEINLINE void permute_transpose4x4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+static inline void permute_transpose4x4_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
     float32x4_t _r0 = vld1q_f32(ptr);
     float32x4_t _r1 = vld1q_f32(ptr + stride);
@@ -181,7 +181,7 @@ static NCNN_FORCEINLINE void permute_transpose4x4_stride(const float* ptr, size_
 
 // final two or one rows: load complete vectors and write only the valid output lanes
 
-static NCNN_FORCEINLINE void permute_transpose4x2_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
+static inline void permute_transpose4x2_stride(const float* ptr, size_t stride, float* outptr, size_t outstride)
 {
     float32x4_t _r0 = vld1q_f32(ptr);
     float32x4_t _r1 = vld1q_f32(ptr + stride);
@@ -195,7 +195,7 @@ static NCNN_FORCEINLINE void permute_transpose4x2_stride(const float* ptr, size_
     vst1_f32(outptr + 3 * outstride, vget_high_f32(_v1));
 }
 
-static NCNN_FORCEINLINE void permute_transpose4x1_stride(const float* ptr, float* outptr, size_t outstride)
+static inline void permute_transpose4x1_stride(const float* ptr, float* outptr, size_t outstride)
 {
     memcpy(outptr, ptr, sizeof(float));
     memcpy(outptr + outstride, ptr + 1, sizeof(float));
