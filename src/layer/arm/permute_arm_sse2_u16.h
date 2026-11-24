@@ -47,6 +47,14 @@ static NCNN_FORCEINLINE int _mm_extract_epi16(permute_u16_m128i v, const int imm
 
 static NCNN_FORCEINLINE permute_u16_m128i _mm_srli_si128(permute_u16_m128i v, int imm)
 {
+#if __aarch64__
+    if (imm == 4)
+        return vextq_u16(v, vdupq_n_u16(0), 2);
+    if (imm == 8)
+        return vcombine_u16(vget_high_u16(v), vdup_n_u16(0));
+    if (imm == 12)
+        return vextq_u16(v, vdupq_n_u16(0), 6);
+#endif
     unsigned char idx[16];
     for (int i = 0; i < 16; i++)
         idx[i] = (unsigned char)(i + imm < 16 ? i + imm : 255);
@@ -55,6 +63,13 @@ static NCNN_FORCEINLINE permute_u16_m128i _mm_srli_si128(permute_u16_m128i v, in
 
 static NCNN_FORCEINLINE permute_u16_m128i _mm_shuffle_epi32(permute_u16_m128i v, const int imm)
 {
+#if __aarch64__
+    if (imm == 0xd8)
+    {
+        static const unsigned char idx[16] = {0, 1, 2, 3, 8, 9, 10, 11, 4, 5, 6, 7, 12, 13, 14, 15};
+        return vreinterpretq_u16_u8(vqtbl1q_u8(vreinterpretq_u8_u16(v), vld1q_u8(idx)));
+    }
+#endif
     unsigned char idx[16];
     for (int i = 0; i < 4; i++)
     {
@@ -67,6 +82,13 @@ static NCNN_FORCEINLINE permute_u16_m128i _mm_shuffle_epi32(permute_u16_m128i v,
 
 static NCNN_FORCEINLINE permute_u16_m128i _mm_shufflelo_epi16(permute_u16_m128i v, const int imm)
 {
+#if __aarch64__
+    if (imm == 0xd8)
+    {
+        static const unsigned char idx[16] = {0, 1, 4, 5, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        return vreinterpretq_u16_u8(vqtbl1q_u8(vreinterpretq_u8_u16(v), vld1q_u8(idx)));
+    }
+#endif
     unsigned short vals[8];
     vst1q_u16(vals, v);
     for (int i = 0; i < 4; i++)
@@ -76,6 +98,13 @@ static NCNN_FORCEINLINE permute_u16_m128i _mm_shufflelo_epi16(permute_u16_m128i 
 
 static NCNN_FORCEINLINE permute_u16_m128i _mm_shufflehi_epi16(permute_u16_m128i v, const int imm)
 {
+#if __aarch64__
+    if (imm == 0xd8)
+    {
+        static const unsigned char idx[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 10, 11, 14, 15};
+        return vreinterpretq_u16_u8(vqtbl1q_u8(vreinterpretq_u8_u16(v), vld1q_u8(idx)));
+    }
+#endif
     unsigned short vals[8];
     vst1q_u16(vals, v);
     for (int i = 0; i < 4; i++)
