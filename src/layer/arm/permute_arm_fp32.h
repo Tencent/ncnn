@@ -1128,21 +1128,6 @@ static NCNN_FORCEINLINE void permute_spatial2x2_pack4_stride(const float* ptr, s
 
 static void permute_spatial_pack4(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols)
 {
-    if (rows >= 256 && cols >= 256 && rows % 32 == 0 && cols % 32 == 0)
-    {
-        const int tile_size = 32;
-        for (int i = 0; i < rows; i += tile_size)
-        {
-            const int tile_rows = std::min(tile_size, rows - i);
-            for (int j = 0; j < cols; j += tile_size)
-            {
-                const int tile_cols = std::min(tile_size, cols - j);
-                permute_spatial_pack4(ptr + (size_t)i * stride + (size_t)j * 4, stride, outptr + (size_t)j * outstride + (size_t)i * 4, outstride, tile_rows, tile_cols);
-            }
-        }
-        return;
-    }
-
     int i = 0;
     for (; i + 3 < rows; i += 4)
     {
@@ -1437,6 +1422,28 @@ static void permute_spatial_pack16to1(const float* ptr, size_t stride, float* ou
 #endif // __AVX__
 #endif // __SSE2__
 
+static void permute_transpose_blocks(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size);
+
+static void permute_transpose_blocks_tiled(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size, int tile_size, int nT)
+{
+    if (rows >= 256 && cols >= 256 && rows % 32 == 0 && cols % 32 == 0)
+    {
+        #pragma omp parallel for num_threads(nT)
+        for (int i = 0; i < rows; i += tile_size)
+        {
+            const int tile_rows = std::min(tile_size, rows - i);
+            for (int j = 0; j < cols; j += tile_size)
+            {
+                const int tile_cols = std::min(tile_size, cols - j);
+                permute_transpose_blocks(ptr + (size_t)i * stride + (size_t)j * size, stride, outptr + (size_t)j * outstride + (size_t)i * size, outstride, tile_rows, tile_cols, size);
+            }
+        }
+        return;
+    }
+
+    permute_transpose_blocks(ptr, stride, outptr, outstride, rows, cols, size);
+}
+
 static void permute_transpose_spatial(const float* ptr, size_t stride, float* outptr, size_t outstride, size_t outcstep, int rows, int cols, int elempack, int out_elempack)
 {
     if (elempack == out_elempack)
@@ -1455,28 +1462,13 @@ static void permute_transpose_spatial(const float* ptr, size_t stride, float* ou
 
     if (elempack == 1)
     {
-        if (rows >= 256 && cols >= 256 && rows % 32 == 0 && cols % 32 == 0)
-        {
-            const int tile_size = 32;
-            for (int i = 0; i < rows; i += tile_size)
-            {
-                const int tile_rows = std::min(tile_size, rows - i);
-                for (int j = 0; j < cols; j += tile_size)
-                {
-                    const int tile_cols = std::min(tile_size, cols - j);
-                    permute_transpose_pack1(ptr + (size_t)i * stride + j, stride, outptr + (size_t)j * outstride + i, outstride, tile_rows, tile_cols);
-                }
-            }
-            return;
-        }
-
-        permute_transpose_pack1(ptr, stride, outptr, outstride, rows, cols);
+        permute_transpose_blocks_tiled(ptr, stride, outptr, outstride, rows, cols, 1, 32, 1);
         return;
     }
 #if __SSE2__
     if (elempack == 4 && out_elempack == 4)
     {
-        permute_spatial_pack4(ptr, stride, outptr, outstride, rows, cols);
+        permute_transpose_blocks_tiled(ptr, stride, outptr, outstride, rows, cols, 4, 32, 1);
         return;
     }
     if (elempack == 4 && out_elempack == 1)
@@ -1488,7 +1480,7 @@ static void permute_transpose_spatial(const float* ptr, size_t stride, float* ou
 #if __AVX__
     if (elempack == 8 && out_elempack == 8)
     {
-        permute_spatial_pack8(ptr, stride, outptr, outstride, rows, cols);
+        permute_transpose_blocks_tiled(ptr, stride, outptr, outstride, rows, cols, 8, 32, 1);
         return;
     }
     if (elempack == 8 && out_elempack == 1)
@@ -2389,19 +2381,9 @@ static void permute_channels_axis_input_stride(const Mat& bottom_blob, const Mat
 
 static void permute_transpose_matrix(const float* ptr, size_t stride, float* outptr, size_t outstride, int rows, int cols, int size, int nT)
 {
-    if (size == 1 && rows >= 128 && cols >= 64)
+    if (size == 1 && rows >= 256 && cols >= 256 && rows % 32 == 0 && cols % 32 == 0)
     {
-        const int tile_size = 16;
-        #pragma omp parallel for num_threads(nT)
-        for (int i = 0; i < rows; i += tile_size)
-        {
-            const int tile_rows = std::min(tile_size, rows - i);
-            for (int j = 0; j < cols; j += tile_size)
-            {
-                const int tile_cols = std::min(tile_size, cols - j);
-                permute_transpose_blocks(ptr + (size_t)i * stride + j, stride, outptr + (size_t)j * outstride + i, outstride, tile_rows, tile_cols, 1);
-            }
-        }
+        permute_transpose_blocks_tiled(ptr, stride, outptr, outstride, rows, cols, 1, rows >= 512 && cols >= 512 ? 16 : 32, nT);
         return;
     }
 
