@@ -5,14 +5,14 @@
 
 #include <float.h>
 
-static int test_softplus(const ncnn::Mat& a, float threshold = FLT_MAX, int flag = 0)
+static int test_softplus(const ncnn::Mat& a, float threshold = FLT_MAX, int flag = 0, float epsilon = 0.001f)
 {
     ncnn::ParamDict pd;
     pd.set(0, threshold);
 
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer("Softplus", pd, weights, a, 0.001, flag);
+    int ret = test_layer("Softplus", pd, weights, a, epsilon, flag);
     if (ret != 0)
     {
         fprintf(stderr, "test_softplus failed a.dims=%d a=(%d %d %d %d) threshold=%f\n", a.dims, a.w, a.h, a.d, a.c, threshold);
@@ -61,5 +61,6 @@ int main()
            || test_softplus(RandomMat(128), 20.f)
            || test_softplus(RandomMat(124), 0.f)
            || test_softplus(RandomMat(127), -2.f)
-           || test_softplus(RandomMat(129), 0.5f);
+           || test_softplus(RandomMat(129), 0.5f)
+           || test_softplus(RandomMat(128, 12.f, 16.f), 20.f, 0, 0.00001f);
 }

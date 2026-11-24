@@ -82,9 +82,9 @@ int Softplus_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& o
             const vfloat16m4_t _x = _p;
             const vfloat32m8_t _x32 = __riscv_vfwcvt_f_f_v_f32m8(_x, vl);
             const vbool4_t _mask = __riscv_vmfgt_vf_f32m8_b4(_x32, threshold, vl);
-            _p = exp_ps(_p, vl);
-            _p = __riscv_vfadd_vf_f16m4(_p, (__fp16)1.f, vl);
-            _p = log_ps(_p, vl);
+            // max(x, 0) + log1p(exp(-abs(x))) keeps the half exponential in range.
+            _p = exp_ps(__riscv_vfneg_v_f16m4(abs_ps(_x, vl), vl), vl);
+            _p = __riscv_vfadd_vv_f16m4(__riscv_vfmax_vf_f16m4(_x, (__fp16)0.f, vl), log1p_ps(_p, vl), vl);
             _p = __riscv_vmerge_vvm_f16m4(_p, _x, _mask, vl);
             __riscv_vse16_v_f16m4(ptr, _p, vl);
 
