@@ -177,19 +177,19 @@ static NCNN_FORCEINLINE void permute_transpose4x8_bf16s_fp16s(const unsigned sho
 
 static NCNN_FORCEINLINE void permute_transpose4x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
 {
-    __m128i _r0 = _mm_loadl_epi64((const __m128i*)(ptr));
-    __m128i _r1 = _mm_loadl_epi64((const __m128i*)(ptr + stride));
-    __m128i _r2 = _mm_loadl_epi64((const __m128i*)(ptr + 2 * stride));
-    __m128i _r3 = _mm_loadl_epi64((const __m128i*)(ptr + 3 * stride));
-    __m128i _r4 = _mm_loadl_epi64((const __m128i*)(ptr + 4 * stride));
-    __m128i _r5 = _mm_loadl_epi64((const __m128i*)(ptr + 5 * stride));
-    __m128i _r6 = _mm_loadl_epi64((const __m128i*)(ptr + 6 * stride));
-    __m128i _r7 = _mm_loadl_epi64((const __m128i*)(ptr + 7 * stride));
-    transpose8x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
-    _mm_storeu_si128((__m128i*)(outptr), _r0);
-    _mm_storeu_si128((__m128i*)(outptr + outstride), _r1);
-    _mm_storeu_si128((__m128i*)(outptr + 2 * outstride), _r2);
-    _mm_storeu_si128((__m128i*)(outptr + 3 * outstride), _r3);
+    uint16x4_t _r0 = vld1_u16(ptr);
+    uint16x4_t _r1 = vld1_u16(ptr + stride);
+    uint16x4_t _r2 = vld1_u16(ptr + 2 * stride);
+    uint16x4_t _r3 = vld1_u16(ptr + 3 * stride);
+    uint16x4_t _r4 = vld1_u16(ptr + 4 * stride);
+    uint16x4_t _r5 = vld1_u16(ptr + 5 * stride);
+    uint16x4_t _r6 = vld1_u16(ptr + 6 * stride);
+    uint16x4_t _r7 = vld1_u16(ptr + 7 * stride);
+    transpose4x8_u16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+    vst1q_u16(outptr, vcombine_u16(_r0, _r1));
+    vst1q_u16(outptr + outstride, vcombine_u16(_r2, _r3));
+    vst1q_u16(outptr + 2 * outstride, vcombine_u16(_r4, _r5));
+    vst1q_u16(outptr + 3 * outstride, vcombine_u16(_r6, _r7));
 }
 
 static NCNN_FORCEINLINE void permute_transpose8x8_stride_bf16s_fp16s(const unsigned short* ptr, size_t stride, unsigned short* outptr, size_t outstride)
