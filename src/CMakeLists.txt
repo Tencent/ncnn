@@ -753,6 +753,16 @@ if(NCNN_TARGET_ARCH STREQUAL "riscv" AND NOT C906)
     endif()
 endif()
 
+if(NCNN_TARGET_ARCH STREQUAL "powerpc")
+    if(NCNN_PPC_ALTIVEC)
+        target_compile_options(ncnn PRIVATE -maltivec -mabi=altivec)
+    endif()
+    if(NCNN_PPC_ALTIVEC AND NCNN_PPC_VSX)
+        # vsx is a superset of vmx, only valid on power7+ cpus
+        target_compile_options(ncnn PRIVATE -mvsx)
+    endif()
+endif()
+
 if(NCNN_PPC64LE_VSX)
     # Auto-translate SSE2 to VSX if compiler is new enough.
     if(NCNN_VSX_SSE2)

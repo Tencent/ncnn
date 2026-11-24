@@ -2872,6 +2872,16 @@ int cpu_support_mips_msa()
 #endif
 }
 
+int cpu_support_powerpc_altivec()
+{
+    try_initialize_global_cpu_info();
+#if __ALTIVEC__
+    return 1;
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_loongarch_lsx()
 {
     try_initialize_global_cpu_info();
