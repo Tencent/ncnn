@@ -307,9 +307,9 @@ static int test_crop_load_param()
 #endif // NCNN_VALIDATION
 
 // test_layer() above decides the single/multi blob mode itself and drops a non-zero
-// forward() return as "configuration not supported by this layer", so an empty crop compared
-// against an empty reference crop still reports success. Assert the single-blob result here:
-// returning -100 or producing an empty blob has to fail the test.
+// forward() return as "configuration not supported by this layer", so an empty crop
+// compared against an empty reference crop still reports success. Assert the
+// single-blob result directly here: -100 or an empty blob has to fail the test.
 static float crop_pixel(const ncnn::Mat& m, int x, int y, int z, int q)
 {
     const float* p = m.channel(q);
@@ -318,72 +318,117 @@ static float crop_pixel(const ncnn::Mat& m, int x, int y, int z, int q)
     return p[(z * m.h + y) * m.w + x];
 }
 
-static int test_crop_unset_output_size()
+static int crop_single_input(const ncnn::ParamDict& pd, const ncnn::Mat& a, ncnn::Mat& out)
 {
-    for (int dims = 3; dims <= 4; dims++)
+    ncnn::Layer* op = ncnn::create_layer("Crop");
+    if (op->load_param(pd) != 0)
     {
+        delete op;
+        return -2;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    op->create_pipeline(opt);
+    const int ret = op->forward(a, out, opt);
+    op->destroy_pipeline(opt);
+    delete op;
+
+    return ret;
+}
+
+// A single-input Crop keeps the remaining extent for every output size key that is
+// omitted (#7285), keeps the historical "explicitly written 0 means empty output"
+// reading, and honours the documented -233 "keep the remaining extent" value.
+static int test_crop_output_size_sentinels()
+{
+    const ncnn::Mat a3 = RandomMat(4, 3, 2);
+    const ncnn::Mat a4 = RandomMat(4, 3, 3, 2);
+
+    {
+        // outc omitted, 3d blob: keep all channels instead of clamping to zero
         ncnn::ParamDict pd;
-        pd.set(0, 0);  // woffset
-        pd.set(1, 0);  // hoffset
-        pd.set(13, 0); // doffset
-        pd.set(2, 0);  // coffset
-        pd.set(3, 2);  // outw
-        pd.set(4, 1);  // outh
-        pd.set(14, 0); // outd, unset
-        pd.set(5, 0);  // outc, unset - the case this PR fixes
-        pd.set(6, 0);  // woffset2
-        pd.set(7, 0);  // hoffset2
-        pd.set(15, 0); // doffset2
-        pd.set(8, 0);  // coffset2
-
-        const ncnn::Mat a = dims == 3 ? RandomMat(4, 3, 2) : RandomMat(4, 3, 3, 2);
-
-        ncnn::Layer* op = ncnn::create_layer("Crop");
-        if (op->load_param(pd) != 0)
-        {
-            fprintf(stderr, "test_crop_unset_output_size load_param failed dims=%d\n", dims);
-            delete op;
-            return -1;
-        }
-
-        ncnn::Option opt;
-        opt.num_threads = 1;
+        pd.set(3, 2); // outw
+        pd.set(4, 1); // outh
 
         ncnn::Mat out;
-        op->create_pipeline(opt);
-        const int ret = op->forward(a, out, opt);
-        op->destroy_pipeline(opt);
-        delete op;
-
-        if (ret != 0)
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != 1 || out.c != a3.c)
         {
-            fprintf(stderr, "test_crop_unset_output_size forward returned %d dims=%d\n", ret, dims);
+            fprintf(stderr, "test_crop_output_size_sentinels omitted outc: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
             return -1;
         }
 
-        const bool shape_ok = dims == 3
-                              ? (out.w == 2 && out.h == 1 && out.c == a.c)
-                              : (out.w == 2 && out.h == 1 && out.d == a.d && out.c == a.c);
-        if (out.empty() || !shape_ok)
+        for (int q = 0; q < a3.c; q++)
         {
-            fprintf(stderr, "test_crop_unset_output_size empty/shape mismatch dims=%d out=(%d %d %d %d)\n",
-                    dims, out.w, out.h, out.d, out.c);
+            for (int x = 0; x < out.w; x++)
+            {
+                if (crop_pixel(out, x, 0, 0, q) != crop_pixel(a3, x, 0, 0, q))
+                {
+                    fprintf(stderr, "test_crop_output_size_sentinels omitted outc: value mismatch q=%d x=%d\n", q, x);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    {
+        // outd and outc omitted, 4d blob: keep the remaining depth and channels
+        ncnn::ParamDict pd;
+        pd.set(3, 2); // outw
+        pd.set(4, 1); // outh
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a4, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != 1 || out.d != a4.d || out.c != a4.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels omitted outd: ret=%d out=(%d %d %d %d)\n", ret, out.w, out.h, out.d, out.c);
+            return -1;
+        }
+    }
+
+    {
+        // explicitly written 0 keeps the historical empty output, it must not
+        // silently turn into "keep the remaining extent"
+        ncnn::ParamDict pd;
+        pd.set(3, 2); // outw
+        pd.set(4, 1); // outh
+        pd.set(5, 0); // outc
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret == 0 && !out.empty())
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels explicit outc=0: expected empty output, got (%d %d %d)\n", out.w, out.h, out.c);
+            return -1;
+        }
+    }
+
+    {
+        // -233 is the documented "keep the remaining extent" value
+        ncnn::ParamDict pd;
+        pd.set(3, 2);    // outw
+        pd.set(4, -233); // outh
+        pd.set(5, -233); // outc
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != a3.h || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels outh=-233: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
             return -1;
         }
 
-        const int dcount = dims == 3 ? 1 : a.d;
-        for (int q = 0; q < a.c; q++)
+        for (int q = 0; q < a3.c; q++)
         {
-            for (int z = 0; z < dcount; z++)
+            for (int y = 0; y < out.h; y++)
             {
                 for (int x = 0; x < out.w; x++)
                 {
-                    const float v = crop_pixel(out, x, 0, z, q);
-                    const float e = crop_pixel(a, x, 0, z, q);
-                    if (v != e)
+                    if (crop_pixel(out, x, y, 0, q) != crop_pixel(a3, x, y, 0, q))
                     {
-                        fprintf(stderr, "test_crop_unset_output_size value mismatch dims=%d q=%d z=%d x=%d %f != %f\n",
-                                dims, q, z, x, v, e);
+                        fprintf(stderr, "test_crop_output_size_sentinels outh=-233: value mismatch q=%d y=%d x=%d\n", q, y, x);
                         return -1;
                     }
                 }
@@ -393,6 +438,7 @@ static int test_crop_unset_output_size()
 
     return 0;
 }
+
 
 // the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
@@ -412,7 +458,7 @@ int main()
            || test_crop_9(RandomMat(20, 20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_9(RandomMat(15, 15, 15, 36))
            || test_crop_9(RandomMat(16, 16, 16, 33))
-           || test_crop_unset_output_size()
+           || test_crop_output_size_sentinels()
 #if NCNN_VALIDATION
            || test_crop_load_param()
 #endif // NCNN_VALIDATION

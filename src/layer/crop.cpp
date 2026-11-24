@@ -90,6 +90,20 @@ int Crop::load_param(const ParamDict& pd)
         one_blob_only = false;
     }
 
+    // Crop output sizes default to 0, so an omitted key and an explicitly written
+    // 0 are indistinguishable once loaded. An omitted size means "keep the
+    // remaining extent", which the numpy-style slice path already spells -233,
+    // so map only the omitted keys to -233. An explicitly written 0 keeps its
+    // historical "empty output" meaning instead of silently becoming a full crop.
+    if (pd.type(3) == 0)
+        outw = -233;
+    if (pd.type(4) == 0)
+        outh = -233;
+    if (pd.type(14) == 0)
+        outd = -233;
+    if (pd.type(5) == 0)
+        outc = -233;
+
     // count reference blobs
     if (!starts_expr.empty() || !ends_expr.empty() || !axes_expr.empty())
     {
@@ -571,49 +585,49 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
         if (dims == 1)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233 && outw != 0)
+            if (outw != -233)
                 _outw = std::min(outw, _outw);
         }
         if (dims == 2)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233 && outw != 0)
+            if (outw != -233)
                 _outw = std::min(outw, _outw);
 
             _outh = h - hoffset - hoffset2;
-            if (outh != -233 && outh != 0)
+            if (outh != -233)
                 _outh = std::min(outh, _outh);
         }
         if (dims == 3)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233 && outw != 0)
+            if (outw != -233)
                 _outw = std::min(outw, _outw);
 
             _outh = h - hoffset - hoffset2;
-            if (outh != -233 && outh != 0)
+            if (outh != -233)
                 _outh = std::min(outh, _outh);
 
             _outc = channels - coffset - coffset2;
-            if (outc != -233 && outc != 0)
+            if (outc != -233)
                 _outc = std::min(outc, _outc);
         }
         if (dims == 4)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233 && outw != 0)
+            if (outw != -233)
                 _outw = std::min(outw, _outw);
 
             _outh = h - hoffset - hoffset2;
-            if (outh != -233 && outh != 0)
+            if (outh != -233)
                 _outh = std::min(outh, _outh);
 
             _outd = d - doffset - doffset2;
-            if (outd != -233 && outd != 0)
+            if (outd != -233)
                 _outd = std::min(outd, _outd);
 
             _outc = channels - coffset - coffset2;
-            if (outc != -233 && outc != 0)
+            if (outc != -233)
                 _outc = std::min(outc, _outc);
         }
     }

@@ -555,10 +555,10 @@ y = crop(x)
 | 1         | hoffset       | int   | 0         |                   |
 | 13        | doffset       | int   | 0         |                   |
 | 2         | coffset       | int   | 0         |                   |
-| 3         | outw          | int   | 0         |                   |
-| 4         | outh          | int   | 0         |                   |
-| 14        | outd          | int   | 0         |                   |
-| 5         | outc          | int   | 0         |                   |
+| 3         | outw          | int   | 0         | unset keeps the remaining width |
+| 4         | outh          | int   | 0         | unset keeps the remaining height |
+| 14        | outd          | int   | 0         | unset keeps the remaining depth |
+| 5         | outc          | int   | 0         | unset keeps the remaining channels |
 | 6         | woffset2      | int   | 0         |                   |
 | 7         | hoffset2      | int   | 0         |                   |
 | 15        | doffset2      | int   | 0         |                   |
@@ -569,6 +569,11 @@ y = crop(x)
 | 19        | starts_expr   | str   | ""        |                   |
 | 20        | ends_expr     | str   | ""        |                   |
 | 21        | axes_expr     | str   | ""        |                   |
+
+`outw`, `outh`, `outd` and `outc` keep the remaining extent when the key is not
+present. An explicitly written `0` keeps its historical meaning of an empty
+output, and `-233` keeps the remaining extent as well, for symmetry with the
+`starts`/`ends` slice form.
 
 # CumulativeSum
 
