@@ -131,6 +131,125 @@ static NCNN_FORCEINLINE float32x4_t permute_load_c4(const Mat& bottom_blob, int 
     return v;
 }
 
+static NCNN_FORCEINLINE uint16x4_t permute_load_c4_u16(const Mat& bottom_blob, int cbase, int h, int w)
+{
+    const int elempack = bottom_blob.elempack;
+    if (elempack == 4)
+    {
+        const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(cbase / 4) + (h * bottom_blob.w + w) * 4;
+        return vld1_u16(ptr);
+    }
+
+    uint16x4_t v;
+    v = vset_lane_u16(((const unsigned short*)bottom_blob.channel(cbase))[h * bottom_blob.w + w], v, 0);
+    v = vset_lane_u16(((const unsigned short*)bottom_blob.channel(cbase + 1))[h * bottom_blob.w + w], v, 1);
+    v = vset_lane_u16(((const unsigned short*)bottom_blob.channel(cbase + 2))[h * bottom_blob.w + w], v, 2);
+    v = vset_lane_u16(((const unsigned short*)bottom_blob.channel(cbase + 3))[h * bottom_blob.w + w], v, 3);
+    return v;
+}
+
+static int permute2d_u16(const Mat& bottom_blob, Mat& top_blob)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int elempack = bottom_blob.elempack;
+    const int out_elempack = top_blob.elempack;
+
+    if (elempack == 4 && out_elempack == 4)
+    {
+        if (w % 4 != 0)
+            return -1;
+
+        const int in_h = h * 4;
+        const int out_w = in_h;
+        const unsigned short* ptr = (const unsigned short*)bottom_blob.data;
+        unsigned short* outptr = (unsigned short*)top_blob.data;
+
+        for (int y = 0; y < w; y += 4)
+        {
+            for (int x = 0; x < in_h; x += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(ptr + (x / 4) * w * 4 + (y + 0) * 4);
+                uint16x4_t _r1 = vld1_u16(ptr + (x / 4) * w * 4 + (y + 1) * 4);
+                uint16x4_t _r2 = vld1_u16(ptr + (x / 4) * w * 4 + (y + 2) * 4);
+                uint16x4_t _r3 = vld1_u16(ptr + (x / 4) * w * 4 + (y + 3) * 4);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+
+                unsigned short* out = outptr + (y / 4) * out_w * 4 + x * 4;
+                vst1_u16(out + 0, _r0);
+                vst1_u16(out + 4, _r1);
+                vst1_u16(out + 8, _r2);
+                vst1_u16(out + 12, _r3);
+            }
+        }
+
+        return 0;
+    }
+
+    if (elempack != 1)
+        return -1;
+
+    const int out_w = h;
+    const int out_h = w;
+
+    const unsigned short* ptr = (const unsigned short*)bottom_blob.data;
+    unsigned short* outptr = (unsigned short*)top_blob.data;
+
+    if (out_elempack == 1)
+    {
+        if (h % 4 != 0 || w % 4 != 0)
+            return -1;
+
+        for (int y = 0; y < h; y += 4)
+        {
+            for (int x = 0; x < w; x += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(ptr + (y + 0) * w + x);
+                uint16x4_t _r1 = vld1_u16(ptr + (y + 1) * w + x);
+                uint16x4_t _r2 = vld1_u16(ptr + (y + 2) * w + x);
+                uint16x4_t _r3 = vld1_u16(ptr + (y + 3) * w + x);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+
+                vst1_u16(outptr + (x + 0) * out_w + y, _r0);
+                vst1_u16(outptr + (x + 1) * out_w + y, _r1);
+                vst1_u16(outptr + (x + 2) * out_w + y, _r2);
+                vst1_u16(outptr + (x + 3) * out_w + y, _r3);
+            }
+        }
+
+        return 0;
+    }
+
+    if (out_elempack == 4)
+    {
+        if (h % 4 != 0 || w % 4 != 0)
+            return -1;
+
+        for (int y = 0; y < h; y += 4)
+        {
+            for (int x = 0; x < w; x += 4)
+            {
+                uint16x4_t _r0 = vld1_u16(ptr + (y + 0) * w + x);
+                uint16x4_t _r1 = vld1_u16(ptr + (y + 1) * w + x);
+                uint16x4_t _r2 = vld1_u16(ptr + (y + 2) * w + x);
+                uint16x4_t _r3 = vld1_u16(ptr + (y + 3) * w + x);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+
+                unsigned short* out = outptr + (x / 4) * out_w * 4 + y * 4;
+                vst1_u16(out + 0, _r0);
+                vst1_u16(out + 4, _r1);
+                vst1_u16(out + 8, _r2);
+                vst1_u16(out + 12, _r3);
+            }
+        }
+
+        return 0;
+    }
+
+    return -1;
+}
+
 static int permute2d(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     const int w = bottom_blob.w;
@@ -271,8 +390,180 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
     const int out_elempack = top_blob.elempack;
     const int logical_channels = channels * elempack;
     const int outw = top_blob.w;
+    const int elembits = bottom_blob.elembits();
 
-    if (order_type == 1 && elempack == out_elempack && (elempack == 1 || elempack == 4) && w % 4 == 0 && h % 4 == 0)
+    if (elembits == 16 && order_type == 1 && elempack == 1 && out_elempack == 1 && w % 4 == 0 && h % 4 == 0)
+    {
+        const int cols = w * elempack;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q);
+            unsigned short* outptr = (unsigned short*)top_blob.channel(q);
+
+            for (int y = 0; y < h; y += 4)
+            {
+                for (int x = 0; x < cols; x += 4)
+                {
+                    uint16x4_t _r0 = vld1_u16(ptr + (y + 0) * cols + x);
+                    uint16x4_t _r1 = vld1_u16(ptr + (y + 1) * cols + x);
+                    uint16x4_t _r2 = vld1_u16(ptr + (y + 2) * cols + x);
+                    uint16x4_t _r3 = vld1_u16(ptr + (y + 3) * cols + x);
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+
+                    vst1_u16(outptr + (x + 0) * h + y, _r0);
+                    vst1_u16(outptr + (x + 1) * h + y, _r1);
+                    vst1_u16(outptr + (x + 2) * h + y, _r2);
+                    vst1_u16(outptr + (x + 3) * h + y, _r3);
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (elembits == 16 && opt.num_threads == 1 && (order_type == 2 || order_type == 3) && (elempack == 1 || elempack == 4) && h % 4 == 0 && logical_channels % 4 == 0 && out_elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int c = 0; c < logical_channels; c += 4)
+        {
+            for (int y = 0; y < h; y += 4)
+            {
+                for (int x = 0; x < w; x++)
+                {
+                    uint16x4_t _r0 = permute_load_c4_u16(bottom_blob, c, y + 0, x);
+                    uint16x4_t _r1 = permute_load_c4_u16(bottom_blob, c, y + 1, x);
+                    uint16x4_t _r2 = permute_load_c4_u16(bottom_blob, c, y + 2, x);
+                    uint16x4_t _r3 = permute_load_c4_u16(bottom_blob, c, y + 3, x);
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+
+                    unsigned short* outbase = (unsigned short*)top_blob.channel(y / 4);
+                    for (int l = 0; l < 4; l++)
+                    {
+                        uint16x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
+                                        : l == 2   ? _r2
+                                        : _r3;
+                        unsigned short* outptr = order_type == 2 ? outbase + ((c + l) * top_blob.w + x) * 4 : outbase + (x * top_blob.w + c + l) * 4;
+                        vst1_u16(outptr, _v);
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (elembits == 16 && opt.num_threads == 1 && (order_type == 4 || order_type == 5) && elempack == 4 && out_elempack == 4 && w % 4 == 0)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int x = 0; x < w; x += 4)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                for (int c = 0; c < logical_channels; c += 4)
+                {
+                    const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(c / 4);
+                    uint16x4x4_t _v = vld4_u16(ptr + (y * w + x) * 4);
+
+                    unsigned short* outbase = (unsigned short*)top_blob.channel(x / 4);
+                    for (int l = 0; l < 4; l++)
+                    {
+                        unsigned short* outptr = order_type == 4 ? outbase + ((c + l) * top_blob.w + y) * 4 : outbase + (y * top_blob.w + c + l) * 4;
+                        vst1_u16(outptr, _v.val[l]);
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (elembits == 16 && opt.num_threads == 1 && (order_type == 4 || order_type == 5) && (elempack == 1 || elempack == 4) && w % 4 == 0 && logical_channels % 4 == 0 && out_elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int x = 0; x < w; x += 4)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                for (int c = 0; c < logical_channels; c += 4)
+                {
+                    uint16x4_t _r0 = permute_load_c4_u16(bottom_blob, c, y, x + 0);
+                    uint16x4_t _r1 = permute_load_c4_u16(bottom_blob, c, y, x + 1);
+                    uint16x4_t _r2 = permute_load_c4_u16(bottom_blob, c, y, x + 2);
+                    uint16x4_t _r3 = permute_load_c4_u16(bottom_blob, c, y, x + 3);
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+
+                    unsigned short* outbase = (unsigned short*)top_blob.channel(x / 4);
+                    for (int l = 0; l < 4; l++)
+                    {
+                        uint16x4_t _v = l == 0 ? _r0 : l == 1 ? _r1
+                                        : l == 2   ? _r2
+                                        : _r3;
+                        unsigned short* outptr = order_type == 4 ? outbase + ((c + l) * top_blob.w + y) * 4 : outbase + (y * top_blob.w + c + l) * 4;
+                        vst1_u16(outptr, _v);
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (elembits == 16 && order_type == 1 && elempack == 4 && out_elempack == 4 && w % 4 == 0 && h % 4 == 0)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const unsigned short* ptr = (const unsigned short*)bottom_blob.channel(q);
+            unsigned short* outptr = (unsigned short*)top_blob.channel(q);
+
+            for (int y = 0; y < h; y += 4)
+            {
+                for (int x = 0; x < w; x += 4)
+                {
+                    uint16x4_t _r[4][4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        uint16x4x4_t _v = vld4_u16(ptr + (y + i) * w * 4 + x * 4);
+                        _r[i][0] = _v.val[0];
+                        _r[i][1] = _v.val[1];
+                        _r[i][2] = _v.val[2];
+                        _r[i][3] = _v.val[3];
+                    }
+
+                    uint16x4_t _t[4][4];
+                    for (int c = 0; c < 4; c++)
+                    {
+                        _t[c][0] = _r[0][c];
+                        _t[c][1] = _r[1][c];
+                        _t[c][2] = _r[2][c];
+                        _t[c][3] = _r[3][c];
+                        transpose4x4_u16(_t[c][0], _t[c][1], _t[c][2], _t[c][3]);
+                    }
+
+                    for (int j = 0; j < 4; j++)
+                    {
+                        uint16x4_t _u0 = _t[0][j];
+                        uint16x4_t _u1 = _t[1][j];
+                        uint16x4_t _u2 = _t[2][j];
+                        uint16x4_t _u3 = _t[3][j];
+                        transpose4x4_u16(_u0, _u1, _u2, _u3);
+
+                        unsigned short* out = outptr + ((x + j) * outw + y) * 4;
+                        vst1_u16(out, _u0);
+                        vst1_u16(out + 4, _u1);
+                        vst1_u16(out + 8, _u2);
+                        vst1_u16(out + 12, _u3);
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (elembits == 32 && order_type == 1 && elempack == out_elempack && (elempack == 1 || elempack == 4) && w % 4 == 0 && h % 4 == 0)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -347,7 +638,7 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
         return 0;
     }
 
-    if ((order_type == 2 || order_type == 3) && h % 4 == 0 && logical_channels % 4 == 0 && out_elempack == 4)
+    if (elembits == 32 && (order_type == 2 || order_type == 3) && (elempack == 1 || elempack == 4) && h % 4 == 0 && logical_channels % 4 == 0 && out_elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int c = 0; c < logical_channels; c += 4)
@@ -378,14 +669,39 @@ static int permute3d(const Mat& bottom_blob, Mat& top_blob, int order_type, cons
         return 0;
     }
 
-    if ((order_type == 4 || order_type == 5) && w % 4 == 0 && logical_channels % 4 == 0 && out_elempack == 4)
+    if (elembits == 32 && (order_type == 4 || order_type == 5) && elempack == 4 && out_elempack == 4 && w % 4 == 0)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x += 4)
         {
-            for (int c = 0; c < logical_channels; c += 4)
+            for (int y = 0; y < h; y++)
             {
-                for (int x = 0; x < w; x += 4)
+                for (int c = 0; c < logical_channels; c += 4)
+                {
+                    const float* ptr = (const float*)bottom_blob.channel(c / 4);
+                    float32x4x4_t _v = vld4q_f32(ptr + (y * w + x) * 4);
+
+                    float* outbase = (float*)top_blob.channel(x / 4);
+                    for (int l = 0; l < 4; l++)
+                    {
+                        float* outptr = order_type == 4 ? outbase + ((c + l) * top_blob.w + y) * 4 : outbase + (y * top_blob.w + c + l) * 4;
+                        vst1q_f32(outptr, _v.val[l]);
+                    }
+                }
+            }
+        }
+
+        return 0;
+    }
+
+    if (elembits == 32 && (order_type == 4 || order_type == 5) && (elempack == 1 || elempack == 4) && w % 4 == 0 && logical_channels % 4 == 0 && out_elempack == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int x = 0; x < w; x += 4)
+        {
+            for (int y = 0; y < h; y++)
+            {
+                for (int c = 0; c < logical_channels; c += 4)
                 {
                     float32x4_t _r0 = permute_load_c4(bottom_blob, c, y, x + 0);
                     float32x4_t _r1 = permute_load_c4(bottom_blob, c, y, x + 1);
@@ -585,11 +901,168 @@ static void permute_axes(const Mat& bottom_blob, Mat& top_blob, const int* axes,
     }
 }
 
+template<int AXIS, int A0, int A1, int A2, int A3>
+static NCNN_FORCEINLINE int permute_input_coord(int x, int y, int z, int q)
+{
+    return A0 == AXIS ? x : A1 == AXIS ? y
+           : A2 == AXIS   ? z
+           : q;
+}
+
+template<typename T, int A0, int A1, int A2, int A3>
+static void permute4d_pack1(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outd = top_blob.d;
+    const int outc = top_blob.c;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < outc * outd * outh; i++)
+    {
+        const int q = i / (outd * outh);
+        const int z = i / outh % outd;
+        const int y = i % outh;
+        T* outptr = (T*)top_blob.channel(q) + (z * outh + y) * outw;
+
+        for (int x = 0; x < outw; x++)
+        {
+            const int iw = permute_input_coord<0, A0, A1, A2, A3>(x, y, z, q);
+            const int ih = permute_input_coord<1, A0, A1, A2, A3>(x, y, z, q);
+            const int id = permute_input_coord<2, A0, A1, A2, A3>(x, y, z, q);
+            const int ic = permute_input_coord<3, A0, A1, A2, A3>(x, y, z, q);
+
+            const T* ptr = (const T*)bottom_blob.channel(ic);
+            outptr[x] = ptr[((size_t)id * h + ih) * w + iw];
+        }
+    }
+}
+
+static void permute4d_pack1_fp32(const Mat& bottom_blob, Mat& top_blob, int order_type, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
+    const int channels = bottom_blob.c;
+
+    if (order_type == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* outptr = top_blob.channel(q);
+
+            for (int z = 0; z < d; z++)
+            {
+                const Mat m = bottom_blob.channel(q).depth(z);
+
+                for (int i = 0; i < w; i++)
+                {
+                    for (int j = 0; j < h; j++)
+                    {
+                        *outptr++ = m.row(j)[i];
+                    }
+                }
+            }
+        }
+    }
+
+    if (order_type == 2)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* outptr = top_blob.channel(q);
+
+            for (int z = 0; z < h; z++)
+            {
+                for (int i = 0; i < d; i++)
+                {
+                    const float* ptr = bottom_blob.channel(q).depth(i).row(z);
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        *outptr++ = ptr[j];
+                    }
+                }
+            }
+        }
+    }
+
+    if (order_type == 3)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat m = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int z = 0; z < h; z++)
+            {
+                for (int i = 0; i < w; i++)
+                {
+                    for (int j = 0; j < d; j++)
+                    {
+                        *outptr++ = m.depth(j).row(z)[i];
+                    }
+                }
+            }
+        }
+    }
+
+    if (order_type == 4)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* outptr = top_blob.channel(q);
+
+            for (int z = 0; z < w; z++)
+            {
+                for (int i = 0; i < d; i++)
+                {
+                    const Mat m = bottom_blob.channel(q).depth(i);
+
+                    for (int j = 0; j < h; j++)
+                    {
+                        *outptr++ = m.row(j)[z];
+                    }
+                }
+            }
+        }
+    }
+
+    if (order_type == 5)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            const Mat m = bottom_blob.channel(q);
+            float* outptr = top_blob.channel(q);
+
+            for (int z = 0; z < w; z++)
+            {
+                for (int i = 0; i < h; i++)
+                {
+                    for (int j = 0; j < d; j++)
+                    {
+                        *outptr++ = m.depth(j).row(i)[z];
+                    }
+                }
+            }
+        }
+    }
+}
+
 static void permute3d_hwc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
-    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 1, opt) == 0)
+    if ((scalar_size == 4 || scalar_size == 2) && permute3d(bottom_blob, top_blob, 1, opt) == 0)
         return;
 #endif // __ARM_NEON && __aarch64__
     permute_axes(bottom_blob, top_blob, permute_axes_3d[1], 3, opt);
@@ -599,7 +1072,7 @@ static void permute3d_wch(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
-    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 2, opt) == 0)
+    if ((scalar_size == 4 || scalar_size == 2) && permute3d(bottom_blob, top_blob, 2, opt) == 0)
         return;
 #endif // __ARM_NEON && __aarch64__
     permute_axes(bottom_blob, top_blob, permute_axes_3d[2], 3, opt);
@@ -609,7 +1082,7 @@ static void permute3d_cwh(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
-    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 3, opt) == 0)
+    if ((scalar_size == 4 || scalar_size == 2) && permute3d(bottom_blob, top_blob, 3, opt) == 0)
         return;
 #endif // __ARM_NEON && __aarch64__
     permute_axes(bottom_blob, top_blob, permute_axes_3d[3], 3, opt);
@@ -619,7 +1092,7 @@ static void permute3d_hcw(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
-    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 4, opt) == 0)
+    if ((scalar_size == 4 || scalar_size == 2) && permute3d(bottom_blob, top_blob, 4, opt) == 0)
         return;
 #endif // __ARM_NEON && __aarch64__
     permute_axes(bottom_blob, top_blob, permute_axes_3d[4], 3, opt);
@@ -629,7 +1102,7 @@ static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
-    if (scalar_size == 4 && permute3d(bottom_blob, top_blob, 5, opt) == 0)
+    if ((scalar_size == 4 || scalar_size == 2) && permute3d(bottom_blob, top_blob, 5, opt) == 0)
         return;
 #endif // __ARM_NEON && __aarch64__
     permute_axes(bottom_blob, top_blob, permute_axes_3d[5], 3, opt);
@@ -637,31 +1110,104 @@ static void permute3d_chw(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
 static void permute4d_hwdc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elembits() == 32 && bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        permute4d_pack1_fp32(bottom_blob, top_blob, 1, opt);
+        return;
+    }
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 1, 0, 2, 3>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 1, 0, 2, 3>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[1], 4, opt);
 }
 
 static void permute4d_wdhc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elembits() == 32 && bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        permute4d_pack1_fp32(bottom_blob, top_blob, 2, opt);
+        return;
+    }
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 0, 2, 1, 3>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 0, 2, 1, 3>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[2], 4, opt);
 }
 
 static void permute4d_dwhc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elembits() == 32 && bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        permute4d_pack1_fp32(bottom_blob, top_blob, 3, opt);
+        return;
+    }
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 2, 0, 1, 3>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 2, 0, 1, 3>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[3], 4, opt);
 }
 
 static void permute4d_hdwc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elembits() == 32 && bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        permute4d_pack1_fp32(bottom_blob, top_blob, 4, opt);
+        return;
+    }
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 1, 2, 0, 3>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 1, 2, 0, 3>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[4], 4, opt);
 }
 
 static void permute4d_dhwc(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elembits() == 32 && bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        permute4d_pack1_fp32(bottom_blob, top_blob, 5, opt);
+        return;
+    }
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 2, 1, 0, 3>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 2, 1, 0, 3>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[5], 4, opt);
 }
 
 static void permute4d_whcd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 0, 1, 3, 2>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 0, 1, 3, 2>(bottom_blob, top_blob, opt);
+        return;
+    }
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
     if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 6, opt) == 0)
@@ -672,16 +1218,40 @@ static void permute4d_whcd(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 static void permute4d_hwcd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 1, 0, 3, 2>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 1, 0, 3, 2>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[7], 4, opt);
 }
 
 static void permute4d_wchd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 0, 3, 1, 2>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 0, 3, 1, 2>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[8], 4, opt);
 }
 
 static void permute4d_cwhd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 3, 0, 1, 2>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 3, 0, 1, 2>(bottom_blob, top_blob, opt);
+        return;
+    }
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
     if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 9, opt) == 0)
@@ -692,46 +1262,118 @@ static void permute4d_cwhd(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 static void permute4d_hcwd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 1, 3, 0, 2>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 1, 3, 0, 2>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[10], 4, opt);
 }
 
 static void permute4d_chwd(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 3, 1, 0, 2>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 3, 1, 0, 2>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[11], 4, opt);
 }
 
 static void permute4d_wdch(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 0, 2, 3, 1>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 0, 2, 3, 1>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[12], 4, opt);
 }
 
 static void permute4d_dwch(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 2, 0, 3, 1>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 2, 0, 3, 1>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[13], 4, opt);
 }
 
 static void permute4d_wcdh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 0, 3, 2, 1>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 0, 3, 2, 1>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[14], 4, opt);
 }
 
 static void permute4d_cwdh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 3, 0, 2, 1>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 3, 0, 2, 1>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[15], 4, opt);
 }
 
 static void permute4d_dcwh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 2, 3, 0, 1>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 2, 3, 0, 1>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[16], 4, opt);
 }
 
 static void permute4d_cdwh(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 3, 2, 0, 1>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 3, 2, 0, 1>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[17], 4, opt);
 }
 
 static void permute4d_hdcw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 1, 2, 3, 0>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 1, 2, 3, 0>(bottom_blob, top_blob, opt);
+        return;
+    }
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
     if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 18, opt) == 0)
@@ -742,16 +1384,40 @@ static void permute4d_hdcw(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 static void permute4d_dhcw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 2, 1, 3, 0>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 2, 1, 3, 0>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[19], 4, opt);
 }
 
 static void permute4d_hcdw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 1, 3, 2, 0>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 1, 3, 2, 0>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[20], 4, opt);
 }
 
 static void permute4d_chdw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 3, 1, 2, 0>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 3, 1, 2, 0>(bottom_blob, top_blob, opt);
+        return;
+    }
 #if __ARM_NEON && __aarch64__
     const int scalar_size = bottom_blob.elembits() / 8;
     if (scalar_size == 4 && permute4d(bottom_blob, top_blob, 21, opt) == 0)
@@ -762,11 +1428,27 @@ static void permute4d_chdw(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 static void permute4d_dchw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 2, 3, 1, 0>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 2, 3, 1, 0>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[22], 4, opt);
 }
 
 static void permute4d_cdhw(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+    if (bottom_blob.elempack == 1 && top_blob.elempack == 1)
+    {
+        if (bottom_blob.elembits() == 32)
+            permute4d_pack1<float, 3, 2, 1, 0>(bottom_blob, top_blob, opt);
+        else
+            permute4d_pack1<unsigned short, 3, 2, 1, 0>(bottom_blob, top_blob, opt);
+        return;
+    }
     permute_axes(bottom_blob, top_blob, permute_axes_4d[23], 4, opt);
 }
 
@@ -775,7 +1457,13 @@ Permute_arm::Permute_arm()
 #if __ARM_NEON
     support_packing = true;
     support_any_packing = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
 #endif // __ARM_NEON
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -841,6 +1529,8 @@ int Permute_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     {
 #if __ARM_NEON && __aarch64__
         if (scalar_size == 4 && permute2d(bottom_blob, top_blob, opt) == 0)
+            return 0;
+        if (scalar_size == 2 && permute2d_u16(bottom_blob, top_blob) == 0)
             return 0;
 #endif // __ARM_NEON && __aarch64__
         permute_axes(bottom_blob, top_blob, axes, dims, opt);
