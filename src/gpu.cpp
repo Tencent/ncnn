@@ -4739,6 +4739,12 @@ int VulkanDevice::create_descriptorset_layout(int binding_count, const int* bind
 
 int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
 {
+    if (push_constant_count < 0 || (uint64_t)push_constant_count * sizeof(vk_constant_type) > info.physicalDeviceProperties().limits.maxPushConstantsSize)
+    {
+        NCNN_LOGE("push constant size exceeds device limit");
+        return -1;
+    }
+
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
@@ -6569,6 +6575,7 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     shader_info.specialization_count = 0;
     shader_info.binding_count = 0;
     shader_info.push_constant_count = 0;
+    shader_info.virtual_dispatch = 0;
 
     uint32_t parameter_id = -233;
 

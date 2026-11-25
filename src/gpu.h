@@ -602,7 +602,11 @@ public:
     // 3 = combined image sampler
     int binding_types[16]; // 16 is large enough I think ...
 
-    int reserved_0;
+    union
+    {
+        int virtual_dispatch; // internal dispatch metadata is appended to the original push constants
+        int reserved_0;
+    };
     int reserved_1;
     int reserved_2;
     int reserved_3;
