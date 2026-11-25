@@ -65,7 +65,24 @@ def test():
     import test_nn_Conv2d_pnnx
     b = test_nn_Conv2d_pnnx.test_inference()
 
-    return torch.allclose(a, b, 1e-3, 1e-3)
+    if not (torch.allclose(a, b, 1e-3, 1e-3)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_nn_Conv2d_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_nn_Conv2d_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_nn_Conv2d_export_pnnx
+    c = test_nn_Conv2d_export_pnnx.test_inference()
+
+    return torch.allclose(a, c, 1e-3, 1e-3)
 
 if __name__ == "__main__":
     if test():

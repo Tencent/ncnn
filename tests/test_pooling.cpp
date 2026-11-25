@@ -59,6 +59,12 @@ static int test_pooling_0()
         }
     }
 
+    // 3x3s2 output widths 6 and 7 reach the two and one column tails
+    if (test_pooling(11, 7, 4, 0, 3, 2, 1, 0, 1, 0, 0, 0) != 0)
+        return -1;
+    if (test_pooling(13, 7, 4, 0, 3, 2, 1, 0, 1, 0, 0, 0) != 0)
+        return -1;
+
     // packed stride1 contrasts the specialized stride2 dispatch guards
     static const int generic_packing[][2] = {{4, 3}, {8, 1}, {16, 3}};
     for (int kernel = 2; kernel <= 3; kernel++)
@@ -90,7 +96,8 @@ static int test_pooling_0()
     }
 
     // 4x4 stride2 gives independent right and bottom padding tails
-    static const int packing[] = {1, 4, 8, 16};
+    // c64 also packs bf16 at riscv vlen 512 and 1024
+    static const int packing[] = {1, 4, 8, 64};
     for (int i = 0; i < 4; i++)
     {
         for (int mode = 0; mode < 4; mode++)

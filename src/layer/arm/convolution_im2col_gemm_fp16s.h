@@ -2825,7 +2825,7 @@ static void convolution_gemm_transB_packed_tile_fp16sa(const Mat& AT_tile, const
                 "st1    {v29.s}[3], [x4]            \n"
 
                 "10:                                \n"
-                "add    %0, %0, #64                 \n"
+                "add    %0, %0, #32                 \n"
                 "b      12f                         \n"
 
                 "11:                                \n"

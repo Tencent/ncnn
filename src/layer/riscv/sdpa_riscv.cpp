@@ -9,6 +9,10 @@ namespace ncnn {
 
 SDPA_riscv::SDPA_riscv()
 {
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
+
     qk_gemm = 0;
     qkv_gemm = 0;
     qk_softmax = 0;
@@ -25,6 +29,9 @@ int SDPA_riscv::create_pipeline(const Option& _opt)
     if (int8_scale_term)
     {
         opt.use_packing_layout = false; // TODO enable packing
+#if NCNN_BF16
+        support_bf16_storage = false;
+#endif
     }
 
     {
@@ -99,6 +106,9 @@ int SDPA_riscv::create_pipeline(const Option& _opt)
         }
         Option opt1 = opt;
         opt1.num_threads = 1;
+#if NCNN_BF16
+        opt1.use_bf16_storage = _opt.use_bf16_storage && support_bf16_storage;
+#endif
         ret = qk_gemm->create_pipeline(opt1);
         if (ret != 0)
         {
@@ -181,7 +191,14 @@ int SDPA_riscv::destroy_pipeline(const Option& _opt)
 
     if (qk_gemm)
     {
+#if NCNN_BF16
+        Option opt1 = opt;
+        opt1.num_threads = 1;
+        opt1.use_bf16_storage = _opt.use_bf16_storage && support_bf16_storage;
+        qk_gemm->destroy_pipeline(opt1);
+#else
         qk_gemm->destroy_pipeline(opt);
+#endif
         delete qk_gemm;
         qk_gemm = 0;
     }
@@ -230,8 +247,6 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     const int past_seqlen = kv_cache ? past_key.h : 0;
     const int dst_seqlen = past_seqlen + cur_seqlen;
 
-    const size_t elemsize = query.elemsize;
-
     Mat key;
     Mat value;
     if (kv_cache)
@@ -239,11 +254,11 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         Mat& cached_key = top_blobs[1];
         Mat& cached_value = top_blobs[2];
 
-        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, elemsize, cur_key.elempack, opt);
+        int retk = create_or_grow_kvcache(past_key, cached_key, dst_seqlen, num_group, embed_dim, cur_key.elemsize, cur_key.elempack, opt);
         if (retk != 0)
             return retk;
 
-        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, elemsize, cur_value.elempack, opt);
+        int retv = create_or_grow_kvcache(past_value, cached_value, dst_seqlen, num_group, out_embed_dim, cur_value.elemsize, cur_value.elempack, opt);
         if (retv != 0)
             return retv;
 
@@ -252,8 +267,8 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         {
             Mat key_head = cached_key.channel(q);
             Mat value_head = cached_value.channel(q);
-            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * elemsize);
-            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * elemsize);
+            memcpy(key_head.row(past_seqlen), cur_key.channel(q), (size_t)embed_dim * cur_seqlen * cur_key.elemsize);
+            memcpy(value_head.row(past_seqlen), cur_value.channel(q), (size_t)out_embed_dim * cur_seqlen * cur_value.elemsize);
         }
 
         key = cached_key;
@@ -272,6 +287,10 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         return -100;
 
     std::vector<int> retqks(num_heads);
+
+#if NCNN_BF16
+    const bool use_bf16_storage = _opt.use_bf16_storage && support_bf16_storage && query.elembits() == 16;
+#endif
 
     // dynamic scale
     Layer* _qk_gemm = qk_gemm;
@@ -303,6 +322,9 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #endif
         Option opt1 = opt;
         opt1.num_threads = 1;
+#if NCNN_BF16
+        opt1.use_bf16_storage = use_bf16_storage;
+#endif
 
         int ret = _qk_gemm->load_param(pd);
         if (ret == 0)
@@ -342,6 +364,9 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
         Option opt1 = opt;
         opt1.num_threads = 1;
+#if NCNN_BF16
+        opt1.use_bf16_storage = use_bf16_storage;
+#endif
         opt1.blob_allocator = qk_cross.allocator;
         retqks[i] = _qk_gemm->forward(qk_bottom_blobs, qk_top_blobs, opt1);
     }
@@ -350,6 +375,9 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     {
         Option opt1 = opt;
         opt1.num_threads = 1;
+#if NCNN_BF16
+        opt1.use_bf16_storage = use_bf16_storage;
+#endif
         _qk_gemm->destroy_pipeline(opt1);
 
         delete _qk_gemm;
@@ -367,6 +395,21 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     if (retqk != 0)
         return retqk;
 
+#if NCNN_BF16
+    Mat value_fp32 = value;
+    if (use_bf16_storage)
+    {
+        // Keep the cache in BF16, but use FP32 for Attn * V.
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = opt.workspace_allocator;
+        cast_bfloat16_to_float32(value, value_fp32, opt_cast);
+        if (value_fp32.empty())
+            return -100;
+    }
+#else
+    const Mat& value_fp32 = value;
+#endif
+
     Mat& top_blob = top_blobs[0];
     top_blob.create(out_embed_dim, src_seqlen, num_heads, 4u, opt.blob_allocator);
     if (top_blob.empty())
@@ -379,8 +422,8 @@ int SDPA_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     for (int i = 0; i < num_heads; i++)
     {
         std::vector<Mat> qkv_bottom_blobs(2);
-        qkv_bottom_blobs[0] = qk_cross.channel(i);                    // Attn: [DstSeq, Seq]
-        qkv_bottom_blobs[1] = value.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
+        qkv_bottom_blobs[0] = qk_cross.channel(i);                         // Attn: [DstSeq, Seq]
+        qkv_bottom_blobs[1] = value_fp32.channel(i / num_heads_per_group); // V: [DstSeq, OutEmbed]
 
         std::vector<Mat> qkv_top_blobs(1);
         qkv_top_blobs[0] = top_blob.channel(i); // Output

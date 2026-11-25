@@ -14,6 +14,10 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "pooling_bf16s.h"
+#endif
+
 Pooling_riscv::Pooling_riscv()
 {
 #if __riscv_vector
@@ -25,6 +29,9 @@ Pooling_riscv::Pooling_riscv()
 #else
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
 #endif
 }
 
@@ -49,16 +56,23 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
 
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_blob.elembits();
+#endif
 
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_fp16sa(bottom_blob, top_blob, opt);
         else
             return forward_fp16s(bottom_blob, top_blob, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
 
     // max value in NxN window
@@ -301,5 +315,63 @@ int Pooling_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
     return Pooling::forward(bottom_blob, top_blob, opt);
 }
+
+#if NCNN_BF16
+int Pooling_riscv::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    // max value in NxN window
+    // avg value in NxN window
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    if (global_pooling)
+    {
+        top_blob.create(channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        if (pooling_type == PoolMethod_MAX)
+        {
+            pooling_global_max_bf16s(bottom_blob, top_blob, opt);
+        }
+        else if (pooling_type == PoolMethod_AVE)
+        {
+            pooling_global_avg_bf16s(bottom_blob, top_blob, opt);
+        }
+
+        return 0;
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_w) / stride_w + 1;
+    int outh = (h - kernel_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (pooling_type == PoolMethod_MAX)
+    {
+        pooling_max_bf16s(bottom_blob_bordered, top_blob, kernel_w, kernel_h, stride_w, stride_h, opt);
+    }
+    else if (pooling_type == PoolMethod_AVE)
+    {
+        pooling_avg_bf16s(bottom_blob_bordered, bottom_blob, top_blob, kernel_w, kernel_h, stride_w, stride_h, pad_left, pad_right, pad_top, pad_bottom, pad_mode, avgpool_count_include_pad, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

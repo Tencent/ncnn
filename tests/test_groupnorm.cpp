@@ -53,12 +53,16 @@ static int test_groupnorm_0()
            || test_groupnorm(RandomMat(4, 5, 6, 12), 4, 0.02f, 0)
            || test_groupnorm(RandomMat(5, 6, 7, 24), 2, 0.001f, 0)
            || test_groupnorm(RandomMat(2, 8, 9, 24), 3, 0.0001f, 0)
+           || test_groupnorm(RandomMat(3, 5, 2, 64), 2, 0.001f, 0)
+           || test_groupnorm(RandomMat(3, 5, 2, 64), 8, 0.01f, 0)
            || test_groupnorm(RandomMat(3, 6, 4, 2), 1, 0.01f, 1)
            || test_groupnorm(RandomMat(2, 3, 3, 8), 2, 0.002f, 1)
            || test_groupnorm(RandomMat(3, 4, 5, 6), 3, 0.01f, 1)
            || test_groupnorm(RandomMat(4, 5, 6, 12), 4, 0.02f, 1)
            || test_groupnorm(RandomMat(5, 6, 7, 24), 2, 0.001f, 1)
-           || test_groupnorm(RandomMat(2, 8, 9, 24), 3, 0.0001f, 1);
+           || test_groupnorm(RandomMat(2, 8, 9, 24), 3, 0.0001f, 1)
+           || test_groupnorm(RandomMat(3, 5, 2, 64), 2, 0.001f, 1)
+           || test_groupnorm(RandomMat(3, 5, 2, 64), 8, 0.01f, 1);
 }
 
 static int test_groupnorm_1()
@@ -70,12 +74,16 @@ static int test_groupnorm_1()
            || test_groupnorm(RandomMat(5, 6, 12), 4, 0.02f, 0)
            || test_groupnorm(RandomMat(6, 7, 24), 2, 0.001f, 0)
            || test_groupnorm(RandomMat(8, 9, 24), 3, 0.0001f, 0)
+           || test_groupnorm(RandomMat(5, 7, 64), 2, 0.001f, 0)
+           || test_groupnorm(RandomMat(5, 7, 64), 8, 0.01f, 0)
            || test_groupnorm(RandomMat(6, 4, 2), 1, 0.01f, 1)
            || test_groupnorm(RandomMat(3, 3, 8), 2, 0.002f, 1)
            || test_groupnorm(RandomMat(4, 5, 6), 3, 0.01f, 1)
            || test_groupnorm(RandomMat(5, 6, 12), 4, 0.02f, 1)
            || test_groupnorm(RandomMat(6, 7, 24), 2, 0.001f, 1)
-           || test_groupnorm(RandomMat(8, 9, 24), 3, 0.0001f, 1);
+           || test_groupnorm(RandomMat(8, 9, 24), 3, 0.0001f, 1)
+           || test_groupnorm(RandomMat(5, 7, 64), 2, 0.001f, 1)
+           || test_groupnorm(RandomMat(5, 7, 64), 8, 0.01f, 1);
 }
 
 static int test_groupnorm_2()
@@ -87,12 +95,16 @@ static int test_groupnorm_2()
            || test_groupnorm(RandomMat(26, 12), 4, 0.02f, 0)
            || test_groupnorm(RandomMat(27, 24), 2, 0.001f, 0)
            || test_groupnorm(RandomMat(29, 24), 3, 0.0001f, 0)
+           || test_groupnorm(RandomMat(19, 64), 2, 0.001f, 0)
+           || test_groupnorm(RandomMat(19, 64), 8, 0.01f, 0)
            || test_groupnorm(RandomMat(24, 2), 1, 0.01f, 1)
            || test_groupnorm(RandomMat(23, 8), 2, 0.002f, 1)
            || test_groupnorm(RandomMat(25, 6), 3, 0.01f, 1)
            || test_groupnorm(RandomMat(26, 12), 4, 0.02f, 1)
            || test_groupnorm(RandomMat(27, 24), 2, 0.001f, 1)
-           || test_groupnorm(RandomMat(29, 24), 3, 0.0001f, 1);
+           || test_groupnorm(RandomMat(29, 24), 3, 0.0001f, 1)
+           || test_groupnorm(RandomMat(19, 64), 2, 0.001f, 1)
+           || test_groupnorm(RandomMat(19, 64), 8, 0.01f, 1);
 }
 
 static int test_groupnorm_3()
@@ -104,12 +116,16 @@ static int test_groupnorm_3()
            || test_groupnorm(RandomMat(212), 4, 0.02f, 0)
            || test_groupnorm(RandomMat(124), 2, 0.001f, 0)
            || test_groupnorm(RandomMat(324), 3, 0.0001f, 0)
+           || test_groupnorm(RandomMat(64), 2, 0.001f, 0)
+           || test_groupnorm(RandomMat(64), 8, 0.01f, 0)
            || test_groupnorm(RandomMat(12), 1, 0.01f, 1)
            || test_groupnorm(RandomMat(18), 2, 0.002f, 1)
            || test_groupnorm(RandomMat(36), 3, 0.01f, 1)
            || test_groupnorm(RandomMat(212), 4, 0.02f, 1)
            || test_groupnorm(RandomMat(124), 2, 0.001f, 1)
-           || test_groupnorm(RandomMat(324), 3, 0.0001f, 1);
+           || test_groupnorm(RandomMat(324), 3, 0.0001f, 1)
+           || test_groupnorm(RandomMat(64), 2, 0.001f, 1)
+           || test_groupnorm(RandomMat(64), 8, 0.01f, 1);
 }
 
 #if NCNN_VALIDATION
