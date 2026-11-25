@@ -63,6 +63,9 @@ static int test_celu_3()
            || test_celu(RandomMat(128), 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_celu(RandomMat(128), 0.1f)
            || test_celu(RandomMat(127, -128.f, 128.f), 0.75f)
+#if __SSE2__
+           || test_celu(RandomMat(19, -2.f, 2.f), 100000.f, TEST_LAYER_DISABLE_GPU_TESTING)
+#endif
            || test_celu(RandomMat(19, -2.f, 2.f), -0.5f, TEST_LAYER_DISABLE_GPU_TESTING);
 }
 

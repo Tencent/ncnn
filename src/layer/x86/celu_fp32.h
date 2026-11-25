@@ -114,7 +114,12 @@ static void celu_fp32(Mat& bottom_top_blob, float alpha, const Option& opt)
 #else
             if (*ptr < 0.f)
 #endif
-                *ptr = (expf(*ptr / alpha) - 1.f) * alpha;
+            {
+                // Keep exact division semantics under fast math for large alpha.
+                const volatile float scalar_alpha = alpha;
+                float denom = scalar_alpha;
+                *ptr = (expf(*ptr / denom) - 1.f) * denom;
+            }
             ptr++;
         }
     }

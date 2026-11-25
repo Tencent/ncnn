@@ -148,7 +148,12 @@ static void celu_bf16s(Mat& a, float alpha, const Option& opt)
 #else
             if (v < 0.f)
 #endif
-                *ptr = float32_to_bfloat16((expf(v / alpha) - 1.f) * alpha);
+            {
+                // Keep exact division semantics under fast math for large alpha.
+                const volatile float scalar_alpha = alpha;
+                float denom = scalar_alpha;
+                *ptr = float32_to_bfloat16((expf(v / denom) - 1.f) * denom);
+            }
             ptr++;
         }
     }
