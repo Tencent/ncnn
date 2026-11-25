@@ -25,7 +25,7 @@ static int test_rotaryembed(const ncnn::Mat& a, int interleaved)
     int ret = test_layer("RotaryEmbed", pd, weights, as, 1);
     if (ret != 0)
     {
-        fprintf(stderr, "test_rotaryembed failed a=(%d %d %d) interleaved=%d\n", a.w, a.h, a.c, interleaved);
+        fprintf(stderr, "test_rotaryembed failed a.dims=%d a=(%d %d %d) interleaved=%d\n", a.dims, a.w, a.h, a.c, interleaved);
     }
 
     return ret;
@@ -83,7 +83,7 @@ static int test_rotaryembed_fullcos(const ncnn::Mat& a, int interleaved)
     int ret = test_layer("RotaryEmbed", pd, weights, as, 1);
     if (ret != 0)
     {
-        fprintf(stderr, "test_rotaryembed_fullcos failed a=(%d %d %d) interleaved=%d\n", a.w, a.h, a.c, interleaved);
+        fprintf(stderr, "test_rotaryembed_fullcos failed a.dims=%d a=(%d %d %d) interleaved=%d\n", a.dims, a.w, a.h, a.c, interleaved);
     }
 
     return ret;
@@ -113,9 +113,38 @@ static int test_rotaryembed_1()
            || test_rotaryembed_fullcos(RandomMat(196, 5, 3), 1);
 }
 
+// 2D input (embed_dim, seqlen) for single-head rope, e.g. the shared k_pe of MLA.
+// gpu packs a 2D blob along seqlen, so seqlen % 4 == 0 runs the pack4 shader where
+// the 4 lanes are 4 consecutive positions with their own cos/sin rows.
+static int test_rotaryembed_2()
+{
+    return 0
+           || test_rotaryembed(RandomMat(2, 3), 0)
+           || test_rotaryembed(RandomMat(2, 4), 1)
+           || test_rotaryembed(RandomMat(64, 1), 0)
+           || test_rotaryembed(RandomMat(64, 1), 1)
+           || test_rotaryembed(RandomMat(64, 4), 0)
+           || test_rotaryembed(RandomMat(64, 4), 1)
+           || test_rotaryembed(RandomMat(62, 8), 0)
+           || test_rotaryembed(RandomMat(62, 8), 1)
+           || test_rotaryembed(RandomMat(128, 16), 0)
+           || test_rotaryembed(RandomMat(128, 16), 1)
+           || test_rotaryembed(RandomMat(48, 13), 0)
+           || test_rotaryembed(RandomMat(48, 13), 1)
+           || test_rotaryembed_fullcos(RandomMat(2, 4), 0)
+           || test_rotaryembed_fullcos(RandomMat(64, 4), 0)
+           || test_rotaryembed_fullcos(RandomMat(64, 4), 1)
+           || test_rotaryembed_fullcos(RandomMat(62, 8), 0)
+           || test_rotaryembed_fullcos(RandomMat(62, 8), 1)
+           || test_rotaryembed_fullcos(RandomMat(128, 16), 0)
+           || test_rotaryembed_fullcos(RandomMat(128, 16), 1)
+           || test_rotaryembed_fullcos(RandomMat(48, 13), 0)
+           || test_rotaryembed_fullcos(RandomMat(48, 13), 1);
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_rotaryembed_0() || test_rotaryembed_1();
+    return test_rotaryembed_0() || test_rotaryembed_1() || test_rotaryembed_2();
 }

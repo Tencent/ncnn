@@ -21,12 +21,13 @@ int RotaryEmbed_vulkan::create_pipeline(const Option& opt)
 {
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
 
-    std::vector<vk_specialization_type> specializations(1 + 4);
+    std::vector<vk_specialization_type> specializations(1 + 5);
     specializations[0].i = interleaved;
-    specializations[1 + 0].i = shape.w;
-    specializations[1 + 1].i = shape.h;
-    specializations[1 + 2].i = shape.c;
-    specializations[1 + 3].i = (int)shape.cstep;
+    specializations[1 + 0].i = shape.dims;
+    specializations[1 + 1].i = shape.w;
+    specializations[1 + 2].i = shape.h;
+    specializations[1 + 3].i = shape.c;
+    specializations[1 + 4].i = (int)shape.cstep;
 
     Mat local_size_xyz;
     if (shape.dims == 3)
@@ -111,14 +112,15 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     bindings[2] = sin_cache_unpacked;
     bindings[3] = top_blob;
 
-    std::vector<vk_constant_type> constants(5);
-    constants[0].i = embed_dim;
-    constants[1].i = seqlen;
-    constants[2].i = num_heads;
-    constants[3].i = (int)bottom_blob.cstep;
+    std::vector<vk_constant_type> constants(6);
+    constants[0].i = bottom_blob.dims;
+    constants[1].i = embed_dim;
+    constants[2].i = seqlen;
+    constants[3].i = num_heads;
+    constants[4].i = (int)bottom_blob.cstep;
     // cos/sin cache row width: embed_dim => independent cos/sin per half (2D rope);
     // embed_dim/2 => standard rope whose halves are identical.
-    constants[4].i = cos_cache_unpacked.w;
+    constants[5].i = cos_cache_unpacked.w;
 
     VkMat dispatcher;
     dispatcher.w = embed_dim / 2;

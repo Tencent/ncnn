@@ -7,10 +7,11 @@
 layout(constant_id = 0) const int interleaved = 0;
 
 #define shape_constant_id_offset 1
-layout(constant_id = shape_constant_id_offset + 0) const int embed_dim = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int seqlen = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int num_heads = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int embed_dim = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int seqlen = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int num_heads = 0;
+layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout(binding = 1) readonly buffer cos_cache { sfp cos_cache_data[]; };
@@ -19,6 +20,7 @@ layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
+    int dims;
     int embed_dim;
     int seqlen;
     int num_heads;
