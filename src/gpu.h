@@ -447,6 +447,7 @@ class VkAllocator;
 class VkCompute;
 class Option;
 class PipelineCache;
+class ShaderInfo;
 class VulkanDevicePrivate;
 class NCNN_EXPORT VulkanDevice
 {
@@ -468,6 +469,7 @@ public:
 
     // with fixed workgroup size
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
+    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, ShaderInfo& shader_info) const;
 
     // helper for creating pipeline
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
@@ -587,12 +589,6 @@ NCNN_EXPORT VulkanDevice* get_gpu_device(int device_index = get_default_gpu_inde
 NCNN_EXPORT int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv);
 NCNN_EXPORT int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
 NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
-
-// append six scalar push constants (workgroup base xyz, logical count xyz)
-// keep all original push constant offsets and specialization ids unchanged
-void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
-                            uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
-                            std::vector<uint32_t>& out);
 
 // info from spirv
 class NCNN_EXPORT ShaderInfo

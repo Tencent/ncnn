@@ -4519,9 +4519,9 @@ static uint32_t load_dispatch_constant(std::vector<uint32_t>& out, uint32_t& nex
 
 // rewrite loads rather than the input variables themselves
 // keep the original storage classes, entry point, local size and subgroup semantics
-void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
-                            uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
-                            std::vector<uint32_t>& out)
+static void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
+                                   uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+                                   std::vector<uint32_t>& out)
 {
     const size_t words = size / sizeof(uint32_t);
     const uint32_t bound = code[3];
@@ -4965,6 +4965,15 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     free(spv_data_modified);
 
     return shader_module;
+}
+
+VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, ShaderInfo& shader_info) const
+{
+    std::vector<uint32_t> spirv;
+    inject_virtual_dispatch(spv_data, spv_data_size, shader_info.push_constant_count, local_size_x, local_size_y, local_size_z, spirv);
+    shader_info.virtual_dispatch = 1;
+
+    return compile_shader_module(spirv.data(), spirv.size() * sizeof(uint32_t), local_size_x, local_size_y, local_size_z);
 }
 
 int VulkanDevice::create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const

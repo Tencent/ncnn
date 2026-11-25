@@ -1184,11 +1184,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     const uint32_t* spv_data = spirv_ptr->data();
     size_t spv_data_size = spirv_ptr->size() * 4;
 
-    std::vector<uint32_t> virtual_spirv;
-    inject_virtual_dispatch(spv_data, spv_data_size, si.push_constant_count, local_size_x, local_size_y, local_size_z, virtual_spirv);
-    si.virtual_dispatch = 1;
-
-    VkShaderModule shader_module = vkdev->compile_shader_module(virtual_spirv.data(), virtual_spirv.size() * sizeof(uint32_t), local_size_x, local_size_y, local_size_z);
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, si);
 
     if (!shader_module)
     {

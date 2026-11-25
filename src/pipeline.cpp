@@ -459,11 +459,7 @@ int ImportAndroidHardwareBufferPipeline::create_shader_module(const Option& opt)
         return -1;
     }
 
-    std::vector<uint32_t> virtual_spirv;
-    inject_virtual_dispatch(spv_data, spv_data_size, shader_info.push_constant_count, local_size_x(), local_size_y(), local_size_z(), virtual_spirv);
-
-    VkShaderModule shader_module = vkdev->compile_shader_module(virtual_spirv.data(), virtual_spirv.size() * sizeof(uint32_t), local_size_x(), local_size_y(), local_size_z());
-    shader_info.virtual_dispatch = 1;
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z(), shader_info);
     set_shader_info(shader_info);
     set_shader_module(shader_module);
 
