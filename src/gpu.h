@@ -590,7 +590,7 @@ NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, s
 
 // append six scalar push constants (workgroup base xyz, logical count xyz)
 // keep all original push constant offsets and specialization ids unchanged
-int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
+void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
                             uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                             std::vector<uint32_t>& out);
 
