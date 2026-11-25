@@ -7,7 +7,6 @@
 #include "mat.h"
 #include "pipelinecache.h"
 #include "option.h"
-#include "spirv_virtual_dispatch.h"
 
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>

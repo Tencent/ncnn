@@ -4,7 +4,6 @@
 #include "pipelinecache.h"
 
 #include "gpu.h"
-#include "spirv_virtual_dispatch.h"
 
 #include <limits.h>
 #include <string.h>

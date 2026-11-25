@@ -42,7 +42,6 @@ set(ncnn_SRCS
     simplestl.cpp
     simplemath.cpp
     simplevk.cpp
-    spirv_virtual_dispatch.cpp
 )
 
 if(ANDROID)

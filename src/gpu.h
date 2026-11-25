@@ -588,6 +588,14 @@ NCNN_EXPORT int compile_spirv_module(const char* comp_string, const Option& opt,
 NCNN_EXPORT int compile_spirv_module(const char* comp_data, int comp_data_size, const Option& opt, std::vector<uint32_t>& spirv);
 NCNN_EXPORT int compile_spirv_module(int shader_type_index, const Option& opt, std::vector<uint32_t>& spirv);
 
+enum { VIRTUAL_DISPATCH_CONSTANT_COUNT = 6 };
+
+// Append six scalar push constants (workgroup base xyz, logical count xyz).
+// Keep all original push constant offsets and specialization IDs unchanged.
+int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
+                            uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
+                            std::vector<uint32_t>& out);
+
 // info from spirv
 class NCNN_EXPORT ShaderInfo
 {
