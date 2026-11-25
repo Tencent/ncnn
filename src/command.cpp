@@ -2478,27 +2478,16 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         const uint32_t max_group_count_y = vkdev->info.max_workgroup_count_y();
         const uint32_t max_group_count_z = vkdev->info.max_workgroup_count_z();
 
-        const uint32_t total_count = constant_count + 6;
-        const uint32_t constant_size = total_count * sizeof(vk_constant_type);
-
-        // avoid an extra allocation for push constants within the vulkan minimum capacity of 128 bytes
-        vk_constant_type stack_constants[32];
-        std::vector<vk_constant_type> large_constants;
-        vk_constant_type* values = stack_constants;
-        if (total_count > 32)
-        {
-            large_constants.resize(total_count);
-            values = large_constants.data();
-        }
-        if (constant_count)
-            memcpy(values, constants.data(), constant_count * sizeof(vk_constant_type));
+        std::vector<vk_constant_type> values(constant_count + 6);
+        const uint32_t constant_size = values.size() * sizeof(vk_constant_type);
+        for (int i = 0; i < constant_count; i++)
+            values[i] = constants[i];
         values[constant_count + 3].u32 = group_count_x;
         values[constant_count + 4].u32 = group_count_y;
         values[constant_count + 5].u32 = group_count_z;
 
         // split the logical grid into disjoint rectangles
         // all dispatches share the same pipeline and descriptors; only the workgroup base changes
-        const bool push_descriptor = vkdev->info.support_VK_KHR_push_descriptor();
         for (uint64_t z = 0; z < group_count_z; z += max_group_count_z)
         {
             for (uint64_t y = 0; y < group_count_y; y += max_group_count_y)
@@ -2513,16 +2502,16 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                     const uint32_t gy = (uint32_t)std::min((uint64_t)max_group_count_y, group_count_y - y);
                     const uint32_t gz = (uint32_t)std::min((uint64_t)max_group_count_z, group_count_z - z);
 
-                    if (push_descriptor)
+                    if (vkdev->info.support_VK_KHR_push_descriptor())
                     {
-                        vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_size, values);
+                        vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_size, values.data());
                         vkCmdDispatch(d->compute_command_buffer, gx, gy, gz);
                     }
                     else
                     {
                         {
                             unsigned char* constant_values = new unsigned char[constant_size];
-                            memcpy(constant_values, values, constant_size);
+                            memcpy(constant_values, values.data(), constant_size);
                             VkComputePrivate::record r;
                             r.type = VkComputePrivate::record::TYPE_push_constants;
                             r.push_constants.pipeline_layout = pipeline->pipeline_layout();
