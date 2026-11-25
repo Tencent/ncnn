@@ -2477,7 +2477,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         const uint32_t max_group_count_x = vkdev->info.max_workgroup_count_x();
         const uint32_t max_group_count_y = vkdev->info.max_workgroup_count_y();
         const uint32_t max_group_count_z = vkdev->info.max_workgroup_count_z();
-        const bool virtual_dispatch = shader_info.virtual_dispatch != 0;
+        const bool virtual_dispatch = shader_info.internal_push_constant_count != 0;
         if (!virtual_dispatch && (group_count_x > max_group_count_x || group_count_y > max_group_count_y || group_count_z > max_group_count_z))
         {
             NCNN_LOGE("warning: vkCmdDispatch workgroup count (%u, %u, %u) exceeds device limits (%u, %u, %u)",
@@ -2489,7 +2489,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         const uint32_t step_y = virtual_dispatch ? max_group_count_y : group_count_y;
         const uint32_t step_z = virtual_dispatch ? max_group_count_z : group_count_z;
 
-        const uint32_t total_count = constant_count + (virtual_dispatch ? 6 : 0);
+        const uint32_t total_count = constant_count + shader_info.internal_push_constant_count;
         const uint32_t constant_size = total_count * sizeof(vk_constant_type);
 
         // avoid an extra allocation for push constants within the vulkan minimum capacity of 128 bytes

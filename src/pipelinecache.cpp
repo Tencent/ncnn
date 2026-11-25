@@ -1222,7 +1222,7 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
     if (ret != 0)
         goto ERROR_PipelineCache;
 
-    ret = vkdev->create_pipeline_layout(shader_info.push_constant_count + (shader_info.virtual_dispatch ? 6 : 0), descriptorset_layout, &pipeline_layout);
+    ret = vkdev->create_pipeline_layout(shader_info, descriptorset_layout, &pipeline_layout);
     if (ret != 0)
         goto ERROR_PipelineCache;
 

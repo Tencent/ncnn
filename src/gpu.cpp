@@ -4971,7 +4971,7 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
 {
     std::vector<uint32_t> spirv;
     inject_virtual_dispatch(spv_data, spv_data_size, shader_info.push_constant_count, local_size_x, local_size_y, local_size_z, spirv);
-    shader_info.virtual_dispatch = 1;
+    shader_info.internal_push_constant_count = 6;
 
     return compile_shader_module(spirv.data(), spirv.size() * sizeof(uint32_t), local_size_x, local_size_y, local_size_z);
 }
@@ -5030,6 +5030,11 @@ int VulkanDevice::create_descriptorset_layout(int binding_count, const int* bind
     }
 
     return 0;
+}
+
+int VulkanDevice::create_pipeline_layout(const ShaderInfo& shader_info, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
+{
+    return create_pipeline_layout(shader_info.push_constant_count + shader_info.internal_push_constant_count, descriptorset_layout, pipeline_layout);
 }
 
 int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
@@ -6864,7 +6869,7 @@ int resolve_shader_info(const uint32_t* spv_data, size_t spv_data_size, ShaderIn
     shader_info.specialization_count = 0;
     shader_info.binding_count = 0;
     shader_info.push_constant_count = 0;
-    shader_info.virtual_dispatch = 0;
+    shader_info.internal_push_constant_count = 0;
 
     uint32_t parameter_id = -233;
 
