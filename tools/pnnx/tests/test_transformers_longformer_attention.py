@@ -54,7 +54,23 @@ def test():
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
-    return True
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x, mask0))
+    torch.export.save(ep, "test_transformers_longformer_attention_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_transformers_longformer_attention_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_transformers_longformer_attention_export_pnnx
+    b = test_transformers_longformer_attention_export_pnnx.test_inference()
+
+    # The pt2 frontend exposes the single Tensor leaf of the output tuple.
+    return len(a) == 1 and a[0].shape == b.shape and a[0].dtype == b.dtype and torch.allclose(a[0], b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

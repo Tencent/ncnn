@@ -18,7 +18,11 @@ Concat_riscv::Concat_riscv()
     support_packing = true;
 #endif // __riscv_vector
 #if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
     support_fp16_storage = cpu_support_riscv_zfh();
+#endif
 #endif
 
 #if NCNN_BF16

@@ -196,6 +196,49 @@ static int test_convolution_0()
            || test_convolution(18, 17, 13, 8, 7, 1, 2, 3, 1);
 }
 
+static int test_convolution_sgemm_split_k(int outch)
+{
+    // reduction depth 4096x8x8 exceeds the sgemm k tile for l2 caches below 6M, partial sums carry across k tiles
+    // seven output columns leave the four-column, two-column and one-column tails
+    // small integers keep fp16 partial sums exact
+    const int w = 14;
+    const int h = 8;
+    const int c = 4096;
+    const int kernel = 8;
+
+    ncnn::Mat a(w, h, c);
+    for (size_t i = 0; i < a.total(); i++)
+    {
+        a[i] = (float)RandomInt(-1, 2);
+    }
+
+    ncnn::ParamDict pd;
+    pd.set(0, outch);
+    pd.set(1, kernel);
+    pd.set(5, 1);
+    pd.set(6, outch * c * kernel * kernel);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0].create(outch * c * kernel * kernel);
+    for (int i = 0; i < weights[0].w; i++)
+    {
+        weights[0][i] = (float)RandomInt(-1, 2);
+    }
+    weights[1].create(outch);
+    for (int i = 0; i < outch; i++)
+    {
+        weights[1][i] = (float)RandomInt(-8, 9);
+    }
+
+    int ret = test_layer("Convolution", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_convolution_sgemm_split_k failed w=%d h=%d c=%d outch=%d kernel=%d\n", w, h, c, outch, kernel);
+    }
+
+    return ret;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -205,5 +248,7 @@ int main()
 #if __aarch64__
            || test_convolution_cpu_tuning()
 #endif // __aarch64__
-           || test_convolution_direct_geometry();
+           || test_convolution_direct_geometry()
+           || test_convolution_sgemm_split_k(9)
+           || test_convolution_sgemm_split_k(12);
 }
