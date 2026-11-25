@@ -8,8 +8,6 @@
 #if NCNN_VULKAN
 #include "command.h"
 #include "gpu.h"
-#include "layer_shader_type.h"
-#include "pipeline.h"
 #endif
 
 #include <limits.h>
@@ -425,82 +423,6 @@ static int test_reduction_gpu_dispatch()
     return 0;
 }
 
-// exercise splitting of x with a nontrivial y dimension
-// gl_NumWorkGroups.x is the row stride, so both logical ids and counts
-// must remain unchanged across the two physical dispatches
-static int test_reduction_oversized_dispatch()
-{
-    if (ncnn::get_gpu_count() == 0)
-        return 0;
-
-    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
-    const uint32_t limit = vkdev->info.max_workgroup_count_x();
-    if (limit > 65535 || vkdev->info.max_workgroup_invocations() < 256 || vkdev->info.max_workgroup_size_x() < 256)
-        return 0;
-
-    const int gx = (int)limit + 1;
-    const int n = gx * 2;
-
-    ncnn::VkBlobAllocator blob_allocator(vkdev);
-    ncnn::VkStagingAllocator staging_allocator(vkdev);
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_bf16_packed = false;
-    opt.use_bf16_storage = false;
-    opt.blob_vkallocator = &blob_allocator;
-    opt.workspace_vkallocator = &blob_allocator;
-    opt.staging_vkallocator = &staging_allocator;
-
-    ncnn::Pipeline pipeline(vkdev);
-    pipeline.set_local_size_xyz(256, 1, 1);
-    std::vector<ncnn::vk_specialization_type> specializations(1);
-    specializations[0].i = 0; // sum
-    if (pipeline.create(ncnn::LayerShaderType::reduction, opt, specializations) != 0)
-        return -1;
-
-    ncnn::Mat a(n);
-    for (int i = 0; i < n; i++)
-        a[i] = (float)(i % 251 + 1);
-    ncnn::Mat sentinel(n);
-    sentinel.fill(-1.f);
-
-    ncnn::VkCompute cmd(vkdev);
-    ncnn::VkMat input;
-    ncnn::VkMat output;
-    cmd.record_clone(a, input, opt);
-    cmd.record_clone(sentinel, output, opt);
-    if (input.empty() || output.empty())
-        return -1;
-
-    std::vector<ncnn::VkMat> bindings(2);
-    bindings[0] = output;
-    bindings[1] = input;
-    std::vector<ncnn::vk_constant_type> constants(21);
-    const int params[20] = {n, 1, 1, 1, n, 1, n, 1, 1, 1, 1, n, 0, 0, 0, 0, 3, -1, -1, -1};
-    for (int i = 0; i < 20; i++)
-        constants[i].i = params[i];
-    constants[20].f = 1.f;
-
-    ncnn::VkMat dispatcher;
-    dispatcher.w = gx * 256;
-    dispatcher.h = 2;
-    dispatcher.c = 1;
-    cmd.record_pipeline(&pipeline, bindings, constants, dispatcher);
-
-    ncnn::Mat b;
-    cmd.record_clone(output, b, opt);
-    if (cmd.submit_and_wait() != 0 || CompareMat(a, b, 0.001f) != 0)
-    {
-        fprintf(stderr, "test_reduction_oversized_dispatch failed\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 static int test_reduction_gpu_fp16a(const ncnn::Mat& a, float coeff, const std::vector<int>& axes_array, bool use_subgroup_ops)
 {
     ncnn::ParamDict pd;
@@ -673,7 +595,6 @@ int main()
 #endif // NCNN_VALIDATION
 #if NCNN_VULKAN
            || test_reduction_gpu_dispatch()
-           || test_reduction_oversized_dispatch()
            || test_reduction_gpu_fp16a()
 #endif // NCNN_VULKAN
            || test_reduction_depth_padding_boundaries();

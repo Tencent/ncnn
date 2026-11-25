@@ -411,7 +411,7 @@ int ImportAndroidHardwareBufferPipeline::create(VkAndroidHardwareBufferImageAllo
     VkPipeline pipeline = 0;
     VkDescriptorUpdateTemplateKHR descriptor_update_template = 0;
 
-    vkdev->create_pipeline_layout(_shader_info, descriptorset_layout(), &pipeline_layout);
+    vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
 
     vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, vkdev->info.subgroup_size(), &pipeline);
 
@@ -459,8 +459,9 @@ int ImportAndroidHardwareBufferPipeline::create_shader_module(const Option& opt)
         return -1;
     }
 
-    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z(), shader_info);
     set_shader_info(shader_info);
+
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z());
     set_shader_module(shader_module);
 
     return 0;

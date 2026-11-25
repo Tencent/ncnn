@@ -469,12 +469,10 @@ public:
 
     // with fixed workgroup size
     VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const;
-    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, ShaderInfo& shader_info) const;
 
     // helper for creating pipeline
     int create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const;
     int create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
-    int create_pipeline_layout(const ShaderInfo& shader_info, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
     int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipeline* pipeline) const;
     int create_pipeline(VkShaderModule shader_module, VkPipelineLayout pipeline_layout, const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size, VkPipelineCache pipeline_cache, VkPipeline* pipeline) const;
     int create_descriptor_update_template(int binding_count, const int* binding_types, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout pipeline_layout, VkDescriptorUpdateTemplateKHR* descriptor_update_template) const;
@@ -581,6 +579,11 @@ private:
     VulkanDevice& operator=(const VulkanDevice&);
 
 private:
+    friend class PipelineCache;
+    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, const ShaderInfo& shader_info) const;
+    int create_pipeline_layout_for_shader(const ShaderInfo& shader_info, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
+
+private:
     VulkanDevicePrivate* const d;
 };
 
@@ -605,11 +608,7 @@ public:
     // 3 = combined image sampler
     int binding_types[16]; // 16 is large enough I think ...
 
-    union
-    {
-        int internal_push_constant_count;
-        int reserved_0;
-    };
+    int reserved_0;
     int reserved_1;
     int reserved_2;
     int reserved_3;
