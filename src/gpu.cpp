@@ -4992,6 +4992,11 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(vk_constant_type) * (push_constant_count + 6);
 
+    if (pushConstantRange.size > info.physicalDeviceProperties().limits.maxPushConstantsSize)
+    {
+        NCNN_LOGE("push constant size %u exceeds device limit %u", pushConstantRange.size, info.physicalDeviceProperties().limits.maxPushConstantsSize);
+    }
+
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.pNext = 0;
