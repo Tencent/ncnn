@@ -4560,8 +4560,8 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                     global_invocation_id = p[1];
                 else if (p[3] == 24) // NumWorkgroups
                     num_workgroups = p[1];
-                if (p[3] == 26 // WorkgroupId
-                        || p[3] == 28 // GlobalInvocationId
+                if (p[3] == 26     // WorkgroupId
+                        || p[3] == 28  // GlobalInvocationId
                         || p[3] == 24) // NumWorkgroups
                 {
                     builtin_var[p[1]] = p[1];
@@ -4628,7 +4628,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 if (new_pc)
                 {
                     append_instruction(out, 30, 8, pc_struct, uint_type, uint_type, uint_type, uint_type, uint_type, uint_type); // OpTypeStruct
-                    append_instruction(out, 32, 4, pc_var_ptr, 9, pc_struct); // OpTypePointer PushConstant
+                    append_instruction(out, 32, 4, pc_var_ptr, 9, pc_struct);                                                    // OpTypePointer PushConstant
                 }
                 if (new_pc_uint_ptr)
                     append_instruction(out, 32, 4, pc_uint_ptr, 9, uint_type); // OpTypePointer PushConstant
@@ -4698,7 +4698,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                     const uint32_t ptr = next_id++;
                     components[j] = next_id++;
                     append_instruction(out, 65, 5, pc_uint_ptr, ptr, pc_var, member_ids[member_base + j]); // OpAccessChain
-                    append_instruction(out, 61, 4, uint_type, components[j], ptr); // OpLoad
+                    append_instruction(out, 61, 4, uint_type, components[j], ptr);                         // OpLoad
                 }
 
                 const uint32_t logical = index ? next_id++ : result;
@@ -4714,7 +4714,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 if (!count)
                 {
                     const uint32_t physical = next_id++;
-                    append_instruction(out, 61, 4, vec_type, physical, var); // OpLoad
+                    append_instruction(out, 61, 4, vec_type, physical, var);              // OpLoad
                     append_instruction(out, 128, 5, vec_type, logical, physical, offset); // OpIAdd
                 }
                 if (index)
