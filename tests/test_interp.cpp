@@ -133,7 +133,8 @@ static int test_interp_nearest_3d()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
     ncnn::Mat b = RandomMat(14, 17, 12);
-    ncnn::Mat c = RandomMat(13, 14, 32);
+    // c64 also packs bf16 at riscv vlen 1024
+    ncnn::Mat c = RandomMat(13, 14, 64);
 
     // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
@@ -167,7 +168,8 @@ static int test_interp_bilinear_3d()
 {
     ncnn::Mat a = RandomMat(15, 16, 7);
     ncnn::Mat b = RandomMat(14, 17, 12);
-    ncnn::Mat c = RandomMat(13, 14, 32);
+    // c64 also packs bf16 at riscv vlen 1024
+    ncnn::Mat c = RandomMat(13, 14, 64);
 
     // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
@@ -216,7 +218,8 @@ static int test_interp_bicubic_3d()
 {
     ncnn::Mat a = RandomMat(16, 17, 13);
     ncnn::Mat b = RandomMat(18, 19, 12);
-    ncnn::Mat c = RandomMat(13, 14, 32);
+    // c64 also packs bf16 at riscv vlen 1024
+    ncnn::Mat c = RandomMat(13, 14, 64);
 
     // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
@@ -275,7 +278,8 @@ static int test_interp_nearest_2d()
 {
     ncnn::Mat a = RandomMat(15, 7);
     ncnn::Mat b = RandomMat(14, 12);
-    ncnn::Mat c = RandomMat(13, 32);
+    // c64 also packs bf16 at riscv vlen 1024
+    ncnn::Mat c = RandomMat(13, 64);
 
     // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
@@ -309,7 +313,8 @@ static int test_interp_bilinear_2d()
 {
     ncnn::Mat a = RandomMat(15, 7);
     ncnn::Mat b = RandomMat(14, 12);
-    ncnn::Mat c = RandomMat(13, 32);
+    // c64 also packs bf16 at riscv vlen 1024
+    ncnn::Mat c = RandomMat(13, 64);
 
     // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
@@ -356,7 +361,8 @@ static int test_interp_bicubic_2d()
 {
     ncnn::Mat a = RandomMat(16, 13);
     ncnn::Mat b = RandomMat(18, 12);
-    ncnn::Mat c = RandomMat(13, 32);
+    // c64 also packs bf16 at riscv vlen 1024
+    ncnn::Mat c = RandomMat(13, 64);
 
     // scalar geometry covers all scale, output-size and reference interface boundaries
     return 0
