@@ -38,7 +38,7 @@ int Permute_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
-    const int nT = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
+    const int nT = opt.num_threads;
 
     if (dims == 1 || order_type == 0)
     {
@@ -686,7 +686,7 @@ int Permute_x86::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     const int channels = bottom_blob.c;
     const int elempack = bottom_blob.elempack;
     const size_t elemsize = bottom_blob.elemsize;
-    const int nT = bottom_blob.total() * elemsize >= 65536 ? opt.num_threads : 1;
+    const int nT = opt.num_threads;
 
     if (dims == 1 || order_type == 0)
     {
