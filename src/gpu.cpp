@@ -4519,9 +4519,7 @@ static uint32_t load_dispatch_constant(std::vector<uint32_t>& out, uint32_t& nex
 
 // rewrite loads rather than the input variables themselves
 // keep the original storage classes, entry point, local size and subgroup semantics
-static void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
-                                   uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
-                                   std::vector<uint32_t>& out)
+static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, std::vector<uint32_t>& out)
 {
     const size_t words = size / sizeof(uint32_t);
     const uint32_t bound = code[3];
@@ -4532,6 +4530,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_
     uint32_t pc_struct = 0;
     uint32_t pc_uint_ptr = 0;
     uint32_t pc_var_ptr = 0;
+    uint32_t push_constant_count = 0;
     size_t first_type = words;
     size_t first_function = words;
 
@@ -4587,13 +4586,15 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, int push_
     if (!uint_type)
         uint_type = next_id++;
 
-    // find the vector type, push constant pointer type and component pointers
+    // find the push constant member count, vector type and component pointers
     {
         for (size_t i = 5; i < words;)
         {
             const uint32_t* p = code + i;
             const uint32_t wc = p[0] >> 16;
             const spv::Op op = (spv::Op)(p[0] & 0xffff);
+            if (op == spv::Op::OpTypeStruct && p[1] == pc_struct)
+                push_constant_count = wc - 2;
             if (op == spv::Op::OpTypeVector && wc == 4 && p[2] == uint_type && p[3] == 3)
                 vec_type = p[1];
             if (op == spv::Op::OpTypePointer && wc == 4 && p[2] == (uint32_t)spv::StorageClass::PushConstant && p[3] == uint_type)
@@ -4955,24 +4956,19 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
+    std::vector<uint32_t> spirv;
+    inject_virtual_dispatch(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spirv);
+
     // reserve space for a uint type, three local size spec constants and their decorations
-    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 28 * sizeof(uint32_t));
-    size_t spv_data_size_modified = spv_data_size;
-    inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
+    size_t spv_data_size_modified = spirv.size() * sizeof(uint32_t);
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size_modified + 28 * sizeof(uint32_t));
+    inject_local_size_xyz(spirv.data(), spirv.size() * sizeof(uint32_t), local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
     VkShaderModule shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
 
     free(spv_data_modified);
 
     return shader_module;
-}
-
-VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, const ShaderInfo& shader_info) const
-{
-    std::vector<uint32_t> spirv;
-    inject_virtual_dispatch(spv_data, spv_data_size, shader_info.push_constant_count, local_size_x, local_size_y, local_size_z, spirv);
-
-    return compile_shader_module(spirv.data(), spirv.size() * sizeof(uint32_t), local_size_x, local_size_y, local_size_z);
 }
 
 int VulkanDevice::create_descriptorset_layout(int binding_count, const int* binding_types, VkDescriptorSetLayout* descriptorset_layout) const
@@ -5031,17 +5027,12 @@ int VulkanDevice::create_descriptorset_layout(int binding_count, const int* bind
     return 0;
 }
 
-int VulkanDevice::create_pipeline_layout_for_shader(const ShaderInfo& shader_info, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
-{
-    return create_pipeline_layout(shader_info.push_constant_count + 6, descriptorset_layout, pipeline_layout);
-}
-
 int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
 {
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
+    pushConstantRange.size = sizeof(vk_constant_type) * (push_constant_count + 6);
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -5066,16 +5057,8 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     }
 #endif
 
-    if (push_constant_count > 0)
-    {
-        pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-        pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-    }
-    else
-    {
-        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-        pipelineLayoutCreateInfo.pPushConstantRanges = 0;
-    }
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
     VkResult ret = vkCreatePipelineLayout(d->device, &pipelineLayoutCreateInfo, 0, pipeline_layout);
     if (ret != VK_SUCCESS)

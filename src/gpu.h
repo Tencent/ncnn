@@ -447,7 +447,6 @@ class VkAllocator;
 class VkCompute;
 class Option;
 class PipelineCache;
-class ShaderInfo;
 class VulkanDevicePrivate;
 class NCNN_EXPORT VulkanDevice
 {
@@ -577,11 +576,6 @@ protected:
 private:
     VulkanDevice(const VulkanDevice&);
     VulkanDevice& operator=(const VulkanDevice&);
-
-private:
-    friend class PipelineCache;
-    VkShaderModule compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, const ShaderInfo& shader_info) const;
-    int create_pipeline_layout_for_shader(const ShaderInfo& shader_info, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const;
 
 private:
     VulkanDevicePrivate* const d;

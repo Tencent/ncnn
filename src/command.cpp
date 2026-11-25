@@ -2777,12 +2777,28 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         uint32_t group_count_y = (dst.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
         uint32_t group_count_z = (dst.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
+        uint32_t values[6] = {0, 0, 0, group_count_x, group_count_y, group_count_z};
+
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
+            vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(values), values);
             vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
         }
         else
         {
+            {
+                unsigned char* constant_values = new unsigned char[sizeof(values)];
+                memcpy(constant_values, values, sizeof(values));
+
+                VkComputePrivate::record r;
+                r.type = VkComputePrivate::record::TYPE_push_constants;
+                r.push_constants.pipeline_layout = pipeline->pipeline_layout();
+                r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+                r.push_constants.size = sizeof(values);
+                r.push_constants.values = constant_values;
+                d->delayed_records.push_back(r);
+            }
+
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_dispatch;
             r.dispatch.group_count_x = group_count_x;

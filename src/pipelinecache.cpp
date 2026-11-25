@@ -995,7 +995,7 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
         return -1;
     }
 
-    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, shader_info);
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
     if (!shader_module)
     {
         NCNN_LOGE("create_shader_module failed");
@@ -1184,7 +1184,7 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     const uint32_t* spv_data = spirv_ptr->data();
     size_t spv_data_size = spirv_ptr->size() * 4;
 
-    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, si);
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z);
 
     if (!shader_module)
     {
@@ -1222,7 +1222,7 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
     if (ret != 0)
         goto ERROR_PipelineCache;
 
-    ret = vkdev->create_pipeline_layout_for_shader(shader_info, descriptorset_layout, &pipeline_layout);
+    ret = vkdev->create_pipeline_layout(shader_info.push_constant_count, descriptorset_layout, &pipeline_layout);
     if (ret != 0)
         goto ERROR_PipelineCache;
 
