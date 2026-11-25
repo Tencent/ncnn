@@ -114,7 +114,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         use_subgroup_ops = false;
     }
 
-    const int M = constantM ? constantM : 1024;
+    const int M = constantA ? constantM : 1024;
     const int N = constantN ? constantN : 1024;
     const int K = constantK ? constantK : 1024;
 
@@ -555,7 +555,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
             }
         }
 
-        int outh = output_transpose ? constantN : constantM;
+        int outh = output_transpose ? constantN : (constantA ? constantM : 0);
         int out_elempack = outh ? (outh % 4 == 0 ? 4 : 1) : 0;
 
         std::vector<vk_specialization_type> specializations(18 + 9);
@@ -566,7 +566,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[4].i = constantA;
         specializations[5].i = constantB;
         specializations[6].i = constantC;
-        specializations[7].i = constantM;
+        specializations[7].i = constantA ? constantM : 0;
         specializations[8].i = constantN;
         specializations[9].i = constantK;
         specializations[10].i = constant_broadcast_type_C;
@@ -628,7 +628,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[4].i = constantA;
         specializations[5].i = constantB;
         specializations[6].i = constantC;
-        specializations[7].i = constantM;
+        specializations[7].i = constantA ? constantM : 0;
         specializations[8].i = constantN;
         specializations[9].i = constantK;
         specializations[10].i = constant_broadcast_type_C;
@@ -688,7 +688,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[4].i = constantA;
         specializations[5].i = constantB;
         specializations[6].i = constantC;
-        specializations[7].u32 = constantM;
+        specializations[7].u32 = constantA ? constantM : 0;
         specializations[8].u32 = constantN;
         specializations[9].u32 = constantK;
         specializations[10].i = constant_broadcast_type_C;
@@ -715,7 +715,7 @@ int Gemm_vulkan::create_pipeline(const Option& opt)
         specializations[4].i = constantA;
         specializations[5].i = constantB;
         specializations[6].i = constantC;
-        specializations[7].i = constantM;
+        specializations[7].i = constantA ? constantM : 0;
         specializations[8].i = constantN;
         specializations[9].i = constantK;
         specializations[10].i = constant_broadcast_type_C;
@@ -838,7 +838,7 @@ int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
 
     const int A_elempack = A.elempack;
     const int B_elempack = B.elempack;
-    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c * A_elempack : A.h * A_elempack);
+    const int M = constantA ? constantM : transA ? A.w : (A.dims == 3 ? A.c * A_elempack : A.h * A_elempack);
     const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c * A_elempack : A.h * A_elempack) : A.w;
     const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c * B_elempack : B.h * B_elempack) : B.w;
 
@@ -1061,7 +1061,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
     use_cooperative_matrix = vkdev->info.support_int8_cooperative_matrix() && opt.use_cooperative_matrix && opt.use_int8_arithmetic;
     if (use_cooperative_matrix)
     {
-        int M = constantM ? constantM : 1024;
+        int M = constantA ? constantM : 1024;
         int N = constantN ? constantN : 1024;
         int K = constantK ? constantK : 1024;
 
@@ -1614,7 +1614,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
 
     if (use_cooperative_matrix)
     {
-        int outh = output_transpose ? constantN : constantM;
+        int outh = output_transpose ? constantN : (constantA ? constantM : 0);
         int out_elempack = outh ? (outh % 4 == 0 ? 4 : 1) : 0;
         if (output_elempack)
             out_elempack = output_elempack;
@@ -1625,7 +1625,7 @@ int Gemm_vulkan::create_pipeline_int8(const Option& opt)
         specializations[2].i = constantC;
         specializations[3].i = constant_broadcast_type_C;
         specializations[4].i = output_transpose;
-        specializations[5].u32 = constantM;
+        specializations[5].u32 = constantA ? constantM : 0;
         specializations[6].u32 = constantN;
         specializations[7].u32 = constantK;
         specializations[8].u32 = out_elempack;
@@ -1776,7 +1776,7 @@ int Gemm_vulkan::forward_int8(const std::vector<VkMat>& bottom_blobs, std::vecto
         B = B_unpacked;
     }
 
-    const int M = constantM ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
+    const int M = constantA ? constantM : transA ? A.w : (A.dims == 3 ? A.c : A.h);
     const int K = constantK ? constantK : transA ? (A.dims == 3 ? A.c : A.h) : A.w;
     const int N = constantN ? constantN : transB ? (B.dims == 3 ? B.c : B.h) : B.w;
 
