@@ -120,7 +120,7 @@ pnnx.Output             output      1 0 out
         const std::vector<int>& pad = captured_params.at("pad").ai;
         const std::string& mode = captured_params.at("mode").s;
         if (mode != "constant" && mode != "replicate" && mode != "reflect")
-            fprintf(stderr, "unsupported pad mode %s\n", mode.c_str());
+            fprintf(stderr, "unsupported F.pad mode %s\n", mode.c_str());
 
         if (pad.size() == 2)
         {
@@ -265,7 +265,7 @@ pnnx.Output             output      1 0 out
     {
         const std::string& mode = captured_params.at("mode").s;
         if (mode != "constant" && mode != "replicate" && mode != "reflect")
-            fprintf(stderr, "unsupported pad mode %s\n", mode.c_str());
+            fprintf(stderr, "unsupported F.pad mode %s\n", mode.c_str());
 
         const std::vector<int>& pad = captured_params.at("pad").ai;
 

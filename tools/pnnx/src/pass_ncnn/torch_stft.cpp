@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
     {
         const std::string& pad_mode = captured_params.at("pad_mode").s;
         if (captured_params.at("center").type == 1 && captured_params.at("center").b && pad_mode != "constant" && pad_mode != "replicate" && pad_mode != "reflect")
-            fprintf(stderr, "unsupported stft pad_mode %s\n", pad_mode.c_str());
+            fprintf(stderr, "unsupported torch.stft pad_mode %s\n", pad_mode.c_str());
         int pad_type = 2;
         if (pad_mode == "constant")
             pad_type = 0;
@@ -126,7 +126,7 @@ pnnx.Output             output      1 0 out
         return "stft";
     }
 
-    bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match(const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::vector<float> window_data = captured_attrs.at("op_0.data").get_float32_data();
         const int window_type = detect_window_type(window_data);
@@ -140,7 +140,7 @@ pnnx.Output             output      1 0 out
 
         const std::string& pad_mode = captured_params.at("pad_mode").s;
         if (captured_params.at("center").type == 1 && captured_params.at("center").b && pad_mode != "constant" && pad_mode != "replicate" && pad_mode != "reflect")
-            fprintf(stderr, "unsupported stft pad_mode %s\n", pad_mode.c_str());
+            fprintf(stderr, "unsupported torch.stft pad_mode %s\n", pad_mode.c_str());
         int pad_type = 2;
         if (pad_mode == "constant")
             pad_type = 0;
