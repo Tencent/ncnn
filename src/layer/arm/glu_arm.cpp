@@ -3,6 +3,9 @@
 
 #include "glu_arm.h"
 
+#include "arm_16bit.h"
+#include "cpu.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
@@ -10,11 +13,19 @@
 
 namespace ncnn {
 
+#include "glu_arm_16bit.h"
+
 GLU_arm::GLU_arm()
 {
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 static void glu_vector(const float* ptr, const float* gateptr, float* outptr, int size)
@@ -128,6 +139,18 @@ static void glu_pack4to1(const float* ptr, const float* gateptr0, const float* g
 
 int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    const int elembits = bottom_blob.elembits();
+
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_fp16s(bottom_blob, top_blob, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
+
     const int dims = bottom_blob.dims;
     const int positive_axis = dims == 1 ? 0 : axis < 0 ? dims + axis : axis;
     if (positive_axis < 0 || positive_axis >= dims)
@@ -288,5 +311,12 @@ int GLU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     return 0;
 }
+
+#if NCNN_BF16
+int GLU_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    return glu_forward_16bit_dispatch<ArmBF16Converter>(bottom_blob, top_blob, axis, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

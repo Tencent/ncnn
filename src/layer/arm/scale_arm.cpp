@@ -3,23 +3,46 @@
 
 #include "scale_arm.h"
 
+#include "arm_16bit.h"
+#include "cpu.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
 namespace ncnn {
 
+#include "scale_arm_16bit.h"
+
 Scale_arm::Scale_arm()
 {
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
 {
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
+
+    const int elembits = bottom_top_blob.elembits();
+
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blobs, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blobs, opt);
+#endif
 
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
@@ -246,5 +269,12 @@ int Scale_arm::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
     return 0;
 }
+
+#if NCNN_BF16
+int Scale_arm::forward_inplace_bf16s(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
+{
+    return scale_forward_inplace_16bit<ArmBF16Converter>(bottom_top_blobs[0], bottom_top_blobs[1], bias_data, bias_term, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

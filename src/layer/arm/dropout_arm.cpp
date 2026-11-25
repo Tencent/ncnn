@@ -3,17 +3,28 @@
 
 #include "dropout_arm.h"
 
+#include "arm_16bit.h"
+#include "cpu.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
 namespace ncnn {
 
+#include "dropout_arm_16bit.h"
+
 Dropout_arm::Dropout_arm()
 {
 #if __ARM_NEON
     support_packing = true;
 #endif // __ARM_NEON
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -22,6 +33,18 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         return 0;
     }
+
+    const int elembits = bottom_top_blob.elembits();
+
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -112,5 +135,12 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Dropout_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return dropout_forward_inplace_16bit<ArmBF16Converter>(bottom_top_blob, scale, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

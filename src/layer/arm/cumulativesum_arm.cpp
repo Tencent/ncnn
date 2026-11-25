@@ -3,11 +3,16 @@
 
 #include "cumulativesum_arm.h"
 
+#include "arm_16bit.h"
+#include "cpu.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
 namespace ncnn {
+
+#include "cumulativesum_arm_16bit.h"
 
 static void cumulative_sum(float* ptr, int w)
 {
@@ -99,10 +104,28 @@ static void cumulative_sum_add(const float* ptr, float* outptr, int size)
 
 CumulativeSum_arm::CumulativeSum_arm()
 {
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int CumulativeSum_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    const int elembits = bottom_top_blob.elembits();
+
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
@@ -234,5 +257,12 @@ int CumulativeSum_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
     return -100;
 }
+
+#if NCNN_BF16
+int CumulativeSum_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return cumulative_sum_forward_inplace_16bit<ArmBF16Converter>(bottom_top_blob, axis, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
