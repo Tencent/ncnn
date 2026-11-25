@@ -291,60 +291,57 @@ static int test_command_virtual_dispatch(bool use_push_constant)
 
     const uint32_t limits[3] = {vkdev->info.max_workgroup_count_x(), vkdev->info.max_workgroup_count_y(), vkdev->info.max_workgroup_count_z()};
 
-    // exercise an oversized grid along the first axis with a small enough device limit
-    int large_axis = -1;
-    for (int i = 0; i < 3; i++)
-    {
-        if (limits[i] <= 65535)
-        {
-            large_axis = i;
-            break;
-        }
-    }
+    // record normal and oversized dispatches together to check the base is reset
+    std::vector<ncnn::VkMat> outputs(5);
+    std::vector<ncnn::Mat> expected(5);
+    std::vector<ncnn::Mat> actual(5);
 
-    // repeat a normal dispatch after an oversized one to verify the base is reset
     ncnn::VkCompute cmd(vkdev);
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 5; i++)
     {
         int groups[3] = {2, 2, 2};
-        if (i == 1)
+        if (i > 0 && i < 4)
         {
-            if (large_axis == -1)
+            const int axis = i - 1;
+            if (limits[axis] > 65535)
                 continue;
-            groups[large_axis] = (int)limits[large_axis] + 1;
-            groups[(large_axis + 2) % 3] = 1;
+            groups[axis] = (int)limits[axis] + 1;
+            groups[(axis + 2) % 3] = 1;
         }
 
         const int n = groups[0] * groups[1] * groups[2];
-        ncnn::Mat a(n);
+        ncnn::Mat& a = expected[i];
+        a.create(n);
         a.fill(-1.f);
 
-        ncnn::VkMat output;
-        cmd.record_clone(a, output, opt);
+        cmd.record_clone(a, outputs[i], opt);
 
-        std::vector<ncnn::VkMat> bindings(1, output);
+        std::vector<ncnn::VkMat> bindings(1, outputs[i]);
 
         ncnn::VkMat dispatcher;
         dispatcher.w = groups[0] * pipeline.local_size_x();
         dispatcher.h = groups[1] * pipeline.local_size_y();
         dispatcher.c = groups[2] * pipeline.local_size_z();
         cmd.record_pipeline(&pipeline, bindings, constants, dispatcher);
-
-        ncnn::Mat b;
-        cmd.record_clone(output, b, opt);
-        if (cmd.submit_and_wait() != 0)
-            return -1;
+        cmd.record_clone(outputs[i], actual[i], opt);
 
         for (int j = 0; j < n; j++)
             a[j] = (float)(j + groups[0] + groups[1] + groups[2]) + (use_push_constant ? 7.f : 0.f);
+    }
 
-        if (CompareMat(a, b, 0.f) != 0)
+    if (cmd.submit_and_wait() != 0)
+        return -1;
+
+    for (int i = 0; i < 5; i++)
+    {
+        if (expected[i].empty())
+            continue;
+
+        if (CompareMat(expected[i], actual[i], 0.f) != 0)
         {
-            fprintf(stderr, "test_command_virtual_dispatch failed groups=(%d %d %d) use_push_constant=%d\n", groups[0], groups[1], groups[2], use_push_constant);
+            fprintf(stderr, "test_command_virtual_dispatch failed case=%d use_push_constant=%d\n", i, use_push_constant);
             return -1;
         }
-
-        cmd.reset();
     }
 
     return 0;

@@ -4499,12 +4499,6 @@ static void append_instruction(std::vector<uint32_t>& out, spv::Op op, uint32_t 
         out.push_back(operands[i]);
 }
 
-static void append_words(std::vector<uint32_t>& out, const uint32_t* p, uint32_t wc)
-{
-    for (uint32_t i = 0; i < wc; i++)
-        out.push_back(p[i]);
-}
-
 static uint32_t load_dispatch_constant(std::vector<uint32_t>& out, uint32_t& next_id,
                                        uint32_t uint_type, uint32_t ptr_type, uint32_t pc_var,
                                        uint32_t member_index, uint32_t result_id = 0)
@@ -4534,14 +4528,16 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
     size_t first_type = words;
     size_t first_function = words;
 
-    std::vector<uint32_t> pointer_pointee(bound, 0);
-    std::vector<uint32_t> constant_value(bound, 0);
-    std::vector<unsigned char> is_constant(bound, 0);
-    std::vector<uint32_t> builtin(bound, 0);
+    uint32_t global_invocation_id = 0;
+    uint32_t num_workgroups = 0;
+
+    // struct member count or pointer pointee type, indexed by type id
+    std::vector<uint32_t> type_info(bound, 0);
+    std::vector<int> constant_axis(bound, -1);
     std::vector<uint32_t> builtin_var(bound, 0);
     std::vector<uint32_t> component_index(bound, 0);
 
-    // gather the scalar types, push constant variable and decorated input ids
+    // collect types, constants, push constant block and builtin component pointers
     {
         for (size_t i = 5; i < words;)
         {
@@ -4555,29 +4551,44 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
 
             if (op == spv::Op::OpTypeInt && p[2] == 32 && p[3] == 0)
                 uint_type = p[1];
-            if (op == spv::Op::OpTypePointer && wc == 4)
-                pointer_pointee[p[1]] = p[3];
-            if (op == spv::Op::OpConstant && wc == 4)
+            else if (op == spv::Op::OpTypeVector && p[2] == uint_type && p[3] == 3)
+                vec_type = p[1];
+            else if (op == spv::Op::OpTypeStruct)
+                type_info[p[1]] = wc - 2;
+            else if (op == spv::Op::OpTypePointer)
             {
-                is_constant[p[2]] = 1;
-                constant_value[p[2]] = p[3];
+                type_info[p[1]] = p[3];
+                if (p[2] == (uint32_t)spv::StorageClass::PushConstant && p[3] == uint_type)
+                    pc_uint_ptr = p[1];
             }
-            if (op == spv::Op::OpVariable && wc >= 4 && p[3] == (uint32_t)spv::StorageClass::PushConstant)
+            else if (op == spv::Op::OpConstant && wc == 4 && p[3] < 3)
+                constant_axis[p[2]] = p[3];
+            else if (op == spv::Op::OpVariable && p[3] == (uint32_t)spv::StorageClass::PushConstant)
             {
                 pc_var = p[2];
                 pc_var_ptr = p[1];
-                pc_struct = pointer_pointee[pc_var_ptr];
+                pc_struct = type_info[pc_var_ptr];
+                push_constant_count = type_info[pc_struct];
             }
-            if (op == spv::Op::OpDecorate && wc == 4 && p[2] == (uint32_t)spv::Decoration::BuiltIn)
+            else if (op == spv::Op::OpDecorate && p[2] == (uint32_t)spv::Decoration::BuiltIn)
             {
+                if (p[3] == (uint32_t)spv::BuiltIn::GlobalInvocationId)
+                    global_invocation_id = p[1];
+                else if (p[3] == (uint32_t)spv::BuiltIn::NumWorkgroups)
+                    num_workgroups = p[1];
                 if (p[3] == (uint32_t)spv::BuiltIn::WorkgroupId
                         || p[3] == (uint32_t)spv::BuiltIn::GlobalInvocationId
                         || p[3] == (uint32_t)spv::BuiltIn::NumWorkgroups)
                 {
-                    builtin[p[1]] = p[3];
                     builtin_var[p[1]] = p[1];
                 }
             }
+            else if ((op == spv::Op::OpAccessChain || op == spv::Op::OpInBoundsAccessChain) && wc == 5 && builtin_var[p[3]])
+            {
+                builtin_var[p[2]] = builtin_var[p[3]];
+                component_index[p[2]] = p[4];
+            }
+
             i += wc;
         }
     }
@@ -4585,30 +4596,6 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
     const bool new_pc = pc_var == 0;
     if (!uint_type)
         uint_type = next_id++;
-
-    // find the push constant member count, vector type and component pointers
-    {
-        for (size_t i = 5; i < words;)
-        {
-            const uint32_t* p = code + i;
-            const uint32_t wc = p[0] >> 16;
-            const spv::Op op = (spv::Op)(p[0] & 0xffff);
-            if (op == spv::Op::OpTypeStruct && p[1] == pc_struct)
-                push_constant_count = wc - 2;
-            if (op == spv::Op::OpTypeVector && wc == 4 && p[2] == uint_type && p[3] == 3)
-                vec_type = p[1];
-            if (op == spv::Op::OpTypePointer && wc == 4 && p[2] == (uint32_t)spv::StorageClass::PushConstant && p[3] == uint_type)
-                pc_uint_ptr = p[1];
-
-            if ((op == spv::Op::OpAccessChain || op == spv::Op::OpInBoundsAccessChain) && wc == 5 && builtin[p[3]] != 0)
-            {
-                builtin[p[2]] = builtin[p[3]];
-                builtin_var[p[2]] = builtin_var[p[3]];
-                component_index[p[2]] = p[4];
-            }
-            i += wc;
-        }
-    }
 
     if (new_pc)
     {
@@ -4629,7 +4616,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
         local_size_ids[i] = next_id++;
 
     out.clear();
-    append_words(out, code, 5);
+    out.insert(out.end(), code, code + 5);
 
     // rewrite the spirv module
     {
@@ -4682,7 +4669,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 if (!listed)
                 {
                     out.push_back(((wc + 1) << 16) | (uint32_t)op);
-                    append_words(out, p + 1, wc - 1);
+                    out.insert(out.end(), p + 1, p + wc);
                     out.push_back(pc_var);
                     i += wc;
                     continue;
@@ -4698,65 +4685,61 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
             if (op == spv::Op::OpTypeStruct && p[1] == pc_struct)
             {
                 out.push_back(((wc + 6) << 16) | (uint32_t)op);
-                append_words(out, p + 1, wc - 1);
+                out.insert(out.end(), p + 1, p + wc);
                 for (int j = 0; j < 6; j++)
                     out.push_back(uint_type);
                 i += wc;
                 continue;
             }
 
-            if (op == spv::Op::OpLoad && wc >= 4 && builtin[p[3]] != 0)
+            if (op == spv::Op::OpLoad && builtin_var[p[3]])
             {
                 const uint32_t result_type = p[1];
                 const uint32_t result = p[2];
                 const uint32_t ptr = p[3];
+                const uint32_t var = builtin_var[ptr];
                 const uint32_t index = component_index[ptr];
-                const uint32_t kind = builtin[ptr];
-                const bool count = kind == (uint32_t)spv::BuiltIn::NumWorkgroups;
-                const bool global = kind == (uint32_t)spv::BuiltIn::GlobalInvocationId;
+                const bool count = var == num_workgroups;
+                const bool global = var == global_invocation_id;
                 const int member_base = count ? 3 : 0;
 
-                // avoid loading unused components when accessing a constant vector component
-                if (index && is_constant[index] && constant_value[index] < 3)
+                // load only the required components for a constant vector index
+                const int axis = index ? constant_axis[index] : -1;
+                const int axis_begin = axis >= 0 ? axis : 0;
+                const int axis_end = axis >= 0 ? axis + 1 : 3;
+                uint32_t components[3];
+                for (int j = axis_begin; j < axis_end; j++)
                 {
-                    const uint32_t axis = constant_value[index];
-                    uint32_t offset = load_dispatch_constant(out, next_id, uint_type, pc_uint_ptr, pc_var, member_ids[member_base + axis], count ? result : 0);
+                    components[j] = load_dispatch_constant(out, next_id, uint_type, pc_uint_ptr, pc_var, member_ids[member_base + j], count && axis >= 0 ? result : 0);
+                    if (global && local_sizes[j] != 1)
+                    {
+                        const uint32_t scaled = next_id++;
+                        append_instruction(out, spv::Op::OpIMul, 5, uint_type, scaled, components[j], local_size_ids[j]);
+                        components[j] = scaled;
+                    }
+                }
+
+                if (axis >= 0)
+                {
                     if (!count)
                     {
-                        if (global && local_sizes[axis] != 1)
-                        {
-                            const uint32_t scaled = next_id++;
-                            append_instruction(out, spv::Op::OpIMul, 5, uint_type, scaled, offset, local_size_ids[axis]);
-                            offset = scaled;
-                        }
                         const uint32_t physical = next_id++;
                         out.push_back(p[0]);
                         out.push_back(result_type);
                         out.push_back(physical);
-                        append_words(out, p + 3, wc - 3);
-                        append_instruction(out, spv::Op::OpIAdd, 5, uint_type, result, physical, offset);
+                        out.insert(out.end(), p + 3, p + wc);
+                        append_instruction(out, spv::Op::OpIAdd, 5, uint_type, result, physical, components[axis]);
                     }
                 }
                 else
                 {
-                    uint32_t components[3];
-                    for (int j = 0; j < 3; j++)
-                    {
-                        components[j] = load_dispatch_constant(out, next_id, uint_type, pc_uint_ptr, pc_var, member_ids[member_base + j]);
-                        if (global && local_sizes[j] != 1)
-                        {
-                            const uint32_t scaled = next_id++;
-                            append_instruction(out, spv::Op::OpIMul, 5, uint_type, scaled, components[j], local_size_ids[j]);
-                            components[j] = scaled;
-                        }
-                    }
                     const uint32_t logical = index ? next_id++ : result;
                     const uint32_t offset = count ? logical : next_id++;
                     append_instruction(out, spv::Op::OpCompositeConstruct, 6, vec_type, offset, components[0], components[1], components[2]);
                     if (!count)
                     {
                         const uint32_t physical = next_id++;
-                        append_instruction(out, spv::Op::OpLoad, 4, vec_type, physical, builtin_var[ptr]);
+                        append_instruction(out, spv::Op::OpLoad, 4, vec_type, physical, var);
                         append_instruction(out, spv::Op::OpIAdd, 5, vec_type, logical, physical, offset);
                     }
                     if (index)
@@ -4767,7 +4750,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 continue;
             }
 
-            append_words(out, p, wc);
+            out.insert(out.end(), p, p + wc);
             i += wc;
         }
     }
