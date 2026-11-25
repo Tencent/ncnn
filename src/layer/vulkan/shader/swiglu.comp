@@ -1,0 +1,40 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const uint n = 0;
+layout(constant_id = 1) const float sigmoid_scale = 1.f;
+layout(constant_id = 2) const float up_offset = 0.f;
+layout(constant_id = 3) const float activation_limit = 0.f;
+
+layout(binding = 0) readonly buffer gate_blob { sfpvec4 gate_data[]; };
+layout(binding = 1) readonly buffer up_blob { sfpvec4 up_data[]; };
+layout(binding = 2) writeonly buffer top_blob { sfpvec4 top_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    uint n;
+} p;
+
+void main()
+{
+    uint gi = gl_GlobalInvocationID.x;
+
+    if (gi >= psc(n))
+        return;
+
+    afpvec4 g = buffer_ld4(gate_data, gi);
+    afpvec4 u = buffer_ld4(up_data, gi);
+
+    if (activation_limit > 0.f)
+    {
+        g = min(g, afpvec4(activation_limit));
+        u = clamp(u, afpvec4(-activation_limit), afpvec4(activation_limit));
+    }
+
+    g = g / (afpvec4(1.f) + exp(-afpvec4(sigmoid_scale) * g));
+
+    afpvec4 v = g * (u + afpvec4(up_offset));
+    buffer_st4(top_data, gi, v);
+}

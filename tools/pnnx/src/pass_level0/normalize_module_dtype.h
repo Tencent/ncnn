@@ -5,6 +5,6 @@
 
 namespace pnnx {
 
-void convert_half_to_float(torch::jit::Module& mod);
+void normalize_module_dtype(torch::jit::Module& mod);
 
 } // namespace pnnx
