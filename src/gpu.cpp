@@ -4488,45 +4488,6 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     return shader_module;
 }
 
-// SPIR-V constants used by the dispatch rewrite, independent of the glslang header version.
-namespace {
-
-enum
-{
-    SpirvOpEntryPoint = 15,
-    SpirvOpTypeVoid = 19,
-    SpirvOpTypeInt = 21,
-    SpirvOpTypeVector = 23,
-    SpirvOpTypeStruct = 30,
-    SpirvOpTypePointer = 32,
-    SpirvOpTypeForwardPointer = 39,
-    SpirvOpConstant = 43,
-    SpirvOpConstantComposite = 44,
-    SpirvOpFunction = 54,
-    SpirvOpVariable = 59,
-    SpirvOpLoad = 61,
-    SpirvOpAccessChain = 65,
-    SpirvOpInBoundsAccessChain = 66,
-    SpirvOpDecorate = 71,
-    SpirvOpMemberDecorate = 72,
-    SpirvOpVectorExtractDynamic = 77,
-    SpirvOpCompositeConstruct = 80,
-    SpirvOpIAdd = 128,
-    SpirvOpIMul = 132,
-
-    SpirvStorageClassPushConstant = 9,
-
-    SpirvDecorationBlock = 2,
-    SpirvDecorationBuiltIn = 11,
-    SpirvDecorationOffset = 35,
-
-    SpirvBuiltInNumWorkgroups = 24,
-    SpirvBuiltInWorkgroupId = 26,
-    SpirvBuiltInGlobalInvocationId = 28,
-};
-
-} // namespace
-
 static void append_instruction(std::vector<uint32_t>& out, uint32_t op, uint32_t wc,
                                uint32_t a = 0, uint32_t b = 0, uint32_t c = 0, uint32_t d = 0,
                                uint32_t e = 0, uint32_t f = 0, uint32_t g = 0)
@@ -4541,6 +4502,41 @@ static void append_instruction(std::vector<uint32_t>& out, uint32_t op, uint32_t
 // keep the original storage classes, entry point, local size and subgroup semantics
 static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, std::vector<uint32_t>& out)
 {
+    // SPIR-V constants independent of the glslang header version
+    enum
+    {
+        SpirvOpEntryPoint = 15,
+        SpirvOpTypeVoid = 19,
+        SpirvOpTypeInt = 21,
+        SpirvOpTypeVector = 23,
+        SpirvOpTypeStruct = 30,
+        SpirvOpTypePointer = 32,
+        SpirvOpTypeForwardPointer = 39,
+        SpirvOpConstant = 43,
+        SpirvOpConstantComposite = 44,
+        SpirvOpFunction = 54,
+        SpirvOpVariable = 59,
+        SpirvOpLoad = 61,
+        SpirvOpAccessChain = 65,
+        SpirvOpInBoundsAccessChain = 66,
+        SpirvOpDecorate = 71,
+        SpirvOpMemberDecorate = 72,
+        SpirvOpVectorExtractDynamic = 77,
+        SpirvOpCompositeConstruct = 80,
+        SpirvOpIAdd = 128,
+        SpirvOpIMul = 132,
+
+        SpirvStorageClassPushConstant = 9,
+
+        SpirvDecorationBlock = 2,
+        SpirvDecorationBuiltIn = 11,
+        SpirvDecorationOffset = 35,
+
+        SpirvBuiltInNumWorkgroups = 24,
+        SpirvBuiltInWorkgroupId = 26,
+        SpirvBuiltInGlobalInvocationId = 28,
+    };
+
     const size_t words = size / sizeof(uint32_t);
     const uint32_t bound = code[3];
     uint32_t next_id = bound;
