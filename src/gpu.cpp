@@ -4502,41 +4502,6 @@ static void append_instruction(std::vector<uint32_t>& out, uint32_t op, uint32_t
 // keep the original storage classes, entry point, local size and subgroup semantics
 static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, std::vector<uint32_t>& out)
 {
-    // SPIR-V constants independent of the glslang header version
-    enum
-    {
-        SpirvOpEntryPoint = 15,
-        SpirvOpTypeVoid = 19,
-        SpirvOpTypeInt = 21,
-        SpirvOpTypeVector = 23,
-        SpirvOpTypeStruct = 30,
-        SpirvOpTypePointer = 32,
-        SpirvOpTypeForwardPointer = 39,
-        SpirvOpConstant = 43,
-        SpirvOpConstantComposite = 44,
-        SpirvOpFunction = 54,
-        SpirvOpVariable = 59,
-        SpirvOpLoad = 61,
-        SpirvOpAccessChain = 65,
-        SpirvOpInBoundsAccessChain = 66,
-        SpirvOpDecorate = 71,
-        SpirvOpMemberDecorate = 72,
-        SpirvOpVectorExtractDynamic = 77,
-        SpirvOpCompositeConstruct = 80,
-        SpirvOpIAdd = 128,
-        SpirvOpIMul = 132,
-
-        SpirvStorageClassPushConstant = 9,
-
-        SpirvDecorationBlock = 2,
-        SpirvDecorationBuiltIn = 11,
-        SpirvDecorationOffset = 35,
-
-        SpirvBuiltInNumWorkgroups = 24,
-        SpirvBuiltInWorkgroupId = 26,
-        SpirvBuiltInGlobalInvocationId = 28,
-    };
-
     const size_t words = size / sizeof(uint32_t);
     const uint32_t bound = code[3];
     uint32_t next_id = bound;
@@ -4565,44 +4530,44 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
             const uint32_t* p = code + i;
             const uint32_t wc = p[0] >> 16;
             const uint32_t op = p[0] & 0xffff;
-            if (op >= SpirvOpTypeVoid && op <= SpirvOpTypeForwardPointer && first_type == words)
+            if (op >= 19 && op <= 39 && first_type == words) // OpTypeVoid OpTypeForwardPointer
                 first_type = i;
-            if (op == SpirvOpFunction && first_function == words)
+            if (op == 54 && first_function == words) // OpFunction
                 first_function = i;
 
-            if (op == SpirvOpTypeInt && p[2] == 32 && p[3] == 0)
+            if (op == 21 && p[2] == 32 && p[3] == 0) // OpTypeInt
                 uint_type = p[1];
-            else if (op == SpirvOpTypeVector && p[2] == uint_type && p[3] == 3)
+            else if (op == 23 && p[2] == uint_type && p[3] == 3) // OpTypeVector
                 vec_type = p[1];
-            else if (op == SpirvOpTypeStruct)
+            else if (op == 30) // OpTypeStruct
                 type_info[p[1]] = wc - 2;
-            else if (op == SpirvOpTypePointer)
+            else if (op == 32) // OpTypePointer
             {
                 type_info[p[1]] = p[3];
-                if (p[2] == SpirvStorageClassPushConstant && p[3] == uint_type)
+                if (p[2] == 9 && p[3] == uint_type) // PushConstant
                     pc_uint_ptr = p[1];
             }
-            else if (op == SpirvOpVariable && p[3] == SpirvStorageClassPushConstant)
+            else if (op == 59 && p[3] == 9) // OpVariable PushConstant
             {
                 pc_var = p[2];
                 pc_var_ptr = p[1];
                 pc_struct = type_info[pc_var_ptr];
                 push_constant_count = type_info[pc_struct];
             }
-            else if (op == SpirvOpDecorate && p[2] == SpirvDecorationBuiltIn)
+            else if (op == 71 && p[2] == 11) // OpDecorate BuiltIn
             {
-                if (p[3] == SpirvBuiltInGlobalInvocationId)
+                if (p[3] == 28) // GlobalInvocationId
                     global_invocation_id = p[1];
-                else if (p[3] == SpirvBuiltInNumWorkgroups)
+                else if (p[3] == 24) // NumWorkgroups
                     num_workgroups = p[1];
-                if (p[3] == SpirvBuiltInWorkgroupId
-                        || p[3] == SpirvBuiltInGlobalInvocationId
-                        || p[3] == SpirvBuiltInNumWorkgroups)
+                if (p[3] == 26 // WorkgroupId
+                        || p[3] == 28 // GlobalInvocationId
+                        || p[3] == 24) // NumWorkgroups
                 {
                     builtin_var[p[1]] = p[1];
                 }
             }
-            else if ((op == SpirvOpAccessChain || op == SpirvOpInBoundsAccessChain) && wc == 5 && builtin_var[p[3]])
+            else if ((op == 65 || op == 66) && wc == 5 && builtin_var[p[3]]) // OpAccessChain OpInBoundsAccessChain
             {
                 builtin_var[p[2]] = builtin_var[p[3]];
                 component_index[p[2]] = p[4];
@@ -4646,29 +4611,29 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
             if (i == first_type)
             {
                 if (new_pc)
-                    append_instruction(out, SpirvOpDecorate, 3, pc_struct, SpirvDecorationBlock);
+                    append_instruction(out, 71, 3, pc_struct, 2); // OpDecorate Block
                 for (int j = 0; j < 6; j++)
                 {
                     const uint32_t member = push_constant_count + j;
-                    append_instruction(out, SpirvOpMemberDecorate, 5, pc_struct, member, SpirvDecorationOffset, member * 4);
+                    append_instruction(out, 72, 5, pc_struct, member, 35, member * 4); // OpMemberDecorate Offset
                 }
 
                 // the existing push constant struct may precede the original uint type
                 // move that independent scalar type to the beginning of the types
-                append_instruction(out, SpirvOpTypeInt, 4, uint_type, 32, 0);
+                append_instruction(out, 21, 4, uint_type, 32, 0); // OpTypeInt
             }
 
             if (i == first_function)
             {
                 if (new_pc)
                 {
-                    append_instruction(out, SpirvOpTypeStruct, 8, pc_struct, uint_type, uint_type, uint_type, uint_type, uint_type, uint_type);
-                    append_instruction(out, SpirvOpTypePointer, 4, pc_var_ptr, SpirvStorageClassPushConstant, pc_struct);
+                    append_instruction(out, 30, 8, pc_struct, uint_type, uint_type, uint_type, uint_type, uint_type, uint_type); // OpTypeStruct
+                    append_instruction(out, 32, 4, pc_var_ptr, 9, pc_struct); // OpTypePointer PushConstant
                 }
                 if (new_pc_uint_ptr)
-                    append_instruction(out, SpirvOpTypePointer, 4, pc_uint_ptr, SpirvStorageClassPushConstant, uint_type);
+                    append_instruction(out, 32, 4, pc_uint_ptr, 9, uint_type); // OpTypePointer PushConstant
                 for (int j = 0; j < 6; j++)
-                    append_instruction(out, SpirvOpConstant, 4, uint_type, member_ids[j], push_constant_count + j);
+                    append_instruction(out, 43, 4, uint_type, member_ids[j], push_constant_count + j); // OpConstant
                 if (global_invocation_id)
                 {
                     const uint32_t local_sizes[3] = {local_size_x, local_size_y, local_size_z};
@@ -4676,17 +4641,17 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                     for (int j = 0; j < 3; j++)
                     {
                         local_size_ids[j] = next_id++;
-                        append_instruction(out, SpirvOpConstant, 4, uint_type, local_size_ids[j], local_sizes[j]);
+                        append_instruction(out, 43, 4, uint_type, local_size_ids[j], local_sizes[j]); // OpConstant
                     }
                     local_size_id = next_id++;
-                    append_instruction(out, SpirvOpConstantComposite, 6, vec_type, local_size_id, local_size_ids[0], local_size_ids[1], local_size_ids[2]);
+                    append_instruction(out, 44, 6, vec_type, local_size_id, local_size_ids[0], local_size_ids[1], local_size_ids[2]); // OpConstantComposite
                 }
                 if (new_pc)
-                    append_instruction(out, SpirvOpVariable, 4, pc_var_ptr, pc_var, SpirvStorageClassPushConstant);
+                    append_instruction(out, 59, 4, pc_var_ptr, pc_var, 9); // OpVariable PushConstant
             }
 
             // spirv 1.4+ lists all statically used global variables in OpEntryPoint
-            if (op == SpirvOpEntryPoint && code[1] >= 0x00010400)
+            if (op == 15 && code[1] >= 0x00010400) // OpEntryPoint
             {
                 bool listed = false;
                 const size_t name_words = (strlen((const char*)(p + 3)) + 4) / 4;
@@ -4703,13 +4668,13 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 }
             }
 
-            if (op == SpirvOpTypeInt && p[1] == uint_type)
+            if (op == 21 && p[1] == uint_type) // OpTypeInt
             {
                 i += wc;
                 continue;
             }
 
-            if (op == SpirvOpTypeStruct && p[1] == pc_struct)
+            if (op == 30 && p[1] == pc_struct) // OpTypeStruct
             {
                 out.push_back(((wc + 6) << 16) | (uint32_t)op);
                 out.insert(out.end(), p + 1, p + wc);
@@ -4719,7 +4684,7 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 continue;
             }
 
-            if (op == SpirvOpLoad && builtin_var[p[3]])
+            if (op == 61 && builtin_var[p[3]]) // OpLoad
             {
                 const uint32_t result = p[2];
                 const uint32_t var = builtin_var[p[3]];
@@ -4732,28 +4697,28 @@ static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t 
                 {
                     const uint32_t ptr = next_id++;
                     components[j] = next_id++;
-                    append_instruction(out, SpirvOpAccessChain, 5, pc_uint_ptr, ptr, pc_var, member_ids[member_base + j]);
-                    append_instruction(out, SpirvOpLoad, 4, uint_type, components[j], ptr);
+                    append_instruction(out, 65, 5, pc_uint_ptr, ptr, pc_var, member_ids[member_base + j]); // OpAccessChain
+                    append_instruction(out, 61, 4, uint_type, components[j], ptr); // OpLoad
                 }
 
                 const uint32_t logical = index ? next_id++ : result;
                 uint32_t offset = count ? logical : next_id++;
-                append_instruction(out, SpirvOpCompositeConstruct, 6, vec_type, offset, components[0], components[1], components[2]);
+                append_instruction(out, 80, 6, vec_type, offset, components[0], components[1], components[2]); // OpCompositeConstruct
 
                 if (var == global_invocation_id)
                 {
                     const uint32_t scaled = next_id++;
-                    append_instruction(out, SpirvOpIMul, 5, vec_type, scaled, offset, local_size_id);
+                    append_instruction(out, 132, 5, vec_type, scaled, offset, local_size_id); // OpIMul
                     offset = scaled;
                 }
                 if (!count)
                 {
                     const uint32_t physical = next_id++;
-                    append_instruction(out, SpirvOpLoad, 4, vec_type, physical, var);
-                    append_instruction(out, SpirvOpIAdd, 5, vec_type, logical, physical, offset);
+                    append_instruction(out, 61, 4, vec_type, physical, var); // OpLoad
+                    append_instruction(out, 128, 5, vec_type, logical, physical, offset); // OpIAdd
                 }
                 if (index)
-                    append_instruction(out, SpirvOpVectorExtractDynamic, 5, uint_type, result, logical, index);
+                    append_instruction(out, 77, 5, uint_type, result, logical, index); // OpVectorExtractDynamic
 
                 i += wc;
                 continue;
