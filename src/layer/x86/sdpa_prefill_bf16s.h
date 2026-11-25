@@ -4811,27 +4811,38 @@ static int sdpa_prefill_packed_bf16s(const Mat& query, const Mat& packed_key, co
 
         packed_value_bf16s.h = key_seqlen;
 
-        const int num_panels = (key_seqlen + NR - 1) / NR;
-        const int pack_nT = value.h >= NR ? nT : 1;
-        const int num_pack_chunks = std::min(num_panels, std::max(1, (pack_nT + num_kv_heads - 1) / num_kv_heads));
-
-        #pragma omp parallel for num_threads(pack_nT)
-        for (int task_id = 0; task_id < num_kv_heads * num_pack_chunks; task_id++)
+        if (value.h < NR)
         {
-            const int g = task_id / num_pack_chunks;
-            const int chunk_id = task_id % num_pack_chunks;
-            const int panel_begin_id = chunk_id * num_panels / num_pack_chunks;
-            const int panel_end_id = (chunk_id + 1) * num_panels / num_pack_chunks;
-            const Mat value_head = value.channel(g);
-            Mat packed_value_head = packed_value_bf16s.channel(g);
-
-            for (int panel_id = panel_begin_id; panel_id < panel_end_id; panel_id++)
+            // one partial panel per head, pack it without entering an omp region
+            for (int g = 0; g < num_kv_heads; g++)
             {
-                const int panel_begin = panel_id * NR;
-                const int n_end = std::min(key_seqlen, panel_begin + NR);
-                Mat packed_value_tile(value.w * NR, (unsigned short*)packed_value_head + (size_t)panel_id * value.w * NR, 2u);
+                Mat packed_value_tile(value.w * NR, (unsigned short*)packed_value_bf16s.channel(g), 2u);
+                sdpa_pack_value_tile_bf16s(value.channel(g), packed_value_tile, 0, 0, key_seqlen);
+            }
+        }
+        else
+        {
+            const int num_panels = (key_seqlen + NR - 1) / NR;
+            const int num_pack_chunks = std::min(num_panels, std::max(1, (nT + num_kv_heads - 1) / num_kv_heads));
 
-                sdpa_pack_value_tile_bf16s(value_head, packed_value_tile, panel_begin, 0, n_end - panel_begin);
+            #pragma omp parallel for num_threads(nT)
+            for (int task_id = 0; task_id < num_kv_heads * num_pack_chunks; task_id++)
+            {
+                const int g = task_id / num_pack_chunks;
+                const int chunk_id = task_id % num_pack_chunks;
+                const int panel_begin_id = chunk_id * num_panels / num_pack_chunks;
+                const int panel_end_id = (chunk_id + 1) * num_panels / num_pack_chunks;
+                const Mat value_head = value.channel(g);
+                Mat packed_value_head = packed_value_bf16s.channel(g);
+
+                for (int panel_id = panel_begin_id; panel_id < panel_end_id; panel_id++)
+                {
+                    const int panel_begin = panel_id * NR;
+                    const int n_end = std::min(key_seqlen, panel_begin + NR);
+                    Mat packed_value_tile(value.w * NR, (unsigned short*)packed_value_head + (size_t)panel_id * value.w * NR, 2u);
+
+                    sdpa_pack_value_tile_bf16s(value_head, packed_value_tile, panel_begin, 0, n_end - panel_begin);
+                }
             }
         }
     }
@@ -4929,10 +4940,22 @@ static int sdpa_prefill_bf16s(const Mat& query, const Mat& key, const Mat& value
     packed_key.h = key.h;
 
     const int num_kv_heads = key.c;
+    if (key.h < panel_width)
+    {
+        // one partial panel per head, pack it without entering an omp region
+        for (int g = 0; g < num_kv_heads; g++)
+        {
+            Mat packed_key_tile(key.w * panel_width, (unsigned short*)packed_key.channel(g), 2u);
+            sdpa_pack_key_tile_bf16s(key.channel(g), packed_key_tile, 0, 0, key.h);
+        }
+
+        return sdpa_prefill_packed_bf16s(query, packed_key, Mat(), value, attn_mask_blob, top_blob, scale, opt);
+    }
+
     const int num_panels = (key.h + panel_width - 1) / panel_width;
     const int num_panel_tasks = std::min(num_panels, std::max(1, (opt.num_threads + num_kv_heads - 1) / num_kv_heads));
     const int num_tasks = num_kv_heads * num_panel_tasks;
-    const int nT = key.h >= panel_width ? std::min(opt.num_threads, num_tasks) : 1;
+    const int nT = std::min(opt.num_threads, num_tasks);
 
     #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)

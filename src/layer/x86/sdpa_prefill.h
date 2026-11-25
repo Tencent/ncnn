@@ -3709,10 +3709,25 @@ static int sdpa_prefill(const Mat& query, const Mat& key, const Mat& value, cons
     packed_value.h = value.h;
 
     const int num_kv_heads = key.c;
+    if (key.h < panel_width)
+    {
+        // one partial panel per head, pack it without entering an omp region
+        for (int g = 0; g < num_kv_heads; g++)
+        {
+            Mat packed_key_tile(key.w * panel_width, (float*)packed_key.channel(g), 4u);
+            Mat packed_value_tile(value.w * panel_width, (float*)packed_value.channel(g), 4u);
+
+            sdpa_pack_key_tile(key.channel(g), packed_key_tile, 0, 0, key.h);
+            sdpa_pack_value_tile(value.channel(g), packed_value_tile, 0, 0, key.h);
+        }
+
+        return sdpa_prefill_packed(query, packed_key, packed_value, attn_mask, top_blob, scale, opt);
+    }
+
     const int num_panels = (key.h + panel_width - 1) / panel_width;
     const int num_panel_tasks = std::min(num_panels, std::max(1, (opt.num_threads + num_kv_heads - 1) / num_kv_heads));
     const int num_tasks = num_kv_heads * num_panel_tasks;
-    const int nT = key.h >= panel_width ? std::min(opt.num_threads, num_tasks) : 1;
+    const int nT = std::min(opt.num_threads, num_tasks);
 
     #pragma omp parallel for num_threads(nT)
     for (int task_id = 0; task_id < num_tasks; task_id++)
