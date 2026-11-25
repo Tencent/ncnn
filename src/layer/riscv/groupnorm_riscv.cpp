@@ -293,9 +293,13 @@ int GroupNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         }
     }
 
-    if (g_elempack != elempack)
+    // 1d unpacking is a reshape that shares data with bottom_top_blob
+    if (g_elempack != elempack && bottom_top_blob_unpacked.data != bottom_top_blob.data)
     {
-        convert_packing(bottom_top_blob_unpacked, bottom_top_blob, elempack, opt);
+        // keep the original allocator so that packing writes back into the inplace buffer
+        Option opt_p = opt;
+        opt_p.blob_allocator = bottom_top_blob.allocator;
+        convert_packing(bottom_top_blob_unpacked, bottom_top_blob, elempack, opt_p);
         if (bottom_top_blob.empty())
             return -100;
     }
