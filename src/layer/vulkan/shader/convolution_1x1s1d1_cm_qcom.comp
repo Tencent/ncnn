@@ -89,9 +89,8 @@ void main()
     const uint sgni = sgi % UNROLL_WG_N;
     const uint output_size = psc(size);
     const uint wgnn = (outch + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
-    const uint wgi = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-    const uint wgmi = wgi / wgnn;
-    const uint wgni = wgi % wgnn;
+    const uint wgmi = gl_WorkGroupID.x / wgnn;
+    const uint wgni = gl_WorkGroupID.x % wgnn;
     const uint mi = (wgmi * UNROLL_WG_M + sgmi) * UNROLL_SG_M;
     const uint ni = (wgni * UNROLL_WG_N + sgni) * UNROLL_SG_N;
     if (wgmi * M * UNROLL_SG_M * UNROLL_WG_M >= output_size)

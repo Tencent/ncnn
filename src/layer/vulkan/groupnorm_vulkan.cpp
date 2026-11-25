@@ -420,19 +420,14 @@ int GroupNorm_vulkan::forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, co
         bindings[1] = mean_workspace;
         bindings[2] = var_workspace;
 
-        std::vector<vk_constant_type> constants(4);
+        std::vector<vk_constant_type> constants(3);
         constants[0].i = size_virtual;
         constants[1].i = channels_g;
         constants[2].i = cstep_virtual;
-        constants[3].i = group;
-
-        // split groups across x and y to stay within the dispatch limits
-        const int group_count_x = (group - 1) / vkdev->info.max_workgroup_count_y() + 1;
-        const int group_count_y = (group - 1) / group_count_x + 1;
 
         VkMat dispatcher;
-        dispatcher.w = group_count_x * pipeline_reduce_subgroup->local_size_x();
-        dispatcher.h = group_count_y;
+        dispatcher.w = pipeline_reduce_subgroup->local_size_x();
+        dispatcher.h = group;
         dispatcher.c = 1;
 
         cmd.record_pipeline(pipeline_reduce_subgroup, bindings, constants, dispatcher);

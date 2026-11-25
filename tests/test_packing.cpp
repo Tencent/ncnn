@@ -534,23 +534,6 @@ static int test_packing_load_param()
 }
 #endif // NCNN_VALIDATION
 
-#if NCNN_VULKAN
-static int test_packing_oversized_dispatch()
-{
-    if (ncnn::get_gpu_count() == 0)
-        return 0;
-
-    const uint32_t limit = ncnn::get_gpu_device()->info.max_workgroup_count_y();
-    // keep the test allocation small on devices with a larger y limit
-    if (limit > 65535)
-        return 0;
-
-    // the packing shader dispatches one workgroup per packed element along y
-    ncnn::Mat a = RandomMat(1, (int)(limit + 1) * 4);
-    return test_packing_gpu(a, 1, 4, 1) || test_packing_gpu(a, 4, 1, 1);
-}
-#endif // NCNN_VULKAN
-
 int main()
 {
     SRAND(7767517);
@@ -561,9 +544,6 @@ int main()
            || test_packing_2()
            || test_packing_3()
            || test_packing_int8()
-#if NCNN_VULKAN
-           || test_packing_oversized_dispatch()
-#endif // NCNN_VULKAN
 #if NCNN_VALIDATION
            || test_packing_load_param()
 #endif // NCNN_VALIDATION

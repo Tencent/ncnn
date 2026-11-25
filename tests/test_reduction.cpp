@@ -394,7 +394,6 @@ static int test_reduction_gpu_dispatch()
         return 0;
 
     // output counts around the 65535-workgroup Vulkan minimum Y dispatch limit
-    // 65537 outputs leave a padded tail workgroup once split across x and y
     const int shapes[3][2] = {{257, 255}, {256, 256}, {65537, 1}};
 
     // sum mean logsumexp, logsumexp takes a separate barrier path in the shader

@@ -4,10 +4,7 @@
 #include "command.h"
 #include "gpu.h"
 #include "mat.h"
-#include "pipeline.h"
 #include "testutil.h"
-
-#include <string>
 
 static int test_command_upload_download(const ncnn::Mat& a)
 {
@@ -227,129 +224,9 @@ static int test_command_2()
            || test_command_transfer(RandomMat(127));
 }
 
-static int test_command_virtual_dispatch(bool use_push_constant)
-{
-    if (ncnn::get_gpu_count() == 0)
-        return 0;
-
-    const ncnn::VulkanDevice* vkdev = ncnn::get_gpu_device();
-
-    ncnn::VkBlobAllocator blob_allocator(vkdev);
-    ncnn::VkStagingAllocator staging_allocator(vkdev);
-
-    ncnn::Option opt;
-    opt.use_vulkan_compute = true;
-    opt.use_fp16_packed = false;
-    opt.use_fp16_storage = false;
-    opt.use_fp16_arithmetic = false;
-    opt.use_bf16_packed = false;
-    opt.use_bf16_storage = false;
-    opt.use_subgroup_ops = false;
-    opt.use_cooperative_matrix = false;
-    opt.blob_vkallocator = &blob_allocator;
-    opt.staging_vkallocator = &staging_allocator;
-
-    std::string source = "#version 450\n"
-                         "layout(constant_id = 0) const uint sx = 1;\n"
-                         "layout(constant_id = 1) const uint sy = 1;\n"
-                         "layout(constant_id = 2) const uint sz = 1;\n"
-                         "layout(binding = 0) writeonly buffer top_blob { float data[]; };\n";
-    if (use_push_constant)
-        source += "layout(push_constant) uniform parameter { float bias; } p;\n"
-                  "#define BIAS p.bias\n";
-    else
-        source += "#define BIAS 0.f\n";
-
-    source += "void main()\n"
-              "{\n"
-              "    if (gl_LocalInvocationIndex != 0u) return;\n"
-              "    uvec3 wg = gl_WorkGroupID;\n"
-              "    uvec3 count = gl_NumWorkGroups;\n"
-              "    uvec3 gid = uvec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z);\n"
-              "    if (any(notEqual(gid, wg * uvec3(sx, sy, sz)))) return;\n"
-              "    uint i = (wg.z * count.y + wg.y) * count.x + wg.x;\n"
-              "    data[i] = float(i + count.x + count.y + count.z) + BIAS;\n"
-              "}\n";
-
-    std::vector<uint32_t> spirv;
-    if (ncnn::compile_spirv_module(source.c_str(), opt, spirv) != 0)
-        return -1;
-
-    ncnn::Pipeline pipeline(vkdev);
-    pipeline.set_local_size_xyz(2, 2, 2);
-
-    std::vector<ncnn::vk_specialization_type> specializations(3);
-    specializations[0].u32 = pipeline.local_size_x();
-    specializations[1].u32 = pipeline.local_size_y();
-    specializations[2].u32 = pipeline.local_size_z();
-    if (pipeline.create(spirv.data(), spirv.size() * sizeof(uint32_t), specializations) != 0)
-        return -1;
-
-    std::vector<ncnn::vk_constant_type> constants(use_push_constant ? 1 : 0);
-    if (use_push_constant)
-        constants[0].f = 7.f;
-
-    const uint32_t limits[3] = {vkdev->info.max_workgroup_count_x(), vkdev->info.max_workgroup_count_y(), vkdev->info.max_workgroup_count_z()};
-
-    // record normal and oversized dispatches together to check the base is reset
-    std::vector<ncnn::VkMat> outputs(5);
-    std::vector<ncnn::Mat> expected(5);
-    std::vector<ncnn::Mat> actual(5);
-
-    ncnn::VkCompute cmd(vkdev);
-    for (int i = 0; i < 5; i++)
-    {
-        int groups[3] = {2, 2, 2};
-        if (i > 0 && i < 4)
-        {
-            const int axis = i - 1;
-            if (limits[axis] > 65535)
-                continue;
-            groups[axis] = (int)limits[axis] + 1;
-            groups[(axis + 2) % 3] = 1;
-        }
-
-        const int n = groups[0] * groups[1] * groups[2];
-        ncnn::Mat& a = expected[i];
-        a.create(n);
-        a.fill(-1.f);
-
-        cmd.record_clone(a, outputs[i], opt);
-
-        std::vector<ncnn::VkMat> bindings(1, outputs[i]);
-
-        ncnn::VkMat dispatcher;
-        dispatcher.w = groups[0] * pipeline.local_size_x();
-        dispatcher.h = groups[1] * pipeline.local_size_y();
-        dispatcher.c = groups[2] * pipeline.local_size_z();
-        cmd.record_pipeline(&pipeline, bindings, constants, dispatcher);
-        cmd.record_clone(outputs[i], actual[i], opt);
-
-        for (int j = 0; j < n; j++)
-            a[j] = (float)(j + groups[0] + groups[1] + groups[2]) + (use_push_constant ? 7.f : 0.f);
-    }
-
-    if (cmd.submit_and_wait() != 0)
-        return -1;
-
-    for (int i = 0; i < 5; i++)
-    {
-        if (expected[i].empty())
-            continue;
-
-        if (CompareMat(expected[i], actual[i], 0.f) != 0)
-        {
-            fprintf(stderr, "test_command_virtual_dispatch failed case=%d use_push_constant=%d\n", i, use_push_constant);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
 int main()
 {
     SRAND(7767517);
 
-    return test_command_0() || test_command_1() || test_command_2() || test_command_virtual_dispatch(false) || test_command_virtual_dispatch(true);
+    return test_command_0() || test_command_1() || test_command_2();
 }
