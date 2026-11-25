@@ -24,6 +24,7 @@ layout(constant_id = shape_constant_id_offset + 4) const int outcstep_native = 0
 layout(constant_id = shape_constant_id_offset + 5) const int size = 0;
 layout(constant_id = shape_constant_id_offset + 6) const int num_output = 0;
 layout(constant_id = shape_constant_id_offset + 7) const int num_input = 0;
+layout(constant_id = shape_constant_id_offset + 8) const uint local_size_x = 1u;
 
 layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
 layout(binding = 1) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
@@ -49,7 +50,14 @@ shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
+    const uint group_x = gl_WorkGroupID.z * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    const uint base_x = group_x * local_size_x;
+
+    // skip empty workgroups without diverging at the barriers
+    if (base_x >= uint(psc(size)))
+        return;
+
+    int gx = int(base_x + gl_LocalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
 
 #if !NCNN_shader_local_memory

@@ -41,72 +41,35 @@ pnnx.Output             output      1 0 out
             fprintf(stderr, "squeeze %d-rank tensor is not supported yet!\n", input_rank);
         }
 
+        std::vector<int> axes;
         if (captured_params.at("dim").type == 2)
+            axes.push_back(captured_params.at("dim").i);
+        else
+            axes = captured_params.at("dim").ai;
+
+        std::vector<int> new_axes;
+        for (size_t i = 0; i < axes.size(); i++)
         {
-            int dim = captured_params.at("dim").i;
+            int dim = axes[i];
             if (dim < 0 && input_rank > 0)
                 dim += input_rank;
 
             if (dim == ncnn_batch_axis)
-            {
-                int output_ncnn_batch_axis = 233;
-                if (!op->inputs[0]->shape.empty() && dim >= 0 && dim < (int)op->inputs[0]->shape.size() && op->inputs[0]->shape[dim] != 1)
-                    output_ncnn_batch_axis = ncnn_batch_axis;
-                if (output_ncnn_batch_axis == ncnn_batch_axis)
-                {
-                    op->inputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
-                    op->outputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
-                    op->type = "Noop";
-                    return;
-                }
-                if (op->inputs[0]->shape.empty())
-                {
-                    fprintf(stderr, "squeeze along batch axis %d with unknown shape is not supported yet\n", ncnn_batch_axis);
-                    op->params["3"] = std::vector<int>{dim};
-                    return;
-                }
-
-                op->outputs[0]->params["__ncnn_batch_axis"] = output_ncnn_batch_axis;
-                op->type = "Noop";
-                return;
-            }
+                continue;
 
             if (ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
                 dim -= 1;
 
-            std::vector<int> axes = {dim};
-            op->params["3"] = axes;
+            new_axes.push_back(dim);
         }
-        else // if (captured_params.at("dim").type == 5)
+
+        if (new_axes.empty())
         {
-            std::vector<int> axes = captured_params.at("dim").ai;
-            std::vector<int> new_axes;
-            for (size_t i = 0; i < axes.size(); i++)
-            {
-                int dim = axes[i];
-                if (dim < 0 && input_rank > 0)
-                    dim += input_rank;
-
-                if (dim == ncnn_batch_axis)
-                {
-                    continue;
-                }
-
-                if (ncnn_batch_axis != 233 && dim > ncnn_batch_axis)
-                    dim -= 1;
-
-                new_axes.push_back(dim);
-            }
-
-            if (new_axes.empty())
-            {
-                fprintf(stderr, "squeeze along batch axis %d is not supported yet\n", ncnn_batch_axis);
-                op->params["3"] = axes;
-                return;
-            }
-
-            op->params["3"] = new_axes;
+            op->type = "Noop";
+            return;
         }
+
+        op->params["3"] = new_axes;
     }
 };
 

@@ -1,0 +1,160 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int c = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int d = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 4) const int outcstep = 0;
+
+layout(constant_id = shape_constant_id_offset + 5) const int block_x = 0;
+layout(constant_id = shape_constant_id_offset + 6) const int block_y = 0;
+layout(constant_id = shape_constant_id_offset + 7) const int block_z = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) writeonly buffer bottom_tm_blob { sfpvec4 bottom_tm_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int w;
+    int h;
+    int d;
+    int cstep;
+
+    int outcstep;
+
+    int block_x;
+    int block_y;
+    int block_z;
+} p;
+
+// load the 4x4 slice at depth z and apply B^T d B, zero outside the input
+void transform_slice(int z, int gz, int sx, int sy, out afpvec4 t[16])
+{
+    const bool z_valid = z < psc(d);
+
+    const int v_offset_0 = gz * psc(cstep) + (z * psc(h) + sy) * psc(w) + sx;
+    const ivec4 v_offset = v_offset_0 + ivec4(0, 1, 2, 3) * psc(w);
+
+    afpvec4 v00 = z_valid ? buffer_ld4(bottom_blob_data, v_offset.r + 0) : afpvec4(0.f);
+    afpvec4 v01 = z_valid && sx + 1 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.r + 1) : afpvec4(0.f);
+    afpvec4 v02 = z_valid && sx + 2 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.r + 2) : afpvec4(0.f);
+    afpvec4 v03 = z_valid && sx + 3 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.r + 3) : afpvec4(0.f);
+
+    afpvec4 v10 = z_valid && sy + 1 < psc(h) ? buffer_ld4(bottom_blob_data, v_offset.g + 0) : afpvec4(0.f);
+    afpvec4 v11 = z_valid && sy + 1 < psc(h) && sx + 1 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.g + 1) : afpvec4(0.f);
+    afpvec4 v12 = z_valid && sy + 1 < psc(h) && sx + 2 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.g + 2) : afpvec4(0.f);
+    afpvec4 v13 = z_valid && sy + 1 < psc(h) && sx + 3 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.g + 3) : afpvec4(0.f);
+
+    afpvec4 v20 = z_valid && sy + 2 < psc(h) ? buffer_ld4(bottom_blob_data, v_offset.b + 0) : afpvec4(0.f);
+    afpvec4 v21 = z_valid && sy + 2 < psc(h) && sx + 1 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.b + 1) : afpvec4(0.f);
+    afpvec4 v22 = z_valid && sy + 2 < psc(h) && sx + 2 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.b + 2) : afpvec4(0.f);
+    afpvec4 v23 = z_valid && sy + 2 < psc(h) && sx + 3 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.b + 3) : afpvec4(0.f);
+
+    afpvec4 v30 = z_valid && sy + 3 < psc(h) ? buffer_ld4(bottom_blob_data, v_offset.a + 0) : afpvec4(0.f);
+    afpvec4 v31 = z_valid && sy + 3 < psc(h) && sx + 1 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.a + 1) : afpvec4(0.f);
+    afpvec4 v32 = z_valid && sy + 3 < psc(h) && sx + 2 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.a + 2) : afpvec4(0.f);
+    afpvec4 v33 = z_valid && sy + 3 < psc(h) && sx + 3 < psc(w) ? buffer_ld4(bottom_blob_data, v_offset.a + 3) : afpvec4(0.f);
+
+    // const float itm[4][4] = {
+    //     {1.0f,  0.0f, -1.0f,  0.0f},
+    //     {0.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f, -1.0f,  1.0f,  0.0f},
+    //     {0.0f, -1.0f,  0.0f,  1.0f}
+    // };
+
+    // implicit transpose
+    afpvec4 m00 = v00 - v02;
+    afpvec4 m01 = v10 - v12;
+    afpvec4 m02 = v20 - v22;
+    afpvec4 m03 = v30 - v32;
+
+    afpvec4 m10 = v02 + v01;
+    afpvec4 m11 = v12 + v11;
+    afpvec4 m12 = v22 + v21;
+    afpvec4 m13 = v32 + v31;
+
+    afpvec4 m20 = v02 - v01;
+    afpvec4 m21 = v12 - v11;
+    afpvec4 m22 = v22 - v21;
+    afpvec4 m23 = v32 - v31;
+
+    afpvec4 m30 = v03 - v01;
+    afpvec4 m31 = v13 - v11;
+    afpvec4 m32 = v23 - v21;
+    afpvec4 m33 = v33 - v31;
+
+    // t index = x * 4 + y
+    t[0] = m00 - m02;
+    t[1] = m02 + m01;
+    t[2] = m02 - m01;
+    t[3] = m03 - m01;
+    t[4] = m10 - m12;
+    t[5] = m12 + m11;
+    t[6] = m12 - m11;
+    t[7] = m13 - m11;
+    t[8] = m20 - m22;
+    t[9] = m22 + m21;
+    t[10] = m22 - m21;
+    t[11] = m23 - m21;
+    t[12] = m30 - m32;
+    t[13] = m32 + m31;
+    t[14] = m32 - m31;
+    t[15] = m33 - m31;
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) * psc(block_z) || gz >= c)
+        return;
+
+    // load 4x4x4
+    int sx = gx * 2;
+    int sy = gy % psc(block_y) * 2;
+    int sz = gy / psc(block_y) * 2;
+
+    // store 64, coefficient index = (x * 4 + y) * 4 + z
+    int v_tm_offset = gz * psc(outcstep) + gy * psc(block_x) + gx;
+
+    // transform along d last, each depth slice is loaded once and at most two slices stay live
+    // z0 = d0 - d2    z1 = d1 + d2    z2 = d2 - d1    z3 = d3 - d1
+    afpvec4 t0[16];
+    afpvec4 t1[16];
+
+    transform_slice(sz + 0, gz, sx, sy, t0);
+    transform_slice(sz + 2, gz, sx, sy, t1);
+
+    for (int i = 0; i < 16; i++)
+    {
+        afpvec4 v = t0[i] - t1[i];
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + (i * 4 + 0) * psc(outcstep) * c, v);
+    }
+
+    transform_slice(sz + 1, gz, sx, sy, t0);
+
+    for (int i = 0; i < 16; i++)
+    {
+        afpvec4 v1 = t0[i] + t1[i];
+        afpvec4 v2 = t1[i] - t0[i];
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + (i * 4 + 1) * psc(outcstep) * c, v1);
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + (i * 4 + 2) * psc(outcstep) * c, v2);
+    }
+
+    transform_slice(sz + 3, gz, sx, sy, t1);
+
+    for (int i = 0; i < 16; i++)
+    {
+        afpvec4 v = t1[i] - t0[i];
+        buffer_st4(bottom_tm_blob_data, v_tm_offset + (i * 4 + 3) * psc(outcstep) * c, v);
+    }
+}

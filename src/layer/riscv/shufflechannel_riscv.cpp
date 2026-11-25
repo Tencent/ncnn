@@ -11,16 +11,22 @@
 #include <assert.h>
 #endif // __riscv_vector
 
+#include "cpu.h"
+
 namespace ncnn {
 
 ShuffleChannel_riscv::ShuffleChannel_riscv()
 {
 #if __riscv_vector
     support_packing = true;
-#if __riscv_zfh
-    support_fp16_storage = true;
-#endif
 #endif // __riscv_vector
+#if NCNN_ZFH
+#if __riscv_vector
+    support_fp16_storage = cpu_support_riscv_zvfh();
+#else
+    support_fp16_storage = cpu_support_riscv_zfh();
+#endif
+#endif
 
 #if NCNN_BF16
     support_bf16_storage = true;
@@ -50,7 +56,7 @@ static NCNN_FORCEINLINE int create_bitmask(int group, uint8_t (&bitarray)[32], i
 int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elembits = bottom_blob.elembits();
-#if __riscv_zfh
+#if NCNN_ZFH
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
@@ -83,9 +89,9 @@ int ShuffleChannel_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const O
     {
 #if C906 || __riscv_xtheadvector
         // C906 128 bits
-        static unsigned int index_c906[4 * 4];
+        unsigned int index_c906[4 * 4];
 #else
-        static uint8_t bitmask[32];
+        uint8_t bitmask[32];
 #endif
         // follow arm version
         if (_group == 2 && channels % _group != 0)
@@ -658,9 +664,9 @@ int ShuffleChannel_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_b
     {
 #if C906 || __riscv_xtheadvector
         // C906 128 bits
-        static unsigned short index_c906[8 * 4];
+        unsigned short index_c906[8 * 8];
 #else
-        static uint8_t bitmask[32];
+        uint8_t bitmask[32];
 #endif
         // follow arm version
         if (_group == 2 && channels % _group != 0)

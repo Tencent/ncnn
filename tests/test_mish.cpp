@@ -52,6 +52,16 @@ static int test_mish_3()
            || test_mish(RandomMat(127));
 }
 
+// large inputs, where exp(x) overflows in the gpu shader (#7191)
+static int test_mish_4()
+{
+    return 0
+           || test_mish(RandomMat(7, 8, 9, 12, -100.f, 100.f))
+           || test_mish(RandomMat(7, 9, 12, -100.f, 100.f))
+           || test_mish(RandomMat(17, 12, -100.f, 100.f))
+           || test_mish(RandomMat(128, -100.f, 100.f));
+}
+
 int main()
 {
     SRAND(7767517);
@@ -60,5 +70,6 @@ int main()
            || test_mish_0()
            || test_mish_1()
            || test_mish_2()
-           || test_mish_3();
+           || test_mish_3()
+           || test_mish_4();
 }

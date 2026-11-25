@@ -29,6 +29,23 @@ def test():
     import test_squeezenet1_1_pnnx
     b = test_squeezenet1_1_pnnx.test_inference()
 
+    if not (torch.equal(a, b)):
+        return False
+
+    if version.parse(torch.__version__) < version.parse('2.11'):
+        return True
+
+    # export exported program
+    ep = torch.export.export(net, (x,))
+    torch.export.save(ep, "test_squeezenet1_1_export.pt2")
+
+    # exported program to pnnx
+    os.system("../src/pnnx test_squeezenet1_1_export.pt2 fp16=0")
+
+    # pnnx inference
+    import test_squeezenet1_1_export_pnnx
+    b = test_squeezenet1_1_export_pnnx.test_inference()
+
     return torch.equal(a, b)
 
 if __name__ == "__main__":

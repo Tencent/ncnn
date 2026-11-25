@@ -244,6 +244,9 @@ public:
     uint32_t max_workgroup_size_x() const;
     uint32_t max_workgroup_size_y() const;
     uint32_t max_workgroup_size_z() const;
+    // zero when the optional limit is not reported
+    VkDeviceSize max_memory_allocation_size() const;
+    VkDeviceSize max_buffer_size() const;
     size_t memory_map_alignment() const;
     size_t buffer_offset_alignment() const;
     size_t non_coherent_atom_size() const;
@@ -313,6 +316,7 @@ public:
 
     // cooperative matrix feature
     bool support_cooperative_matrix() const;
+    bool support_cooperative_matrix_conversion() const;
     bool support_cooperative_matrix_8_8_16() const;
     bool support_cooperative_matrix_16_8_8() const;
     bool support_cooperative_matrix_16_8_16() const;
@@ -377,6 +381,7 @@ public:
     int support_VK_NV_cooperative_matrix() const;
     int support_VK_NV_cooperative_matrix2() const;
     int support_VK_NV_cooperative_vector() const;
+    int support_VK_QCOM_cooperative_matrix_conversion() const;
 
     // extension features
     const void* queryExtensionFeatures() const;
@@ -389,6 +394,7 @@ public:
     const VkPhysicalDeviceCooperativeMatrixFeaturesNV& queryCooperativeMatrixFeaturesNV() const;
     const VkPhysicalDeviceCooperativeMatrix2FeaturesNV& queryCooperativeMatrix2FeaturesNV() const;
     const VkPhysicalDeviceCooperativeVectorFeaturesNV& queryCooperativeVectorFeaturesNV() const;
+    const VkPhysicalDeviceCooperativeMatrixConversionFeaturesQCOM& queryCooperativeMatrixConversionFeaturesQCOM() const;
     const VkPhysicalDeviceMaintenance4FeaturesKHR& queryMaintenance4Features() const;
     const VkPhysicalDeviceRobustness2FeaturesKHR& queryRobustness2Features() const;
     const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT& querySubgroupSizeControlFeatures() const;
@@ -424,6 +430,7 @@ public:
 
     // some utility functions
     void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size) const;
+    void get_optimal_cooperative_matrix_mnk(int M, int N, int K, VkComponentTypeKHR type, VkComponentTypeKHR acctype, VkScopeKHR scope, int& coopmat_M, int& coopmat_N, int& coopmat_K, int& coopmat_subgroup_size, VkComponentTypeKHR& coopmat_acctype) const;
 
 private:
     GpuInfo(const GpuInfo&);
@@ -472,6 +479,7 @@ public:
     uint32_t find_memory_index(uint32_t memory_type_bits, VkFlags required, VkFlags preferred, VkFlags preferred_not) const;
     bool is_mappable(uint32_t memory_type_index) const;
     bool is_coherent(uint32_t memory_type_index) const;
+    bool is_cached(uint32_t memory_type_index) const;
     bool is_device_local(uint32_t memory_type_index) const;
 
     VkQueue acquire_queue(uint32_t queue_family_index) const;

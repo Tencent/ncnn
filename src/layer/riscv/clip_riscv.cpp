@@ -8,8 +8,13 @@
 #endif // __riscv_vector
 
 #include "cpu.h"
+#include "riscv_usability.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "clip_bf16s.h"
+#endif
 
 Clip_riscv::Clip_riscv()
 {
@@ -23,17 +28,27 @@ Clip_riscv::Clip_riscv()
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_top_blob.elembits();
+#endif
 
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
 #endif
 
     int w = bottom_top_blob.w;
@@ -78,5 +93,13 @@ int Clip_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Clip_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    clip_bf16s(bottom_top_blob, min, max, opt);
+    return 0;
+}
+#endif // NCNN_BF16
 
 } //namespace ncnn

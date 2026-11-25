@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "pass_ncnn.h"
+#include "reshape_shape.h"
 
 namespace pnnx {
 
@@ -30,103 +31,58 @@ pnnx.Output             output      1 0 out
         return "unflatten";
     }
 
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_0");
+        std::map<std::string, Parameter> params;
+        return resolve_reshape_params(op, get_shape(op, captured_params), params);
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        std::map<std::string, Parameter> params;
+        if (resolve_reshape_params(op, get_shape(op, captured_params), params))
+            write_reshape_params(op, params);
+    }
+
+    std::vector<std::string> get_shape(const Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
         int dim = captured_params.at("dim").i;
-        std::vector<int> sizes = captured_params.at("sizes").ai;
-
-        const int input_rank = op->inputs[0]->shape.size();
-
-        if (dim < 0 && input_rank > 0)
-            dim += input_rank;
-
-        std::vector<int> shape = op->outputs[0]->shape;
+        const auto& sizes = captured_params.at("sizes").ai;
+        auto shape = get_logical_shape_expr(op->inputs[0], 0);
         if (shape.empty())
         {
-            const std::vector<int>& input_shape = op->inputs[0]->shape;
-            if (input_shape.empty())
+            fprintf(stderr, "reshape %s: unflatten input rank is unknown\n", op->name.c_str());
+            return std::vector<std::string>();
+        }
+
+        if (dim < 0)
+            dim += (int)shape.size();
+        if (dim < 0 || dim >= (int)shape.size())
+        {
+            fprintf(stderr, "reshape %s: unflatten dim %d is out of range for input rank %d\n", op->name.c_str(), captured_params.at("dim").i, (int)shape.size());
+            return std::vector<std::string>();
+        }
+
+        if (sizes.empty())
+        {
+            fprintf(stderr, "reshape %s: unflatten sizes must not be empty\n", op->name.c_str());
+            return std::vector<std::string>();
+        }
+
+        std::vector<std::string> expanded;
+        for (int size : sizes)
+        {
+            if (size != -1 && size <= 0)
             {
-                fprintf(stderr, "unflatten tensor with unknown input shape is not supported yet, fallback to sizes\n");
-                shape = sizes;
+                fprintf(stderr, "reshape %s: unflatten sizes must be positive or inferred\n", op->name.c_str());
+                return std::vector<std::string>();
             }
-            else
-            {
-                shape.insert(shape.end(), input_shape.begin(), input_shape.begin() + dim);
-                shape.insert(shape.end(), sizes.begin(), sizes.end());
-                shape.insert(shape.end(), input_shape.begin() + dim + 1, input_shape.end());
-            }
+            expanded.push_back(std::to_string(size));
         }
-
-        const int input_ncnn_batch_axis = op->inputs[0]->params["__ncnn_batch_axis"].i;
-        const int output_ncnn_batch_axis = op->outputs[0]->params["__ncnn_batch_axis"].i;
-        const bool batch_reshape = input_ncnn_batch_axis != output_ncnn_batch_axis;
-
-        std::vector<int> new_shape = shape;
-
-        if (new_shape.size() == 5 && output_ncnn_batch_axis == 233)
-        {
-            if (new_shape[0] == 1)
-            {
-                fprintf(stderr, "assume reshape 5-rank tensor has batch_index 0\n");
-                new_shape.erase(new_shape.begin());
-            }
-        }
-
-        if (!batch_reshape && output_ncnn_batch_axis != 233 && output_ncnn_batch_axis >= 0 && output_ncnn_batch_axis < (int)new_shape.size())
-        {
-            new_shape.erase(new_shape.begin() + output_ncnn_batch_axis);
-        }
-
-        int shape_rank = (int)new_shape.size();
-
-        if (shape_rank == 0)
-        {
-            fprintf(stderr, "unflatten to unknown-rank tensor is not supported yet, fallback to flatten\n");
-            new_shape.push_back(-1);
-            shape_rank = 1;
-        }
-
-        if (shape_rank == 1)
-        {
-            op->params["0"] = new_shape[0];
-        }
-        if (shape_rank == 2)
-        {
-            op->params["0"] = new_shape[1];
-            op->params["1"] = new_shape[0];
-        }
-        if (shape_rank == 3)
-        {
-            op->params["0"] = new_shape[2];
-            op->params["1"] = new_shape[1];
-            op->params["2"] = new_shape[0];
-        }
-        if (shape_rank == 4)
-        {
-            op->params["0"] = new_shape[3];
-            op->params["1"] = new_shape[2];
-            op->params["11"] = new_shape[1];
-            op->params["2"] = new_shape[0];
-        }
-        if (shape_rank >= 5)
-        {
-            if (shape_rank > 5 || (shape_rank == 5 && (output_ncnn_batch_axis == 233 || !batch_reshape)))
-                fprintf(stderr, "reshape to %d-rank physical tensor is not supported by ncnn runtime yet\n", shape_rank);
-
-            std::string shape_expr = std::to_string(new_shape[shape_rank - 1]);
-            for (int i = shape_rank - 2; i >= 0; i--)
-            {
-                shape_expr += ",";
-                shape_expr += std::to_string(new_shape[i]);
-            }
-            op->params["6"] = shape_expr;
-        }
-
-        if (batch_reshape)
-        {
-            op->params["12"] = input_ncnn_batch_axis;
-            op->params["13"] = output_ncnn_batch_axis;
-        }
+        shape.erase(shape.begin() + dim);
+        shape.insert(shape.begin() + dim, expanded.begin(), expanded.end());
+        return shape;
     }
 };
 

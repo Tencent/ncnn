@@ -134,8 +134,7 @@ public:
         {
             op->params["size"] = Parameter();
 
-            // FIXME does this param really counts ?
-            // op->params["recompute_scale_factor"] = true;
+            op->params["recompute_scale_factor"] = true;
 
             // resolve scale_factor in recompute scale graph
             std::vector<float> scale_factor;

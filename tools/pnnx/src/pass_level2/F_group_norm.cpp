@@ -3,6 +3,8 @@
 
 #include "pass_level2.h"
 
+#include <limits.h>
+
 namespace pnnx {
 
 class F_group_norm : public GraphRewriterPass
@@ -30,6 +32,63 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm, 130)
+
+class F_group_norm_native : public F_group_norm
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+10 11
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+prim::Constant          op_0        0 1 N value=%N
+prim::Constant          op_1        0 1 C value=%C
+prim::Constant          op_2        0 1 HxW value=%HxW
+prim::Constant          op_3        0 1 num_groups value=%num_groups
+prim::Constant          op_4        0 1 eps value=%eps
+aten::native_group_norm op_5        8 3 input weight bias N C HxW num_groups eps out mean rstd
+pnnx.Output             output      3 0 out mean rstd
+)PNNXIR";
+    }
+
+    bool match(const std::map<std::string, const Operator*>& matched_operators, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+    {
+        const Operator* op = matched_operators.at("op_5");
+        if (!op->outputs[1]->consumers.empty() || !op->outputs[2]->consumers.empty())
+            return false;
+
+        const std::vector<int>& shape = op->inputs[0]->shape;
+        if (shape.size() < 2 || captured_params.at("N").type != 2 || captured_params.at("C").type != 2 || captured_params.at("HxW").type != 2)
+            return false;
+
+        if (shape[0] != captured_params.at("N").i || shape[1] != captured_params.at("C").i)
+            return false;
+
+        int size = 1;
+        for (size_t i = 2; i < shape.size(); i++)
+        {
+            if (shape[i] < 0 || (shape[i] != 0 && size > INT_MAX / shape[i]))
+                return false;
+            size *= shape[i];
+        }
+
+        return size == captured_params.at("HxW").i;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["num_groups"] = captured_params.at("num_groups");
+        op->params["eps"] = captured_params.at("eps");
+
+        op->outputs[1]->producer = 0;
+        op->outputs[2]->producer = 0;
+        op->outputs.resize(1);
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_group_norm_native, 130)
 
 class F_group_norm_onnx : public GraphRewriterPass
 {

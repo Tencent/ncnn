@@ -781,8 +781,8 @@ static void convdw3x3s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v30.8h, %10.8h, v14.8h      \n"
                     "fmla   v31.8h, %10.8h, v16.8h      \n"
 
-                    "prfm   pldl1keep, [%1, #128]       \n"
-                    "ld1    {v21.8h}, [%1]              \n" // r14
+                    "prfm   pldl1keep, [%2, #128]       \n"
+                    "ld1    {v21.8h}, [%2]              \n" // r14
 
                     "fmla   v28.8h, %11.8h, v17.8h      \n"
                     "fmla   v29.8h, %11.8h, v19.8h      \n"
@@ -796,8 +796,8 @@ static void convdw3x3s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob,
                     "fmla   v28.8h, %13.8h, v19.8h      \n"
                     "fmla   v29.8h, %13.8h, v21.8h      \n"
 
-                    "prfm   pldl1keep, [%1, #128]       \n"
-                    "ld1    {v26.8h}, [%1]              \n" // r24
+                    "prfm   pldl1keep, [%3, #128]       \n"
+                    "ld1    {v26.8h}, [%3]              \n" // r24
 
                     "fmla   v30.8h, %14.8h, v22.8h      \n"
                     "fmla   v31.8h, %14.8h, v24.8h      \n"

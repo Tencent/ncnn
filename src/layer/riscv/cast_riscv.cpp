@@ -8,8 +8,13 @@
 #endif // __riscv_vector
 
 #include "cpu.h"
+#include "riscv_usability.h"
 
 namespace ncnn {
+
+#if NCNN_BF16
+#include "cast_bf16.h"
+#endif
 
 Cast_riscv::Cast_riscv()
 {
@@ -97,6 +102,20 @@ int Cast_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         }
     }
 #endif // NCNN_ZFH
+
+#if NCNN_BF16
+    if (type_from == 1 && type_to == 4)
+    {
+        cast_fp32_to_bf16(bottom_blob, top_blob, opt);
+        return 0;
+    }
+
+    if (type_from == 4 && type_to == 1)
+    {
+        cast_bf16_to_fp32(bottom_blob, top_blob, opt);
+        return 0;
+    }
+#endif // NCNN_BF16
 
     if (type_from == 3 && type_to == 1)
     {
