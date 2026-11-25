@@ -39,25 +39,54 @@ void main()
     if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
         return;
 
-    // cos/sin cache row stride: p.cos_w == embed_dim => the two halves carry independent
-    // frequencies (2D rope); p.cos_w == halfdim => standard rope, halves identical.
-    // 3D blob is packed along num_heads, the 4 lanes share one cos/sin row.
-    // 2D blob is packed along seqlen, the 4 lanes are 4 consecutive positions with their own cos/sin rows.
-    const int cache_offset = gy * p.cos_w + gx;
-    const ivec4 cache_offset4 = (gy * 4 + ivec4(0, 1, 2, 3)) * p.cos_w + gx;
-
-    afpvec4 cosv;
-    afpvec4 sinv;
     if (psc(dims) == 2)
     {
-        cosv = afpvec4(buffer_ld1(cos_cache_data, cache_offset4.r), buffer_ld1(cos_cache_data, cache_offset4.g), buffer_ld1(cos_cache_data, cache_offset4.b), buffer_ld1(cos_cache_data, cache_offset4.a));
-        sinv = afpvec4(buffer_ld1(sin_cache_data, cache_offset4.r), buffer_ld1(sin_cache_data, cache_offset4.g), buffer_ld1(sin_cache_data, cache_offset4.b), buffer_ld1(sin_cache_data, cache_offset4.a));
+        // 2D blob is packed along seqlen, the 4 lanes are 4 consecutive positions with their own cos/sin rows
+        const ivec4 cache_offset = (gy * 4 + ivec4(0, 1, 2, 3)) * p.cos_w + gx;
+
+        afpvec4 cosv = afpvec4(buffer_ld1(cos_cache_data, cache_offset.r), buffer_ld1(cos_cache_data, cache_offset.g), buffer_ld1(cos_cache_data, cache_offset.b), buffer_ld1(cos_cache_data, cache_offset.a));
+        afpvec4 sinv = afpvec4(buffer_ld1(sin_cache_data, cache_offset.r), buffer_ld1(sin_cache_data, cache_offset.g), buffer_ld1(sin_cache_data, cache_offset.b), buffer_ld1(sin_cache_data, cache_offset.a));
+
+        if (interleaved == 1)
+        {
+            const int gi = gy * psc(embed_dim) + gx * 2;
+
+            afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+            afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + 1);
+
+            afpvec4 y0 = x0 * cosv - x1 * sinv;
+            afpvec4 y1 = x0 * sinv + x1 * cosv;
+
+            buffer_st4(top_blob_data, gi, y0);
+            buffer_st4(top_blob_data, gi + 1, y1);
+        }
+        else
+        {
+            const ivec4 cache_offset1 = cache_offset + (p.cos_w == psc(embed_dim) ? halfdim : 0);
+            afpvec4 cosv1 = afpvec4(buffer_ld1(cos_cache_data, cache_offset1.r), buffer_ld1(cos_cache_data, cache_offset1.g), buffer_ld1(cos_cache_data, cache_offset1.b), buffer_ld1(cos_cache_data, cache_offset1.a));
+            afpvec4 sinv1 = afpvec4(buffer_ld1(sin_cache_data, cache_offset1.r), buffer_ld1(sin_cache_data, cache_offset1.g), buffer_ld1(sin_cache_data, cache_offset1.b), buffer_ld1(sin_cache_data, cache_offset1.a));
+
+            const int gi = gy * psc(embed_dim) + gx;
+
+            afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+            afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + halfdim);
+
+            afpvec4 y0 = x0 * cosv - x1 * sinv;
+            afpvec4 y1 = x0 * sinv1 + x1 * cosv1;
+
+            buffer_st4(top_blob_data, gi, y0);
+            buffer_st4(top_blob_data, gi + halfdim, y1);
+        }
+
+        return;
     }
-    else
-    {
-        cosv = afpvec4(buffer_ld1(cos_cache_data, cache_offset));
-        sinv = afpvec4(buffer_ld1(sin_cache_data, cache_offset));
-    }
+
+    // cos/sin cache row stride: p.cos_w == embed_dim => the two halves carry independent
+    // frequencies (2D rope); p.cos_w == halfdim => standard rope, halves identical.
+    const int cache_offset = gy * p.cos_w + gx;
+
+    afp cosv = buffer_ld1(cos_cache_data, cache_offset);
+    afp sinv = buffer_ld1(sin_cache_data, cache_offset);
 
     if (interleaved == 1)
     {
@@ -75,19 +104,8 @@ void main()
     else
     {
         const int off1 = p.cos_w == psc(embed_dim) ? halfdim : 0;
-        afpvec4 cosv1;
-        afpvec4 sinv1;
-        if (psc(dims) == 2)
-        {
-            const ivec4 cache_offset4_1 = cache_offset4 + off1;
-            cosv1 = afpvec4(buffer_ld1(cos_cache_data, cache_offset4_1.r), buffer_ld1(cos_cache_data, cache_offset4_1.g), buffer_ld1(cos_cache_data, cache_offset4_1.b), buffer_ld1(cos_cache_data, cache_offset4_1.a));
-            sinv1 = afpvec4(buffer_ld1(sin_cache_data, cache_offset4_1.r), buffer_ld1(sin_cache_data, cache_offset4_1.g), buffer_ld1(sin_cache_data, cache_offset4_1.b), buffer_ld1(sin_cache_data, cache_offset4_1.a));
-        }
-        else
-        {
-            cosv1 = afpvec4(buffer_ld1(cos_cache_data, cache_offset + off1));
-            sinv1 = afpvec4(buffer_ld1(sin_cache_data, cache_offset + off1));
-        }
+        afp cosv1 = buffer_ld1(cos_cache_data, cache_offset + off1);
+        afp sinv1 = buffer_ld1(sin_cache_data, cache_offset + off1);
 
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
 
