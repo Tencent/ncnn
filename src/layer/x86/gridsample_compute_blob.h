@@ -3,6 +3,8 @@
 
 #include "x86_usability.h"
 
+namespace {
+
 template<bool align_corner>
 struct grid_sample_unormalize;
 
@@ -88,8 +90,8 @@ struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ true>
 #endif // __AVX__
     float operator()(int length, float coord)
     {
-        coord = fabs(coord);
-        coord = (length - 1) - fabs(coord - (length - 1));
+        coord = fabsf(coord);
+        coord = (float)((length - 1) - fabs(coord - (length - 1)));
 
         return std::min(length - 1.0f, std::max(coord, 0.0f));
     }
@@ -122,8 +124,8 @@ struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ false>
 #endif // __AVX__
     float operator()(int length, float coord)
     {
-        coord = fabs(coord + 0.5f);
-        coord = length - fabs(coord - length) - 0.5;
+        coord = fabsf(coord + 0.5f);
+        coord = (float)(length - fabs(coord - length) - 0.5);
 
         return std::min(length - 1.0f, std::max(coord, 0.0f));
     }
@@ -132,3 +134,5 @@ struct compute_coord<GridSample::Padding_REFLECTION, /*align_corner*/ false>
 #include "gridsample_bilinear_compute_blob.h"
 #include "gridsample_bicubic_compute_blob.h"
 #include "gridsample_nearest_compute_blob.h"
+
+} // namespace

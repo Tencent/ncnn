@@ -54,8 +54,8 @@ static float border_coord(float x, float border)
 
 static float reflect_coord(float x, int high)
 {
-    x = fabs(x);
-    x = high - fabs(x - high);
+    x = fabsf(x);
+    x = (float)(high - fabs(x - high));
     return x;
 }
 
@@ -63,7 +63,7 @@ static float compute_coord(float sx, int w, int padding_mode, int align_corner)
 {
     if (padding_mode == 2) // border
     {
-        sx = border_coord(sx, w - 1);
+        sx = border_coord(sx, (float)(w - 1));
     }
     else if (padding_mode == 3) // reflection
     {
@@ -73,8 +73,8 @@ static float compute_coord(float sx, int w, int padding_mode, int align_corner)
         }
         else
         {
-            sx = reflect_coord(sx + 0.5, w) - 0.5;
-            sx = border_coord(sx, w - 1);
+            sx = reflect_coord(sx + 0.5f, w) - 0.5f;
+            sx = border_coord(sx, (float)(w - 1));
         }
     }
 
@@ -103,8 +103,8 @@ static float get_value_bounded(const Mat& image, int x, int y, int z)
 
 static float get_value_bounded(const Mat& image, int x, int y, int padding_mode, int align_corner)
 {
-    x = compute_coord(x, image.w, padding_mode, align_corner);
-    y = compute_coord(y, image.h, padding_mode, align_corner);
+    x = (int)compute_coord((float)x, image.w, padding_mode, align_corner);
+    y = (int)compute_coord((float)y, image.h, padding_mode, align_corner);
 
     return get_value_bounded(image, x, y);
 }
@@ -226,8 +226,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         {
                             sample_x = compute_coord(sample_x, w, padding_mode, align_corner);
                             sample_y = compute_coord(sample_y, h, padding_mode, align_corner);
-                            int x0 = floor(sample_x);
-                            int y0 = floor(sample_y);
+                            int x0 = (int)floor(sample_x);
+                            int y0 = (int)floor(sample_y);
                             int x1 = x0 + 1;
                             int y1 = y0 + 1;
 

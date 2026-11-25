@@ -25,19 +25,19 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 transpose2x8_ps(gx, gy);
 
-                gx = unormalize(_mm256_set1_ps(src.w), gx);
-                gx = get_coord(_mm256_set1_ps(src.w), gx);
+                gx = unormalize(_mm256_set1_ps((float)src.w), gx);
+                gx = get_coord(_mm256_set1_ps((float)src.w), gx);
 
-                gy = unormalize(_mm256_set1_ps(src.h), gy);
-                gy = get_coord(_mm256_set1_ps(src.h), gy);
+                gy = unormalize(_mm256_set1_ps((float)src.h), gy);
+                gy = get_coord(_mm256_set1_ps((float)src.h), gy);
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
-                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
-                                                  _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
+                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.w), gx, _CMP_GT_OS)),
+                                                  _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.h), gy, _CMP_GT_OS)));
 
-                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(src.elempack));
+                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps((float)src.w), gx), _mm256_set1_ps((float)src.elempack));
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
@@ -66,7 +66,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
                 int* iptr = (int*)offset_ptr;
-                *iptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0;
+                *iptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1;
 
                 gridptr += 2;
                 offset_ptr++;
@@ -85,19 +85,19 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 gx = _mm256_loadu_ps(gridptr_x);
             __m256 gy = _mm256_loadu_ps(gridptr_y);
 
-            gx = unormalize(_mm256_set1_ps(src.w), gx);
-            gx = get_coord(_mm256_set1_ps(src.w), gx);
+            gx = unormalize(_mm256_set1_ps((float)src.w), gx);
+            gx = get_coord(_mm256_set1_ps((float)src.w), gx);
 
-            gy = unormalize(_mm256_set1_ps(src.h), gy);
-            gy = get_coord(_mm256_set1_ps(src.h), gy);
+            gy = unormalize(_mm256_set1_ps((float)src.h), gy);
+            gy = get_coord(_mm256_set1_ps((float)src.h), gy);
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
             gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
-            __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
-                                              _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
+            __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.w), gx, _CMP_GT_OS)),
+                                              _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.h), gy, _CMP_GT_OS)));
 
-            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx), _mm256_set1_ps(src.elempack));
+            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(gy, _mm256_set1_ps((float)src.w), gx), _mm256_set1_ps((float)src.elempack));
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
@@ -127,7 +127,7 @@ void gridsample_2d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h));
 
             int* iptr = (int*)offset_ptr;
-            *iptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1.0;
+            *iptr = in_bound ? (x0 + y0 * src.w) * src.elempack : -1;
 
             gridptr_x++;
             gridptr_y++;
@@ -162,26 +162,26 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
 
                 transpose3x8_ps(gx, gy, gz);
 
-                gx = unormalize(_mm256_set1_ps(src.w), gx);
-                gx = get_coord(_mm256_set1_ps(src.w), gx);
+                gx = unormalize(_mm256_set1_ps((float)src.w), gx);
+                gx = get_coord(_mm256_set1_ps((float)src.w), gx);
 
-                gy = unormalize(_mm256_set1_ps(src.h), gy);
-                gy = get_coord(_mm256_set1_ps(src.h), gy);
+                gy = unormalize(_mm256_set1_ps((float)src.h), gy);
+                gy = get_coord(_mm256_set1_ps((float)src.h), gy);
 
-                gz = unormalize(_mm256_set1_ps(src.d), gz);
-                gz = get_coord(_mm256_set1_ps(src.d), gz);
+                gz = unormalize(_mm256_set1_ps((float)src.d), gz);
+                gz = get_coord(_mm256_set1_ps((float)src.d), gz);
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
                 gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
-                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
-                                                  _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
-                v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), gz, _CMP_GT_OS)));
+                __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.w), gx, _CMP_GT_OS)),
+                                                  _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.h), gy, _CMP_GT_OS)));
+                v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.d), gz, _CMP_GT_OS)));
 
-                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), gz,
-                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
-                                              _mm256_set1_ps(src.elempack));
+                __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps((float)src.w), _mm256_set1_ps((float)src.h)), gz,
+                                              _mm256_comp_fmadd_ps(gy, _mm256_set1_ps((float)src.w), gx)),
+                                              _mm256_set1_ps((float)src.elempack));
 
                 offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
@@ -215,7 +215,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
                 bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
                 int* iptr = (int*)offset_ptr;
-                *iptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0;
+                *iptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1;
 
                 gridptr += 3;
                 offset_ptr++;
@@ -236,26 +236,26 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             __m256 gy = _mm256_loadu_ps(gridptr_y);
             __m256 gz = _mm256_loadu_ps(gridptr_z);
 
-            gx = unormalize(_mm256_set1_ps(src.w), gx);
-            gx = get_coord(_mm256_set1_ps(src.w), gx);
+            gx = unormalize(_mm256_set1_ps((float)src.w), gx);
+            gx = get_coord(_mm256_set1_ps((float)src.w), gx);
 
-            gy = unormalize(_mm256_set1_ps(src.h), gy);
-            gy = get_coord(_mm256_set1_ps(src.h), gy);
+            gy = unormalize(_mm256_set1_ps((float)src.h), gy);
+            gy = get_coord(_mm256_set1_ps((float)src.h), gy);
 
-            gz = unormalize(_mm256_set1_ps(src.d), gz);
-            gz = get_coord(_mm256_set1_ps(src.d), gz);
+            gz = unormalize(_mm256_set1_ps((float)src.d), gz);
+            gz = get_coord(_mm256_set1_ps((float)src.d), gz);
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
             gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
             gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
-            __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.w), gx, _CMP_GT_OS)),
-                                              _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.h), gy, _CMP_GT_OS)));
-            v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps(src.d), gz, _CMP_GT_OS)));
+            __m256 v_in_range = _mm256_and_ps(_mm256_and_ps(_mm256_cmp_ps(gx, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.w), gx, _CMP_GT_OS)),
+                                              _mm256_and_ps(_mm256_cmp_ps(gy, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.h), gy, _CMP_GT_OS)));
+            v_in_range = _mm256_and_ps(v_in_range, _mm256_and_ps(_mm256_cmp_ps(gz, _mm256_set1_ps(-1), _CMP_GT_OS), _mm256_cmp_ps(_mm256_set1_ps((float)src.d), gz, _CMP_GT_OS)));
 
-            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps(src.w), _mm256_set1_ps(src.h)), gz,
-                                          _mm256_comp_fmadd_ps(gy, _mm256_set1_ps(src.w), gx)),
-                                          _mm256_set1_ps(src.elempack));
+            __m256 offset = _mm256_mul_ps(_mm256_comp_fmadd_ps(_mm256_mul_ps(_mm256_set1_ps((float)src.w), _mm256_set1_ps((float)src.h)), gz,
+                                          _mm256_comp_fmadd_ps(gy, _mm256_set1_ps((float)src.w), gx)),
+                                          _mm256_set1_ps((float)src.elempack));
 
             offset = _mm256_blendv_ps(_mm256_set1_ps(-1.0f), _mm256_castsi256_ps(_mm256_cvtps_epi32(offset)), v_in_range);
 
@@ -292,7 +292,7 @@ void gridsample_3d_nearest_compute_blob(const Mat& src, const Mat& grid, Mat& of
             bool in_bound = ((x0 > -1) & (x0 < src.w) & (y0 > -1) & (y0 < src.h) & (z0 > -1) & (z0 < src.d));
 
             int* iptr = (int*)offset_ptr;
-            *iptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1.0;
+            *iptr = in_bound ? (x0 + y0 * src.w + z0 * src.w * src.h) * src.elempack : -1;
 
             gridptr_x++;
             gridptr_y++;
