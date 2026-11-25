@@ -96,7 +96,8 @@ static int test_pooling_0()
     }
 
     // 4x4 stride2 gives independent right and bottom padding tails
-    static const int packing[] = {1, 4, 8, 16};
+    // c64 also packs bf16 at riscv vlen 512 and 1024
+    static const int packing[] = {1, 4, 8, 64};
     for (int i = 0; i < 4; i++)
     {
         for (int mode = 0; mode < 4; mode++)
