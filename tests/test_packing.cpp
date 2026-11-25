@@ -541,11 +541,11 @@ static int test_packing_oversized_dispatch()
         return 0;
 
     const uint32_t limit = ncnn::get_gpu_device()->info.max_workgroup_count_y();
-    // Keep the test allocation small on devices with a larger Y limit.
+    // keep the test allocation small on devices with a larger y limit
     if (limit > 65535)
         return 0;
 
-    // The packing shader dispatches one workgroup per packed element along Y.
+    // the packing shader dispatches one workgroup per packed element along y
     ncnn::Mat a = RandomMat(1, (int)(limit + 1) * 4);
     return test_packing_gpu(a, 1, 4, 1) || test_packing_gpu(a, 4, 1, 1);
 }

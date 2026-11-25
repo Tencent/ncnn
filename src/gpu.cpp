@@ -4505,14 +4505,6 @@ static void append_words(std::vector<uint32_t>& out, const uint32_t* p, uint32_t
         out.push_back(p[i]);
 }
 
-enum DispatchBuiltin
-{
-    DISPATCH_NONE = 0,
-    DISPATCH_WORKGROUP_ID,
-    DISPATCH_GLOBAL_ID,
-    DISPATCH_NUM_WORKGROUPS
-};
-
 static uint32_t load_dispatch_constant(std::vector<uint32_t>& out, uint32_t& next_id,
                                        uint32_t uint_type, uint32_t ptr_type, uint32_t pc_var,
                                        uint32_t member_index, uint32_t result_id = 0)
@@ -4525,20 +4517,14 @@ static uint32_t load_dispatch_constant(std::vector<uint32_t>& out, uint32_t& nex
     return result_id;
 }
 
-// Rewrite loads rather than the Input variables themselves. In particular, keep
-// the original storage classes, entry point, local size and subgroup semantics.
+// rewrite loads rather than the input variables themselves
+// keep the original storage classes, entry point, local size and subgroup semantics
 int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant_count,
                             uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z,
                             std::vector<uint32_t>& out)
 {
-    if (size < 5 * sizeof(uint32_t) || size % sizeof(uint32_t) || push_constant_count < 0)
-        return -1;
-
     const size_t words = size / sizeof(uint32_t);
     const uint32_t bound = code[3];
-    if (!bound)
-        return -1;
-
     uint32_t next_id = bound;
     uint32_t uint_type = 0;
     uint32_t vec_type = 0;
@@ -4553,11 +4539,11 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
     std::vector<uint32_t> constant_value(bound, 0);
     std::vector<unsigned char> is_constant(bound, 0);
     std::vector<unsigned char> is_scalar32(bound, 0);
-    std::vector<int> builtin(bound, DISPATCH_NONE);
+    std::vector<uint32_t> builtin(bound, 0);
     std::vector<uint32_t> builtin_var(bound, 0);
     std::vector<uint32_t> component_index(bound, 0);
 
-    // Gather the scalar types, push constant variable, and decorated input IDs.
+    // gather the scalar types, push constant variable and decorated input ids
     for (size_t i = 5; i < words;)
     {
         const uint32_t* p = code + i;
@@ -4596,16 +4582,11 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
         }
         if (op == spv::Op::OpDecorate && wc == 4 && p[2] == (uint32_t)spv::Decoration::BuiltIn)
         {
-            int kind = DISPATCH_NONE;
-            if (p[3] == (uint32_t)spv::BuiltIn::WorkgroupId)
-                kind = DISPATCH_WORKGROUP_ID;
-            if (p[3] == (uint32_t)spv::BuiltIn::GlobalInvocationId)
-                kind = DISPATCH_GLOBAL_ID;
-            if (p[3] == (uint32_t)spv::BuiltIn::NumWorkgroups)
-                kind = DISPATCH_NUM_WORKGROUPS;
-            if (kind != DISPATCH_NONE)
+            if (p[3] == (uint32_t)spv::BuiltIn::WorkgroupId
+                    || p[3] == (uint32_t)spv::BuiltIn::GlobalInvocationId
+                    || p[3] == (uint32_t)spv::BuiltIn::NumWorkgroups)
             {
-                builtin[p[1]] = kind;
+                builtin[p[1]] = p[3];
                 builtin_var[p[1]] = p[1];
             }
         }
@@ -4621,7 +4602,7 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
 
     std::vector<unsigned char> member_offsets(push_constant_count, 0);
     bool found_pc_struct = false;
-    // Check the ncnn scalar push constant ABI, and recognize component pointers.
+    // check the ncnn scalar push constant abi and recognize component pointers
     for (size_t i = 5; i < words;)
     {
         const uint32_t* p = code + i;
@@ -4647,7 +4628,7 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
                 return -1;
             member_offsets[p[2]] = 1;
         }
-        if ((op == spv::Op::OpAccessChain || op == spv::Op::OpInBoundsAccessChain) && wc >= 4 && builtin[p[3]] != DISPATCH_NONE)
+        if ((op == spv::Op::OpAccessChain || op == spv::Op::OpInBoundsAccessChain) && wc >= 4 && builtin[p[3]] != 0)
         {
             if (wc != 5 || component_index[p[3]])
                 return -1;
@@ -4675,9 +4656,9 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
         pc_uint_ptr = next_id++;
 
     const uint32_t local_sizes[3] = {local_size_x, local_size_y, local_size_z};
-    uint32_t member_ids[VIRTUAL_DISPATCH_CONSTANT_COUNT];
+    uint32_t member_ids[6];
     uint32_t local_size_ids[3];
-    for (int i = 0; i < VIRTUAL_DISPATCH_CONSTANT_COUNT; i++)
+    for (int i = 0; i < 6; i++)
         member_ids[i] = next_id++;
     for (int i = 0; i < 3; i++)
         local_size_ids[i] = next_id++;
@@ -4695,14 +4676,14 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
         {
             if (new_pc)
                 append_instruction(out, spv::Op::OpDecorate, 3, pc_struct, (uint32_t)spv::Decoration::Block);
-            for (int j = 0; j < VIRTUAL_DISPATCH_CONSTANT_COUNT; j++)
+            for (int j = 0; j < 6; j++)
             {
                 const uint32_t member = push_constant_count + j;
                 append_instruction(out, spv::Op::OpMemberDecorate, 5, pc_struct, member, (uint32_t)spv::Decoration::Offset, member * 4);
             }
 
-            // The existing push constant struct may precede the original uint type.
-            // Move that independent scalar type to the beginning of the types.
+            // the existing push constant struct may precede the original uint type
+            // move that independent scalar type to the beginning of the types
             append_instruction(out, spv::Op::OpTypeInt, 4, uint_type, 32, 0);
         }
 
@@ -4715,7 +4696,7 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
             }
             if (new_pc_uint_ptr)
                 append_instruction(out, spv::Op::OpTypePointer, 4, pc_uint_ptr, (uint32_t)spv::StorageClass::PushConstant, uint_type);
-            for (int j = 0; j < VIRTUAL_DISPATCH_CONSTANT_COUNT; j++)
+            for (int j = 0; j < 6; j++)
                 append_instruction(out, spv::Op::OpConstant, 4, uint_type, member_ids[j], push_constant_count + j);
             for (int j = 0; j < 3; j++)
                 append_instruction(out, spv::Op::OpConstant, 4, uint_type, local_size_ids[j], local_sizes[j]);
@@ -4723,7 +4704,7 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
                 append_instruction(out, spv::Op::OpVariable, 4, pc_var_ptr, pc_var, (uint32_t)spv::StorageClass::PushConstant);
         }
 
-        // SPIR-V 1.4+ lists all statically used global variables in OpEntryPoint.
+        // spirv 1.4+ lists all statically used global variables in OpEntryPoint
         if (op == spv::Op::OpEntryPoint && code[1] >= 0x00010400)
         {
             bool listed = false;
@@ -4749,27 +4730,26 @@ int inject_virtual_dispatch(const uint32_t* code, size_t size, int push_constant
 
         if (op == spv::Op::OpTypeStruct && p[1] == pc_struct)
         {
-            out.push_back(((wc + VIRTUAL_DISPATCH_CONSTANT_COUNT) << 16) | (uint32_t)op);
+            out.push_back(((wc + 6) << 16) | (uint32_t)op);
             append_words(out, p + 1, wc - 1);
-            for (int j = 0; j < VIRTUAL_DISPATCH_CONSTANT_COUNT; j++)
+            for (int j = 0; j < 6; j++)
                 out.push_back(uint_type);
             i += wc;
             continue;
         }
 
-        if (op == spv::Op::OpLoad && wc >= 4 && builtin[p[3]] != DISPATCH_NONE)
+        if (op == spv::Op::OpLoad && wc >= 4 && builtin[p[3]] != 0)
         {
             const uint32_t result_type = p[1];
             const uint32_t result = p[2];
             const uint32_t ptr = p[3];
             const uint32_t index = component_index[ptr];
-            const int kind = builtin[ptr];
-            const bool count = kind == DISPATCH_NUM_WORKGROUPS;
-            const bool global = kind == DISPATCH_GLOBAL_ID;
+            const uint32_t kind = builtin[ptr];
+            const bool count = kind == (uint32_t)spv::BuiltIn::NumWorkgroups;
+            const bool global = kind == (uint32_t)spv::BuiltIn::GlobalInvocationId;
             const int member_base = count ? 3 : 0;
 
-            // Most GLSL accesses are individual constant components. Avoid
-            // loading the other two components or adding vector operations.
+            // avoid loading unused components when accessing a constant vector component
             if (index && is_constant[index] && constant_value[index] < 3)
             {
                 if (result_type != uint_type)
@@ -5084,16 +5064,14 @@ int VulkanDevice::create_descriptorset_layout(int binding_count, const int* bind
 
 int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSetLayout descriptorset_layout, VkPipelineLayout* pipeline_layout) const
 {
-    if (push_constant_count < 0 || (uint64_t)push_constant_count * sizeof(vk_constant_type) > info.physicalDeviceProperties().limits.maxPushConstantsSize)
-    {
-        NCNN_LOGE("push constant size exceeds device limit");
-        return -1;
-    }
-
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
     pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
+    if (pushConstantRange.size > info.physicalDeviceProperties().limits.maxPushConstantsSize)
+    {
+        NCNN_LOGE("warning: push constant size exceeds device limit");
+    }
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

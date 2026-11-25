@@ -2154,12 +2154,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 {
     //     NCNN_LOGE("record_pipeline %p", pipeline);
 
-    if (dispatcher.w < 0 || dispatcher.h < 0 || dispatcher.d < 0 || dispatcher.c < 0)
-    {
-        NCNN_LOGE("negative dispatch dimension");
-        return;
-    }
-
     bool need_resolve = false;
     for (size_t i = 0; i < _buffer_bindings.size(); i++)
     {
@@ -2191,13 +2185,11 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     if (binding_count != shader_info.binding_count)
     {
         NCNN_LOGE("binding_count not match, expect %d but got %d + %d", shader_info.binding_count, buffer_binding_count, image_binding_count);
-        return;
     }
 
     if (constant_count != shader_info.push_constant_count)
     {
         NCNN_LOGE("push_constant_count not match, expect %d but got %d", shader_info.push_constant_count, constant_count);
-        return;
     }
 
     int buffer_index = 0;
@@ -2477,9 +2469,6 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     }
 
     // record push constants and dispatch
-    if (!dispatcher.w || !dispatcher.h || !dispatcher.c)
-        return;
-
     const uint32_t local_size[3] = {pipeline->local_size_x(), pipeline->local_size_y(), pipeline->local_size_z()};
     const uint64_t size[3] = {(uint64_t)dispatcher.w, (uint64_t)dispatcher.h * (dispatcher.d ? dispatcher.d : 1), (uint64_t)dispatcher.c};
     const uint32_t limits[3] = {vkdev->info.max_workgroup_count_x(), vkdev->info.max_workgroup_count_y(), vkdev->info.max_workgroup_count_z()};
@@ -2488,21 +2477,30 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
 
     for (int i = 0; i < 3; i++)
     {
-        const uint64_t n = (size[i] - 1) / local_size[i] + 1;
-        // The logical GLSL built-ins are still 32-bit unsigned integers.
-        if (n > 0xffffffffu || n * local_size[i] > 0x100000000ull || !limits[i] || (!virtual_dispatch && n > limits[i]))
+        const uint64_t n = (size[i] + local_size[i] - 1) / local_size[i];
+        // the logical built-ins are still 32-bit unsigned integers
+        if (n > 0xffffffffu || n * local_size[i] > 0x100000000ull)
         {
-            NCNN_LOGE("dispatch dimension %d exceeds supported range", i);
-            return;
+            NCNN_LOGE("warning: dispatch dimension %d exceeds 32-bit logical range", i);
         }
         groups[i] = (uint32_t)n;
     }
 
-    const uint32_t total_count = constant_count + (virtual_dispatch ? VIRTUAL_DISPATCH_CONSTANT_COUNT : 0);
+    if (!virtual_dispatch && (groups[0] > limits[0] || groups[1] > limits[1] || groups[2] > limits[2]))
+    {
+        NCNN_LOGE("warning: vkCmdDispatch workgroup count (%u, %u, %u) exceeds device limits (%u, %u, %u)",
+                  groups[0], groups[1], groups[2], limits[0], limits[1], limits[2]);
+    }
+
+    // keep the original dispatch behavior for pipelines created from raw spirv
+    const uint32_t step_x = virtual_dispatch ? limits[0] : groups[0];
+    const uint32_t step_y = virtual_dispatch ? limits[1] : groups[1];
+    const uint32_t step_z = virtual_dispatch ? limits[2] : groups[2];
+
+    const uint32_t total_count = constant_count + (virtual_dispatch ? 6 : 0);
     const uint32_t constant_size = total_count * sizeof(vk_constant_type);
 
-    // The Vulkan minimum push constant capacity is 128 bytes. Avoid an extra
-    // allocation for ordinary ncnn shaders, including the virtual parameters.
+    // avoid an extra allocation for push constants within the vulkan minimum capacity of 128 bytes
     vk_constant_type stack_constants[32];
     std::vector<vk_constant_type> large_constants;
     vk_constant_type* values = stack_constants;
@@ -2519,14 +2517,14 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
             values[constant_count + 3 + i].u32 = groups[i];
     }
 
-    // Split the logical grid into disjoint rectangles. All dispatches share
-    // the same pipeline and descriptors; only the workgroup base changes.
+    // split the logical grid into disjoint rectangles
+    // all dispatches share the same pipeline and descriptors; only the workgroup base changes
     const bool push_descriptor = vkdev->info.support_VK_KHR_push_descriptor();
-    for (uint64_t z = 0; z < groups[2]; z += limits[2])
+    for (uint64_t z = 0; z < groups[2]; z += step_z)
     {
-        for (uint64_t y = 0; y < groups[1]; y += limits[1])
+        for (uint64_t y = 0; y < groups[1]; y += step_y)
         {
-            for (uint64_t x = 0; x < groups[0]; x += limits[0])
+            for (uint64_t x = 0; x < groups[0]; x += step_x)
             {
                 if (virtual_dispatch)
                 {
@@ -2535,9 +2533,9 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
                     values[constant_count + 2].u32 = (uint32_t)z;
                 }
 
-                const uint32_t gx = (uint32_t)std::min((uint64_t)limits[0], groups[0] - x);
-                const uint32_t gy = (uint32_t)std::min((uint64_t)limits[1], groups[1] - y);
-                const uint32_t gz = (uint32_t)std::min((uint64_t)limits[2], groups[2] - z);
+                const uint32_t gx = (uint32_t)std::min((uint64_t)step_x, groups[0] - x);
+                const uint32_t gy = (uint32_t)std::min((uint64_t)step_y, groups[1] - y);
+                const uint32_t gz = (uint32_t)std::min((uint64_t)step_z, groups[2] - z);
 
                 if (push_descriptor)
                 {
@@ -2799,9 +2797,6 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
     }
 
     // record push constants and dispatch
-    if (dst.w <= 0 || dst.h <= 0 || dst.c <= 0)
-        return;
-
     const uint32_t group_count_x = ((uint64_t)dst.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
     const uint32_t group_count_y = ((uint64_t)dst.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
     const uint32_t group_count_z = ((uint64_t)dst.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
@@ -2810,7 +2805,7 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
     const uint32_t max_group_count_y = vkdev->info.max_workgroup_count_y();
     const uint32_t max_group_count_z = vkdev->info.max_workgroup_count_z();
 
-    uint32_t values[VIRTUAL_DISPATCH_CONSTANT_COUNT] = {0, 0, 0, group_count_x, group_count_y, group_count_z};
+    uint32_t values[6] = {0, 0, 0, group_count_x, group_count_y, group_count_z};
     const bool push_descriptor = vkdev->info.support_VK_KHR_push_descriptor();
     for (uint64_t z = 0; z < group_count_z; z += max_group_count_z)
     {

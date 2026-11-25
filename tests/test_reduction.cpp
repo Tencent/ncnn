@@ -425,9 +425,9 @@ static int test_reduction_gpu_dispatch()
     return 0;
 }
 
-// Exercise splitting of X while Y is nontrivial. The original shader uses
-// gl_NumWorkGroups.x as its row stride, so both logical IDs and logical counts
-// must remain unchanged across the two physical dispatches.
+// exercise splitting of x with a nontrivial y dimension
+// gl_NumWorkGroups.x is the row stride, so both logical ids and counts
+// must remain unchanged across the two physical dispatches
 static int test_reduction_oversized_dispatch()
 {
     if (ncnn::get_gpu_count() == 0)
