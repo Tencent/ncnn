@@ -19,8 +19,6 @@ public:
 protected:
 #if NCNN_BF16
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    void pooling_bf16s_global_scalar(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
-    void pooling_bf16s_scalar(const Mat& bottom_blob, Mat& top_blob, const Mat& bottom_blob_bordered, const Option& opt) const;
 #endif
 #if NCNN_ZFH
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
