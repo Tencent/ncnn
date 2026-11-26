@@ -145,7 +145,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
 
         Mat offset_blob;
-        offset_blob.create(outw, outh, grid.c, elemsize, opt.workspace_allocator);
+        offset_blob.create(outw, outh, 2, elemsize, opt.workspace_allocator);
 
         if (top_blob.empty() || offset_blob.empty())
             return -100;
@@ -366,7 +366,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
 
         Mat offset_blob;
-        offset_blob.create(outw, outh, outd, grid.c, elemsize, opt.workspace_allocator);
+        offset_blob.create(outw, outh, outd, 3, elemsize, opt.workspace_allocator);
 
         if (top_blob.empty() || offset_blob.empty())
             return -100;
