@@ -1773,7 +1773,7 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             const int cstep_vec4 = (elempack == 4) ? (shape_bordered.dims != 0 ? shape_bordered.cstep : 0)
                                    : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
 
-            std::vector<vk_specialization_type> specializations(6 + 8 + 1);
+            std::vector<vk_specialization_type> specializations(6 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1800,7 +1800,6 @@ int Convolution_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_convolution_1x1s1d1->set_local_size_xyz(8, std::min(8, outc_pack4), 1);
             }
-            specializations[6 + 8].u32 = pipeline_convolution_1x1s1d1->local_size_x();
             pipeline_convolution_1x1s1d1->create(LayerShaderType::convolution_packed_1x1s1d1, opt, specializations);
         }
     }

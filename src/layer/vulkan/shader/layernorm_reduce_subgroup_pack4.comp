@@ -26,12 +26,8 @@ shared vec4 mean_shared;
 void main()
 {
     const int tid = int(gl_LocalInvocationID.x);
-    const uint group = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-    if (group >= uint(p.num_groups_per_channel))
-        return;
-
     const int gz = int(gl_WorkGroupID.z);
-    const int gy = int(group);
+    const int gy = int(gl_WorkGroupID.y);
     const int group_id = gz * p.num_groups_per_channel + gy;
     const int offset = gz * p.cstep + gy * p.group_size;
     const float area = float(p.group_size);

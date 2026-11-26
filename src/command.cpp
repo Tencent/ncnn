@@ -2468,56 +2468,68 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
         }
     }
 
-    // record push constants
-    if (constant_count > 0)
+    // record push constants and dispatch
     {
-        if (vkdev->info.support_VK_KHR_push_descriptor())
-        {
-            vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_count * sizeof(vk_constant_type), constants.data());
-        }
-        else
-        {
-            uint32_t size = constant_count * sizeof(vk_constant_type);
-            unsigned char* constant_values = new unsigned char[size];
-            memcpy(constant_values, constants.data(), size);
-
-            VkComputePrivate::record r;
-            r.type = VkComputePrivate::record::TYPE_push_constants;
-            r.push_constants.pipeline_layout = pipeline->pipeline_layout();
-            r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
-            r.push_constants.size = size;
-            r.push_constants.values = constant_values;
-            d->delayed_records.push_back(r);
-        }
-    }
-
-    // record dispatch
-    {
-        uint32_t group_count_x = (dispatcher.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
-        uint32_t group_count_y = (dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
-        uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
+        const uint32_t group_count_x = ((uint64_t)dispatcher.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
+        const uint32_t group_count_y = ((uint64_t)dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
+        const uint32_t group_count_z = ((uint64_t)dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
         const uint32_t max_group_count_x = vkdev->info.max_workgroup_count_x();
         const uint32_t max_group_count_y = vkdev->info.max_workgroup_count_y();
         const uint32_t max_group_count_z = vkdev->info.max_workgroup_count_z();
-        if (group_count_x > max_group_count_x || group_count_y > max_group_count_y || group_count_z > max_group_count_z)
-        {
-            NCNN_LOGE("warning: vkCmdDispatch workgroup count (%u, %u, %u) exceeds device limits (%u, %u, %u)",
-                      group_count_x, group_count_y, group_count_z, max_group_count_x, max_group_count_y, max_group_count_z);
-        }
 
-        if (vkdev->info.support_VK_KHR_push_descriptor())
+        std::vector<vk_constant_type> values(constant_count + 6);
+        const uint32_t constant_size = values.size() * sizeof(vk_constant_type);
+        for (int i = 0; i < constant_count; i++)
+            values[i] = constants[i];
+        values[constant_count + 3].u32 = group_count_x;
+        values[constant_count + 4].u32 = group_count_y;
+        values[constant_count + 5].u32 = group_count_z;
+
+        // split the logical grid into disjoint rectangles
+        // all dispatches share the same pipeline and descriptors; only the workgroup base changes
+        for (uint64_t z = 0; z < group_count_z; z += max_group_count_z)
         {
-            vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
-        }
-        else
-        {
-            VkComputePrivate::record r;
-            r.type = VkComputePrivate::record::TYPE_dispatch;
-            r.dispatch.group_count_x = group_count_x;
-            r.dispatch.group_count_y = group_count_y;
-            r.dispatch.group_count_z = group_count_z;
-            d->delayed_records.push_back(r);
+            for (uint64_t y = 0; y < group_count_y; y += max_group_count_y)
+            {
+                for (uint64_t x = 0; x < group_count_x; x += max_group_count_x)
+                {
+                    values[constant_count + 0].u32 = (uint32_t)x;
+                    values[constant_count + 1].u32 = (uint32_t)y;
+                    values[constant_count + 2].u32 = (uint32_t)z;
+
+                    const uint32_t gx = (uint32_t)std::min((uint64_t)max_group_count_x, group_count_x - x);
+                    const uint32_t gy = (uint32_t)std::min((uint64_t)max_group_count_y, group_count_y - y);
+                    const uint32_t gz = (uint32_t)std::min((uint64_t)max_group_count_z, group_count_z - z);
+
+                    if (vkdev->info.support_VK_KHR_push_descriptor())
+                    {
+                        vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, constant_size, values.data());
+                        vkCmdDispatch(d->compute_command_buffer, gx, gy, gz);
+                    }
+                    else
+                    {
+                        {
+                            unsigned char* constant_values = new unsigned char[constant_size];
+                            memcpy(constant_values, values.data(), constant_size);
+                            VkComputePrivate::record r;
+                            r.type = VkComputePrivate::record::TYPE_push_constants;
+                            r.push_constants.pipeline_layout = pipeline->pipeline_layout();
+                            r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+                            r.push_constants.size = constant_size;
+                            r.push_constants.values = constant_values;
+                            d->delayed_records.push_back(r);
+                        }
+
+                        VkComputePrivate::record r;
+                        r.type = VkComputePrivate::record::TYPE_dispatch;
+                        r.dispatch.group_count_x = gx;
+                        r.dispatch.group_count_y = gy;
+                        r.dispatch.group_count_z = gz;
+                        d->delayed_records.push_back(r);
+                    }
+                }
+            }
         }
 
         d->pending_dispatch_total += (uint64_t)group_count_x * group_count_y * group_count_z;
@@ -2754,12 +2766,28 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
         uint32_t group_count_y = (dst.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
         uint32_t group_count_z = (dst.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
+        uint32_t values[6] = {0, 0, 0, group_count_x, group_count_y, group_count_z};
+
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
+            vkCmdPushConstants(d->compute_command_buffer, pipeline->pipeline_layout(), VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(values), values);
             vkCmdDispatch(d->compute_command_buffer, group_count_x, group_count_y, group_count_z);
         }
         else
         {
+            {
+                unsigned char* constant_values = new unsigned char[sizeof(values)];
+                memcpy(constant_values, values, sizeof(values));
+
+                VkComputePrivate::record r;
+                r.type = VkComputePrivate::record::TYPE_push_constants;
+                r.push_constants.pipeline_layout = pipeline->pipeline_layout();
+                r.push_constants.stage_flags = VK_SHADER_STAGE_COMPUTE_BIT;
+                r.push_constants.size = sizeof(values);
+                r.push_constants.values = constant_values;
+                d->delayed_records.push_back(r);
+            }
+
             VkComputePrivate::record r;
             r.type = VkComputePrivate::record::TYPE_dispatch;
             r.dispatch.group_count_x = group_count_x;

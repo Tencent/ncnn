@@ -113,7 +113,7 @@ void main()
     //    v  +------+------+------+------+
     //
 
-    const uint wgi = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
+    const uint wgi = gl_WorkGroupID.x;
 #if ncnn_vendorID == 0x5143
     // keep the subgroup index consistent with the adreno lane index workaround
     const uint sgi = gl_LocalInvocationID.x / subgroup_size;
