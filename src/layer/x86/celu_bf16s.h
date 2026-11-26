@@ -20,25 +20,6 @@ void celu_bf16s_fma(Mat& a, float alpha, const Option& opt);
 void celu_bf16s_fma4(Mat& a, float alpha, const Option& opt);
 #endif
 
-#if __SSE2__
-static void celu_bf16s_scalar(Mat& a, int size, float alpha, const Option& opt)
-{
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < a.c; q++)
-    {
-        unsigned short* ptr = a.channel(q);
-        // Preserve division because large alpha amplifies reciprocal rounding errors.
-        const volatile float divisor = alpha;
-        for (int i = 0; i < size; i++)
-        {
-            float v = bfloat16_to_float32(ptr[i]);
-            if (v < 0.f)
-                ptr[i] = float32_to_bfloat16((expf(v / divisor) - 1.f) * alpha);
-        }
-    }
-}
-#endif // __SSE2__
-
 static void celu_bf16s(Mat& a, float alpha, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_AVX512BF16 && __AVX512F__ && !__AVX512BF16__
@@ -86,15 +67,7 @@ static void celu_bf16s(Mat& a, float alpha, const Option& opt)
     int elempack = a.elempack;
     int size = w * h * d * elempack;
 
-#if __SSE2__
-    // Negative alpha can exceed the SIMD exponential's range. Large alpha amplifies rounding near one.
-    if (alpha <= 0.f || alpha > 1024.f)
-    {
-        celu_bf16s_scalar(a, size, alpha, opt);
-        return;
-    }
     const float inv_alpha = 1.f / alpha;
-#endif // __SSE2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -146,7 +119,7 @@ static void celu_bf16s(Mat& a, float alpha, const Option& opt)
         {
             float v = bfloat16_to_float32(*ptr);
             if (v < 0.f)
-                v = (expf(v / alpha) - 1.f) * alpha;
+                v = (expf(v * inv_alpha) - 1.f) * alpha;
             *ptr = float32_to_bfloat16(v);
             ptr++;
         }

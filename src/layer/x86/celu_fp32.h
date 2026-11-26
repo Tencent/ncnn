@@ -8,24 +8,6 @@ void celu_fp32_fma(Mat& bottom_top_blob, float alpha, const Option& opt);
 void celu_fp32_fma4(Mat& bottom_top_blob, float alpha, const Option& opt);
 #endif
 
-#if __SSE2__
-static void celu_fp32_scalar(Mat& a, int size, float alpha, const Option& opt)
-{
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < a.c; q++)
-    {
-        float* ptr = a.channel(q);
-        // Preserve division because large alpha amplifies reciprocal rounding errors.
-        const volatile float divisor = alpha;
-        for (int i = 0; i < size; i++)
-        {
-            if (ptr[i] < 0.f)
-                ptr[i] = (expf(ptr[i] / divisor) - 1.f) * alpha;
-        }
-    }
-}
-#endif // __SSE2__
-
 static void celu_fp32(Mat& bottom_top_blob, float alpha, const Option& opt)
 {
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
@@ -50,15 +32,7 @@ static void celu_fp32(Mat& bottom_top_blob, float alpha, const Option& opt)
     int elempack = bottom_top_blob.elempack;
     int size = w * h * d * elempack;
 
-#if __SSE2__
-    // Negative alpha can exceed the SIMD exponential's range. Large alpha amplifies rounding near one.
-    if (alpha <= 0.f || alpha > 1024.f)
-    {
-        celu_fp32_scalar(bottom_top_blob, size, alpha, opt);
-        return;
-    }
     const float inv_alpha = 1.f / alpha;
-#endif // __SSE2__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -103,7 +77,7 @@ static void celu_fp32(Mat& bottom_top_blob, float alpha, const Option& opt)
         for (; i < size; i++)
         {
             if (*ptr < 0.f)
-                *ptr = (expf(*ptr / alpha) - 1.f) * alpha;
+                *ptr = (expf(*ptr * inv_alpha) - 1.f) * alpha;
             ptr++;
         }
     }
