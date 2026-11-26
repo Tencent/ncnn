@@ -442,13 +442,23 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
     if (kv_cache)
     {
         const int append_seqlen = append_kv ? cur_seqlen : 0;
-        int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
-        if (retk != 0)
-            return retk;
+        if (append_seqlen > 0)
+        {
+            int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
+            if (retk != 0)
+                return retk;
 
-        int retv = create_or_grow_kvcache(past_xv_blob, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
-        if (retv != 0)
-            return retv;
+            int retv = create_or_grow_kvcache(past_xv_blob, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
+            if (retv != 0)
+                return retv;
+        }
+        else
+        {
+            // a cross attention step appends nothing: the cache it was given is
+            // already the answer, and allocating another one only copies it
+            cached_xk_blob = past_xk_blob;
+            cached_xv_blob = past_xv_blob;
+        }
 
         if (append_seqlen > 0)
         {
@@ -955,13 +965,23 @@ int MultiHeadAttention::forward_weight_block_quantize(const std::vector<Mat>& bo
     if (kv_cache)
     {
         const int append_seqlen = append_kv ? cur_seqlen : 0;
-        int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
-        if (retk != 0)
-            return retk;
+        if (append_seqlen > 0)
+        {
+            int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
+            if (retk != 0)
+                return retk;
 
-        int retv = create_or_grow_kvcache(past_xv_blob, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
-        if (retv != 0)
-            return retv;
+            int retv = create_or_grow_kvcache(past_xv_blob, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
+            if (retv != 0)
+                return retv;
+        }
+        else
+        {
+            // a cross attention step appends nothing: the cache it was given is
+            // already the answer, and allocating another one only copies it
+            cached_xk_blob = past_xk_blob;
+            cached_xv_blob = past_xv_blob;
+        }
 
         if (append_seqlen > 0)
         {
@@ -1507,13 +1527,23 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     if (kv_cache)
     {
         const int append_seqlen = append_kv ? cur_seqlen : 0;
-        int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
-        if (retk != 0)
-            return retk;
+        if (append_seqlen > 0)
+        {
+            int retk = create_or_grow_kvcache(past_xk_blob, cached_xk_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
+            if (retk != 0)
+                return retk;
 
-        int retv = create_or_grow_kvcache(past_xv_blob, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
-        if (retv != 0)
-            return retv;
+            int retv = create_or_grow_kvcache(past_xv_blob, cached_xv_blob, dst_seqlen, num_heads, embed_dim_per_head, 4u, 1, opt);
+            if (retv != 0)
+                return retv;
+        }
+        else
+        {
+            // a cross attention step appends nothing: the cache it was given is
+            // already the answer, and allocating another one only copies it
+            cached_xk_blob = past_xk_blob;
+            cached_xv_blob = past_xv_blob;
+        }
 
         if (append_seqlen > 0)
         {
