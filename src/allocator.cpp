@@ -1443,6 +1443,13 @@ int WeightFile::finalize()
             return ret;
         }
     }
+
+#if (defined __linux__ || defined __ANDROID__) && !defined __OHOS__ && defined MADV_DONTNEED
+    // Drop the process's resident pages without invalidating the weight views.
+    for (size_t i = 0; i < mappings.size(); i++)
+        madvise(mappings[i].base, mappings[i].mapped_size, MADV_DONTNEED);
+#endif
+
     return 0;
 }
 
