@@ -1,0 +1,130 @@
+name: linux-ps3
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-ps3.yml'
+    - 'toolchains/powerpc64-ps3-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/powerpc/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-ps3.yml'
+    - 'toolchains/powerpc64-ps3-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/powerpc/**'
+    - 'tests/**'
+  workflow_dispatch:
+concurrency:
+  group: linux-ps3-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  ps3:
+    runs-on: ubuntu-latest
+    env:
+      PS3DEV: ${{ github.workspace }}/ps3dev
+      # a PS3UPDAT.PUP reachable by the runner. rpcs3 refuses to boot without
+      # the firmware, so the rpcs3 step below is skipped when this is unset and
+      # the job only checks that the ppe build and the spe kernel still compile.
+      PS3_FIRMWARE_URL: ${{ secrets.PS3_FIRMWARE_URL }}
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: cache ps3dev
+      id: cache-ps3dev
+      uses: actions/cache@v4
+      with:
+        path: ps3dev
+        key: ps3dev-2026-06-09
+
+    - name: ps3dev toolchain
+      if: steps.cache-ps3dev.outputs.cache-hit != 'true'
+      run: |
+        curl -sL https://github.com/ps3dev/ps3toolchain/releases/download/2026-06-09/ps3dev-92534e60-ubuntu-latest.tar.gz | tar xz -C ${{ github.workspace }}
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc64-ps3-elf.toolchain.cmake \
+              -DPS3DEV=$PS3DEV \
+              -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF \
+              -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+
+    - name: firmware
+      id: firmware
+      run: |
+        if [ -n "$PS3_FIRMWARE_URL" ]; then
+          echo "have=yes" >> $GITHUB_OUTPUT
+        else
+          echo "have=no" >> $GITHUB_OUTPUT
+          echo "PS3_FIRMWARE_URL is not set, skipping the rpcs3 run"
+        fi
+
+    - name: cache firmware
+      if: steps.firmware.outputs.have == 'yes'
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.temp }}/rpcs3/.config/rpcs3/dev_flash
+        key: ps3-firmware
+
+    - name: rpcs3
+      if: steps.firmware.outputs.have == 'yes'
+      env:
+        # no fuse on the runner, run the appimage from its extracted tree
+        APPIMAGE_EXTRACT_AND_RUN: 1
+      run: |
+        set -eux
+        sudo apt-get update
+        sudo apt-get install -y libvulkan1 mesa-vulkan-drivers
+
+        curl -sL -o rpcs3.AppImage "$(curl -s https://api.github.com/repos/RPCS3/rpcs3-binaries-linux/releases/latest | grep -o 'https://[^"]*_linux64.AppImage' | head -1)"
+        chmod +x rpcs3.AppImage
+
+        export HOME=$RUNNER_TEMP/rpcs3
+        mkdir -p $HOME/.config/rpcs3
+        # Null video, no audio, and quit as soon as the elf returns. rpcs3 does
+        # not propagate the emulated exit status, it is read from RPCS3.log.
+        cat > $HOME/.config/rpcs3/config.yml <<'EOF'
+        Video:
+          Renderer: Null
+        Audio:
+          Renderer: Null
+        Miscellaneous:
+          Exit RPCS3 when process finishes: true
+        EOF
+
+        if [ ! -e $HOME/.config/rpcs3/dev_flash/sys ]; then
+          curl -sL -o $HOME/PS3UPDAT.PUP "$PS3_FIRMWARE_URL"
+          QT_QPA_PLATFORM=offscreen ./rpcs3.AppImage --installfw $HOME/PS3UPDAT.PUP || {
+            echo "::error::rpcs3 could not install the firmware from PS3_FIRMWARE_URL"
+            exit 1
+          }
+        fi
+
+        # the ps3-elf toolchain emits empty import stubs, rpcs3 cannot map the
+        # elf until sprxlinker has generated the import table
+        for t in test_absval test_softmax test_pooling test_convolution test_convolution1d test_convolution3d test_deconvolution test_innerproduct test_gemm test_matmul; do
+          $PS3DEV/bin/sprxlinker build/tests/$t
+          rm -f $HOME/.cache/rpcs3/RPCS3.log
+          timeout 900 ./rpcs3.AppImage --headless build/tests/$t || true
+          status=$(grep -o '_sys_process_exit(status=[0-9]*' $HOME/.cache/rpcs3/RPCS3.log || true)
+          status=${status##*=}
+          if [ "$status" != "0" ]; then
+            echo "::error::$t exited with ${status:-no status}"
+            cat $HOME/.cache/rpcs3/TTY.log || true
+            exit 1
+          fi
+          echo "$t ok"
+        done

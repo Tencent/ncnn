@@ -1,56 +1,41 @@
-name: linux-ppc64
+name: linux-powerpc64le
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/linux-ppc64.yml'
+    - '.github/workflows/linux-powerpc64le.yml'
     - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
+    - 'toolchains/power8le-linux-gnu-vsx.toolchain.cmake'
+    - 'toolchains/power9le-linux-gnu-vsx.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/x86/*'
+    - 'src/layer/powerpc/**'
     - 'tests/**'
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/linux-ppc64.yml'
+    - '.github/workflows/linux-powerpc64le.yml'
     - 'toolchains/powerpc64le-linux-gnu.toolchain.cmake'
+    - 'toolchains/power8le-linux-gnu-vsx.toolchain.cmake'
+    - 'toolchains/power9le-linux-gnu-vsx.toolchain.cmake'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/x86/*'
+    - 'src/layer/powerpc/**'
     - 'tests/**'
 concurrency:
-  group: linux-ppc64-${{ github.ref }}
+  group: linux-powerpc64le-${{ github.ref }}
   cancel-in-progress: true
 permissions:
   contents: read
 
 jobs:
-  ppc:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v7
-
-    - name: powerpc-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-powerpc-linux-gnu qemu-user
-
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/powerpc-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j $(nproc)
-
-    - name: test
-      run: |
-        cd build
-        TESTS_EXECUTABLE_LOADER=qemu-ppc TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/powerpc-linux-gnu" ctest --output-on-failure -j $(nproc)
-
-  ppc64le:
+  powerpc64le:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v7

@@ -556,6 +556,26 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
     set(NCNN_TARGET_ARCH powerpc)
 
+    set(CMAKE_REQUIRED_FLAGS "-maltivec -mabi=altivec")
+    check_cxx_source_compiles("#include <altivec.h>\nvector float test(vector float a, vector float b) { return vec_madd(a, b, a); }" NCNN_COMPILER_SUPPORT_PPC_ALTIVEC)
+    unset(CMAKE_REQUIRED_FLAGS)
+
+    if(NCNN_COMPILER_SUPPORT_PPC_ALTIVEC)
+        option(NCNN_PPC_ALTIVEC "optimize powerpc platform with altivec extension" ON)
+
+        set(CMAKE_REQUIRED_FLAGS "-mvsx")
+        check_cxx_source_compiles("#include <altivec.h>\nvector float test(vector float a, vector float b) { return vec_mul(a, b); }" NCNN_COMPILER_SUPPORT_PPC_VSX)
+        unset(CMAKE_REQUIRED_FLAGS)
+
+        if(NCNN_COMPILER_SUPPORT_PPC_VSX)
+            option(NCNN_PPC_VSX "optimize powerpc platform with vsx extension (power7+)" OFF)
+        else()
+            message(WARNING "The compiler does not support vsx extension. NCNN_PPC_VSX will be OFF.")
+        endif()
+    else()
+        message(WARNING "The compiler does not support altivec extension. NCNN_PPC_ALTIVEC will be OFF.")
+    endif()
+
     if(NCNN_PPC64LE_VSX)
         set(NCNN_TARGET_ARCH x86)
 

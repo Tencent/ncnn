@@ -17,8 +17,13 @@ if(NOT CMAKE_FIND_ROOT_PATH_MODE_PACKAGE)
     set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 endif()
 
-set(CMAKE_C_FLAGS "-mcpu=powerpc")
-set(CMAKE_CXX_FLAGS "-mcpu=powerpc")
+# 32-bit big endian, locked to the G4 (PowerPC 7400) VMX subset. G4 is the
+# baseline that has altivec; the generic -mcpu=powerpc target has no vector
+# unit at all, so the compiler emits the altivec round and truncate opcodes
+# for it and they fault at runtime. VSX is power7 and newer, so it stays out
+# of this toolchain.
+set(CMAKE_C_FLAGS "-mcpu=G4 -maltivec -mabi=altivec")
+set(CMAKE_CXX_FLAGS "-mcpu=G4 -maltivec -mabi=altivec")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
