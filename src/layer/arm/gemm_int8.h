@@ -14675,6 +14675,13 @@ static void get_optimal_tile_mnk_int8(int M, int N, int K, int constant_TILE_M, 
 
     TILE_M *= std::min(nT, get_physical_cpu_count());
 
+    if (nT > 1)
+    {
+        // a few rows of A cannot keep all threads busy, e.g. one row per token when decoding llm
+        // keep N tiles narrow so that they spread across threads
+        TILE_N = std::min(TILE_N, 64);
+    }
+
     if (M > 0)
     {
         int nn_M = (M + TILE_M - 1) / TILE_M;
