@@ -103,7 +103,7 @@ static int test_rotaryembed_1d_cache()
         for (int interleaved = 0; interleaved < 2; interleaved++)
         {
             if (test_rotaryembed(a, RandomMat(a.w / 2), interleaved)
-                || test_rotaryembed(a, RandomMat(a.w), interleaved))
+                    || test_rotaryembed(a, RandomMat(a.w), interleaved))
                 return -1;
         }
     }
