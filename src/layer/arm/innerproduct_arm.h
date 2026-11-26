@@ -40,6 +40,9 @@ public:
 
     Mat weight_data_tm;
 
+    // num_input rows of num_output floats, weight_data transposed for the arm sme tile kernel
+    Mat weight_data_amx;
+
     // fp16
     Mat bias_data_fp16;
 
