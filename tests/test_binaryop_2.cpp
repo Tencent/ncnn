@@ -3,6 +3,9 @@
 
 #include "testutil.h"
 
+#include "binaryop.h"
+#include "layer_type.h"
+
 #define OP_TYPE_MAX 19
 
 static int op_type = 0;
@@ -374,9 +377,66 @@ static int test_binaryop_6()
            || test_binaryop_6(15, 12, 16, 32);
 }
 
+#if !NCNN_SIMPLEMATH && (__SSE2__ || defined(_M_IX86) || defined(_M_X64))
+static int test_binaryop_pow_nonpositive(int operation, bool broadcast_base)
+{
+    const float cases[][2] = {
+        {-2.f, 3.f}, {-2.f, 2.f}, {-2.f, -3.f}, {-2.f, 0.5f}, {4.f, 0.5f},
+        {-2.f, 0.f}, {0.f, 2.f}, {-0.f, 3.f}, {-0.f, -3.f}, {-1.f, 16777215.f}, {-1.f, 16777216.f}
+    };
+    const int count = sizeof(cases) / sizeof(cases[0]);
+    const int width = 29; // one 16-, 8-, and 4-lane vector plus a scalar
+    ncnn::Mat bases(broadcast_base ? 1 : width);
+    ncnn::Mat exponents(width);
+    for (int i = 0; i < bases.w; i++)
+        bases[i] = cases[i % count][0];
+    for (int i = 0; i < width; i++)
+        exponents[i] = cases[i % count][1];
+
+    const bool reverse = operation == ncnn::BinaryOp::Operation_RPOW;
+    std::vector<ncnn::Mat> inputs(2);
+    inputs[0] = reverse ? exponents : bases;
+    inputs[1] = reverse ? bases : exponents;
+
+    ncnn::ParamDict pd;
+    pd.set(0, operation);
+    ncnn::Option opt;
+    opt.use_packing_layout = false;
+    opt.use_fp16_storage = false;
+    opt.use_fp16_arithmetic = false;
+
+    std::vector<ncnn::Mat> outputs;
+    int ret = test_layer_cpu(ncnn::LayerType::BinaryOp, pd, std::vector<ncnn::Mat>(), opt, inputs, 1, outputs, std::vector<ncnn::Mat>(), 0);
+    if (ret != 0 || outputs[0].w != width)
+        return -1;
+
+    for (int i = 0; i < width; i++)
+    {
+        const float base = bases[broadcast_base ? 0 : i];
+        const float expected = powf(base, exponents[i]);
+        const float actual = outputs[0][i];
+        const bool matches = expected == 0.f ? actual == 0.f && signbit(actual) == signbit(expected) : NearlyEqual(actual, expected, 0.00001f);
+        if (matches || (isnan(expected) && isnan(actual)))
+            continue;
+
+        fprintf(stderr, "op=%d lane=%d pow(%g, %g) expected %g got %g\n", operation, i, base, exponents[i], expected, actual);
+        return -1;
+    }
+    return 0;
+}
+#endif
+
 int main()
 {
     SRAND(7767517);
+
+#if !NCNN_SIMPLEMATH && (__SSE2__ || defined(_M_IX86) || defined(_M_X64))
+    if (test_binaryop_pow_nonpositive(ncnn::BinaryOp::Operation_POW, false)
+        || test_binaryop_pow_nonpositive(ncnn::BinaryOp::Operation_RPOW, false)
+        || test_binaryop_pow_nonpositive(ncnn::BinaryOp::Operation_POW, true)
+        || test_binaryop_pow_nonpositive(ncnn::BinaryOp::Operation_RPOW, true))
+        return -1;
+#endif
 
     for (op_type = 6; op_type < 9; op_type++)
     {
