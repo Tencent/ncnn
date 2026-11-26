@@ -3,21 +3,7 @@
 
 #include "celu_x86.h"
 
-#include <float.h>
-
-#if __SSE2__
-#include <emmintrin.h>
-#include "sse_mathfun.h"
-#if __AVX__
-#include <immintrin.h>
-#include "avx_mathfun.h"
-#if __AVX512F__
-#include "avx512_mathfun.h"
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
-
-#include "x86_usability.h"
+#include "x86_activation.h"
 
 #include "cpu.h"
 
@@ -58,7 +44,6 @@ int CELU_x86::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
     return 0;
 }
-
 #endif // NCNN_BF16
 
 } // namespace ncnn

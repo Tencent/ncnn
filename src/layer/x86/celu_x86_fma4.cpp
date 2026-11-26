@@ -8,8 +8,6 @@
 #include "x86_activation.h"
 #include "x86_usability.h"
 
-#include <float.h>
-
 namespace ncnn {
 
 #if NCNN_BF16
