@@ -36,6 +36,7 @@ static int test_celu_1()
            || test_celu(RandomMat(7, 6, 18), 1.f)
            || test_celu(RandomMat(9, 6, 15), 0.1f)
            || test_celu(RandomMat(9, 7, 16), 1.f)
+           || test_celu(RandomMat(7, 5, 24), 0.75f)
            || test_celu(RandomMat(6, 10, 15), 0.1f)
            || test_celu(RandomMat(2, 7, 11), 1.f)
            || test_celu(RandomMat(6, 10, 7), 0.1f);
@@ -60,7 +61,8 @@ static int test_celu_3()
            || test_celu(RandomMat(128), 1.f)
            || test_celu(RandomMat(96), 0.1f)
            || test_celu(RandomMat(128), 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
-           || test_celu(RandomMat(128), 0.1f);
+           || test_celu(RandomMat(128), 0.1f)
+           || test_celu(RandomMat(127), 0.75f);
 }
 
 int main()
