@@ -734,6 +734,22 @@ void main()
                         const uint gk = ki + zk * K + i;
                         const uint gm = (mi + zm) * Md4 + j;
 
+#if ncnn_vendorID == 0x5143
+                        // adreno miscompiles the scalar fp16 gather
+                        const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
+                        const uvec4 v_offset = gk * psc(cstep) + gm4;
+
+                        const uvec4 v_offset_d4 = v_offset / 4;
+                        const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
+                        const uvec4 v_offset_m2 = v_offset % 2;
+
+                        vec4 v4;
+                        v4.r = gk < inch && gm4.r < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
+                        v4.g = gk < inch && gm4.g < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
+                        v4.b = gk < inch && gm4.b < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
+                        v4.a = gk < inch && gm4.a < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                        uvec2 v = uvec2(packHalf2x16(v4.rg), packHalf2x16(v4.ba));
+#else
                         // scalar loads, row step cstep is in element units and may not be multiple of 4
                         uvec2 v = uvec2(0);
                         if (gk < inch)
@@ -747,6 +763,7 @@ void main()
                             if (gm4 + 3 < psc(size)) v4.a = float(buffer_ld1(bottom_blob_data_1, v_offset + 3));
                             v = uvec2(packHalf2x16(v4.rg), packHalf2x16(v4.ba));
                         }
+#endif
 
                         tmp_v[sgmi][siq] = v;
                     }
@@ -934,6 +951,22 @@ void main()
                         const uint gk = ki + i;
                         const uint gm = (mi + zm) * Md4 + j;
 
+#if ncnn_vendorID == 0x5143
+                        // adreno miscompiles the scalar fp16 gather
+                        const uvec4 gm4 = gm * 4 + uvec4(0, 1, 2, 3);
+                        const uvec4 v_offset = gk * psc(cstep) + gm4;
+
+                        const uvec4 v_offset_d4 = v_offset / 4;
+                        const uvec4 v_offset_m4d2 = (v_offset % 4) / 2;
+                        const uvec4 v_offset_m2 = v_offset % 2;
+
+                        vec4 v4;
+                        v4.r = gk < inch && gm4.r < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.r][v_offset_m4d2.r])[v_offset_m2.r] : 0;
+                        v4.g = gk < inch && gm4.g < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.g][v_offset_m4d2.g])[v_offset_m2.g] : 0;
+                        v4.b = gk < inch && gm4.b < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.b][v_offset_m4d2.b])[v_offset_m2.b] : 0;
+                        v4.a = gk < inch && gm4.a < psc(size) ? unpackHalf2x16(bottom_blob_data[v_offset_d4.a][v_offset_m4d2.a])[v_offset_m2.a] : 0;
+                        uvec2 v = uvec2(packHalf2x16(v4.rg), packHalf2x16(v4.ba));
+#else
                         // scalar loads, row step cstep is in element units and may not be multiple of 4
                         uvec2 v = uvec2(0);
                         if (gk < inch)
@@ -947,6 +980,7 @@ void main()
                             if (gm4 + 3 < psc(size)) v4.a = float(buffer_ld1(bottom_blob_data_1, v_offset + 3));
                             v = uvec2(packHalf2x16(v4.rg), packHalf2x16(v4.ba));
                         }
+#endif
 
                         tmp_v[sgmi][siq] = v;
                     }
