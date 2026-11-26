@@ -588,7 +588,15 @@ int Deconvolution1D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, V
             const int size = w;
 
             std::vector<VkMat> bindings(4);
-            bindings[0] = bottom_blob_3d;
+            if (vkdev->info.vendor_id() == 0x5143 && elempack == 1)
+            {
+                // keep the buffer tail padding for adreno pack1 loads
+                bindings[0] = bottom_blob;
+            }
+            else
+            {
+                bindings[0] = bottom_blob_3d;
+            }
             bindings[1] = top_blob_col;
             bindings[2] = weight_data_gpu;
             bindings[3] = bottom_blob_3d; // scalar view for elempack == 1
