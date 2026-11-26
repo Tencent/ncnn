@@ -436,6 +436,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_Tensor_select.cpp
     pass_ncnn/convert_Tensor_slice.cpp
     pass_ncnn/convert_Tensor_slice_copy.cpp
+    pass_ncnn/crop_pooling_output.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/fuse_convert_shufflechannel_slice.cpp
