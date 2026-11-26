@@ -10,7 +10,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w, q):
+    def forward(self, x, y, z, w, q, r, s):
         x = F.pad(x, (3,4), mode='constant', value=1.3)
         x = F.pad(x, (2,2))
 
@@ -26,16 +26,20 @@ class Model(nn.Module):
         q = F.max_pool2d(q, 1)
         q = F.pad(q, (1,2,2,1), mode='constant', value=1.3)
 
+        r = F.pad(r, (-1,2), mode='constant', value=9.25)
+
+        s = F.pad(s, (-1,2,1,-1,-2,3), mode='constant', value=1.3)
+
         if version.parse(torch.__version__) < version.parse('1.10'):
             w = w.relu()
-            return x, y, z, w, q
+            return x, y, z, w, q, r, s
 
         w = F.pad(w, (1,2,2,1,1,0), mode='reflect')
         w = F.pad(w, (2,1,1,0,0,1), mode='replicate')
         w = F.pad(w, (1,0,2,0,0,1), mode='constant', value=1.3)
         w = F.pad(w, (1,1,2,2,1,0))
 
-        return x, y, z, w, q
+        return x, y, z, w, q, r, s
 
 def test():
     net = Model()
@@ -47,16 +51,18 @@ def test():
     z = torch.rand(1, 3, 12, 16)
     w = torch.rand(3, 4, 12, 16)
     q = torch.rand(2, 3, 5, 7)
+    r = torch.rand(8)
+    s = torch.rand(2, 3, 5, 7)
 
-    a = net(x, y, z, w, q)
+    a = net(x, y, z, w, q, r, s)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w, q))
+    mod = torch.jit.trace(net, (x, y, z, w, q, r, s))
     mod.save("test_F_pad.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_pad.pt inputshape=[1,16],[1,2,16],[1,3,12,16],[3,4,12,16],[2,3,5,7]")
+    os.system("../../src/pnnx test_F_pad.pt inputshape=[1,16],[1,2,16],[1,3,12,16],[3,4,12,16],[2,3,5,7],[8],[2,3,5,7]")
 
     # ncnn inference
     import test_F_pad_ncnn
