@@ -1,0 +1,121 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int interleaved = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int embed_dim = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int seqlen = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int num_heads = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) readonly buffer cos_cache { sfp cos_cache_data[]; };
+layout(binding = 2) readonly buffer sin_cache { sfp sin_cache_data[]; };
+layout(binding = 3) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 4) readonly buffer cos_cache_pack4 { sfpvec4 cos_cache_pack4_data[]; };
+layout(binding = 5) readonly buffer sin_cache_pack4 { sfpvec4 sin_cache_pack4_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int embed_dim;
+    int seqlen;
+    int num_heads;
+    int cstep;
+    int cache_w;
+    int cache_hpack;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    const int halfdim = psc(embed_dim) / 2;
+
+    if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
+        return;
+
+    // full-width caches carry independent frequencies for the two halves
+    const bool separate_halves = interleaved != 1 && p.cache_w == psc(embed_dim);
+
+    // each lane uses the cos/sin for its own position
+    afpvec4 cosv;
+    afpvec4 sinv;
+    afpvec4 cosv1;
+    afpvec4 sinv1;
+    if (p.cache_hpack == 4)
+    {
+        const int offset = gy * p.cache_w + gx;
+        cosv = buffer_ld4(cos_cache_pack4_data, offset);
+        sinv = buffer_ld4(sin_cache_pack4_data, offset);
+
+        cosv1 = cosv;
+        sinv1 = sinv;
+        if (separate_halves)
+        {
+            const int offset1 = offset + halfdim;
+            cosv1 = buffer_ld4(cos_cache_pack4_data, offset1);
+            sinv1 = buffer_ld4(sin_cache_pack4_data, offset1);
+        }
+    }
+    else
+    {
+        // pack1 cache stores the four positions in separate rows
+        const ivec4 offset = (gy * 4 + ivec4(0, 1, 2, 3)) * p.cache_w + gx;
+        cosv = afpvec4(buffer_ld1(cos_cache_data, offset.r),
+                       buffer_ld1(cos_cache_data, offset.g),
+                       buffer_ld1(cos_cache_data, offset.b),
+                       buffer_ld1(cos_cache_data, offset.a));
+        sinv = afpvec4(buffer_ld1(sin_cache_data, offset.r),
+                       buffer_ld1(sin_cache_data, offset.g),
+                       buffer_ld1(sin_cache_data, offset.b),
+                       buffer_ld1(sin_cache_data, offset.a));
+
+        cosv1 = cosv;
+        sinv1 = sinv;
+        if (separate_halves)
+        {
+            const ivec4 offset1 = offset + halfdim;
+            cosv1 = afpvec4(buffer_ld1(cos_cache_data, offset1.r),
+                            buffer_ld1(cos_cache_data, offset1.g),
+                            buffer_ld1(cos_cache_data, offset1.b),
+                            buffer_ld1(cos_cache_data, offset1.a));
+            sinv1 = afpvec4(buffer_ld1(sin_cache_data, offset1.r),
+                            buffer_ld1(sin_cache_data, offset1.g),
+                            buffer_ld1(sin_cache_data, offset1.b),
+                            buffer_ld1(sin_cache_data, offset1.a));
+        }
+    }
+
+    if (interleaved == 1)
+    {
+        const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx * 2;
+
+        afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+        afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + 1);
+
+        afpvec4 y0 = x0 * cosv - x1 * sinv;
+        afpvec4 y1 = x0 * sinv + x1 * cosv;
+
+        buffer_st4(top_blob_data, gi, y0);
+        buffer_st4(top_blob_data, gi + 1, y1);
+    }
+    else
+    {
+        const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
+
+        afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+        afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + halfdim);
+
+        afpvec4 y0 = x0 * cosv - x1 * sinv;
+        afpvec4 y1 = x0 * sinv1 + x1 * cosv1;
+
+        buffer_st4(top_blob_data, gi, y0);
+        buffer_st4(top_blob_data, gi + halfdim, y1);
+    }
+}
