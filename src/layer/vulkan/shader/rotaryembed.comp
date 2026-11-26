@@ -7,11 +7,10 @@
 layout(constant_id = 0) const int interleaved = 0;
 
 #define shape_constant_id_offset 1
-layout(constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout(constant_id = shape_constant_id_offset + 1) const int embed_dim = 0;
-layout(constant_id = shape_constant_id_offset + 2) const int seqlen = 0;
-layout(constant_id = shape_constant_id_offset + 3) const int num_heads = 0;
-layout(constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout(constant_id = shape_constant_id_offset + 0) const int embed_dim = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int seqlen = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int num_heads = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
 layout(binding = 1) readonly buffer cos_cache { sfp cos_cache_data[]; };
@@ -20,12 +19,13 @@ layout(binding = 3) writeonly buffer top_blob { sfp top_blob_data[]; };
 
 layout(push_constant) uniform parameter
 {
-    int dims;
     int embed_dim;
     int seqlen;
     int num_heads;
     int cstep;
-    int cos_w;
+    int cache_w;
+    int cache_hpack;
+    int cache_stride;
 } p;
 
 void main()
@@ -39,9 +39,7 @@ void main()
     if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
         return;
 
-    // cos/sin cache row stride: p.cos_w == embed_dim => the two halves carry independent
-    // frequencies (2D rope); p.cos_w == halfdim => standard rope, halves identical.
-    const int cache_offset = gy * p.cos_w + gx;
+    const int cache_offset = p.cache_hpack == 4 ? (gy / 4 * p.cache_w + gx) * 4 + gy % 4 : (gy * p.cache_w + gx) * p.cache_stride;
 
     afp cosv = buffer_ld1(cos_cache_data, cache_offset);
     afp sinv = buffer_ld1(sin_cache_data, cache_offset);
@@ -61,9 +59,15 @@ void main()
     }
     else
     {
-        const int off1 = p.cos_w == psc(embed_dim) ? halfdim : 0;
-        afp cosv1 = buffer_ld1(cos_cache_data, cache_offset + off1);
-        afp sinv1 = buffer_ld1(sin_cache_data, cache_offset + off1);
+        afp cosv1 = cosv;
+        afp sinv1 = sinv;
+        // full-width caches carry independent frequencies for the two halves
+        if (p.cache_w == psc(embed_dim))
+        {
+            const int cache_offset1 = cache_offset + halfdim * p.cache_stride;
+            cosv1 = buffer_ld1(cos_cache_data, cache_offset1);
+            sinv1 = buffer_ld1(sin_cache_data, cache_offset1);
+        }
 
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
 

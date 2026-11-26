@@ -23,6 +23,7 @@ public:
 public:
     Pipeline* pipeline_rotaryembed;
     Pipeline* pipeline_rotaryembed_pack4;
+    Pipeline* pipeline_rotaryembed_2d_pack4;
 };
 
 } // namespace ncnn

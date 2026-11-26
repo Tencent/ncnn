@@ -1,0 +1,103 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(constant_id = 0) const int interleaved = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const int embed_dim = 0;
+layout(constant_id = shape_constant_id_offset + 1) const int seqlen = 0;
+layout(constant_id = shape_constant_id_offset + 2) const int num_heads = 0;
+layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
+layout(binding = 1) readonly buffer cos_cache { sfpvec4 cos_cache_data[]; };
+layout(binding = 2) readonly buffer sin_cache { sfpvec4 sin_cache_data[]; };
+layout(binding = 3) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int embed_dim;
+    int seqlen;
+    int num_heads;
+    int cstep;
+    int cache_w;
+    int cache_hpack;
+    int cache_stride;
+} p;
+
+void load_cache(int x, int y, out afpvec4 cosv, out afpvec4 sinv)
+{
+    if (p.cache_hpack == 4)
+    {
+        const int offset = y * p.cache_w + x;
+        cosv = buffer_ld4(cos_cache_data, offset);
+        sinv = buffer_ld4(sin_cache_data, offset);
+        return;
+    }
+
+    // pack1 cache rows use the same vec4 view, with one selected lane per position
+    const ivec4 offset = ((y * 4 + ivec4(0, 1, 2, 3)) * p.cache_w + x) * p.cache_stride;
+    const ivec4 index = offset / 4;
+    const ivec4 lane = offset % 4;
+    cosv = afpvec4(buffer_ld4(cos_cache_data, index.r)[lane.r],
+                   buffer_ld4(cos_cache_data, index.g)[lane.g],
+                   buffer_ld4(cos_cache_data, index.b)[lane.b],
+                   buffer_ld4(cos_cache_data, index.a)[lane.a]);
+    sinv = afpvec4(buffer_ld4(sin_cache_data, index.r)[lane.r],
+                   buffer_ld4(sin_cache_data, index.g)[lane.g],
+                   buffer_ld4(sin_cache_data, index.b)[lane.b],
+                   buffer_ld4(sin_cache_data, index.a)[lane.a]);
+}
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    const int halfdim = psc(embed_dim) / 2;
+
+    if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
+        return;
+
+    // each lane uses the cos/sin for its own position
+    afpvec4 cosv;
+    afpvec4 sinv;
+    load_cache(gx, gy, cosv, sinv);
+
+    if (interleaved == 1)
+    {
+        const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx * 2;
+
+        afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+        afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + 1);
+
+        afpvec4 y0 = x0 * cosv - x1 * sinv;
+        afpvec4 y1 = x0 * sinv + x1 * cosv;
+
+        buffer_st4(top_blob_data, gi, y0);
+        buffer_st4(top_blob_data, gi + 1, y1);
+    }
+    else
+    {
+        afpvec4 cosv1 = cosv;
+        afpvec4 sinv1 = sinv;
+        // full-width caches carry independent frequencies for the two halves
+        if (p.cache_w == psc(embed_dim))
+            load_cache(gx + halfdim, gy, cosv1, sinv1);
+
+        const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
+
+        afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);
+        afpvec4 x1 = buffer_ld4(bottom_blob_data, gi + halfdim);
+
+        afpvec4 y0 = x0 * cosv - x1 * sinv;
+        afpvec4 y1 = x0 * sinv1 + x1 * cosv1;
+
+        buffer_st4(top_blob_data, gi, y0);
+        buffer_st4(top_blob_data, gi + halfdim, y1);
+    }
+}
