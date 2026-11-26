@@ -1443,6 +1443,17 @@ int WeightFile::finalize()
             return ret;
         }
     }
+
+#if NCNN_STDIO && defined _WIN32 && !NCNN_WINXP
+    // trim unlocked pages from the working set, ignoring the expected ERROR_NOT_LOCKED
+    for (size_t i = 0; i < mappings.size(); i++)
+        VirtualUnlock(mappings[i].base, mappings[i].mapped_size);
+#elif (defined __linux__ || defined __ANDROID__ || defined __APPLE__) && !defined __OHOS__ && defined MADV_DONTNEED
+    // advise that resident pages can be reclaimed without invalidating the weight views
+    for (size_t i = 0; i < mappings.size(); i++)
+        madvise(mappings[i].base, mappings[i].mapped_size, MADV_DONTNEED);
+#endif
+
     return 0;
 }
 
