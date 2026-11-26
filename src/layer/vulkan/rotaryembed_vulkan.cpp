@@ -93,6 +93,7 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
 
     const int dims = bottom_blob.dims;
     const int elempack = bottom_blob.elempack;
+    const bool pack4_2d = dims == 2 && elempack == 4;
 
     // 1d pack4 has the same scalar order as pack1
     const int embed_dim = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
@@ -104,13 +105,18 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
+    std::vector<VkMat> bindings(pack4_2d ? 6 : 4);
     bindings[0] = bottom_blob;
     bindings[1] = cos_cache;
     bindings[2] = sin_cache;
     bindings[3] = top_blob;
+    if (pack4_2d)
+    {
+        bindings[4] = cos_cache;
+        bindings[5] = sin_cache;
+    }
 
-    std::vector<vk_constant_type> constants(7);
+    std::vector<vk_constant_type> constants(6);
     constants[0].i = embed_dim;
     constants[1].i = seqlen;
     constants[2].i = num_heads;
@@ -119,7 +125,6 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     // 1d cache is contiguous in embed_dim, 2d cache is packed along seqlen
     constants[4].i = cos_cache.dims == 1 ? cos_cache.w * cos_cache.elempack : cos_cache.w;
     constants[5].i = cos_cache.dims == 2 ? cos_cache.elempack : 1;
-    constants[6].i = cos_cache.dims == 1 ? 1 : cos_cache.elempack;
 
     VkMat dispatcher;
     dispatcher.w = embed_dim / 2;
@@ -127,7 +132,7 @@ int RotaryEmbed_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vec
     dispatcher.c = num_heads;
 
     const Pipeline* pipeline = pipeline_rotaryembed;
-    if (dims == 2 && elempack == 4)
+    if (pack4_2d)
         pipeline = pipeline_rotaryembed_2d_pack4;
     else if (dims >= 3 && elempack == 4)
         pipeline = pipeline_rotaryembed_pack4;

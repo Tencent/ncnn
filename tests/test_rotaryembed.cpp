@@ -96,10 +96,10 @@ static int test_rotaryembed_1d()
 static int test_rotaryembed_1d_cache()
 {
     // a half-width 1d cache can have a different packing from the input
-    const int widths[] = {60, 62, 64};
-    for (size_t i = 0; i < sizeof(widths) / sizeof(widths[0]); i++)
+    const ncnn::Mat inputs[] = {RandomMat(60), RandomMat(62), RandomMat(64), RandomMat(60, 1), RandomMat(60, 1, 8)};
+    for (size_t i = 0; i < sizeof(inputs) / sizeof(inputs[0]); i++)
     {
-        const ncnn::Mat a = RandomMat(widths[i]);
+        const ncnn::Mat& a = inputs[i];
         for (int interleaved = 0; interleaved < 2; interleaved++)
         {
             if (test_rotaryembed(a, RandomMat(a.w / 2), interleaved)

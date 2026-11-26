@@ -25,7 +25,6 @@ layout(push_constant) uniform parameter
     int cstep;
     int cache_w;
     int cache_hpack;
-    int cache_stride;
 } p;
 
 void main()
@@ -39,7 +38,7 @@ void main()
     if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
         return;
 
-    const int cache_offset = p.cache_hpack == 4 ? (gy / 4 * p.cache_w + gx) * 4 + gy % 4 : (gy * p.cache_w + gx) * p.cache_stride;
+    const int cache_offset = p.cache_hpack == 4 ? (gy / 4 * p.cache_w + gx) * 4 + gy % 4 : gy * p.cache_w + gx;
 
     afp cosv = buffer_ld1(cos_cache_data, cache_offset);
     afp sinv = buffer_ld1(sin_cache_data, cache_offset);
@@ -64,7 +63,7 @@ void main()
         // full-width caches carry independent frequencies for the two halves
         if (p.cache_w == psc(embed_dim))
         {
-            const int cache_offset1 = cache_offset + halfdim * p.cache_stride;
+            const int cache_offset1 = cache_offset + halfdim * p.cache_hpack;
             cosv1 = buffer_ld1(cos_cache_data, cache_offset1);
             sinv1 = buffer_ld1(sin_cache_data, cache_offset1);
         }

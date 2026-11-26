@@ -13,9 +13,11 @@ layout(constant_id = shape_constant_id_offset + 2) const int num_heads = 0;
 layout(constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
 layout(binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
-layout(binding = 1) readonly buffer cos_cache { sfpvec4 cos_cache_data[]; };
-layout(binding = 2) readonly buffer sin_cache { sfpvec4 sin_cache_data[]; };
+layout(binding = 1) readonly buffer cos_cache { sfp cos_cache_data[]; };
+layout(binding = 2) readonly buffer sin_cache { sfp sin_cache_data[]; };
 layout(binding = 3) writeonly buffer top_blob { sfpvec4 top_blob_data[]; };
+layout(binding = 4) readonly buffer cos_cache_pack4 { sfpvec4 cos_cache_pack4_data[]; };
+layout(binding = 5) readonly buffer sin_cache_pack4 { sfpvec4 sin_cache_pack4_data[]; };
 
 layout(push_constant) uniform parameter
 {
@@ -25,32 +27,7 @@ layout(push_constant) uniform parameter
     int cstep;
     int cache_w;
     int cache_hpack;
-    int cache_stride;
 } p;
-
-void load_cache(int x, int y, out afpvec4 cosv, out afpvec4 sinv)
-{
-    if (p.cache_hpack == 4)
-    {
-        const int offset = y * p.cache_w + x;
-        cosv = buffer_ld4(cos_cache_data, offset);
-        sinv = buffer_ld4(sin_cache_data, offset);
-        return;
-    }
-
-    // pack1 cache rows use the same vec4 view, with one selected lane per position
-    const ivec4 offset = ((y * 4 + ivec4(0, 1, 2, 3)) * p.cache_w + x) * p.cache_stride;
-    const ivec4 index = offset / 4;
-    const ivec4 lane = offset % 4;
-    cosv = afpvec4(buffer_ld4(cos_cache_data, index.r)[lane.r],
-                   buffer_ld4(cos_cache_data, index.g)[lane.g],
-                   buffer_ld4(cos_cache_data, index.b)[lane.b],
-                   buffer_ld4(cos_cache_data, index.a)[lane.a]);
-    sinv = afpvec4(buffer_ld4(sin_cache_data, index.r)[lane.r],
-                   buffer_ld4(sin_cache_data, index.g)[lane.g],
-                   buffer_ld4(sin_cache_data, index.b)[lane.b],
-                   buffer_ld4(sin_cache_data, index.a)[lane.a]);
-}
 
 void main()
 {
@@ -63,10 +40,57 @@ void main()
     if (gx >= halfdim || gy >= psc(seqlen) || gz >= psc(num_heads))
         return;
 
+    // full-width caches carry independent frequencies for the two halves
+    const bool separate_halves = interleaved != 1 && p.cache_w == psc(embed_dim);
+
     // each lane uses the cos/sin for its own position
     afpvec4 cosv;
     afpvec4 sinv;
-    load_cache(gx, gy, cosv, sinv);
+    afpvec4 cosv1;
+    afpvec4 sinv1;
+    if (p.cache_hpack == 4)
+    {
+        const int offset = gy * p.cache_w + gx;
+        cosv = buffer_ld4(cos_cache_pack4_data, offset);
+        sinv = buffer_ld4(sin_cache_pack4_data, offset);
+
+        cosv1 = cosv;
+        sinv1 = sinv;
+        if (separate_halves)
+        {
+            const int offset1 = offset + halfdim;
+            cosv1 = buffer_ld4(cos_cache_pack4_data, offset1);
+            sinv1 = buffer_ld4(sin_cache_pack4_data, offset1);
+        }
+    }
+    else
+    {
+        // pack1 cache stores the four positions in separate rows
+        const ivec4 offset = (gy * 4 + ivec4(0, 1, 2, 3)) * p.cache_w + gx;
+        cosv = afpvec4(buffer_ld1(cos_cache_data, offset.r),
+                       buffer_ld1(cos_cache_data, offset.g),
+                       buffer_ld1(cos_cache_data, offset.b),
+                       buffer_ld1(cos_cache_data, offset.a));
+        sinv = afpvec4(buffer_ld1(sin_cache_data, offset.r),
+                       buffer_ld1(sin_cache_data, offset.g),
+                       buffer_ld1(sin_cache_data, offset.b),
+                       buffer_ld1(sin_cache_data, offset.a));
+
+        cosv1 = cosv;
+        sinv1 = sinv;
+        if (separate_halves)
+        {
+            const ivec4 offset1 = offset + halfdim;
+            cosv1 = afpvec4(buffer_ld1(cos_cache_data, offset1.r),
+                            buffer_ld1(cos_cache_data, offset1.g),
+                            buffer_ld1(cos_cache_data, offset1.b),
+                            buffer_ld1(cos_cache_data, offset1.a));
+            sinv1 = afpvec4(buffer_ld1(sin_cache_data, offset1.r),
+                            buffer_ld1(sin_cache_data, offset1.g),
+                            buffer_ld1(sin_cache_data, offset1.b),
+                            buffer_ld1(sin_cache_data, offset1.a));
+        }
+    }
 
     if (interleaved == 1)
     {
@@ -83,12 +107,6 @@ void main()
     }
     else
     {
-        afpvec4 cosv1 = cosv;
-        afpvec4 sinv1 = sinv;
-        // full-width caches carry independent frequencies for the two halves
-        if (p.cache_w == psc(embed_dim))
-            load_cache(gx + halfdim, gy, cosv1, sinv1);
-
         const int gi = gz * psc(cstep) + gy * psc(embed_dim) + gx;
 
         afpvec4 x0 = buffer_ld4(bottom_blob_data, gi);

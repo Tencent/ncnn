@@ -223,7 +223,7 @@
 #define buffer_cp1(buf,i,sbuf,si) {uint _i=uint(i);uint _id2=_i/2;uint _im2=_i%2;uint _si=uint(si);uint _sid2=_si/2;uint _sim2=_si%2;float v=unpackHalf2x16(sbuf[_sid2])[_sim2];uint _old_v, _new_v;do{_old_v=atomicCompSwap(buf[_id2],0,0);vec2 _v=unpackHalf2x16(_old_v);_v[_im2]=v;_new_v=packHalf2x16(_v);} while(atomicCompSwap(buf[_id2],_old_v,_new_v)!=_old_v);}
 #define buffer_cp1to4(buf,i,sbuf,si4) {uvec4 _si4d2=uvec4(si4)/2;uvec4 _si4m2=uvec4(si4)%2;buf[i]=uvec2(packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.r])[_si4m2.r],unpackHalf2x16(sbuf[_si4d2.g])[_si4m2.g])),packHalf2x16(vec2(unpackHalf2x16(sbuf[_si4d2.b])[_si4m2.b],unpackHalf2x16(sbuf[_si4d2.a])[_si4m2.a])));}
 #define buffer_ld2(buf,i) unpackFloat2x16(buf[i])
-#define buffer_st2(buf,i,v) {buf[i]=packFloat2x16(v)}
+#define buffer_st2(buf,i,v) {buf[i]=packFloat2x16(v);}
 #define buffer_cp2(buf,i,sbuf,si) {buf[i]=sbuf[si];}
 #define buffer_ld4(buf,i) f16vec4(unpackFloat2x16(buf[i].x),unpackFloat2x16(buf[i].y))
 #define buffer_st4(buf,i,v) {buf[i]=uvec2(packFloat2x16(v.rg),packFloat2x16(v.ba));}
