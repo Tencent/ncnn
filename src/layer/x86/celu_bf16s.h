@@ -99,8 +99,8 @@ static void celu_bf16s(Mat& a, float alpha, const Option& opt)
         __m256 _inv_alpha_avx = _mm256_set1_ps(inv_alpha);
         for (; i + 7 < size; i += 8)
         {
-            __m256 _p = bfloat2float_avx(_mm_loadu_si128((const __m128i*)ptr));
-            _mm_storeu_si128((__m128i*)ptr, float2bfloat_avx(celu_avx(_p, _alpha_avx, _inv_alpha_avx)));
+            __m256 _p = bfloat2float_avx(_mm_load_si128((const __m128i*)ptr));
+            _mm_store_si128((__m128i*)ptr, float2bfloat_avx(celu_avx(_p, _alpha_avx, _inv_alpha_avx)));
             ptr += 8;
         }
 #endif // __AVX__

@@ -1,6 +1,9 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__FMA__ && !__FMA4__
+void celu_fp32_avx2(Mat& bottom_top_blob, float alpha, const Option& opt);
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
 void celu_fp32_fma(Mat& bottom_top_blob, float alpha, const Option& opt);
 #endif
@@ -10,6 +13,13 @@ void celu_fp32_fma4(Mat& bottom_top_blob, float alpha, const Option& opt);
 
 static void celu_fp32(Mat& bottom_top_blob, float alpha, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__ && !__FMA__ && !__FMA4__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        celu_fp32_avx2(bottom_top_blob, alpha, opt);
+        return;
+    }
+#endif
 #if NCNN_RUNTIME_CPU && NCNN_FMA && __AVX__ && !__FMA__ && !__FMA4__
     if (ncnn::cpu_support_x86_fma())
     {
@@ -68,8 +78,8 @@ static void celu_fp32(Mat& bottom_top_blob, float alpha, const Option& opt)
         __m128 _inv_alpha128 = _mm_set1_ps(inv_alpha);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = _mm_loadu_ps(ptr);
-            _mm_storeu_ps(ptr, celu_sse(_p, _alpha128, _inv_alpha128));
+            __m128 _p = _mm_load_ps(ptr);
+            _mm_store_ps(ptr, celu_sse(_p, _alpha128, _inv_alpha128));
 
             ptr += 4;
         }

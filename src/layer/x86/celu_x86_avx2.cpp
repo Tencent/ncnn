@@ -11,14 +11,19 @@
 namespace ncnn {
 
 #if NCNN_BF16
-
 #include "celu_bf16s.h"
+#endif // NCNN_BF16
+#include "celu_fp32.h"
 
+#if NCNN_BF16
 void celu_bf16s_avx2(Mat& a, float alpha, const Option& opt)
 {
     celu_bf16s(a, alpha, opt);
 }
-
 #endif // NCNN_BF16
 
+void celu_fp32_avx2(Mat& bottom_top_blob, float alpha, const Option& opt)
+{
+    celu_fp32(bottom_top_blob, alpha, opt);
+}
 } // namespace ncnn
