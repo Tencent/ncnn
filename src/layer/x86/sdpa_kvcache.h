@@ -93,15 +93,23 @@ static int sdpa_kvcache(const Mat& query, const Mat& past_key, const Mat& past_v
     const int num_kv_heads = cur_key.c;
     const int first_panel = past_seqlen / panel_width;
     const int num_panels = (past_seqlen % panel_width + cur_key.h + panel_width - 1) / panel_width;
-    if (cur_key.h == 1)
+    if (cur_key.h < panel_width)
     {
-        sdpa_append_kvcache_token(cur_key, cur_value, cached_key, cached_value, past_seqlen, panel_width);
+        // too few tokens to share, append them one by one without entering an omp region
+        for (int i = 0; i < cur_key.h; i++)
+        {
+            Mat key_token(cur_key.w, 1, cur_key.c, (unsigned char*)cur_key.data + (size_t)i * cur_key.w * cur_key.elemsize, cur_key.elemsize);
+            Mat value_token(cur_value.w, 1, cur_value.c, (unsigned char*)cur_value.data + (size_t)i * cur_value.w * cur_value.elemsize, cur_value.elemsize);
+            key_token.cstep = cur_key.cstep;
+            value_token.cstep = cur_value.cstep;
+            sdpa_append_kvcache_token(key_token, value_token, cached_key, cached_value, past_seqlen + i, panel_width);
+        }
     }
     else
     {
         const int num_panel_tasks = std::min(num_panels, std::max(1, (opt.num_threads + num_kv_heads - 1) / num_kv_heads));
         const int num_tasks = num_kv_heads * num_panel_tasks;
-        const int nT = cur_key.h >= panel_width ? std::min(opt.num_threads, num_tasks) : 1;
+        const int nT = std::min(opt.num_threads, num_tasks);
 
         #pragma omp parallel for num_threads(nT)
         for (int task_id = 0; task_id < num_tasks; task_id++)
@@ -177,15 +185,23 @@ static int sdpa_kvcache_bf16s(const Mat& query, const Mat& past_key, const Mat& 
     const int num_kv_heads = cur_key.c;
     const int first_panel = past_seqlen / panel_width;
     const int num_panels = (past_seqlen % panel_width + cur_key.h + panel_width - 1) / panel_width;
-    if (cur_key.h == 1)
+    if (cur_key.h < panel_width)
     {
-        sdpa_append_kvcache_token_bf16s(cur_key, cur_value, cached_key, cached_value, past_seqlen, panel_width);
+        // too few tokens to share, append them one by one without entering an omp region
+        for (int i = 0; i < cur_key.h; i++)
+        {
+            Mat key_token(cur_key.w, 1, cur_key.c, (unsigned char*)cur_key.data + (size_t)i * cur_key.w * cur_key.elemsize, cur_key.elemsize);
+            Mat value_token(cur_value.w, 1, cur_value.c, (unsigned char*)cur_value.data + (size_t)i * cur_value.w * cur_value.elemsize, cur_value.elemsize);
+            key_token.cstep = cur_key.cstep;
+            value_token.cstep = cur_value.cstep;
+            sdpa_append_kvcache_token_bf16s(key_token, value_token, cached_key, cached_value, past_seqlen + i, panel_width);
+        }
     }
     else
     {
         const int num_panel_tasks = std::min(num_panels, std::max(1, (opt.num_threads + num_kv_heads - 1) / num_kv_heads));
         const int num_tasks = num_kv_heads * num_panel_tasks;
-        const int nT = cur_key.h >= panel_width ? std::min(opt.num_threads, num_tasks) : 1;
+        const int nT = std::min(opt.num_threads, num_tasks);
 
         #pragma omp parallel for num_threads(nT)
         for (int task_id = 0; task_id < num_tasks; task_id++)
