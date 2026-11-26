@@ -3,8 +3,6 @@
 
 #include "convolution3d_vulkan.h"
 
-#include <limits.h>
-
 #include "layer_shader_type.h"
 #include "layer_type.h"
 #include "modelbin.h"
@@ -905,7 +903,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const int num_input_packed = (num_input + 3) / 4 * 4;
             const int num_output_packed = (num_output + 3) / 4 * 4;
 
-            std::vector<vk_specialization_type> specializations(15 + 12 + 1);
+            std::vector<vk_specialization_type> specializations(15 + 12);
             specializations[0].i = kernel_w;
             specializations[1].i = kernel_h;
             specializations[2].i = kernel_d;
@@ -950,7 +948,6 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_convolution3d_gemm->set_optimal_local_size_xyz(local_size_xyz);
             }
-            specializations[15 + 12].u32 = pipeline_convolution3d_gemm->local_size_x();
             pipeline_convolution3d_gemm->create(LayerShaderType::convolution3d_packed_gemm, opt, specializations);
         }
     }
@@ -1192,7 +1189,7 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             const int cstep_vec4 = (elempack == 4) ? (shape_bordered.dims != 0 ? shape_bordered.cstep : 0)
                                    : (shape_bordered.dims != 0 ? shape_bordered.cstep / 4 : 0);
 
-            std::vector<vk_specialization_type> specializations(6 + 8 + 1);
+            std::vector<vk_specialization_type> specializations(6 + 8);
             specializations[0].i = bias_term;
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
@@ -1219,7 +1216,6 @@ int Convolution3D_vulkan::create_pipeline(const Option& opt)
             {
                 pipeline_convolution3d_1x1x1->set_local_size_xyz(8, std::min(8, outc_pack4), 1);
             }
-            specializations[6 + 8].u32 = pipeline_convolution3d_1x1x1->local_size_x();
             pipeline_convolution3d_1x1x1->create(LayerShaderType::convolution_packed_1x1s1d1, opt, specializations);
         }
     }
@@ -1545,16 +1541,9 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
                 const int blocks_x = (bottom_tm_blob.w - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M) + 1;
                 const int blocks_y = (num_output - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N) + 1;
 
-                // split the M/N tiles across x and y
-                const uint32_t local_size_x = pipeline_convolution3d_3x3x3_winograd222_gemm->local_size_x();
-                const uint32_t max_groups_x = std::min(vkdev->info.max_workgroup_count_x(), (uint32_t)INT_MAX / local_size_x);
-                const uint64_t groups = (uint64_t)blocks_x * blocks_y;
-                const uint64_t groups_y = (groups - 1) / max_groups_x + 1;
-                const uint64_t groups_x = (groups - 1) / groups_y + 1;
-
                 VkMat dispatcher;
-                dispatcher.w = (int)(groups_x * local_size_x);
-                dispatcher.h = (int)groups_y;
+                dispatcher.w = (blocks_x * blocks_y) * pipeline_convolution3d_3x3x3_winograd222_gemm->local_size_x();
+                dispatcher.h = 1;
                 dispatcher.c = 64;
 
                 cmd.record_pipeline(pipeline_convolution3d_3x3x3_winograd222_gemm, bindings, constants, dispatcher);
@@ -1639,16 +1628,9 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             const int blocks_x = (outsize - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M) + 1;
             const int blocks_y = (num_output - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N) + 1;
 
-            // split the M/N tiles across x and y
-            const uint32_t local_size_x = pipeline_convolution3d_gemm->local_size_x();
-            const uint32_t max_groups_x = std::min(vkdev->info.max_workgroup_count_x(), (uint32_t)INT_MAX / local_size_x);
-            const uint64_t groups = (uint64_t)blocks_x * blocks_y;
-            const uint64_t groups_y = (groups - 1) / max_groups_x + 1;
-            const uint64_t groups_x = (groups - 1) / groups_y + 1;
-
             VkMat dispatcher;
-            dispatcher.w = (int)(groups_x * local_size_x);
-            dispatcher.h = (int)groups_y;
+            dispatcher.w = (blocks_x * blocks_y) * pipeline_convolution3d_gemm->local_size_x();
+            dispatcher.h = 1;
             dispatcher.c = 1;
 
             cmd.record_pipeline(pipeline_convolution3d_gemm, bindings, constants, dispatcher);
@@ -1687,20 +1669,6 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             dispatcher.h = outc_pack4;
             dispatcher.c = 1;
 
-            const uint32_t local_size_x = pipeline_convolution3d_gemm->local_size_x();
-            const uint32_t max_groups_x = vkdev->info.max_workgroup_count_x();
-            const uint64_t groups = ((uint64_t)size + local_size_x - 1) / local_size_x;
-
-            // split the spatial workgroups across x and z
-            if (groups > max_groups_x)
-            {
-                const uint64_t groups_z = (groups + max_groups_x - 1) / max_groups_x;
-                const uint64_t groups_x = (groups + groups_z - 1) / groups_z;
-
-                dispatcher.w = (int)(groups_x * local_size_x);
-                dispatcher.c = (int)groups_z;
-            }
-
             cmd.record_pipeline(pipeline_convolution3d_gemm, bindings, constants, dispatcher);
         }
 
@@ -1728,16 +1696,9 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             const int blocks_x = (outsize - 1) / (coopmat_M * UNROLL_SG_M * UNROLL_WG_M) + 1;
             const int blocks_y = (num_output - 1) / (coopmat_N * UNROLL_SG_N * UNROLL_WG_N) + 1;
 
-            // split the M/N tiles across x and y
-            const uint32_t local_size_x = pipeline_convolution3d_1x1x1->local_size_x();
-            const uint32_t max_groups_x = std::min(vkdev->info.max_workgroup_count_x(), (uint32_t)INT_MAX / local_size_x);
-            const uint64_t groups = (uint64_t)blocks_x * blocks_y;
-            const uint64_t groups_y = (groups - 1) / max_groups_x + 1;
-            const uint64_t groups_x = (groups - 1) / groups_y + 1;
-
             VkMat dispatcher;
-            dispatcher.w = (int)(groups_x * local_size_x);
-            dispatcher.h = (int)groups_y;
+            dispatcher.w = (blocks_x * blocks_y) * pipeline_convolution3d_1x1x1->local_size_x();
+            dispatcher.h = 1;
             dispatcher.c = 1;
 
             cmd.record_pipeline(pipeline_convolution3d_1x1x1, bindings, constants, dispatcher);
@@ -1775,20 +1736,6 @@ int Convolution3D_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             dispatcher.w = size;
             dispatcher.h = outc_pack4;
             dispatcher.c = 1;
-
-            const uint32_t local_size_x = pipeline_convolution3d_1x1x1->local_size_x();
-            const uint32_t max_groups_x = vkdev->info.max_workgroup_count_x();
-            const uint64_t groups = ((uint64_t)size + local_size_x - 1) / local_size_x;
-
-            // split the spatial workgroups across x and z
-            if (groups > max_groups_x)
-            {
-                const uint64_t groups_z = (groups + max_groups_x - 1) / max_groups_x;
-                const uint64_t groups_x = (groups + groups_z - 1) / groups_z;
-
-                dispatcher.w = (int)(groups_x * local_size_x);
-                dispatcher.c = (int)groups_z;
-            }
 
             cmd.record_pipeline(pipeline_convolution3d_1x1x1, bindings, constants, dispatcher);
         }

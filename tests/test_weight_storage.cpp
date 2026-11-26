@@ -9,6 +9,21 @@
 
 #include <string>
 
+class WeightStorageModelReader : public ncnn::DataReaderFromMemory
+{
+public:
+    WeightStorageModelReader(const unsigned char*& mem, size_t size)
+        : ncnn::DataReaderFromMemory(mem, size)
+    {
+    }
+
+    virtual size_t reference(size_t /*size*/, const void** /*buf*/) const
+    {
+        // Layers must own their weights because the model buffer is temporary.
+        return 0;
+    }
+};
+
 // gemm chain with distinct per-layer weights and a memorydata bias
 // input b0 and output out are both w=16 h=8
 static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, int seed)
@@ -60,7 +75,7 @@ static int load_weight_storage_net(ncnn::Net& net, const ncnn::Option& opt, int 
         return ret;
 
     const unsigned char* mem = (const unsigned char*)model.data();
-    ncnn::DataReaderFromMemory dr(mem, model.size() * sizeof(float));
+    WeightStorageModelReader dr(mem, model.size() * sizeof(float));
     return net.load_model(dr);
 }
 

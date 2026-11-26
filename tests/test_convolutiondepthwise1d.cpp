@@ -18,7 +18,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     pd.set(3, stride);   // stride_w
     pd.set(4, pad);      // pad_w
     pd.set(5, bias);     // bias_term
-    pd.set(6, outh / group * h / group * kernel * kernel * group);
+    pd.set(6, outh / group * h / group * kernel * group);
     pd.set(7, group);
 
     int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
@@ -29,7 +29,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     pd.set(10, activation_params);
 
     std::vector<ncnn::Mat> weights(2);
-    weights[0] = RandomMat(outh / group * h / group * kernel * kernel * group);
+    weights[0] = RandomMat(outh / group * h / group * kernel * group);
     weights[1] = RandomMat(outh);
 
     int ret = test_layer("ConvolutionDepthWise1D", pd, weights, a);
@@ -82,6 +82,8 @@ static int test_convolutiondepthwise1d_0()
                   || test_convolutiondepthwise1d(15, 12, 12, k, d, s, p, 0, 4)
                   || test_convolutiondepthwise1d(15, 15, 15, k, d, s, p, 1, 15)
                   || test_convolutiondepthwise1d(15, 16, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise1d(15, 6, 8, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise1d(15, 8, 6, k, d, s, p, 0, 2)
                   || test_convolutiondepthwise1d(15, 16, 16, k, d, s, p, 1, 16)
                   || test_convolutiondepthwise1d(18, 1, 1, k, d, s, p, 1, 1)
                   || test_convolutiondepthwise1d(18, 2, 2, k, d, s, p, 0, 1)
@@ -95,6 +97,8 @@ static int test_convolutiondepthwise1d_0()
                   || test_convolutiondepthwise1d(18, 12, 12, k, d, s, p, 0, 4)
                   || test_convolutiondepthwise1d(18, 15, 15, k, d, s, p, 1, 15)
                   || test_convolutiondepthwise1d(18, 16, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise1d(18, 6, 8, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise1d(18, 8, 6, k, d, s, p, 0, 2)
                   || test_convolutiondepthwise1d(18, 16, 16, k, d, s, p, 1, 16)
                   || test_convolutiondepthwise1d(25, 1, 1, k, d, s, p, 1, 1)
                   || test_convolutiondepthwise1d(25, 2, 2, k, d, s, p, 0, 1)
@@ -108,6 +112,8 @@ static int test_convolutiondepthwise1d_0()
                   || test_convolutiondepthwise1d(25, 12, 12, k, d, s, p, 0, 4)
                   || test_convolutiondepthwise1d(25, 15, 15, k, d, s, p, 1, 15)
                   || test_convolutiondepthwise1d(25, 16, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise1d(25, 6, 8, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise1d(25, 8, 6, k, d, s, p, 0, 2)
                   || test_convolutiondepthwise1d(25, 16, 16, k, d, s, p, 1, 16);
 
         if (ret != 0)

@@ -20,6 +20,10 @@ namespace ncnn {
 #include "interp_bilinear_packn.h"
 #endif
 
+#if NCNN_BF16
+#include "interp_bf16s.h"
+#endif
+
 Interp_riscv::Interp_riscv()
 {
 #if __riscv_vector
@@ -32,6 +36,9 @@ Interp_riscv::Interp_riscv()
     support_fp16_storage = cpu_support_riscv_zfh();
 #endif
 #endif
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -40,16 +47,23 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     const Mat& reference_blob = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
 
-#if NCNN_ZFH
+#if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_blob.elembits();
+#endif
 
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ZFH
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_fp16sa(bottom_blobs, top_blobs, opt);
         else
             return forward_fp16s(bottom_blobs, top_blobs, opt);
     }
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_bf16s(bottom_blobs, top_blobs, opt);
 #endif
 
 #if __riscv_vector
@@ -504,5 +518,74 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     return 0;
 }
+
+#if NCNN_BF16
+int Interp_riscv::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& reference_blob = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    int h = bottom_blob.h;
+    int w = bottom_blob.w;
+    int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    int outw = reference_blob.w;
+    int outh = reference_blob.h;
+
+    if (!size_expr.empty())
+    {
+        std::vector<Mat> bottom_blob_shapes(bottom_blobs.size());
+        for (size_t i = 0; i < bottom_blobs.size(); i++)
+        {
+            bottom_blob_shapes[i] = bottom_blobs[i].shape();
+        }
+        eval_size_expr(bottom_blob_shapes, outw, outh);
+    }
+
+    if ((dims == 2 || dims == 3)
+            && ((resize_type == 2 && (w == 1 || (dims == 3 && h == 1)))
+                || (resize_type == 3 && (w < 4 || (dims == 3 && h < 4)))))
+        return forward_small_input(bottom_blob, top_blob, outw, outh, opt);
+
+    if (dims == 1)
+    {
+        top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
+    else if (dims == 2)
+    {
+        if (is_identity_resize(w, h, outw, outh, dims))
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
+    else // dims == 3
+    {
+        if (is_identity_resize(w, h, outw, outh, dims))
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(outw, outh, channels, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+    }
+
+    interp_bf16s(bottom_blob, top_blob, resize_type, align_corner, height_scale, width_scale, output_height, output_width, dynamic_target_size || !size_expr.empty(), opt);
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

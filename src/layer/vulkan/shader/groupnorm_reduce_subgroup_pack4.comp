@@ -15,7 +15,6 @@ layout(push_constant) uniform parameter
     int group_area;
     int channels_g;
     int cstep;
-    int group;
 } p;
 
 // spirv-1.6 guarantees one full subgroup with local size (required subgroup size, 1, 1)
@@ -27,11 +26,7 @@ shared float mean_shared;
 void main()
 {
     const int tid = int(gl_LocalInvocationID.x);
-    const uint group = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
-    if (group >= uint(p.group))
-        return;
-
-    const int group_id = int(group);
+    const int group_id = int(gl_WorkGroupID.y);
     const int actual_channel_start = group_id * p.channels_g;
     const int actual_channel_end = actual_channel_start + p.channels_g;
     const int packed_start = actual_channel_start / 4;

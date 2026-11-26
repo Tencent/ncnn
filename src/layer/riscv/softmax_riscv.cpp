@@ -14,11 +14,18 @@
 
 namespace ncnn {
 
+#if NCNN_BF16
+#include "softmax_bf16s.h"
+#endif
+
 Softmax_riscv::Softmax_riscv()
 {
 #if __riscv_vector
     support_packing = true;
 #endif // __riscv_vector
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 #if __riscv_vector
@@ -659,6 +666,11 @@ static void softmax(float* _ptr, int elemcount, int elempack, size_t stride, int
 
 int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_BF16
+    if (opt.use_bf16_storage && bottom_top_blob.elembits() == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
+
     const int dims = bottom_top_blob.dims;
     const int w = bottom_top_blob.w;
     const int h = bottom_top_blob.h;
@@ -821,5 +833,12 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     return 0;
 }
+
+#if NCNN_BF16
+int Softmax_riscv::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    return softmax_bf16s(bottom_top_blob, axis, opt);
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -1304,6 +1304,13 @@ void GpuInfoPrivate::query_extension_features()
         // emulated cooperative matrix on amd rdna2 is slow
         switch (physicalDeviceProperties.deviceID)
         {
+        case 0x13c0: // Granite Ridge 610M
+        case 0x1435: // Sephiroth (Steam Deck OLED)
+        case 0x1506: // Mendocino 610M
+        case 0x163f: // VanGogh (Steam Deck)
+        case 0x164d: // Rembrandt
+        case 0x164e: // Raphael 610M
+        case 0x1681: // Rembrandt 660M/680M
         case 0x73a1: // V620
         case 0x73a2: // W6900X
         case 0x73a3: // W6800
@@ -4486,6 +4493,250 @@ VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, siz
     return shader_module;
 }
 
+static void append_instruction(std::vector<uint32_t>& out, uint32_t op, uint32_t wc,
+                               uint32_t a = 0, uint32_t b = 0, uint32_t c = 0, uint32_t d = 0,
+                               uint32_t e = 0, uint32_t f = 0, uint32_t g = 0)
+{
+    const uint32_t operands[7] = {a, b, c, d, e, f, g};
+    out.push_back((wc << 16) | op);
+    for (uint32_t i = 0; i + 1 < wc; i++)
+        out.push_back(operands[i]);
+}
+
+// rewrite loads rather than the input variables themselves
+// keep the original storage classes, entry point, local size and subgroup semantics
+static void inject_virtual_dispatch(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, std::vector<uint32_t>& out)
+{
+    const size_t words = size / sizeof(uint32_t);
+    const uint32_t bound = code[3];
+    uint32_t next_id = bound;
+    uint32_t uint_type = 0;
+    uint32_t vec_type = 0;
+    uint32_t pc_var = 0;
+    uint32_t pc_struct = 0;
+    uint32_t pc_uint_ptr = 0;
+    uint32_t pc_var_ptr = 0;
+    uint32_t push_constant_count = 0;
+    size_t first_type = words;
+    size_t first_function = words;
+
+    uint32_t global_invocation_id = 0;
+    uint32_t num_workgroups = 0;
+
+    // struct member count or pointer pointee type, indexed by type id
+    std::vector<uint32_t> type_info(bound, 0);
+    std::vector<uint32_t> builtin_var(bound, 0);
+    std::vector<uint32_t> component_index(bound, 0);
+
+    // collect types, push constant block and builtin component pointers
+    {
+        for (size_t i = 5; i < words;)
+        {
+            const uint32_t* p = code + i;
+            const uint32_t wc = p[0] >> 16;
+            const uint32_t op = p[0] & 0xffff;
+            if (op >= 19 && op <= 39 && first_type == words) // OpTypeVoid OpTypeForwardPointer
+                first_type = i;
+            if (op == 54 && first_function == words) // OpFunction
+                first_function = i;
+
+            if (op == 21 && p[2] == 32 && p[3] == 0) // OpTypeInt
+                uint_type = p[1];
+            else if (op == 23 && p[2] == uint_type && p[3] == 3) // OpTypeVector
+                vec_type = p[1];
+            else if (op == 30) // OpTypeStruct
+                type_info[p[1]] = wc - 2;
+            else if (op == 32) // OpTypePointer
+            {
+                type_info[p[1]] = p[3];
+                if (p[2] == 9 && p[3] == uint_type) // PushConstant
+                    pc_uint_ptr = p[1];
+            }
+            else if (op == 59 && p[3] == 9) // OpVariable PushConstant
+            {
+                pc_var = p[2];
+                pc_var_ptr = p[1];
+                pc_struct = type_info[pc_var_ptr];
+                push_constant_count = type_info[pc_struct];
+            }
+            else if (op == 71 && p[2] == 11) // OpDecorate BuiltIn
+            {
+                if (p[3] == 28) // GlobalInvocationId
+                    global_invocation_id = p[1];
+                else if (p[3] == 24) // NumWorkgroups
+                    num_workgroups = p[1];
+                if (p[3] == 26     // WorkgroupId
+                        || p[3] == 28  // GlobalInvocationId
+                        || p[3] == 24) // NumWorkgroups
+                {
+                    builtin_var[p[1]] = p[1];
+                }
+            }
+            else if ((op == 65 || op == 66) && wc == 5 && builtin_var[p[3]]) // OpAccessChain OpInBoundsAccessChain
+            {
+                builtin_var[p[2]] = builtin_var[p[3]];
+                component_index[p[2]] = p[4];
+            }
+
+            i += wc;
+        }
+    }
+
+    const bool new_pc = pc_var == 0;
+    if (!uint_type)
+        uint_type = next_id++;
+
+    if (new_pc)
+    {
+        pc_struct = next_id++;
+        pc_var_ptr = next_id++;
+        pc_var = next_id++;
+    }
+    const bool new_pc_uint_ptr = pc_uint_ptr == 0;
+    if (new_pc_uint_ptr)
+        pc_uint_ptr = next_id++;
+
+    uint32_t member_ids[6];
+    for (int i = 0; i < 6; i++)
+        member_ids[i] = next_id++;
+
+    uint32_t local_size_id = 0;
+
+    out.clear();
+    out.insert(out.end(), code, code + 5);
+
+    // rewrite the spirv module
+    {
+        for (size_t i = 5; i < words;)
+        {
+            const uint32_t* p = code + i;
+            const uint32_t wc = p[0] >> 16;
+            const uint32_t op = p[0] & 0xffff;
+
+            if (i == first_type)
+            {
+                if (new_pc)
+                    append_instruction(out, 71, 3, pc_struct, 2); // OpDecorate Block
+                for (int j = 0; j < 6; j++)
+                {
+                    const uint32_t member = push_constant_count + j;
+                    append_instruction(out, 72, 5, pc_struct, member, 35, member * 4); // OpMemberDecorate Offset
+                }
+
+                // the existing push constant struct may precede the original uint type
+                // move that independent scalar type to the beginning of the types
+                append_instruction(out, 21, 4, uint_type, 32, 0); // OpTypeInt
+            }
+
+            if (i == first_function)
+            {
+                if (new_pc)
+                {
+                    append_instruction(out, 30, 8, pc_struct, uint_type, uint_type, uint_type, uint_type, uint_type, uint_type); // OpTypeStruct
+                    append_instruction(out, 32, 4, pc_var_ptr, 9, pc_struct);                                                    // OpTypePointer PushConstant
+                }
+                if (new_pc_uint_ptr)
+                    append_instruction(out, 32, 4, pc_uint_ptr, 9, uint_type); // OpTypePointer PushConstant
+                for (int j = 0; j < 6; j++)
+                    append_instruction(out, 43, 4, uint_type, member_ids[j], push_constant_count + j); // OpConstant
+                if (global_invocation_id)
+                {
+                    const uint32_t local_sizes[3] = {local_size_x, local_size_y, local_size_z};
+                    uint32_t local_size_ids[3];
+                    for (int j = 0; j < 3; j++)
+                    {
+                        local_size_ids[j] = next_id++;
+                        append_instruction(out, 43, 4, uint_type, local_size_ids[j], local_sizes[j]); // OpConstant
+                    }
+                    local_size_id = next_id++;
+                    append_instruction(out, 44, 6, vec_type, local_size_id, local_size_ids[0], local_size_ids[1], local_size_ids[2]); // OpConstantComposite
+                }
+                if (new_pc)
+                    append_instruction(out, 59, 4, pc_var_ptr, pc_var, 9); // OpVariable PushConstant
+            }
+
+            // spirv 1.4+ lists all statically used global variables in OpEntryPoint
+            if (op == 15 && code[1] >= 0x00010400) // OpEntryPoint
+            {
+                bool listed = false;
+                const size_t name_words = (strlen((const char*)(p + 3)) + 4) / 4;
+                for (size_t j = 3 + name_words; j < wc; j++)
+                    if (p[j] == pc_var)
+                        listed = true;
+                if (!listed)
+                {
+                    out.push_back(((wc + 1) << 16) | (uint32_t)op);
+                    out.insert(out.end(), p + 1, p + wc);
+                    out.push_back(pc_var);
+                    i += wc;
+                    continue;
+                }
+            }
+
+            if (op == 21 && p[1] == uint_type) // OpTypeInt
+            {
+                i += wc;
+                continue;
+            }
+
+            if (op == 30 && p[1] == pc_struct) // OpTypeStruct
+            {
+                out.push_back(((wc + 6) << 16) | (uint32_t)op);
+                out.insert(out.end(), p + 1, p + wc);
+                for (int j = 0; j < 6; j++)
+                    out.push_back(uint_type);
+                i += wc;
+                continue;
+            }
+
+            if (op == 61 && builtin_var[p[3]]) // OpLoad
+            {
+                const uint32_t result = p[2];
+                const uint32_t var = builtin_var[p[3]];
+                const uint32_t index = component_index[p[3]];
+                const bool count = var == num_workgroups;
+                const int member_base = count ? 3 : 0;
+
+                uint32_t components[3];
+                for (int j = 0; j < 3; j++)
+                {
+                    const uint32_t ptr = next_id++;
+                    components[j] = next_id++;
+                    append_instruction(out, 65, 5, pc_uint_ptr, ptr, pc_var, member_ids[member_base + j]); // OpAccessChain
+                    append_instruction(out, 61, 4, uint_type, components[j], ptr);                         // OpLoad
+                }
+
+                const uint32_t logical = index ? next_id++ : result;
+                uint32_t offset = count ? logical : next_id++;
+                append_instruction(out, 80, 6, vec_type, offset, components[0], components[1], components[2]); // OpCompositeConstruct
+
+                if (var == global_invocation_id)
+                {
+                    const uint32_t scaled = next_id++;
+                    append_instruction(out, 132, 5, vec_type, scaled, offset, local_size_id); // OpIMul
+                    offset = scaled;
+                }
+                if (!count)
+                {
+                    const uint32_t physical = next_id++;
+                    append_instruction(out, 61, 4, vec_type, physical, var);              // OpLoad
+                    append_instruction(out, 128, 5, vec_type, logical, physical, offset); // OpIAdd
+                }
+                if (index)
+                    append_instruction(out, 77, 5, uint_type, result, logical, index); // OpVectorExtractDynamic
+
+                i += wc;
+                continue;
+            }
+
+            out.insert(out.end(), p, p + wc);
+            i += wc;
+        }
+    }
+
+    out[3] = next_id;
+}
+
 static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t* dstcode, size_t* dstsize)
 {
     uint32_t local_size_x_id = -1;
@@ -4667,10 +4918,13 @@ static void inject_local_size_xyz(const uint32_t* code, size_t size, uint32_t lo
 
 VkShaderModule VulkanDevice::compile_shader_module(const uint32_t* spv_data, size_t spv_data_size, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z) const
 {
+    std::vector<uint32_t> spirv;
+    inject_virtual_dispatch(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spirv);
+
     // reserve space for a uint type, three local size spec constants and their decorations
-    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size + 28 * sizeof(uint32_t));
-    size_t spv_data_size_modified = spv_data_size;
-    inject_local_size_xyz(spv_data, spv_data_size, local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
+    size_t spv_data_size_modified = spirv.size() * sizeof(uint32_t);
+    uint32_t* spv_data_modified = (uint32_t*)malloc(spv_data_size_modified + 28 * sizeof(uint32_t));
+    inject_local_size_xyz(spirv.data(), spirv.size() * sizeof(uint32_t), local_size_x, local_size_y, local_size_z, spv_data_modified, &spv_data_size_modified);
 
     VkShaderModule shader_module = compile_shader_module(spv_data_modified, spv_data_size_modified);
 
@@ -4740,7 +4994,12 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     VkPushConstantRange pushConstantRange;
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pushConstantRange.offset = 0;
-    pushConstantRange.size = sizeof(vk_constant_type) * push_constant_count;
+    pushConstantRange.size = sizeof(vk_constant_type) * (push_constant_count + 6);
+
+    if (pushConstantRange.size > info.physicalDeviceProperties().limits.maxPushConstantsSize)
+    {
+        NCNN_LOGE("push constant size %u exceeds device limit %u", pushConstantRange.size, info.physicalDeviceProperties().limits.maxPushConstantsSize);
+    }
 
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -4765,16 +5024,8 @@ int VulkanDevice::create_pipeline_layout(int push_constant_count, VkDescriptorSe
     }
 #endif
 
-    if (push_constant_count > 0)
-    {
-        pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-        pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-    }
-    else
-    {
-        pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-        pipelineLayoutCreateInfo.pPushConstantRanges = 0;
-    }
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
 
     VkResult ret = vkCreatePipelineLayout(d->device, &pipelineLayoutCreateInfo, 0, pipeline_layout);
     if (ret != VK_SUCCESS)
