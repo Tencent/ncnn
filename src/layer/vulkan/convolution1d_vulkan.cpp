@@ -866,8 +866,7 @@ int Convolution1D_vulkan::create_pipeline(const Option& _opt)
                     if (bias_term)
                         UNROLL_SG_N = 1;
                     // adreno qcom fp16 gemm fails with power-of-two kernels or partial bias tiles
-                    if (opt_cm.use_fp16_arithmetic && ((maxk > 1 && (maxk & (maxk - 1)) == 0)
-                            || (bias_term && num_output % coopmat_N != 0)))
+                    if (opt_cm.use_fp16_arithmetic && ((maxk > 1 && (maxk & (maxk - 1)) == 0) || (bias_term && num_output % coopmat_N != 0)))
                         use_qcom_cooperative_matrix = false;
                 }
 
