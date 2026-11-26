@@ -92,7 +92,7 @@ static inline int sign_extend(int v, int bits)
 
 static inline int unpack_signed_weight(const unsigned char* ptr, int k, int bits, int packed_k_bytes)
 {
-    const int bit_offset = k * bits;
+    const uint64_t bit_offset = (uint64_t)k * bits;
     const int byte_offset = bit_offset / 8;
     const int bit_shift = bit_offset % 8;
 

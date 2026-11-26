@@ -33,6 +33,10 @@ public:
     Mat weight_data;
     Mat bias_data;
 
+#if NCNN_WEIGHT_QUANT
+    Mat weight_data_q8_scales;
+#endif
+
 #if NCNN_INT8
     float weight_data_int8_scale;
 #endif

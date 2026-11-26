@@ -196,10 +196,10 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p3++;
             }
 
-            *pd++ = 1.f / *ps0++;
-            *pd++ = 1.f / *ps1++;
-            *pd++ = 1.f / *ps2++;
-            *pd++ = 1.f / *ps3++;
+            *pd++ = *ps0++;
+            *pd++ = *ps1++;
+            *pd++ = *ps2++;
+            *pd++ = *ps3++;
         }
     }
 #endif // __ARM_NEON
@@ -310,8 +310,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p1++;
             }
 
-            *pd++ = 1.f / *ps0++;
-            *pd++ = 1.f / *ps1++;
+            *pd++ = *ps0++;
+            *pd++ = *ps1++;
         }
     }
     for (; jj < max_jj; jj++)
@@ -359,7 +359,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             for (; kk < max_kk; kk++)
                 *pp++ = *p0++;
 
-            *pd++ = 1.f / *ps0++;
+            *pd++ = *ps0++;
         }
     }
 }

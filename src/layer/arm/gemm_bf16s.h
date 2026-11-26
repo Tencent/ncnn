@@ -3307,6 +3307,947 @@ static void transpose_pack_B_tile_fp32_to_bf16(const Mat& B, Mat& BT, int j, int
     }
 }
 
+#if NCNN_WEIGHT_QUANT && NCNN_ARM84BF16 && __aarch64__ && __ARM_NEON
+#if NCNN_RUNTIME_CPU && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+void dequantize_B_tile_int4s_bf16s_bf16(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size);
+void dequantize_B_tile_int6s_bf16s_bf16(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size);
+void dequantize_B_tile_int8s_bf16s_bf16(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size);
+#endif
+
+// The BF16 K tiles and interior quantization block boundaries are aligned to four.
+static void dequantize_B_tile_int4s_bf16s(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size)
+{
+#if NCNN_RUNTIME_CPU && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        dequantize_B_tile_int4s_bf16s_bf16(B, B_scales, BT_tile, j, max_jj, k, max_kk, block_size);
+        return;
+    }
+#endif
+
+    const int k_end = k + max_kk;
+    const int g0 = k / block_size;
+    const int g_end = (k_end - 1) / block_size + 1;
+
+    unsigned short* pp = BT_tile;
+    int jj = 0;
+    for (; jj + 11 < max_jj; jj += 12)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 12;
+
+            for (int jj0 = 0; jj0 < 12; jj0 += 4)
+            {
+                const unsigned char* p0 = pB + (size_t)k0 * 6 + jj0 / 4 * 2;
+                const float32x4_t _descale = vld1q_f32(scales + jj0);
+
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 6;
+                    unsigned short* pp0 = pp + kk * 12 + jj0 * 4;
+                    const uint32_t v0 = unpack_int4x4(p);
+                    const uint32_t v1 = unpack_int4x4(p + 6);
+                    const uint32_t v2 = unpack_int4x4(p + 12);
+                    const uint32_t v3 = unpack_int4x4(p + 18);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                    const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                    const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                    uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+                }
+                if (kk + 1 < max_kk0)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 6;
+                    const uint32_t v0 = unpack_int4x4(p);
+                    const uint32_t v1 = unpack_int4x4(p + 6);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                    vst1q_u16(pp + kk * 12 + jj0 * 2, vcombine_u16(_r01.val[0], _r01.val[1]));
+                    kk += 2;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk0; kk++)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 6;
+                    const uint32_t v0 = unpack_int4x4(p);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    vst1_u16(pp + kk * 12 + jj0, _r0);
+                }
+            }
+            pp += max_kk0 * 12;
+        }
+    }
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 8;
+
+            for (int jj0 = 0; jj0 < 8; jj0 += 4)
+            {
+                const unsigned char* p0 = pB + (size_t)k0 * 4 + jj0 / 4 * 2;
+                const float32x4_t _descale = vld1q_f32(scales + jj0);
+
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 4;
+                    unsigned short* pp0 = pp + kk * 8 + jj0 * 4;
+                    const uint32_t v0 = unpack_int4x4(p);
+                    const uint32_t v1 = unpack_int4x4(p + 4);
+                    const uint32_t v2 = unpack_int4x4(p + 8);
+                    const uint32_t v3 = unpack_int4x4(p + 12);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                    const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                    const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                    uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+                }
+                if (kk + 1 < max_kk0)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 4;
+                    const uint32_t v0 = unpack_int4x4(p);
+                    const uint32_t v1 = unpack_int4x4(p + 4);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                    vst1q_u16(pp + kk * 8 + jj0 * 2, vcombine_u16(_r01.val[0], _r01.val[1]));
+                    kk += 2;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk0; kk++)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 4;
+                    const uint32_t v0 = unpack_int4x4(p);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    vst1_u16(pp + kk * 8 + jj0, _r0);
+                }
+            }
+            pp += max_kk0 * 8;
+        }
+    }
+    for (; jj + 3 < max_jj; jj += 4)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 4;
+
+            const unsigned char* p0 = pB + (size_t)k0 * 2;
+            const float32x4_t _descale = vld1q_f32(scales);
+
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk0; kk += 4)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 2;
+                unsigned short* pp0 = pp + kk * 4;
+                const uint32_t v0 = unpack_int4x4(p);
+                const uint32_t v1 = unpack_int4x4(p + 2);
+                const uint32_t v2 = unpack_int4x4(p + 4);
+                const uint32_t v3 = unpack_int4x4(p + 6);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+            }
+            if (kk + 1 < max_kk0)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 2;
+                const uint32_t v0 = unpack_int4x4(p);
+                const uint32_t v1 = unpack_int4x4(p + 2);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                vst1q_u16(pp + kk * 4, vcombine_u16(_r01.val[0], _r01.val[1]));
+                kk += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk0; kk++)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 2;
+                const uint32_t v0 = unpack_int4x4(p);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                vst1_u16(pp + kk * 4, _r0);
+            }
+            pp += max_kk0 * 4;
+        }
+    }
+    for (; jj + 1 < max_jj; jj += 2)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 2;
+
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x2_t _descale = vld1_f32(scales);
+            float32x4_t _descale2 = vcombine_f32(_descale, _descale);
+            for (; kk + 3 < max_kk0; kk += 4)
+            {
+                const unsigned char* p = pB + k0 + kk;
+                const uint32_t v0 = unpack_int4x4(p);
+                const uint32_t v1 = unpack_int4x4(p + 2);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale2));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale2));
+                uint16x4x2_t _r01 = vuzp_u16(_r0, _r1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+            }
+            if (kk + 1 < max_kk0)
+            {
+                const unsigned char* p = pB + k0 + kk;
+                const int v0 = p[0];
+                const int v1 = p[1];
+                pp[0] = float32_to_bfloat16((((v0 & 15) ^ 8) - 8) * scales[0]);
+                pp[1] = float32_to_bfloat16((((v1 & 15) ^ 8) - 8) * scales[0]);
+                pp[2] = float32_to_bfloat16((((v0 >> 4) ^ 8) - 8) * scales[1]);
+                pp[3] = float32_to_bfloat16((((v1 >> 4) ^ 8) - 8) * scales[1]);
+                pp += 4;
+                kk += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk0; kk++)
+            {
+                const int v = pB[k0 + kk];
+                pp[0] = float32_to_bfloat16((((v & 15) ^ 8) - 8) * scales[0]);
+                pp[1] = float32_to_bfloat16((((v >> 4) ^ 8) - 8) * scales[1]);
+                pp += 2;
+            }
+        }
+    }
+    for (; jj < max_jj; jj++)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + g;
+
+            const float descale = scales[0];
+            for (int kk = 0; kk < max_kk0; kk++)
+            {
+                const int index = k0 + kk;
+                const int v = (pB[index / 2] >> (index % 2 * 4)) & 15;
+                *pp++ = float32_to_bfloat16(((v ^ 8) - 8) * descale);
+            }
+        }
+    }
+}
+
+static void dequantize_B_tile_int6s_bf16s(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size)
+{
+#if NCNN_RUNTIME_CPU && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        dequantize_B_tile_int6s_bf16s_bf16(B, B_scales, BT_tile, j, max_jj, k, max_kk, block_size);
+        return;
+    }
+#endif
+
+    const int k_end = k + max_kk;
+    const int g0 = k / block_size;
+    const int g_end = (k_end - 1) / block_size + 1;
+
+    unsigned short* pp = BT_tile;
+    int jj = 0;
+    for (; jj + 11 < max_jj; jj += 12)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 12;
+
+            for (int jj0 = 0; jj0 < 12; jj0 += 4)
+            {
+                const unsigned char* p0 = pB + (size_t)k0 * 9 + jj0 / 4 * 3;
+                const float32x4_t _descale = vld1q_f32(scales + jj0);
+
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 9;
+                    unsigned short* pp0 = pp + kk * 12 + jj0 * 4;
+                    const uint32_t v0 = unpack_int6x4(p);
+                    const uint32_t v1 = unpack_int6x4(p + 9);
+                    const uint32_t v2 = unpack_int6x4(p + 18);
+                    const uint32_t v3 = unpack_int6x4(p + 27);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                    const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                    const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                    uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+                }
+                if (kk + 1 < max_kk0)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 9;
+                    const uint32_t v0 = unpack_int6x4(p);
+                    const uint32_t v1 = unpack_int6x4(p + 9);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                    vst1q_u16(pp + kk * 12 + jj0 * 2, vcombine_u16(_r01.val[0], _r01.val[1]));
+                    kk += 2;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk0; kk++)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 9;
+                    const uint32_t v0 = unpack_int6x4(p);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    vst1_u16(pp + kk * 12 + jj0, _r0);
+                }
+            }
+            pp += max_kk0 * 12;
+        }
+    }
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 8;
+
+            for (int jj0 = 0; jj0 < 8; jj0 += 4)
+            {
+                const unsigned char* p0 = pB + (size_t)k0 * 6 + jj0 / 4 * 3;
+                const float32x4_t _descale = vld1q_f32(scales + jj0);
+
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 6;
+                    unsigned short* pp0 = pp + kk * 8 + jj0 * 4;
+                    const uint32_t v0 = unpack_int6x4(p);
+                    const uint32_t v1 = unpack_int6x4(p + 6);
+                    const uint32_t v2 = unpack_int6x4(p + 12);
+                    const uint32_t v3 = unpack_int6x4(p + 18);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                    const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                    const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                    uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+                }
+                if (kk + 1 < max_kk0)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 6;
+                    const uint32_t v0 = unpack_int6x4(p);
+                    const uint32_t v1 = unpack_int6x4(p + 6);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                    vst1q_u16(pp + kk * 8 + jj0 * 2, vcombine_u16(_r01.val[0], _r01.val[1]));
+                    kk += 2;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk0; kk++)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 6;
+                    const uint32_t v0 = unpack_int6x4(p);
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    vst1_u16(pp + kk * 8 + jj0, _r0);
+                }
+            }
+            pp += max_kk0 * 8;
+        }
+    }
+    for (; jj + 3 < max_jj; jj += 4)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 4;
+
+            const unsigned char* p0 = pB + (size_t)k0 * 3;
+            const float32x4_t _descale = vld1q_f32(scales);
+
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk0; kk += 4)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 3;
+                unsigned short* pp0 = pp + kk * 4;
+                const uint32_t v0 = unpack_int6x4(p);
+                const uint32_t v1 = unpack_int6x4(p + 3);
+                const uint32_t v2 = unpack_int6x4(p + 6);
+                const uint32_t v3 = unpack_int6x4(p + 9);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+            }
+            if (kk + 1 < max_kk0)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 3;
+                const uint32_t v0 = unpack_int6x4(p);
+                const uint32_t v1 = unpack_int6x4(p + 3);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                vst1q_u16(pp + kk * 4, vcombine_u16(_r01.val[0], _r01.val[1]));
+                kk += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk0; kk++)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 3;
+                const uint32_t v0 = unpack_int6x4(p);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                vst1_u16(pp + kk * 4, _r0);
+            }
+            pp += max_kk0 * 4;
+        }
+    }
+    for (; jj + 1 < max_jj; jj += 2)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 2;
+
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x2_t _descale = vld1_f32(scales);
+            float32x4_t _descale2 = vcombine_f32(_descale, _descale);
+            for (; kk + 3 < max_kk0; kk += 4)
+            {
+                const unsigned char* p = pB + (size_t)((k0 + kk) / 2) * 3;
+                const uint32_t v0 = unpack_int6x4(p);
+                const uint32_t v1 = unpack_int6x4(p + 3);
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale2));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale2));
+                uint16x4x2_t _r01 = vuzp_u16(_r0, _r1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+            }
+            if (kk + 1 < max_kk0)
+            {
+                const unsigned char* p = pB + (size_t)((k0 + kk) / 2) * 3;
+                const int v0 = p[0] | (p[1] << 8);
+                const int v1 = (p[1] >> 4) | (p[2] << 4);
+                pp[0] = float32_to_bfloat16((((v0 & 63) ^ 32) - 32) * scales[0]);
+                pp[1] = float32_to_bfloat16((((v1 & 63) ^ 32) - 32) * scales[0]);
+                pp[2] = float32_to_bfloat16(((((v0 >> 6) & 63) ^ 32) - 32) * scales[1]);
+                pp[3] = float32_to_bfloat16(((((v1 >> 6) & 63) ^ 32) - 32) * scales[1]);
+                pp += 4;
+                kk += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk0; kk++)
+            {
+                const int index = k0 + kk;
+                const unsigned char* p = pB + (size_t)(index / 2) * 3;
+                const int v = index % 2 ? (p[1] >> 4) | (p[2] << 4) : p[0] | (p[1] << 8);
+                pp[0] = float32_to_bfloat16((((v & 63) ^ 32) - 32) * scales[0]);
+                pp[1] = float32_to_bfloat16(((((v >> 6) & 63) ^ 32) - 32) * scales[1]);
+                pp += 2;
+            }
+        }
+    }
+    for (; jj < max_jj; jj++)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + g;
+
+            const float descale = scales[0];
+            for (int kk = 0; kk < max_kk0; kk++)
+            {
+                const int v = unpack_int6(pB, k0 + kk);
+                *pp++ = float32_to_bfloat16(v * descale);
+            }
+        }
+    }
+}
+
+static void dequantize_B_tile_int8s_bf16s(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size)
+{
+#if NCNN_RUNTIME_CPU && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_bf16())
+    {
+        dequantize_B_tile_int8s_bf16s_bf16(B, B_scales, BT_tile, j, max_jj, k, max_kk, block_size);
+        return;
+    }
+#endif
+
+    const int k_end = k + max_kk;
+    const int g0 = k / block_size;
+    const int g_end = (k_end - 1) / block_size + 1;
+
+    unsigned short* pp = BT_tile;
+    int jj = 0;
+    for (; jj + 11 < max_jj; jj += 12)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 12;
+
+            for (int jj0 = 0; jj0 < 12; jj0 += 4)
+            {
+                const unsigned char* p0 = pB + (size_t)k0 * 12 + jj0 / 4 * 4;
+                const float32x4_t _descale = vld1q_f32(scales + jj0);
+
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 12;
+                    unsigned short* pp0 = pp + kk * 12 + jj0 * 4;
+                    uint32_t v0;
+                    memcpy(&v0, p, sizeof(v0));
+                    uint32_t v1;
+                    memcpy(&v1, p + 12, sizeof(v1));
+                    uint32_t v2;
+                    memcpy(&v2, p + 24, sizeof(v2));
+                    uint32_t v3;
+                    memcpy(&v3, p + 36, sizeof(v3));
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                    const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                    const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                    uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+                }
+                if (kk + 1 < max_kk0)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 12;
+                    uint32_t v0;
+                    memcpy(&v0, p, sizeof(v0));
+                    uint32_t v1;
+                    memcpy(&v1, p + 12, sizeof(v1));
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                    vst1q_u16(pp + kk * 12 + jj0 * 2, vcombine_u16(_r01.val[0], _r01.val[1]));
+                    kk += 2;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk0; kk++)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 12;
+                    uint32_t v0;
+                    memcpy(&v0, p, sizeof(v0));
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    vst1_u16(pp + kk * 12 + jj0, _r0);
+                }
+            }
+            pp += max_kk0 * 12;
+        }
+    }
+    for (; jj + 7 < max_jj; jj += 8)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 8;
+
+            for (int jj0 = 0; jj0 < 8; jj0 += 4)
+            {
+                const unsigned char* p0 = pB + (size_t)k0 * 8 + jj0 / 4 * 4;
+                const float32x4_t _descale = vld1q_f32(scales + jj0);
+
+                int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk + 3 < max_kk0; kk += 4)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 8;
+                    unsigned short* pp0 = pp + kk * 8 + jj0 * 4;
+                    uint32_t v0;
+                    memcpy(&v0, p, sizeof(v0));
+                    uint32_t v1;
+                    memcpy(&v1, p + 8, sizeof(v1));
+                    uint32_t v2;
+                    memcpy(&v2, p + 16, sizeof(v2));
+                    uint32_t v3;
+                    memcpy(&v3, p + 24, sizeof(v3));
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                    const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                    const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                    uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                    transpose4x4_u16(_r0, _r1, _r2, _r3);
+                    vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                    vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+                }
+                if (kk + 1 < max_kk0)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 8;
+                    uint32_t v0;
+                    memcpy(&v0, p, sizeof(v0));
+                    uint32_t v1;
+                    memcpy(&v1, p + 8, sizeof(v1));
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                    uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                    vst1q_u16(pp + kk * 8 + jj0 * 2, vcombine_u16(_r01.val[0], _r01.val[1]));
+                    kk += 2;
+                }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+                for (; kk < max_kk0; kk++)
+                {
+                    const unsigned char* p = p0 + (size_t)kk * 8;
+                    uint32_t v0;
+                    memcpy(&v0, p, sizeof(v0));
+                    const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                    const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                    uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                    vst1_u16(pp + kk * 8 + jj0, _r0);
+                }
+            }
+            pp += max_kk0 * 8;
+        }
+    }
+    for (; jj + 3 < max_jj; jj += 4)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 4;
+
+            const unsigned char* p0 = pB + (size_t)k0 * 4;
+            const float32x4_t _descale = vld1q_f32(scales);
+
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk + 3 < max_kk0; kk += 4)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 4;
+                unsigned short* pp0 = pp + kk * 4;
+                uint32_t v0;
+                memcpy(&v0, p, sizeof(v0));
+                uint32_t v1;
+                memcpy(&v1, p + 4, sizeof(v1));
+                uint32_t v2;
+                memcpy(&v2, p + 8, sizeof(v2));
+                uint32_t v3;
+                memcpy(&v3, p + 12, sizeof(v3));
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const int16x8_t _v2 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v2)));
+                const int16x8_t _v3 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v3)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                const float32x4_t _f2 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v2)));
+                const float32x4_t _f3 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v3)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                uint16x4_t _r2 = float2bfloat(vmulq_f32(_f2, _descale));
+                uint16x4_t _r3 = float2bfloat(vmulq_f32(_f3, _descale));
+                transpose4x4_u16(_r0, _r1, _r2, _r3);
+                vst1q_u16(pp0, vcombine_u16(_r0, _r1));
+                vst1q_u16(pp0 + 8, vcombine_u16(_r2, _r3));
+            }
+            if (kk + 1 < max_kk0)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 4;
+                uint32_t v0;
+                memcpy(&v0, p, sizeof(v0));
+                uint32_t v1;
+                memcpy(&v1, p + 4, sizeof(v1));
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const int16x8_t _v1 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v1)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v1)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale));
+                uint16x4x2_t _r01 = vzip_u16(_r0, _r1);
+                vst1q_u16(pp + kk * 4, vcombine_u16(_r01.val[0], _r01.val[1]));
+                kk += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk0; kk++)
+            {
+                const unsigned char* p = p0 + (size_t)kk * 4;
+                uint32_t v0;
+                memcpy(&v0, p, sizeof(v0));
+                const int16x8_t _v0 = vmovl_s8(vreinterpret_s8_u64(vcreate_u64(v0)));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v0)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale));
+                vst1_u16(pp + kk * 4, _r0);
+            }
+            pp += max_kk0 * 4;
+        }
+    }
+    for (; jj + 1 < max_jj; jj += 2)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + (size_t)g * 2;
+
+            int kk = 0;
+#if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            float32x2_t _descale = vld1_f32(scales);
+            float32x4_t _descale2 = vcombine_f32(_descale, _descale);
+            for (; kk + 3 < max_kk0; kk += 4)
+            {
+                const signed char* p = (const signed char*)pB + (size_t)(k0 + kk) * 2;
+                const int16x8_t _v = vmovl_s8(vld1_s8(p));
+                const float32x4_t _f0 = vcvtq_f32_s32(vmovl_s16(vget_low_s16(_v)));
+                const float32x4_t _f1 = vcvtq_f32_s32(vmovl_s16(vget_high_s16(_v)));
+                uint16x4_t _r0 = float2bfloat(vmulq_f32(_f0, _descale2));
+                uint16x4_t _r1 = float2bfloat(vmulq_f32(_f1, _descale2));
+                uint16x4x2_t _r01 = vuzp_u16(_r0, _r1);
+                vst1q_u16(pp, vcombine_u16(_r01.val[0], _r01.val[1]));
+                pp += 8;
+            }
+            if (kk + 1 < max_kk0)
+            {
+                const signed char* p = (const signed char*)pB + (size_t)(k0 + kk) * 2;
+                pp[0] = float32_to_bfloat16(p[0] * scales[0]);
+                pp[1] = float32_to_bfloat16(p[2] * scales[0]);
+                pp[2] = float32_to_bfloat16(p[1] * scales[1]);
+                pp[3] = float32_to_bfloat16(p[3] * scales[1]);
+                pp += 4;
+                kk += 2;
+            }
+#endif // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+            for (; kk < max_kk0; kk++)
+            {
+                const signed char* p = (const signed char*)pB + (size_t)(k0 + kk) * 2;
+                pp[0] = float32_to_bfloat16(p[0] * scales[0]);
+                pp[1] = float32_to_bfloat16(p[1] * scales[1]);
+                pp += 2;
+            }
+        }
+    }
+    for (; jj < max_jj; jj++)
+    {
+        const unsigned char* pB = B.row<const unsigned char>(j + jj);
+        const float* pB_scales = B_scales.row(j + jj);
+
+        for (int g = g0; g < g_end; g++)
+        {
+            const int k_block = g * block_size;
+            const int k0 = std::max(k, k_block);
+            const int max_kk0 = std::min(k_end - k0, block_size - (k0 - k_block));
+            const float* scales = pB_scales + g;
+
+            const float descale = scales[0];
+            for (int kk = 0; kk < max_kk0; kk++)
+            {
+                const signed char* p = (const signed char*)pB + k0 + kk;
+                *pp++ = float32_to_bfloat16(p[0] * descale);
+            }
+        }
+    }
+}
+
+#endif // NCNN_WEIGHT_QUANT && NCNN_ARM84BF16 && __aarch64__ && __ARM_NEON
+
 static void unpack_output_tile_fp32_to_bf16(const Mat& topT, const Mat& C, Mat& top_blob, int broadcast_type_C, int i, int max_ii, int j, int max_jj, float alpha, float beta, int output_transpose, int output_elemtype)
 {
 #if NCNN_RUNTIME_CPU && NCNN_ARM84BF16 && __aarch64__ && !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC

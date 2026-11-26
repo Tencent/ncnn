@@ -1,0 +1,143 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+#extension GL_EXT_integer_dot_product : require
+#endif
+
+layout(constant_id = 0) const float alpha = 1.f;
+layout(constant_id = 1) const float beta = 1.f;
+layout(constant_id = 2) const int output_transpose = 0;
+layout(constant_id = 3) const int block_size = 0;
+
+layout(binding = 0) readonly buffer A_int8_blob { int A_int8_data[]; };
+layout(binding = 1) readonly buffer B_int8_blob { int B_int8_data[]; };
+layout(binding = 2) readonly buffer A_descales_blob { float A_descales_data[]; };
+layout(binding = 3) readonly buffer B_descales_blob { uint B_descales_data[]; };
+layout(binding = 4) readonly buffer C_blob { sfp C_blob_data[]; };
+layout(binding = 5) writeonly buffer top_blob { sfp top_blob_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int N;
+    int K4;
+    int broadcast_type_C;
+    int out_hstep;
+    int N_offset;
+    int B_rows;
+} p;
+
+#define LOCAL_MEMORY_UNROLL_K4 8
+
+#if NCNN_shader_local_memory
+// avoid bank conflict
+#define PAD 1
+shared int tmp_a[8][LOCAL_MEMORY_UNROLL_K4 + PAD];
+shared ivec4 tmp_b[8][LOCAL_MEMORY_UNROLL_K4 + PAD];
+#endif
+
+int dot4(int a, int b)
+{
+#if ncnn_VK_KHR_shader_integer_dot_product && ncnn_shaderIntegerDotProduct && ncnn_integerDotProduct4x8BitPackedSignedAccelerated
+    return dotPacked4x8EXT(a, b);
+#else
+    const ivec4 v = unpackInt4x8(a) * unpackInt4x8(b);
+    return v.x + v.y + v.z + v.w;
+#endif
+}
+
+float load_b_descale(int g)
+{
+    if (block_size == 32)
+        return unpackHalf2x16(B_descales_data[g / 2])[g % 2];
+    return uintBitsToFloat(B_descales_data[g]);
+}
+
+void store_output(int m, int n, float sum)
+{
+    const int j = n + p.N_offset;
+    if (p.broadcast_type_C == 0)
+        sum += beta * float(buffer_ld1(C_blob_data, 0));
+    if (p.broadcast_type_C == 1 || p.broadcast_type_C == 2)
+        sum += beta * float(buffer_ld1(C_blob_data, m));
+    if (p.broadcast_type_C == 3)
+        sum += beta * float(buffer_ld1(C_blob_data, m * p.N + j));
+    if (p.broadcast_type_C == 4)
+        sum += beta * float(buffer_ld1(C_blob_data, j));
+
+    const int offset = output_transpose == 1 ? j * p.out_hstep + m : m * p.out_hstep + j;
+    buffer_st1(top_blob_data, offset, afp(alpha * sum));
+}
+
+void main()
+{
+    const int n = int(gl_GlobalInvocationID.x) * 4;
+    const int m = int(gl_GlobalInvocationID.y);
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+#else
+    if (m >= p.M || n >= p.B_rows)
+        return;
+#endif
+    ivec4 sum = ivec4(0);
+    vec4 acc = vec4(0.f);
+
+    for (int k4 = 0; k4 < p.K4; k4 += LOCAL_MEMORY_UNROLL_K4)
+    {
+#if NCNN_shader_local_memory
+        tmp_a[ly][lx] = m < p.M && k4 + lx < p.K4 ? A_int8_data[m * p.K4 + k4 + lx] : 0;
+        ivec4 b = ivec4(0);
+        if (k4 + ly < p.K4)
+        {
+            for (int j = 0; j < 4 && n + j < p.B_rows; j++)
+                b[j] = B_int8_data[(n + j) * p.K4 + k4 + ly];
+        }
+        tmp_b[lx][ly] = b;
+        barrier();
+#endif
+
+        if (block_size == 32)
+            sum = ivec4(0);
+#if NCNN_shader_local_memory
+        for (int i = 0; i < LOCAL_MEMORY_UNROLL_K4; i++)
+        {
+            const int at = tmp_a[ly][i];
+            const ivec4 bt = tmp_b[lx][i];
+#else
+        for (int i = 0; i < LOCAL_MEMORY_UNROLL_K4 && k4 + i < p.K4; i++)
+        {
+            const int at = A_int8_data[m * p.K4 + k4 + i];
+            ivec4 bt = ivec4(0);
+            for (int j = 0; j < 4 && n + j < p.B_rows; j++)
+                bt[j] = B_int8_data[(n + j) * p.K4 + k4 + i];
+#endif
+            sum += ivec4(dot4(at, bt.x), dot4(at, bt.y), dot4(at, bt.z), dot4(at, bt.w));
+        }
+        if (block_size == 32 && m < p.M && n < p.B_rows)
+        {
+            const int groups = p.K4 / 8;
+            const int g = k4 / 8;
+            const float descale_a = A_descales_data[m * groups + g];
+            vec4 descale_b = vec4(0.f);
+            for (int j = 0; j < 4 && n + j < p.B_rows; j++)
+                descale_b[j] = load_b_descale((n + j) * groups + g);
+            acc += vec4(sum) * descale_a * descale_b;
+        }
+#if NCNN_shader_local_memory
+        barrier();
+#endif
+    }
+
+    if (m >= p.M || n >= p.B_rows)
+        return;
+
+    for (int j = 0; j < 4 && n + j < p.B_rows; j++)
+    {
+        const float value = block_size == 32 ? acc[j] : float(sum[j]) * A_descales_data[m] * load_b_descale(n + j);
+        store_output(m, n + j, value);
+    }
+}

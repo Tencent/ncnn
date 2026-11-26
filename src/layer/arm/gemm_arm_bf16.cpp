@@ -8,6 +8,10 @@
 namespace ncnn {
 
 #if NCNN_BF16
+#if NCNN_WEIGHT_QUANT && NCNN_ARM84BF16 && __aarch64__ && __ARM_NEON
+#include "gemm_int4s.h"
+#include "gemm_int6s.h"
+#endif
 #include "gemm_bf16s.h"
 
 void pack_A_tile_bf16_bf16(const Mat& A, Mat& AT, int i, int max_ii, int k, int max_kk)
@@ -59,6 +63,23 @@ void gemm_transB_packed_tile_bf16s_bf16(const Mat& AT_tile, const Mat& BT_tile, 
 {
     gemm_transB_packed_tile_bf16s(AT_tile, BT_tile, topT_tile, max_ii, max_jj, k, max_kk);
 }
+
+#if NCNN_WEIGHT_QUANT && NCNN_ARM84BF16 && __aarch64__ && __ARM_NEON
+void dequantize_B_tile_int4s_bf16s_bf16(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size)
+{
+    dequantize_B_tile_int4s_bf16s(B, B_scales, BT_tile, j, max_jj, k, max_kk, block_size);
+}
+
+void dequantize_B_tile_int6s_bf16s_bf16(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size)
+{
+    dequantize_B_tile_int6s_bf16s(B, B_scales, BT_tile, j, max_jj, k, max_kk, block_size);
+}
+
+void dequantize_B_tile_int8s_bf16s_bf16(const Mat& B, const Mat& B_scales, Mat& BT_tile, int j, int max_jj, int k, int max_kk, int block_size)
+{
+    dequantize_B_tile_int8s_bf16s(B, B_scales, BT_tile, j, max_jj, k, max_kk, block_size);
+}
+#endif // NCNN_WEIGHT_QUANT && NCNN_ARM84BF16 && __aarch64__ && __ARM_NEON
 #endif // NCNN_BF16
 
 } // namespace ncnn

@@ -74,14 +74,14 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 8;
             }
 
-            *pd++ = 1.f / *ps0++;
-            *pd++ = 1.f / *ps1++;
-            *pd++ = 1.f / *ps2++;
-            *pd++ = 1.f / *ps3++;
-            *pd++ = 1.f / *ps4++;
-            *pd++ = 1.f / *ps5++;
-            *pd++ = 1.f / *ps6++;
-            *pd++ = 1.f / *ps7++;
+            *pd++ = *ps0++;
+            *pd++ = *ps1++;
+            *pd++ = *ps2++;
+            *pd++ = *ps3++;
+            *pd++ = *ps4++;
+            *pd++ = *ps5++;
+            *pd++ = *ps6++;
+            *pd++ = *ps7++;
         }
     }
 #endif // __loongarch_asx
@@ -125,10 +125,10 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 4;
             }
 
-            *pd++ = 1.f / *ps0++;
-            *pd++ = 1.f / *ps1++;
-            *pd++ = 1.f / *ps2++;
-            *pd++ = 1.f / *ps3++;
+            *pd++ = *ps0++;
+            *pd++ = *ps1++;
+            *pd++ = *ps2++;
+            *pd++ = *ps3++;
         }
     }
 #endif // __loongarch_sx
@@ -166,8 +166,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 pp += 2;
             }
 
-            *pd++ = 1.f / *ps0++;
-            *pd++ = 1.f / *ps1++;
+            *pd++ = *ps0++;
+            *pd++ = *ps1++;
         }
     }
 
@@ -192,7 +192,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             for (; kk < max_kk; kk++)
                 *pp++ = *p0++;
 
-            *pd++ = 1.f / *ps0++;
+            *pd++ = *ps0++;
         }
     }
 }

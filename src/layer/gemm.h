@@ -25,7 +25,11 @@ protected:
     int get_weight_block_quantize_params(int& weight_bits, int& block_size, bool& has_input_scale) const;
 
 #if NCNN_WEIGHT_QUANT
+    int forward_int8s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int forward_int8sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int forward_weight_block_quantize(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+    int get_weight_quantize_broadcast_type_C(const std::vector<Mat>& bottom_blobs, Mat& C, int M) const;
 #endif
 
 #if NCNN_INT8
@@ -59,6 +63,7 @@ public:
     int weight_block_quantize_bits;
     int weight_block_quantize_block_size;
     bool weight_block_quantize_has_input_scale;
+    int weight_int8_rotation;
 
     int constant_TILE_M;
     int constant_TILE_N;

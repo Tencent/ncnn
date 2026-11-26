@@ -1004,6 +1004,8 @@ y = embedding(x)
 | bias_term     | float | [num_output]          |
 | weight_data_int8_scales| float | [1]          |
 
+`int8_scale_term=900` selects Q8_0. `num_output` must be divisible by 32. The binary stores raw signed INT8 rows (`input_dim` rows of `num_output` bytes), optional floating-point bias, then one little-endian FP16 multiplier per 32 weights in each row. The raw arrays are aligned to four bytes. `Embed` decodes the requested rows to FP32 on CPU.
+
 # Erf
 ```
 y = erf(x)
@@ -1152,10 +1154,11 @@ y = (gemm(a, b) + c * beta) * alpha
 | 12        | output_elempack | int | 0         |                   |
 | 13        | output_elemtype | int | 0         |                   |
 | 14        | output_transpose | int| 0         |                   |
-| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx=weight-only block quant, 8xx=dynamic W8A8 per-block |
+| 18        | quantize_term | int | 0         | 0=no quant, nonzero below 400=legacy int8, 4xx/6xx=weight-only block quant, 8xx=dynamic W8A8 per-block, 900=Q8_0, 901=channel-wise weight-only INT8, 902=channel-wise dynamic W8A8 |
 | 20        | constant_TILE_M | int | 0         |                   |
 | 21        | constant_TILE_N | int | 0         |                   |
 | 22        | constant_TILE_K | int | 0         |                   |
+| 23        | weight_int8_rotation | int | 0    | Regular Hadamard group size for 901/902. Zero disables rotation. |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1169,13 +1172,18 @@ y = (gemm(a, b) + c * beta) * alpha
 
 For block quantized Gemm:
 
-* `constantA=0`, `constantB=1`, `transA=0`, `transB=1`
-* output is fp32 pack1 with `output_N1M=0`, `output_elempack=0`, `output_transpose=0`
-* `B_data` is tagged int8 bytes with shape `[ceil(K * weight_bits / 8), N]`
+* `constantA=0`, `constantB=1`, `transB=1`
+* `B_data` is stored as raw packed bytes with shape `[ceil(K * weight_bits / 8), N]`, aligned to four bytes
 * `quantize_term = bits * 100 + input_scale * 10 + block_code`
 * `block_code`: 0=32, 1=64, 2=128
-* 4xx and 6xx keep A in fp32 and dequantize int4/int6 weights while accumulating
+* 4xx and 6xx use floating-point activations. After the packed B and optional C, the binary stores FP32 inverse scales in row-major order, with `ceil(K / block_size)` scales per output row. Dequantization divides a signed code by its inverse scale. If `input_scale=1`, another K FP32 values follow and multiply the input along K. On Vulkan this path supports block quantization without an input scale.
 * 8xx dynamically quantizes A independently for every row and block, computes signed int8 dot products with the constant W8 weights, accumulates in int32, applies the per-block activation and weight descales, and writes fp32 output; there is no W8A32 compatibility path
+
+Modes 900, 901 and 902 use the existing model magic `7767517` and require `constantA=0`, `constantB=1`, `transB=1`. The binary stores raw signed INT8 B values as N rows of K bytes with four-byte array alignment, then optional C in its regular Gemm layout, then the weight multipliers.
+
+* 900 stores `K / 32` little-endian FP16 multipliers per output row, with the multiplier array aligned to four bytes. Each multiplier applies to the corresponding K32 block. Set `use_int8_inference=false` for floating-point activations.
+* 901 and 902 store N FP32 multipliers. 901 uses floating-point activations. 902 can dynamically quantize each input row to INT8, applying one activation multiplier and one weight multiplier to each output after the integer dot product.
+* A nonzero rotation group size must be a power of four dividing K. In these modes B is already in the rotated basis. Gemm applies the same normalized regular Hadamard transform to each group of the input row.
 
 # GridSample
 ```

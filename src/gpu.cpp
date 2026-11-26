@@ -1979,6 +1979,11 @@ uint32_t GpuInfo::max_shared_memory_size() const
     return d->physicalDeviceProperties.limits.maxComputeSharedMemorySize;
 }
 
+uint32_t GpuInfo::max_storage_buffer_range() const
+{
+    return d->physicalDeviceProperties.limits.maxStorageBufferRange;
+}
+
 uint32_t GpuInfo::max_workgroup_count_x() const
 {
     return d->physicalDeviceProperties.limits.maxComputeWorkGroupCount[0];

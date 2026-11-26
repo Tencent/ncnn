@@ -1,6 +1,23 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#if __mips_loongson_mmi && !__mips_msa
+static NCNN_FORCEINLINE int8x8_t loadu_int8x8(const signed char* ptr)
+{
+    int8x8_t v;
+    memcpy(&v, ptr, sizeof(v));
+    return v;
+}
+#endif
+
+#if __mips_msa
+static NCNN_FORCEINLINE v4i32 loadu_pair_d(const void* ptr)
+{
+    v2i64 _v = (v2i64)__msa_loadl_d(ptr);
+    return (v4i32)__msa_ilvr_d(_v, _v);
+}
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
 void pack_B_tile_wq_int8_loongson_mmi(const Mat& B, const Mat& B_scales, Mat& BT_tile, Mat& BT_descales_tile, int j, int max_jj, int K, int block_size);
 void quantize_A_tile_wq_int8_loongson_mmi(const Mat& A, Mat& AT_tile, Mat& AT_descales_tile, int i, int max_ii, int k, int max_kk, int block_size, const Mat& input_scales);
@@ -64,10 +81,10 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p3++;
             }
 
-            pd[0] = 1.f / *ps0++;
-            pd[1] = 1.f / *ps1++;
-            pd[2] = 1.f / *ps2++;
-            pd[3] = 1.f / *ps3++;
+            pd[0] = *ps0++;
+            pd[1] = *ps1++;
+            pd[2] = *ps2++;
+            pd[3] = *ps3++;
             pd += 4;
         }
     }
@@ -108,8 +125,8 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
                 p1++;
             }
 
-            *pd++ = 1.f / *ps0++;
-            *pd++ = 1.f / *ps1++;
+            *pd++ = *ps0++;
+            *pd++ = *ps1++;
         }
     }
     for (; jj < max_jj; jj++)
@@ -134,7 +151,7 @@ static void pack_B_tile_wq_int8(const Mat& B, const Mat& B_scales, Mat& BT_tile,
             for (; kk < max_kk; kk++)
                 *pp++ = *p0++;
 
-            *pd++ = 1.f / *ps0++;
+            *pd++ = *ps0++;
         }
     }
 }
@@ -2365,7 +2382,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     __builtin_prefetch(pB + 16);
                     v16i8 _pA0 = __msa_ld_b(pA, 0);
                     v16i8 _pA1 = __msa_ld_b(pA + 16, 0);
-                    v16i8 _pB = (v16i8)__msa_fill_d_ptr(pB);
+                    v16i8 _pB = (v16i8)loadu_pair_d(pB);
                     v16i8 _pBr = (v16i8)__msa_shf_w((v4i32)_pB, _MSA_SHUFFLE(0, 3, 2, 1));
                     _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA0, _pB), _one);
                     _sum1 = __msa_dpadd_s_w(_sum1, __msa_dotp_s_h(_pA0, _pBr), _one);
@@ -2462,7 +2479,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 }
                 for (; kk < max_kk0; kk++)
                 {
-                    v16i8 _pA8 = (v16i8)__msa_fill_d_ptr(pA);
+                    v16i8 _pA8 = (v16i8)__msa_loadl_d(pA);
                     v8i16 _pA = (v8i16)__msa_ilvr_b(__msa_clti_s_b(_pA8, 0), _pA8);
                     v8i16 _s = __msa_mulv_h(_pA, __msa_fill_h(pB[0]));
                     v8i16 _sign = __msa_clti_s_h(_s, 0);
@@ -2619,7 +2636,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     __builtin_prefetch(pA + 32);
                     __builtin_prefetch(pB + 16);
                     v16i8 _pA = __msa_ld_b(pA, 0);
-                    v16i8 _pB0 = (v16i8)__msa_fill_d_ptr(pB);
+                    v16i8 _pB0 = (v16i8)loadu_pair_d(pB);
                     v16i8 _pB0r = (v16i8)__msa_shf_w((v4i32)_pB0, _MSA_SHUFFLE(0, 3, 2, 1));
                     _sum0 = __msa_dpadd_s_w(_sum0, __msa_dotp_s_h(_pA, _pB0), _one);
                     _sum1 = __msa_dpadd_s_w(_sum1, __msa_dotp_s_h(_pA, _pB0r), _one);
@@ -2750,7 +2767,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 {
                     __builtin_prefetch(pA + 32);
                     __builtin_prefetch(pB + 32);
-                    v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
+                    v16i8 _pA = (v16i8)loadu_pair_d(pA);
                     v16i8 _pB0 = __msa_ld_b(pB, 0);
                     v16i8 _pB01 = (v16i8)__msa_ilvr_w((v4i32)_pB0, (v4i32)_pB0);
                     v16i8 _pB23 = (v16i8)__msa_ilvl_w((v4i32)_pB0, (v4i32)_pB0);
@@ -2766,7 +2783,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB += 4;
                 }
-                v4f32 _descaleA = (v4f32)__msa_fill_d_ptr(pA_descales);
+                v4f32 _descaleA = (v4f32)loadu_pair_d(pA_descales);
                 v4f32 _descaleB0 = (v4f32)__msa_set_w(__msa_load_w(pB_descales), __msa_load_w(pB_descales), __msa_load_w(pB_descales + 1), __msa_load_w(pB_descales + 1));
                 v4f32 _descaleB1 = (v4f32)__msa_set_w(__msa_load_w(pB_descales + 2), __msa_load_w(pB_descales + 2), __msa_load_w(pB_descales + 3), __msa_load_w(pB_descales + 3));
                 v4f32 _scale = __msa_fmul_w(_descaleA, _descaleB0);
@@ -2809,8 +2826,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 {
                     __builtin_prefetch(pA + 32);
                     __builtin_prefetch(pB + 32);
-                    v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
-                    v16i8 _pB = (v16i8)__msa_fill_d_ptr(pB);
+                    v16i8 _pA = (v16i8)loadu_pair_d(pA);
+                    v16i8 _pB = (v16i8)__msa_loadl_d(pB);
                     v16i8 _pB01 = (v16i8)__msa_ilvr_w((v4i32)_pB, (v4i32)_pB);
                     _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB01), _one);
                     pA += 8;
@@ -2822,7 +2839,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     pA += 2;
                     pB += 2;
                 }
-                v4f32 _descaleA = (v4f32)__msa_fill_d_ptr(pA_descales);
+                v4f32 _descaleA = (v4f32)loadu_pair_d(pA_descales);
                 v4f32 _descaleB = (v4f32)__msa_set_w(__msa_load_w(pB_descales), __msa_load_w(pB_descales), __msa_load_w(pB_descales + 1), __msa_load_w(pB_descales + 1));
                 v4f32 _scale = __msa_fmul_w(_descaleA, _descaleB);
                 _fsum = __ncnn_msa_fmadd_w(_fsum, (v4f32)__msa_ffint_s_w(_sum), _scale);
@@ -2869,8 +2886,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 {
 #if __mips_loongson_mmi
                     __builtin_prefetch(pB + 32);
-                    int8x8_t _pA = __mmi_pldb_s(pA);
-                    int8x8_t _pB = __mmi_pldb_s(pB);
+                    int8x8_t _pA = loadu_int8x8(pA);
+                    int8x8_t _pB = loadu_int8x8(pB);
                     int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
                     int16x4_t _pA1 = (int16x4_t)__mmi_punpckhbh_s(_pA, _zero);
                     int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
@@ -2963,7 +2980,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                     __builtin_prefetch(pA + 32);
                     __builtin_prefetch(pB + 16);
                     v16i8 _pA = __msa_ld_b(pA, 0);
-                    v16i8 _pB = (v16i8)__msa_fill_d_ptr(pB);
+                    v16i8 _pB = (v16i8)__msa_loadl_d(pB);
                     _pB = (v16i8)__msa_ilvr_w((v4i32)_pB, (v4i32)_pB);
                     _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
                     pA += 16;
@@ -2979,8 +2996,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __builtin_prefetch(pB + 16);
-                    int8x8_t _pA = __mmi_pldb_s(pA);
-                    int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+                    int8x8_t _pA = loadu_int8x8(pA);
+                    int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pB));
                     int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
                     int16x4_t _pA1 = (int16x4_t)__mmi_punpckhbh_s(_pA, _zero);
                     int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
@@ -3134,7 +3151,7 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 {
                     __builtin_prefetch(pA + 16);
                     __builtin_prefetch(pB + 32);
-                    v16i8 _pA = (v16i8)__msa_fill_d_ptr(pA);
+                    v16i8 _pA = (v16i8)__msa_loadl_d(pA);
                     _pA = (v16i8)__msa_ilvr_w((v4i32)_pA, (v4i32)_pA);
                     v16i8 _pB = __msa_ld_b(pB, 0);
                     _sum = __msa_dpadd_s_w(_sum, __msa_dotp_s_h(_pA, _pB), _one);
@@ -3151,8 +3168,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
                     __builtin_prefetch(pB + 32);
-                    int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
-                    int8x8_t _pB = __mmi_pldb_s(pB);
+                    int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pA));
+                    int8x8_t _pB = loadu_int8x8(pB);
                     int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
                     int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
                     int16x4_t _pB1 = (int16x4_t)__mmi_punpckhbh_s(_pB, _zero);
@@ -3222,8 +3239,8 @@ static void gemm_transB_packed_tile_wq_int8(const Mat& AT_tile, const Mat& AT_de
                 const int8x8_t _zero = __mmi_pzerob_s();
                 for (; kk + 3 < max_kk0; kk += 4)
                 {
-                    int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(*(const int*)pA);
-                    int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(*(const int*)pB);
+                    int8x8_t _pA = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pA));
+                    int8x8_t _pB = (int8x8_t)__mmi_pfillw_s(__msa_load_w(pB));
                     int16x4_t _pA0 = (int16x4_t)__mmi_punpcklbh_s(_pA, _zero);
                     int16x4_t _pB0 = (int16x4_t)__mmi_punpcklbh_s(_pB, _zero);
                     _pA0 = __mmi_psrah_s(__mmi_psllh_s(_pA0, 8), 8);

@@ -367,6 +367,9 @@ Mat ModelBinFromDataReader::load(int w, int type) const
     }
     else if (type == 3 || type == 4 || type == 6 || type == 8)
     {
+        if (w <= 0)
+            return Mat();
+
         size_t align_data_size = alignSize(w, 4);
 
 #if !__BIG_ENDIAN__
@@ -380,20 +383,17 @@ Mat ModelBinFromDataReader::load(int w, int type) const
         else
 #endif
         {
-            std::vector<unsigned char> weight_data;
-            weight_data.resize(align_data_size);
-            size_t nread = d->dr.read(&weight_data[0], align_data_size);
+            m.create(w, (size_t)1u);
+            if (m.empty())
+                return m;
+
+            // Mat allocates space for the four-byte-aligned weight data.
+            size_t nread = d->dr.read(m.data, align_data_size);
             if (nread != align_data_size)
             {
                 NCNN_LOGE("ModelBin read weight_data failed %zd", nread);
                 return Mat();
             }
-
-            m.create(w, (size_t)1u);
-            if (m.empty())
-                return m;
-
-            memcpy(m.data, &weight_data[0], w);
         }
 
         return m;

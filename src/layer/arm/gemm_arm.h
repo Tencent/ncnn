@@ -35,8 +35,16 @@ protected:
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 #if NCNN_WEIGHT_QUANT
-    int create_pipeline_wq_int8(const Option& opt);
-    int forward_wq_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int create_pipeline_int4s(const Option& opt);
+    int create_pipeline_int6s(const Option& opt);
+    int create_pipeline_int8s(const Option& opt);
+    int create_pipeline_int8sa(const Option& opt);
+    int forward_int8sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int forward_weight_quantized(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+    Mat BT_data_quantized;
+    Mat BT_data_quantized_descales;
+    int BT_data_panel_width;
 #endif
 
 public:

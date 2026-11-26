@@ -5,6 +5,8 @@
 
 #include "layer_shader_type.h"
 
+#include <algorithm>
+#include <limits.h>
 #include <string.h>
 
 namespace ncnn {
@@ -27,6 +29,18 @@ Gemm_vulkan::Gemm_vulkan()
 
     pipeline_gemm = 0;
     pipeline_gemm_pack4 = 0;
+#if NCNN_WEIGHT_QUANT
+    weight_slice_rows = 0;
+    pipeline_gemm_weight_quantized = 0;
+    pipeline_gemm_weight_quantized_cm = 0;
+    pipeline_gemm_convrot_rotate = 0;
+    pipeline_gemm_quantize_A_wq_int8 = 0;
+    pipeline_gemm_wq_int8 = 0;
+    use_cooperative_matrix_wq_int8 = false;
+    fuse_convrot_quantize = false;
+    coopmat_M_wq = 0;
+    coopmat_N_wq = 0;
+#endif
 #if NCNN_INT8
     pipeline_gemm_quantize_A_int8 = 0;
     pipeline_gemm_quantize_B_absmax_int8 = 0;
@@ -48,9 +62,40 @@ Gemm_vulkan::Gemm_vulkan()
     UNROLL_WG_N = 1;
 }
 
+int Gemm_vulkan::load_param(const ParamDict& pd)
+{
+    int ret = Gemm::load_param(pd);
+    if (ret != 0)
+        return ret;
+
+#if NCNN_WEIGHT_QUANT
+    if (use_weight_quantized_pipeline())
+    {
+        const bool unsupported_output_pack = output_elempack != 0 && output_elempack != 1 && output_elempack != 4;
+        const bool unsupported_rotation = weight_int8_rotation && vkdev
+                                          && ((size_t)weight_int8_rotation * sizeof(float) > vkdev->info.max_shared_memory_size()
+                                              || (uint32_t)(constantK / weight_int8_rotation) > vkdev->info.max_workgroup_count_x());
+        if (vkdev && !unsupported_output_pack && !unsupported_rotation)
+            weight_slice_rows = get_weight_slice_rows();
+        if (unsupported_output_pack || unsupported_rotation || (vkdev && weight_slice_rows == 0))
+        {
+            support_vulkan = false;
+            support_vulkan_packing = false;
+        }
+    }
+#endif
+
+    return 0;
+}
+
 int Gemm_vulkan::create_pipeline(const Option& opt)
 {
-    if (weight_block_quantize)
+#if NCNN_WEIGHT_QUANT
+    if (use_weight_quantized_pipeline())
+        return create_pipeline_weight_quantized(opt);
+#endif
+
+    if (weight_block_quantize || quantize_term == 900)
     {
         NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
         return -1;
@@ -749,6 +794,23 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
     delete pipeline_gemm_pack4;
     pipeline_gemm_pack4 = 0;
 
+#if NCNN_WEIGHT_QUANT
+    delete pipeline_gemm_weight_quantized;
+    pipeline_gemm_weight_quantized = 0;
+
+    delete pipeline_gemm_weight_quantized_cm;
+    pipeline_gemm_weight_quantized_cm = 0;
+
+    delete pipeline_gemm_convrot_rotate;
+    pipeline_gemm_convrot_rotate = 0;
+
+    delete pipeline_gemm_quantize_A_wq_int8;
+    pipeline_gemm_quantize_A_wq_int8 = 0;
+
+    delete pipeline_gemm_wq_int8;
+    pipeline_gemm_wq_int8 = 0;
+#endif // NCNN_WEIGHT_QUANT
+
 #if NCNN_INT8
     delete pipeline_gemm_quantize_A_int8;
     pipeline_gemm_quantize_A_int8 = 0;
@@ -781,7 +843,12 @@ int Gemm_vulkan::destroy_pipeline(const Option& /*opt*/)
 
 int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    if (weight_block_quantize)
+#if NCNN_WEIGHT_QUANT
+    if (use_weight_quantized_pipeline())
+        return upload_model_weight_quantized(cmd, opt);
+#endif
+
+    if (weight_block_quantize || quantize_term == 900)
     {
         NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
         return -1;
@@ -820,7 +887,12 @@ int Gemm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
 int Gemm_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
 {
-    if (weight_block_quantize)
+#if NCNN_WEIGHT_QUANT
+    if (use_weight_quantized_pipeline())
+        return forward_weight_quantized(bottom_blobs, top_blobs, cmd, opt);
+#endif
+
+    if (weight_block_quantize || quantize_term == 900)
     {
         NCNN_LOGE("Gemm weight block quantization is not supported by Vulkan");
         return -1;
@@ -1043,6 +1115,699 @@ int Gemm_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     top_blob = top_blobs[0];
     return ret;
 }
+
+#if NCNN_WEIGHT_QUANT
+bool Gemm_vulkan::use_weight_quantized_pipeline() const
+{
+    return (quantize_term >= 900 && quantize_term <= 902)
+           || (weight_block_quantize && weight_block_quantize_bits != 8 && !weight_block_quantize_has_input_scale);
+}
+
+int Gemm_vulkan::get_weight_slice_rows() const
+{
+    const size_t alignment = std::max((size_t)16u, vkdev->info.buffer_offset_alignment());
+    const size_t max_weight_size = vkdev->info.max_storage_buffer_range() / alignment * alignment;
+    const int bits = weight_block_quantize_bits;
+    // The row size must be available before loading B_data.
+    const size_t packed_row_size = ((size_t)(constantK / 32) * bits + (constantK % 32 * bits + 31) / 32) * 4;
+    int rows = (int)std::min(max_weight_size / packed_row_size, (size_t)constantN);
+    if (rows < constantN)
+    {
+        // Keep packed output channels from crossing weight slices.
+        rows = rows / 8 * 8;
+    }
+    return rows;
+}
+
+static Option get_option_weight_quantized(const Option& opt, int output_elemtype)
+{
+    Option opt_wq = opt;
+    opt_wq.use_fp16_packed = false;
+    opt_wq.use_bf16_packed = false;
+    opt_wq.use_fp16_arithmetic = false;
+    if (opt.use_bf16_packed || opt.use_bf16_storage)
+        opt_wq.use_fp16_storage = false;
+    if (output_elemtype == 1)
+    {
+        opt_wq.use_fp16_storage = false;
+        opt_wq.use_bf16_storage = false;
+    }
+    return opt_wq;
+}
+
+static unsigned int float32_to_float16_weight_scale(float v)
+{
+    const unsigned int d = float32_to_float16(v);
+    // Imported Q8_0 scales can be subnormal half values.
+    if ((d & 0x7fff) == 0)
+        return d | (unsigned int)(fabsf(v) * 16777216.f);
+
+    return d;
+}
+
+int Gemm_vulkan::create_pipeline_weight_quantized(const Option& opt)
+{
+    if (!vkdev)
+        return -100;
+
+    if (weight_slice_rows == 0)
+    {
+        weight_slice_rows = get_weight_slice_rows();
+        if (weight_slice_rows == 0)
+            return -100;
+    }
+
+    std::vector<vk_specialization_type> specializations(6);
+    specializations[0].f = alpha;
+    specializations[1].f = beta;
+    specializations[2].i = weight_int8_rotation ? 0 : transA;
+    specializations[3].i = output_transpose;
+    specializations[4].i = weight_block_quantize_bits;
+    specializations[5].i = (weight_block_quantize || quantize_term == 900) ? weight_block_quantize_block_size : 0;
+
+    const Option opt_wq = get_option_weight_quantized(opt, output_elemtype);
+    pipeline_gemm_weight_quantized = new Pipeline(vkdev);
+    pipeline_gemm_weight_quantized->set_local_size_xyz(8, 8, 1);
+    int ret = pipeline_gemm_weight_quantized->create(LayerShaderType::gemm_weight_quantized, opt_wq, specializations);
+    if (ret != 0)
+        return ret;
+
+    ret = create_pipeline_weight_quantized_cm(opt_wq);
+    if (ret != 0)
+        return ret;
+
+    if (weight_int8_rotation)
+    {
+        std::vector<vk_specialization_type> rotate_specializations(2);
+        rotate_specializations[0].i = weight_int8_rotation;
+        rotate_specializations[1].i = transA;
+
+        pipeline_gemm_convrot_rotate = new Pipeline(vkdev);
+        pipeline_gemm_convrot_rotate->set_local_size_xyz(64, 1, 1);
+        ret = pipeline_gemm_convrot_rotate->create(LayerShaderType::gemm_convrot_rotate, opt_wq, rotate_specializations);
+        if (ret != 0)
+            return ret;
+    }
+
+    if ((quantize_term == 900 || quantize_term == 902) && opt.use_int8_inference)
+        return create_pipeline_int8sa(opt_wq);
+
+    return 0;
+}
+
+int Gemm_vulkan::create_pipeline_weight_quantized_cm(const Option& opt)
+{
+    if (!opt.use_cooperative_matrix || !vkdev->info.support_VK_KHR_cooperative_matrix()
+            || vkdev->info.vendor_id() == 0x5143
+            || (vkdev->info.type() == 3 && !opt.use_shader_local_memory)
+            || (constantM != 0 && constantM < 8))
+        return 0;
+
+    const bool use_bf16 = opt.use_bf16_storage;
+    if (use_bf16 ? !vkdev->info.support_bf16_cooperative_matrix()
+            : !opt.use_fp16_storage || !vkdev->info.support_fp16_arithmetic() || !vkdev->info.support_cooperative_matrix())
+        return 0;
+
+    const VkComponentTypeKHR type = use_bf16 ? VK_COMPONENT_TYPE_BFLOAT16_KHR : VK_COMPONENT_TYPE_FLOAT16_KHR;
+    const int M = constantM ? constantM : 1024;
+    int TM, TN, TK, subgroup_size;
+    vkdev->info.get_optimal_cooperative_matrix_mnk(M, constantN, constantK, type, VK_COMPONENT_TYPE_FLOAT32_KHR, VK_SCOPE_SUBGROUP_KHR, TM, TN, TK, subgroup_size);
+
+    if (TM <= 0 || TN <= 0 || TK <= 0 || TK % 4 != 0 || subgroup_size <= 0
+            || (uint32_t)subgroup_size > vkdev->info.max_workgroup_size_x()
+            || (uint32_t)subgroup_size > vkdev->info.max_workgroup_invocations())
+        return 0;
+
+    int UNROLL_M = std::min((M - 1) / TM + 1, 2);
+    int UNROLL_N = std::min((constantN - 1) / TN + 1, 2);
+    const size_t shared_out = (size_t)TM * TN * sizeof(float);
+    const size_t max_shared = vkdev->info.max_shared_memory_size();
+    if ((size_t)(TM * UNROLL_M + TN * UNROLL_N) * TK * 2 + shared_out > max_shared)
+    {
+        UNROLL_M = 1;
+        UNROLL_N = 1;
+        if ((size_t)(TM + TN) * TK * 2 + shared_out > max_shared)
+            return 0;
+    }
+
+    coopmat_M_wq = TM * UNROLL_M;
+    coopmat_N_wq = TN * UNROLL_N;
+
+    std::vector<vk_specialization_type> specializations(12);
+    specializations[0].f = alpha;
+    specializations[1].f = beta;
+    specializations[2].i = weight_int8_rotation ? 0 : transA;
+    specializations[3].i = output_transpose;
+    specializations[4].i = weight_block_quantize_bits;
+    specializations[5].i = (weight_block_quantize || quantize_term == 900) ? weight_block_quantize_block_size : 0;
+    specializations[6].i = TM;
+    specializations[7].i = TN;
+    specializations[8].i = TK;
+    specializations[9].i = subgroup_size;
+    specializations[10].i = UNROLL_M;
+    specializations[11].i = UNROLL_N;
+
+    pipeline_gemm_weight_quantized_cm = new Pipeline(vkdev);
+    pipeline_gemm_weight_quantized_cm->set_subgroup_size(subgroup_size);
+    pipeline_gemm_weight_quantized_cm->set_local_size_xyz(subgroup_size, 1, 1);
+    return pipeline_gemm_weight_quantized_cm->create(LayerShaderType::gemm_weight_quantized_cm, opt, specializations);
+}
+
+int Gemm_vulkan::create_pipeline_int8sa(const Option& opt)
+{
+    use_cooperative_matrix_wq_int8 = false;
+    if (quantize_term == 902 && opt.use_cooperative_matrix && opt.use_int8_arithmetic && vkdev->info.support_int8_cooperative_matrix())
+    {
+        vkdev->info.get_optimal_cooperative_matrix_mnk(constantM ? constantM : 1024, constantN, constantK, VK_COMPONENT_TYPE_SINT8_KHR, VK_COMPONENT_TYPE_SINT32_KHR, VK_SCOPE_SUBGROUP_KHR, coopmat_M,
+                coopmat_N, coopmat_K, coopmat_subgroup_size);
+        use_cooperative_matrix_wq_int8 = coopmat_M > 0 && coopmat_N > 0 && coopmat_K > 0 && coopmat_K % 4 == 0 && coopmat_subgroup_size > 0;
+    }
+
+    if (use_cooperative_matrix_wq_int8)
+    {
+        const int K4p = vkdev->info.support_VK_KHR_cooperative_matrix() ? (((coopmat_K + 15) / 16) | 1) * 4 : coopmat_K / 4;
+        const size_t shared_bytes = sizeof(int) * ((size_t)(coopmat_M + coopmat_N) * K4p + (size_t)coopmat_M * coopmat_N);
+        use_cooperative_matrix_wq_int8 = shared_bytes <= vkdev->info.max_shared_memory_size() && (uint32_t)coopmat_subgroup_size <= vkdev->info.max_workgroup_invocations()
+                                         && (uint32_t)coopmat_subgroup_size <= vkdev->info.max_workgroup_size_x();
+    }
+
+    const bool use_integer_dot = vkdev->info.support_VK_KHR_shader_integer_dot_product()
+                                 && vkdev->info.queryShaderIntegerDotProductFeatures().shaderIntegerDotProduct
+                                 && vkdev->info.queryShaderIntegerDotProductProperties().integerDotProduct4x8BitPackedSignedAccelerated;
+    if (quantize_term == 902 && !use_cooperative_matrix_wq_int8 && !use_integer_dot)
+        return 0;
+
+    fuse_convrot_quantize = opt.use_shader_local_memory && weight_int8_rotation != 0
+                            && ((size_t)constantK + 64) * sizeof(float) <= vkdev->info.max_shared_memory_size();
+    std::vector<vk_specialization_type> quantize_specializations(4);
+    quantize_specializations[0].i = weight_int8_rotation && !fuse_convrot_quantize ? 0 : transA;
+    quantize_specializations[1].i = quantize_term == 900 ? 32 : 0;
+    quantize_specializations[2].i = fuse_convrot_quantize ? constantK : 1;
+    quantize_specializations[3].i = fuse_convrot_quantize ? weight_int8_rotation : 0;
+
+    pipeline_gemm_quantize_A_wq_int8 = new Pipeline(vkdev);
+    pipeline_gemm_quantize_A_wq_int8->set_local_size_xyz(quantize_term == 900 ? 8 : 64, 1, 1);
+    int ret = pipeline_gemm_quantize_A_wq_int8->create(LayerShaderType::gemm_quantize_A_wq_int8, opt, quantize_specializations);
+    if (ret != 0)
+        return ret;
+
+    std::vector<vk_specialization_type> specializations(4);
+    specializations[0].f = alpha;
+    specializations[1].f = beta;
+    specializations[2].i = output_transpose;
+    specializations[3].i = quantize_term == 900 ? 32 : 0;
+
+    pipeline_gemm_wq_int8 = new Pipeline(vkdev);
+
+    if (use_cooperative_matrix_wq_int8)
+    {
+        specializations.resize(7);
+        specializations[3].i = coopmat_M;
+        specializations[4].i = coopmat_N;
+        specializations[5].i = coopmat_K;
+        specializations[6].i = coopmat_subgroup_size;
+
+        pipeline_gemm_wq_int8->set_subgroup_size(coopmat_subgroup_size);
+        pipeline_gemm_wq_int8->set_local_size_xyz(coopmat_subgroup_size, 1, 1);
+        return pipeline_gemm_wq_int8->create(LayerShaderType::gemm_wq_int8_cm, opt, specializations);
+    }
+
+    pipeline_gemm_wq_int8->set_local_size_xyz(8, 8, 1);
+    return pipeline_gemm_wq_int8->create(LayerShaderType::gemm_wq_int8, opt, specializations);
+}
+
+static bool record_weight_upload(VkTransfer& cmd, const Mat& src, VkMat& dst, size_t max_storage_buffer_range, const Option& opt, bool flatten = true)
+{
+    if (src.empty())
+        return false;
+
+    const uint64_t pending = cmd.pending_upload_total();
+    cmd.record_upload(src, dst, opt, flatten);
+    if (dst.empty() || dst.buffer_capacity() > max_storage_buffer_range)
+        return false;
+
+    if (cmd.pending_upload_total() != pending)
+        return true;
+
+    // Host and writable disk weights are copied directly without a GPU command.
+    return dst.data->storage_type != 0 && dst.mapped_ptr() && (dst.data->access_flags & VK_ACCESS_HOST_WRITE_BIT);
+}
+
+int Gemm_vulkan::upload_model_weight_quantized(VkTransfer& cmd, const Option& opt)
+{
+    const size_t max_storage_buffer_range = vkdev->info.max_storage_buffer_range();
+    const int packed_bytes = B_data.w;
+    const int packed_words = packed_bytes / 4 + (packed_bytes % 4 != 0);
+    const int num_descales = B_data_quantize_scales.w;
+    const int n = (constantN - 1) / weight_slice_rows + 1;
+    std::vector<VkMat> B_data_packed_gpu_tmp(n);
+    std::vector<VkMat> B_data_descales_gpu_tmp(n);
+    VkMat C_data_gpu_tmp;
+    const uint64_t pending_upload_total = cmd.pending_upload_total();
+    int ret = 0;
+
+    const Option opt_fp32 = get_option_weight_quantized(opt, 1);
+    for (int i = 0; i < n; i++)
+    {
+        const int j = i * weight_slice_rows;
+        const int max_jj = std::min(weight_slice_rows, constantN - j);
+        Mat B_packed;
+        if (packed_bytes % 16 == 0)
+        {
+            B_packed = Mat(packed_words, max_jj, B_data.row<unsigned char>(j), (size_t)4u);
+        }
+        else
+        {
+            B_packed.create(packed_words, max_jj, (size_t)4u);
+            if (B_packed.empty())
+            {
+                ret = -100;
+                break;
+            }
+
+            const size_t row_bytes = (size_t)packed_words * 4;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int jj = 0; jj < max_jj; jj++)
+            {
+                unsigned char* outptr = B_packed.row<unsigned char>(jj);
+                memcpy(outptr, B_data.row<unsigned char>(j + jj), packed_bytes);
+                memset(outptr + packed_bytes, 0, row_bytes - packed_bytes);
+            }
+        }
+
+        // Each output row has K-group descales, or a single channel descale.
+        // Q8_0 stores two FP16 descales per word. The other modes store FP32.
+        Mat B_descales;
+        if (quantize_term == 900)
+        {
+            const int count = num_descales * max_jj;
+            B_descales.create((count + 1) / 2, (size_t)4u);
+            if (B_descales.empty())
+            {
+                ret = -100;
+                break;
+            }
+
+            const float* ptr = (const float*)B_data_quantize_scales.data + (size_t)j * num_descales;
+            unsigned int* outptr = B_descales;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int g = 0; g < B_descales.w; g++)
+            {
+                const unsigned int lo = float32_to_float16_weight_scale(ptr[g * 2]);
+                const unsigned int hi = g * 2 + 1 < count ? float32_to_float16_weight_scale(ptr[g * 2 + 1]) : 0;
+                outptr[g] = lo | (hi << 16);
+            }
+        }
+        else if (weight_block_quantize)
+        {
+            B_descales.create(num_descales, max_jj, (size_t)4u);
+            if (B_descales.empty())
+            {
+                ret = -100;
+                break;
+            }
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int jj = 0; jj < max_jj; jj++)
+            {
+                const float* ptr = B_data_quantize_scales.row(j + jj);
+                float* outptr = B_descales.row(jj);
+                for (int g = 0; g < num_descales; g++)
+                    outptr[g] = 1.f / ptr[g];
+            }
+        }
+        else
+        {
+            const size_t count = (size_t)num_descales * max_jj;
+            float* ptr = (float*)B_data_quantize_scales.data + (size_t)j * num_descales;
+            if (count % 4 == 0)
+            {
+                B_descales = Mat(num_descales, max_jj, ptr, (size_t)4u);
+            }
+            else
+            {
+                B_descales.create(num_descales, max_jj, (size_t)4u);
+                if (B_descales.empty())
+                {
+                    ret = -100;
+                    break;
+                }
+                memcpy(B_descales.data, ptr, count * sizeof(float));
+                memset((float*)B_descales.data + count, 0, (B_descales.total() - count) * sizeof(float));
+            }
+        }
+
+        VkMat& B_gpu = B_data_packed_gpu_tmp[i];
+        VkMat& B_descales_gpu = B_data_descales_gpu_tmp[i];
+        if (!record_weight_upload(cmd, B_packed, B_gpu, max_storage_buffer_range, opt_fp32, false)
+                || !record_weight_upload(cmd, B_descales, B_descales_gpu, max_storage_buffer_range, opt_fp32, false))
+        {
+            ret = -100;
+            break;
+        }
+    }
+
+    if (ret == 0 && constantC && constant_broadcast_type_C != -1)
+    {
+        const size_t count = (size_t)C_data.w * C_data.h;
+        Mat C_packed = C_data;
+        if (C_data.total() > count && C_data.refcount == 0)
+        {
+            Mat C;
+            C.create_like(C_data);
+            if (C.empty())
+            {
+                ret = -100;
+            }
+            else
+            {
+                memcpy(C.data, C_data.data, count * C_data.elemsize);
+                memset((unsigned char*)C.data + count * C_data.elemsize, 0, (C.total() - count) * C_data.elemsize);
+                C_packed = C;
+            }
+        }
+        const Option opt_wq = get_option_weight_quantized(opt, output_elemtype);
+        if (ret == 0 && !record_weight_upload(cmd, C_packed, C_data_gpu_tmp, max_storage_buffer_range, opt_wq))
+            ret = -100;
+    }
+
+    if (ret != 0)
+    {
+        // Keep the temporary destinations alive until all recorded copies finish.
+        if (cmd.pending_upload_total() != pending_upload_total)
+        {
+            if (cmd.submit_and_wait() != 0)
+                vkDeviceWaitIdle(vkdev->vkdevice());
+            cmd.reset();
+        }
+        return ret;
+    }
+
+    B_data_packed_gpu.swap(B_data_packed_gpu_tmp);
+    B_data_descales_gpu.swap(B_data_descales_gpu_tmp);
+    C_data_gpu = C_data_gpu_tmp;
+
+    if (opt.lightmode)
+    {
+        B_data.release();
+        B_data_quantize_scales.release();
+        C_data.release();
+    }
+
+    return 0;
+}
+
+int Gemm_vulkan::forward_weight_quantized(const std::vector<VkMat>& bottom_blobs, std::vector<VkMat>& top_blobs, VkCompute& cmd, const Option& opt) const
+{
+    if (bottom_blobs.empty() || top_blobs.empty())
+        return -1;
+
+    const VkMat& A = bottom_blobs[0];
+    if (A.empty() || A.dims > 3 || (A.dims == 3 && A.h != 1))
+        return -1;
+    const size_t max_storage_buffer_range = vkdev->info.max_storage_buffer_range();
+    if (A.buffer_capacity() > max_storage_buffer_range)
+        return -100;
+
+    const int A_rows = A.dims == 3 ? A.c * A.elempack : A.dims == 2 ? A.h * A.elempack : 1;
+    const int A_cols = A.dims == 1 ? A.w * A.elempack : A.w;
+    const int M = transA ? A_cols : A_rows;
+    const int N = constantN;
+    const int K = constantK;
+    const bool fixed_m = constantM && (!weight_block_quantize || (constantC && constant_broadcast_type_C >= 1 && constant_broadcast_type_C <= 3));
+    if (M <= 0 || M > INT_MAX / N || M > INT_MAX / K || (fixed_m && M != constantM) || (transA ? A_rows : A_cols) != K)
+    {
+        NCNN_LOGE("Gemm invalid Vulkan input for quantized weights");
+        return -1;
+    }
+
+    const Option opt_wq = get_option_weight_quantized(opt, output_elemtype);
+    const int cast_type = opt_wq.use_bf16_storage ? 5 : opt_wq.use_fp16_storage ? 2 : 1;
+    const size_t elemsize = cast_type == 1 ? 4u : 2u;
+    if ((size_t)M * K > max_storage_buffer_range / elemsize)
+        return -100;
+
+    const bool use_int8sa = pipeline_gemm_wq_int8 != 0;
+    const bool rotate_A = weight_int8_rotation != 0;
+    Option opt_workspace = opt;
+    opt_workspace.blob_vkallocator = opt.workspace_vkallocator;
+    VkMat A_cast;
+    const int A_elempack = use_int8sa || rotate_A || A.dims == 1 ? 1 : A.elempack;
+    vkdev->convert_packing(A, A_cast, A_elempack, cast_type, cmd, opt_workspace);
+    if (A_cast.empty() || A_cast.buffer_capacity() > max_storage_buffer_range)
+        return -100;
+
+    VkMat C;
+    int broadcast_type_C = -1;
+    if (constantC && constant_broadcast_type_C != -1)
+    {
+        C = C_data_gpu;
+        broadcast_type_C = constant_broadcast_type_C;
+    }
+    else if (bottom_blobs.size() == 2 && !bottom_blobs[1].empty())
+    {
+        const VkMat& C0 = bottom_blobs[1];
+        if (C0.buffer_capacity() > max_storage_buffer_range
+                || C0.total() * C0.elempack > max_storage_buffer_range / elemsize)
+            return -100;
+
+        vkdev->convert_packing(C0, C, 1, cast_type, cmd, opt_workspace);
+        if (C.empty() || C.buffer_capacity() > max_storage_buffer_range)
+            return -100;
+
+        if (C.dims == 1 && C.w == 1)
+            broadcast_type_C = 0;
+        if (C.dims == 1 && C.w == M)
+            broadcast_type_C = 1;
+        if (C.dims == 2 && C.w == 1 && C.h == M)
+            broadcast_type_C = 2;
+        if (C.dims == 2 && C.w == N && C.h == M)
+            broadcast_type_C = 3;
+        if (C.w == N && (C.dims == 1 || (C.dims == 2 && C.h == 1)))
+            broadcast_type_C = 4;
+        if (broadcast_type_C == -1 && weight_block_quantize)
+            broadcast_type_C = 0;
+        if (broadcast_type_C == -1)
+        {
+            NCNN_LOGE("Gemm unsupported Vulkan bias broadcast for quantized weights");
+            return -1;
+        }
+    }
+
+    const int top_w = output_transpose ? M : N;
+    const int top_h = output_transpose ? N : M;
+    const int out_elempack = output_elempack ? output_elempack : top_h % 4 == 0 ? 4 : 1;
+    if ((out_elempack != 1 && out_elempack != 4) || top_h % out_elempack != 0)
+    {
+        NCNN_LOGE("Gemm invalid Vulkan output packing for quantized weights");
+        return -1;
+    }
+
+    const int shader_out_elempack = use_int8sa ? 1 : out_elempack;
+    int out_cast_type = cast_type;
+    // The graph storage precision applies to pack1 outputs as well.
+    if (output_elemtype == 0)
+    {
+        if (opt.use_bf16_storage || opt.use_bf16_packed)
+            out_cast_type = 5;
+        else if (opt.use_fp16_storage || opt.use_fp16_packed)
+            out_cast_type = 2;
+    }
+    const bool repack_output = out_elempack != shader_out_elempack || out_cast_type != cast_type;
+    VkAllocator* out_allocator = repack_output ? opt.workspace_vkallocator : opt.blob_vkallocator;
+    const size_t out_elemsize = elemsize * shader_out_elempack;
+    if ((size_t)top_w * top_h > max_storage_buffer_range / elemsize)
+        return -100;
+    VkMat out;
+    if (output_N1M)
+        out.create(top_w, 1, top_h / shader_out_elempack, out_elemsize, shader_out_elempack, out_allocator);
+    else
+        out.create(top_w, top_h / shader_out_elempack, out_elemsize, shader_out_elempack, out_allocator);
+    if (out.empty() || out.buffer_capacity() > max_storage_buffer_range)
+        return -100;
+
+    if (use_int8sa)
+    {
+        int ret = gemm_int8sa(A_cast, C, M, broadcast_type_C, out, cmd, opt);
+        if (ret != 0)
+            return ret;
+    }
+    else
+    {
+        if (rotate_A)
+        {
+            A_cast = rotate_A_convrot(A_cast, M, K, cmd, opt);
+            if (A_cast.empty())
+                return -100;
+        }
+
+        const bool use_cm = pipeline_gemm_weight_quantized_cm && M >= coopmat_M_wq;
+        const Pipeline* pipeline = use_cm ? pipeline_gemm_weight_quantized_cm : pipeline_gemm_weight_quantized;
+
+        std::vector<VkMat> bindings(use_cm ? 5 : 7);
+        bindings[0] = A_cast;
+        bindings[3] = C;
+        bindings[4] = out;
+        if (!use_cm)
+        {
+            bindings[5] = A_cast;
+            bindings[6] = out;
+        }
+
+        std::vector<vk_constant_type> constants(11);
+        constants[0].i = M;
+        constants[1].i = N;
+        constants[2].i = K;
+        constants[3].i = A_cast.dims == 3 ? A_cast.cstep : A_cast.w;
+        constants[4].i = B_data_packed_gpu[0].w;
+        constants[5].i = out.dims == 3 ? out.cstep : out.w;
+        constants[6].i = broadcast_type_C;
+        constants[7].i = A_cast.dims == 1 ? 1 : A_cast.elempack;
+        constants[8].i = out.elempack;
+
+        VkMat dispatcher;
+        dispatcher.h = use_cm ? (M - 1) / coopmat_M_wq + 1 : (M - 1) / 4 + 1;
+        dispatcher.c = 1;
+        if ((uint32_t)((dispatcher.h - 1) / pipeline->local_size_y() + 1) > vkdev->info.max_workgroup_count_y())
+            return -100;
+        for (int i = 0; i < (int)B_data_packed_gpu.size(); i++)
+        {
+            const VkMat& B = B_data_packed_gpu[i];
+            bindings[1] = B;
+            bindings[2] = B_data_descales_gpu[i];
+            constants[9].i = i * weight_slice_rows;
+            constants[10].i = B.h;
+            dispatcher.w = (B.h - 1) / (use_cm ? coopmat_N_wq : 4) + 1;
+            if (use_cm)
+            {
+                if ((uint32_t)dispatcher.w > INT_MAX / pipeline->local_size_x())
+                    return -100;
+                dispatcher.w *= pipeline->local_size_x();
+            }
+            if ((uint32_t)((dispatcher.w - 1) / pipeline->local_size_x() + 1) > vkdev->info.max_workgroup_count_x())
+                return -100;
+
+            cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        }
+    }
+
+    if (repack_output)
+        vkdev->convert_packing(out, top_blobs[0], out_elempack, out_cast_type, cmd, opt_wq);
+    else
+        top_blobs[0] = out;
+
+    return top_blobs[0].empty() ? -100 : 0;
+}
+
+VkMat Gemm_vulkan::rotate_A_convrot(const VkMat& A, int M, int K, VkCompute& cmd, const Option& opt) const
+{
+    if ((uint32_t)M > vkdev->info.max_workgroup_count_y())
+        return VkMat();
+
+    VkMat A_rotated(K, M, A.elemsize, 1, opt.workspace_vkallocator);
+    if (A_rotated.empty() || A_rotated.buffer_capacity() > vkdev->info.max_storage_buffer_range())
+        return VkMat();
+
+    std::vector<VkMat> bindings(2);
+    bindings[0] = A;
+    bindings[1] = A_rotated;
+
+    std::vector<vk_constant_type> constants(2);
+    constants[0].i = K;
+    constants[1].i = A.dims == 3 ? (int)A.cstep : A.w;
+
+    VkMat dispatcher;
+    dispatcher.w = K / weight_int8_rotation * pipeline_gemm_convrot_rotate->local_size_x();
+    dispatcher.h = M;
+    dispatcher.c = 1;
+    cmd.record_pipeline(pipeline_gemm_convrot_rotate, bindings, constants, dispatcher);
+
+    return A_rotated;
+}
+
+int Gemm_vulkan::gemm_int8sa(const VkMat& A, const VkMat& C, int M, int broadcast_type_C, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+{
+    const int K = constantK;
+    const int N = constantN;
+    const int K4 = B_data_packed_gpu[0].w;
+    const int num_descales = quantize_term == 900 ? K / 32 : 1;
+    if ((uint32_t)M > vkdev->info.max_workgroup_count_y() || (uint32_t)num_descales > vkdev->info.max_workgroup_count_x())
+        return -100;
+
+    VkMat A_rotated;
+    if (weight_int8_rotation && !fuse_convrot_quantize)
+    {
+        A_rotated = rotate_A_convrot(A, M, K, cmd, opt);
+        if (A_rotated.empty())
+            return -100;
+    }
+    const VkMat& A0 = A_rotated.empty() ? A : A_rotated;
+
+    VkMat A_int8(K4, M, (size_t)4u, 1, opt.workspace_vkallocator);
+    VkMat A_descales(num_descales, M, (size_t)4u, 1, opt.workspace_vkallocator);
+    const size_t max_storage_buffer_range = vkdev->info.max_storage_buffer_range();
+    if (A_int8.empty() || A_descales.empty() || A_int8.buffer_capacity() > max_storage_buffer_range || A_descales.buffer_capacity() > max_storage_buffer_range)
+        return -100;
+
+    {
+        std::vector<VkMat> bindings(3);
+        bindings[0] = A0;
+        bindings[1] = A_int8;
+        bindings[2] = A_descales;
+
+        std::vector<vk_constant_type> constants(3);
+        constants[0].i = K;
+        constants[1].i = K4;
+        constants[2].i = A0.dims == 3 ? (int)A0.cstep : A0.w;
+
+        VkMat dispatcher;
+        dispatcher.w = num_descales * pipeline_gemm_quantize_A_wq_int8->local_size_x();
+        dispatcher.h = M;
+        dispatcher.c = 1;
+        cmd.record_pipeline(pipeline_gemm_quantize_A_wq_int8, bindings, constants, dispatcher);
+    }
+
+    std::vector<VkMat> bindings(6);
+    bindings[0] = A_int8;
+    bindings[2] = A_descales;
+    bindings[4] = C;
+    bindings[5] = top_blob;
+
+    std::vector<vk_constant_type> constants(7);
+    constants[0].i = M;
+    constants[1].i = N;
+    constants[2].i = K4;
+    constants[3].i = broadcast_type_C;
+    constants[4].i = top_blob.dims == 3 ? (int)top_blob.cstep : top_blob.w;
+
+    const bool use_cm = use_cooperative_matrix_wq_int8;
+    const Pipeline* pipeline = pipeline_gemm_wq_int8;
+    VkMat dispatcher;
+    dispatcher.h = use_cm ? (M - 1) / coopmat_M + 1 : M;
+    dispatcher.c = 1;
+    for (int i = 0; i < (int)B_data_packed_gpu.size(); i++)
+    {
+        const VkMat& B = B_data_packed_gpu[i];
+        bindings[1] = B;
+        bindings[3] = B_data_descales_gpu[i];
+        constants[5].i = i * weight_slice_rows;
+        constants[6].i = B.h;
+        dispatcher.w = (B.h - 1) / (use_cm ? coopmat_N : 4) + 1;
+        if (use_cm)
+        {
+            if ((uint32_t)dispatcher.w > INT_MAX / pipeline->local_size_x())
+                return -100;
+            dispatcher.w *= pipeline->local_size_x();
+        }
+        if ((uint32_t)((dispatcher.w - 1) / pipeline->local_size_x() + 1) > vkdev->info.max_workgroup_count_x())
+            return -100;
+
+        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+    }
+
+    return 0;
+}
+#endif // NCNN_WEIGHT_QUANT
 
 #if NCNN_INT8
 int Gemm_vulkan::create_pipeline_int8(const Option& opt)

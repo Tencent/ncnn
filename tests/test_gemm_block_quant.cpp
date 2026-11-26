@@ -3,7 +3,64 @@
 
 #include "testutil.h"
 
+#include "gemm.h"
+
+#if defined(NCNN_TEST_X86_PACKED_DESCALES)
+#include "x86/gemm_x86.h"
+#endif
+
 #if NCNN_WEIGHT_QUANT
+class ModelBinFromPackedRowSize : public ncnn::ModelBin
+{
+public:
+    ModelBinFromPackedRowSize()
+        : w(0), h(0), type(0)
+    {
+    }
+
+    ncnn::Mat load(int _w, int _h, int _type) const
+    {
+        w = _w;
+        h = _h;
+        type = _type;
+        return ncnn::Mat();
+    }
+
+    mutable int w;
+    mutable int h;
+    mutable int type;
+};
+
+static int test_gemm_packed_row_size()
+{
+    // Check the byte count without allocating the weight tensor.
+    const int K = 1073741841;
+    const int widths[] = {536870921, 805306381, 1073741841};
+    for (int i = 0; i < 3; i++)
+    {
+        const int bits = 4 + i * 2;
+        ncnn::ParamDict pd;
+        pd.set(3, 1);
+        pd.set(5, 1);
+        pd.set(8, 1);
+        pd.set(9, K);
+        pd.set(18, bits * 100);
+
+        ncnn::Gemm gemm;
+        if (gemm.load_param(pd) != 0)
+            return -1;
+
+        ModelBinFromPackedRowSize mb;
+        if (gemm.load_model(mb) != -100 || mb.w != widths[i] || mb.h != 1 || mb.type != bits)
+        {
+            fprintf(stderr, "test_gemm_packed_row_size failed bits=%d K=%d expected=%d got=%d\n", bits, K, widths[i], mb.w);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int weight_block_quantize_term(int bits, int block_size, int has_input_scale = 0)
 {
     const int block_size_code = block_size == 32 ? 0 : block_size == 64 ? 1 : 2;
@@ -238,6 +295,17 @@ static int test_gemm_block_quant(const ncnn::Mat& A, const ncnn::Mat& B, const n
                 return -1;
         }
 
+#if NCNN_VULKAN
+        if (!has_input_scale && ncnn::get_gpu_count() > 0)
+        {
+            opt.use_packing_layout = true;
+            std::vector<ncnn::Mat> outputs;
+            int ret = test_layer_gpu(ncnn::layer_to_index("Gemm"), pd, weights, opt, a, 1, outputs, std::vector<ncnn::Mat>(), 0);
+            if (ret != 0 || CompareMat(outputs, refs, 0.001f) != 0)
+                return -1;
+        }
+#endif // NCNN_VULKAN
+
         return 0;
     }
 
@@ -442,6 +510,41 @@ static int test_gemm_wq_int8_exact_weight_tail(int K)
     return ret;
 }
 
+#if defined(NCNN_TEST_X86_PACKED_DESCALES)
+static int test_gemm_wq_int8_descales_ntail()
+{
+    const int N = 8;
+    const int K = 19;
+    const int block_size = 32;
+
+    ncnn::Mat B(K, N, (size_t)1u);
+    B.fill<signed char>(1);
+    ncnn::Mat scales(1, N);
+    for (int i = 0; i < N; i++)
+        scales[i] = (float)(1 << (i + 1));
+
+    const ncnn::Mat weights[] = {B, scales};
+    ncnn::ParamDict pd = make_gemm_param(0, N, K, weight_block_quantize_term(8, block_size));
+    pd.set(21, 6); // the two tail descales end immediately before the refcount
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    ncnn::Gemm_x86 gemm;
+    if (gemm.load_param(pd) != 0 || gemm.load_model(ncnn::ModelBinFromMatArray(weights)) != 0 || gemm.create_pipeline(opt) != 0)
+        return -1;
+
+    const ncnn::Mat& descales = gemm.BT_data_wq_int8_descales;
+    const float* tail = descales.row(N - 2);
+    if (tail[0] != 1.f / 128 || tail[1] != 1.f / 256 || *descales.refcount != 1)
+    {
+        fprintf(stderr, "test_gemm_wq_int8_descales_ntail failed tail=(%g,%g) refcount=%d\n", tail[0], tail[1], *descales.refcount);
+        return -1;
+    }
+
+    return 0;
+}
+#endif
+
 static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_transpose)
 {
     const int M = 17;
@@ -608,15 +711,41 @@ static int test_gemm_wq_int8_pipeline()
     return test_ret;
 }
 
+static int test_gemm_lowbit_legacy_shape(int bits, int constantM, const ncnn::Mat& C)
+{
+    const int M = 3;
+    const int N = 4;
+    const int K = 33;
+    const int block_size = 32;
+    const ncnn::ParamDict pd = make_gemm_param(constantM, N, K, weight_block_quantize_term(bits, block_size));
+
+    int ret = test_gemm_block_quant(RandomMat(K, M), RandomMat(K, N), C, pd, bits, block_size, 0, 0);
+    if (ret != 0)
+        fprintf(stderr, "test_gemm_lowbit_legacy_shape failed bits=%d constantM=%d C.w=%d\n", bits, constantM, C.w);
+    return ret;
+}
+
 static int test_gemm_0()
 {
     return 0
+           || test_gemm_bias(7, 22, 19, 4, 32, RandomMat(22, 7), 1.f, 1.f, 0, 0, 0, 0)
+           || test_gemm_bias(7, 22, 35, 6, 32, RandomMat(22, 7), 1.f, 1.f, 0, 0, 0, 0, 0, 0, 0, 0, 16)
+           || test_gemm_lowbit_legacy_shape(4, 5, ncnn::Mat())
+           || test_gemm_lowbit_legacy_shape(4, 3, RandomMat(2))
+           || test_gemm_lowbit_legacy_shape(6, 5, RandomMat(2))
            || test_gemm(3, 5, 65, 4, 64)
            || test_gemm(3, 4, 33, 4, 32, 1)
+           || test_gemm(12, 7, 33, 4, 32, 0, 1, 0, 1)
+           || test_gemm(3, 8, 135, 4, 128, 0, 0, 1)
+           || test_gemm(35, 8, 35, 4, 32, 0, 1, 1)
            || test_gemm_bias(3, 4, 33, 4, 32, RandomMat(1), 1.7f, 0.3f, 0, 0, 0, 1)
            || test_gemm(4, 7, 67, 6, 64)
            || test_gemm(2, 4, 31, 6, 32, 1)
            || test_gemm(3, 4, 129, 6, 128)
+           || test_gemm(9, 8, 35, 6, 32, 0, 1, 1)
+           || test_gemm_bias(1, 12, 67, 6, 64, RandomMat(12), 0.7f, 1.3f, 0, 0, 1, 1)
+           || test_gemm_bias(39, 43, 113, 4, 32, RandomMat(43, 39), 0.7f, 1.3f, 0, 0, 0, 0, 0, 0, 16, 16, 48)
+           || test_gemm_bias(35, 37, 113, 6, 64, RandomMat(37), 1.7f, 0.3f, 0, 1, 1, 1, 1, 0, 16, 16, 48)
            || test_gemm_bias(4, 7, 67, 6, 64, RandomMat(7, 4), 0.7f, 1.3f, 1, 0, 0, 0);
 }
 
@@ -652,6 +781,7 @@ static int test_gemm_2()
 static int test_gemm_3()
 {
     return 0
+           || test_gemm_wq_int8_tile(4, 8, 19, 32, 4, 6, 32)
            || test_gemm_wq_int8_zero(1, 0)
            || test_gemm_wq_int8_zero(0, 1)
            || test_gemm_wq_int8_zero(1, 0, 1, 0)
@@ -721,7 +851,12 @@ int main()
     SRAND(7767517);
 
 #if NCNN_WEIGHT_QUANT
-    int ret = test_gemm_wq_int8_exact_weight_tail(3)
+#if defined(NCNN_TEST_X86_PACKED_DESCALES)
+    if (test_gemm_wq_int8_descales_ntail() != 0)
+        return -1;
+#endif
+    int ret = test_gemm_packed_row_size()
+              || test_gemm_wq_int8_exact_weight_tail(3)
               || test_gemm_wq_int8_exact_weight_tail(4)
               || test_gemm_wq_int8_exact_weight_tail(33)
               || test_gemm_wq_int8_exact_weight_tail(34)
