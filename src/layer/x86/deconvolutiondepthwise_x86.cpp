@@ -178,7 +178,10 @@ int DeconvolutionDepthWise_x86::create_group_ops(const Option& opt)
             op->load_model(ModelBinFromMatArray(weights));
         }
 
-        op->create_pipeline(opt);
+        Option opt_g = opt;
+        opt_g.use_bf16_packed = false;
+        opt_g.use_bf16_storage = false;
+        op->create_pipeline(opt_g);
 
         group_ops[g] = op;
     }
