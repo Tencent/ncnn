@@ -67,7 +67,12 @@ int RNN::load_model(const ModelBin& mb)
     if (int8_scale_term)
     {
         weight_xc_data_int8_scales = mb.load(num_output, num_directions, 1);
+        if (weight_xc_data_int8_scales.empty())
+            return -100;
+
         weight_hc_data_int8_scales = mb.load(num_output, num_directions, 1);
+        if (weight_hc_data_int8_scales.empty())
+            return -100;
     }
 #endif // NCNN_INT8
 
@@ -246,6 +251,11 @@ static int rnn_int8(const Mat& bottom_blob, Mat& top_blob, int reverse, const Ma
 
 int RNN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blob, Mat()) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     int T = bottom_blob.h;
 
     int num_directions = direction == 2 ? 2 : 1;
@@ -338,6 +348,11 @@ int RNN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 
 int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    if (check_input_shapes(bottom_blobs[0], bottom_blobs.size() == 2 ? bottom_blobs[1] : Mat()) != 0)
+        return -1;
+#endif // NCNN_VALIDATION
+
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
@@ -438,6 +453,21 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     {
         top_blobs[1] = hidden;
     }
+
+    return 0;
+}
+
+int RNN::check_input_shapes(const Mat& bottom_blob, const Mat& hidden_blob) const
+{
+    // every row of weight_xc_data holds size input elements, and the
+    // hidden state is read and written for num_output elements per direction
+    const int num_directions = direction == 2 ? 2 : 1;
+    const int size = weight_data_size / num_directions / num_output;
+    if (bottom_blob.dims > 2 || bottom_blob.w != size)
+        return -1;
+
+    if (!hidden_blob.empty() && (hidden_blob.dims > 2 || hidden_blob.w != num_output || hidden_blob.h * hidden_blob.elempack < num_directions))
+        return -1;
 
     return 0;
 }
