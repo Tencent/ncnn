@@ -4,11 +4,31 @@
 #include "fuse_expression.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "storezip.h"
 #include "utils.h"
 
 namespace pnnx {
+
+static bool get_round_decimals(const Operator* op, int& decimals)
+{
+    if (op->inputs.size() == 1)
+    {
+        decimals = 0;
+        return true;
+    }
+
+    if (op->inputs.size() != 2 || op->inputs[1]->producer->type != "prim::Constant")
+        return false;
+
+    const Parameter& value = op->inputs[1]->producer->params.at("value");
+    if (value.type != 2)
+        return false;
+
+    decimals = value.i;
+    return true;
+}
 
 static bool operand_maybe_shape_tensor(const Operand* operand)
 {
@@ -739,6 +759,30 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
              || op->type == "aten::tanh"
              || op->type == "aten::trunc")
     {
+        if (op->type == "aten::round")
+        {
+            const int max_scale_exponent = std::numeric_limits<float>::max_exponent10;
+            int decimals = 0;
+            if (!get_round_decimals(op, decimals))
+            {
+                fprintf(stderr, "unsupported torch.round non-constant decimals, ignoring decimals\n");
+            }
+            else if (decimals < -max_scale_exponent || decimals > max_scale_exponent)
+            {
+                // Expression scale literals are parsed as floats.
+                fprintf(stderr, "unsupported torch.round decimals=%d outside expression scale range, ignoring decimals\n", decimals);
+            }
+            else if (decimals != 0)
+            {
+                const long long exponent = decimals > 0 ? decimals : -(long long)decimals;
+                const std::string scale = "1e" + std::to_string(exponent);
+                expr += decimals > 0 ? "div(round(mul(" : "mul(round(div(";
+                fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants, layout_observers, zip);
+                expr += "," + scale + "))," + scale + ")";
+                return;
+            }
+        }
+
         std::string mathop = op->type.substr(6);
 
         expr += mathop;
