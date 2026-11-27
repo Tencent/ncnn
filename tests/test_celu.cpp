@@ -62,7 +62,10 @@ static int test_celu_3()
            || test_celu(RandomMat(96), 0.1f)
            || test_celu(RandomMat(128), 1.f, TEST_LAYER_DISABLE_GPU_TESTING)
            || test_celu(RandomMat(128), 0.1f)
-           || test_celu(RandomMat(127), 0.75f);
+           || test_celu(RandomMat(127), 0.75f)
+           || test_celu(RandomMat(127), 32.f)
+           || test_celu(RandomMat(35), 1e-5f)
+           || test_celu(RandomMat(19), 2.f);
 }
 
 int main()
