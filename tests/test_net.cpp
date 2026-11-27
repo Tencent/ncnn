@@ -1247,6 +1247,63 @@ static int test_pipeline_lifecycle()
     return 0;
 }
 
+#if NCNN_INT8 && (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64))
+static int test_quantized_convolution_model(int typeindex, const char* type, int int8_scale_term)
+{
+    if (!layer_available(typeindex) || !layer_available(ncnn::LayerType::Input))
+        return 0;
+
+    const float fp32_weights[] = {0.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
+    const uint32_t int8_weights[] =
+    {
+        0x000d4b38,                         // int8 weight tag
+        0x01010101, 0x01010101, 0x00000001, // nine weights and alignment padding
+        0x3f800000, 0x3f800000              // weight and input scales
+    };
+
+    for (int mode = 0; mode < 3; mode++)
+    {
+        const bool quantized = mode != 0;
+        const bool use_int8_inference = mode == 1;
+        const bool reject = quantized && !use_int8_inference;
+
+        char param[256];
+        snprintf(param, sizeof(param), "7767517\n2 2\nInput input 0 1 in\n%s conv 1 1 in out 0=1 1=3 6=9 8=%d\n", type, quantized ? int8_scale_term : 0);
+
+        ncnn::Net net;
+        net.opt.use_vulkan_compute = false;
+        net.opt.use_int8_inference = use_int8_inference;
+        net.opt.num_threads = 1;
+        if (net.load_param_mem(param) != 0)
+            return -1;
+
+        const unsigned char* mem = quantized ? (const unsigned char*)int8_weights : (const unsigned char*)fp32_weights;
+        ncnn::DataReaderFromMemory dr(mem, quantized ? sizeof(int8_weights) : sizeof(fp32_weights));
+        const int ret = net.load_model(dr);
+        if ((ret != 0) != reject)
+        {
+            fprintf(stderr, "test_net %s load_model failed quantized=%d use_int8_inference=%d ret=%d\n", type, quantized, use_int8_inference, ret);
+            return -1;
+        }
+
+        if (!reject)
+        {
+            ncnn::Mat in(3, 3, 1);
+            in.fill(1.f);
+            ncnn::Mat out;
+            ncnn::Extractor ex = net.create_extractor();
+            if (ex.input("in", in) != 0 || ex.extract("out", out) != 0 || out.empty() || out[0] != 9.f)
+            {
+                fprintf(stderr, "test_net %s inference failed quantized=%d\n", type, quantized);
+                return -1;
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8 && x86
+
 static int test_bounded_text()
 {
     const unsigned char text[] = "7767517\n1 1\nInput input 0 1 out\n";
@@ -1783,6 +1840,10 @@ int main()
            || test_magic_mismatch()
            || test_feature_mask()
            || test_pipeline_lifecycle()
+#if NCNN_INT8 && (defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64))
+           || test_quantized_convolution_model(ncnn::LayerType::Convolution, "Convolution", 2)
+           || test_quantized_convolution_model(ncnn::LayerType::ConvolutionDepthWise, "ConvolutionDepthWise", 1)
+#endif // NCNN_INT8 && x86
            || test_bounded_text()
 #if defined _WIN32 || __ANDROID__ || defined __OHOS__ || defined __linux__ || __APPLE__
            || test_model_file()
