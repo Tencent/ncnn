@@ -1,10 +1,16 @@
 // Copyright 2026 Tencent
 // SPDX-License-Identifier: BSD-3-Clause
 
+#include <limits.h>
 #include <stdio.h>
+#include <string.h>
+
+#include <vector>
 
 #include "datareader.h"
 #include "modelbin.h"
+#include "layer.h"
+#include "paramdict.h"
 
 static int test_mat_from_bfloat16()
 {
@@ -219,11 +225,268 @@ static int test_modelbin_bounded()
     return 0;
 }
 
+// a one-dimensional element count must be valid before byte-size arithmetic
+static int test_modelbin_invalid_element_count()
+{
+    std::vector<unsigned char> model_data(64, 0);
+
+    // a negative element count is rejected before any byte-size arithmetic
+    const int negative[] = {-1, -4, -1073741824, INT_MIN};
+    for (int type = 0; type < 2; type++)
+    {
+        for (size_t i = 0; i < sizeof(negative) / sizeof(negative[0]); i++)
+        {
+            const unsigned char* mem = &model_data[0];
+            ncnn::DataReaderFromMemory dr(mem, model_data.size());
+            ncnn::ModelBinFromDataReader mb(dr);
+            ncnn::Mat m = mb.load(negative[i], type);
+            if (!m.empty())
+            {
+                fprintf(stderr, "test_modelbin_invalid_element_count negative count failed w=%d type=%d\n", negative[i], type);
+                return -1;
+            }
+        }
+    }
+
+    // the same through the fp16 and int8 tagged paths
+    const unsigned char tags[][4] = {{0x47, 0x6b, 0x30, 0x01}, {0x38, 0x4b, 0x0d, 0x00}};
+    for (int t = 0; t < 2; t++)
+    {
+        for (size_t i = 0; i < sizeof(negative) / sizeof(negative[0]); i++)
+        {
+            memcpy(&model_data[0], tags[t], 4);
+            const unsigned char* mem = &model_data[0];
+            ncnn::DataReaderFromMemory dr(mem, model_data.size());
+            ncnn::ModelBinFromDataReader mb(dr);
+            ncnn::Mat m = mb.load(negative[i], 0);
+            memset(&model_data[0], 0, 4);
+            if (!m.empty())
+            {
+                fprintf(stderr, "test_modelbin_invalid_element_count tagged negative count failed w=%d tag=%d\n", negative[i], t);
+                return -1;
+            }
+        }
+    }
+
+    // on 32-bit size_t targets, positive element counts whose byte size would wrap size_t are rejected
+    if (sizeof(size_t) == 4)
+    {
+        const int overflow32[] = {1073741808, 1073741824, INT_MAX};
+        for (int type = 0; type < 2; type++)
+        {
+            for (size_t i = 0; i < sizeof(overflow32) / sizeof(overflow32[0]); i++)
+            {
+                const unsigned char* mem = &model_data[0];
+                ncnn::DataReaderFromMemory dr(mem, model_data.size());
+                ncnn::ModelBinFromDataReader mb(dr);
+                ncnn::Mat m = mb.load(overflow32[i], type);
+                if (!m.empty())
+                {
+                    fprintf(stderr, "test_modelbin_invalid_element_count 32-bit overflow count failed w=%d type=%d\n", overflow32[i], type);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+#if NCNN_VALIDATION
+static void append_bytes(std::vector<unsigned char>& data, const void* p, size_t size)
+{
+    const unsigned char* b = (const unsigned char*)p;
+    data.insert(data.end(), b, b + size);
+}
+
+// int8-tagged weights followed by optional raw float scale records
+static std::vector<unsigned char> int8_weights_model(int weight_count, int scale_count)
+{
+    std::vector<unsigned char> data;
+    const unsigned char tag[4] = {0x38, 0x4b, 0x0d, 0x00};
+    append_bytes(data, tag, 4);
+    for (int i = 0; i < weight_count; i++)
+        data.push_back((unsigned char)(i + 1));
+    while (data.size() % 4)
+        data.push_back(0);
+    for (int i = 0; i < scale_count; i++)
+    {
+        float s = 64.f;
+        append_bytes(data, &s, 4);
+    }
+    return data;
+}
+
+static int check_int8_weights_load(const char* type, const ncnn::ParamDict& pd, int weight_count, int scale_count, int expected_ret)
+{
+    std::vector<unsigned char> data = int8_weights_model(weight_count, scale_count);
+
+    ncnn::Layer* layer = ncnn::create_layer(type);
+    if (!layer)
+    {
+        fprintf(stderr, "test_modelbin_int8_weights create_layer %s failed\n", type);
+        return -1;
+    }
+
+    int ret = layer->load_param(pd);
+    if (ret == 0)
+    {
+        const unsigned char* mem = &data[0];
+        ncnn::DataReaderFromMemory dr(mem, data.size());
+        ncnn::ModelBinFromDataReader mb(dr);
+        ret = layer->load_model(mb);
+    }
+
+    delete layer;
+
+    if (ret != expected_ret)
+    {
+        fprintf(stderr, "test_modelbin_int8_weights %s failed ret=%d expected=%d\n", type, ret, expected_ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+// int8 weights are only consumable together with their int8 scale records
+static int test_modelbin_int8_weights()
+{
+    for (int scale = 0; scale < 2; scale++)
+    {
+#if NCNN_INT8
+        const int expected_ret = scale ? 0 : -1;
+#else
+        const int expected_ret = -1;
+#endif
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, 1);
+            pd.set(1, 1);
+            pd.set(6, 4);
+            pd.set(8, scale);
+            if (check_int8_weights_load("Convolution", pd, 4, scale ? 2 : 0, expected_ret))
+                return -1;
+        }
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, 2);
+            pd.set(1, 1);
+            pd.set(6, 2);
+            pd.set(7, 2);
+            pd.set(8, scale);
+            if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, scale ? 3 : 0, expected_ret))
+                return -1;
+        }
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, 1);
+            pd.set(2, 4);
+            pd.set(8, scale);
+            if (check_int8_weights_load("InnerProduct", pd, 4, scale ? 2 : 0, expected_ret))
+                return -1;
+        }
+        {
+            ncnn::ParamDict pd;
+            pd.set(0, 2);
+            pd.set(1, 2);
+            pd.set(3, 4);
+            pd.set(18, scale ? 2 : 0);
+            if (check_int8_weights_load("Embed", pd, 4, scale ? 1 : 0, expected_ret))
+                return -1;
+        }
+    }
+
+#if NCNN_INT8
+    // truncated int8 scale records must fail load_model with -100 instead of dereferencing an empty Mat
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(1, 1);
+        pd.set(6, 4);
+        pd.set(8, 1);
+        if (check_int8_weights_load("Convolution", pd, 4, 0, -100)
+                || check_int8_weights_load("Convolution", pd, 4, 1, -100))
+            return -1;
+    }
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 1);
+        pd.set(6, 2);
+        pd.set(7, 2);
+        pd.set(8, 1);
+        if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, 0, -100)
+                || check_int8_weights_load("ConvolutionDepthWise", pd, 2, 2, -100))
+            return -1;
+        pd.set(8, 2);
+        if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, 0, -100)
+                || check_int8_weights_load("ConvolutionDepthWise", pd, 2, 1, -100))
+            return -1;
+        pd.set(8, 102);
+        if (check_int8_weights_load("ConvolutionDepthWise", pd, 2, 2, -100))
+            return -1;
+    }
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(2, 4);
+        pd.set(8, 1);
+        if (check_int8_weights_load("InnerProduct", pd, 4, 0, -100)
+                || check_int8_weights_load("InnerProduct", pd, 4, 1, -100))
+            return -1;
+    }
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 2);
+        pd.set(3, 4);
+        pd.set(18, 2);
+        if (check_int8_weights_load("Embed", pd, 4, 0, -100))
+            return -1;
+    }
+
+    // float weights cannot feed the int8 Embed path
+    {
+        std::vector<unsigned char> data(4 + 4 * 4 + 4, 0);
+        float s = 64.f;
+        memcpy(&data[20], &s, 4);
+        ncnn::ParamDict pd;
+        pd.set(0, 2);
+        pd.set(1, 2);
+        pd.set(3, 4);
+        pd.set(18, 2);
+        ncnn::Layer* layer = ncnn::create_layer("Embed");
+        int ret = layer->load_param(pd);
+        if (ret == 0)
+        {
+            const unsigned char* mem = &data[0];
+            ncnn::DataReaderFromMemory dr(mem, data.size());
+            ncnn::ModelBinFromDataReader mb(dr);
+            ret = layer->load_model(mb);
+        }
+        delete layer;
+        if (ret != -1)
+        {
+            fprintf(stderr, "test_modelbin_int8_weights Embed float weights with int8_scale_term failed ret=%d\n", ret);
+            return -1;
+        }
+    }
+#endif // NCNN_INT8
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
+
 int main()
 {
     return 0
            || test_mat_from_bfloat16()
            || test_modelbin_bfloat16()
            || test_modelbin_int8()
-           || test_modelbin_bounded();
+           || test_modelbin_bounded()
+           || test_modelbin_invalid_element_count()
+#if NCNN_VALIDATION
+           || test_modelbin_int8_weights()
+#endif
+           ;
 }

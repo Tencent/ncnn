@@ -2,6 +2,166 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "testutil.h"
+#include "layer/scale.h"
+
+#include <limits.h>
+
+#if NCNN_VALIDATION
+class ScaleValidationProbe : public ncnn::Scale
+{
+public:
+    using ncnn::Scale::validate_inputs;
+};
+
+static int test_scale_validation()
+{
+    ScaleValidationProbe layer;
+    ncnn::Option opt;
+    layer.bias_term = 0;
+
+    // Exercise the validator itself; invalid objects never reach a compute kernel.
+    std::vector<ncnn::Mat> inputs;
+    if (layer.validate_inputs(inputs, opt) != -1)
+        return -1;
+    inputs.resize(1);
+    if (layer.validate_inputs(inputs, opt) != -1)
+        return -1;
+    inputs.resize(3);
+    if (layer.validate_inputs(inputs, opt) != -1)
+        return -1;
+    inputs.resize(2);
+    if (layer.validate_inputs(inputs, opt) != -1)
+        return -1;
+
+    const int packs[] = {1, 4, 8, 16};
+    for (int dims = 1; dims <= 4; dims++)
+    {
+        for (int p = 0; p < 4; p++)
+        {
+            const int pack = packs[p];
+            ncnn::Mat a;
+            if (dims == 1) a.create(3, (size_t)4 * pack, pack);
+            if (dims == 2) a.create(3, 2, (size_t)4 * pack, pack);
+            if (dims == 3) a.create(3, 2, 2, (size_t)4 * pack, pack);
+            if (dims == 4) a.create(3, 2, 2, 2, (size_t)4 * pack, pack);
+            const int required = (dims == 1 ? 3 : 2) * pack;
+            inputs[0] = a;
+            inputs[1] = ncnn::Mat(required);
+            layer.bias_term = 0;
+            if (layer.validate_inputs(inputs, opt) != 0)
+                return -1;
+
+            inputs[1] = ncnn::Mat(required + 1);
+            if (layer.validate_inputs(inputs, opt) != 0)
+                return -1;
+            inputs[1] = ncnn::Mat(required - 1);
+            if (layer.validate_inputs(inputs, opt) != -1)
+                return -1;
+            inputs[1] = ncnn::Mat();
+            if (layer.validate_inputs(inputs, opt) != -1)
+                return -1;
+            inputs[1] = ncnn::Mat(required / pack, (size_t)4 * pack, pack);
+            if (layer.validate_inputs(inputs, opt) != 0)
+                return -1;
+
+            layer.bias_term = 1;
+            layer.bias_data = ncnn::Mat();
+            if (layer.validate_inputs(inputs, opt) != -1)
+                return -1;
+            layer.bias_data = ncnn::Mat(required - 1);
+            if (layer.validate_inputs(inputs, opt) != -1)
+                return -1;
+            layer.bias_data = ncnn::Mat(required);
+            if (layer.validate_inputs(inputs, opt) != 0)
+                return -1;
+            layer.bias_data = ncnn::Mat(required + 1);
+            if (layer.validate_inputs(inputs, opt) != 0)
+                return -1;
+        }
+    }
+
+    layer.bias_term = 1;
+    inputs[0] = ncnn::Mat(3);
+    inputs[1] = ncnn::Mat(3);
+    layer.bias_data = ncnn::Mat(3);
+    // Independently reject invalid shape, packing and scalar storage for each object.
+    for (int object = 0; object < 3; object++)
+    {
+        ncnn::Mat& m = object == 2 ? layer.bias_data : inputs[object];
+        const ncnn::Mat valid = m;
+        m.dims = 0;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+        m.dims = 5;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+        m.w = 0;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+        m.elempack = 0;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+        m.elempack = INT_MAX;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+        m.elemsize = 1;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+        m.w = INT_MAX;
+        m.elempack = 4;
+        m.elemsize = 16;
+        if (layer.validate_inputs(inputs, opt) != -1) return -1;
+        m = valid;
+    }
+
+    // A two-dimensional coefficient object is not the contiguous vector contract.
+    inputs[1] = ncnn::Mat(3, 2);
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[1] = ncnn::Mat(3);
+    layer.bias_data = ncnn::Mat(3, 2);
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    layer.bias_data = ncnn::Mat(3);
+
+    // Check the remaining input dimensions without allocating large buffers.
+    const ncnn::Mat valid = inputs[0];
+    inputs[0].h = 0;
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[0] = valid;
+    inputs[0].d = 0;
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[0] = valid;
+    inputs[0].c = 0;
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[0] = valid;
+    inputs[0].h = INT_MAX;
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[0] = valid;
+    inputs[0].d = INT_MAX;
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[0] = valid;
+    inputs[0].dims = 3;
+    inputs[0].c = INT_MAX;
+    inputs[0].elempack = 4;
+    inputs[0].elemsize = 16;
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+
+    // 16-bit coefficients are accepted only with the matching input storage path.
+    inputs[0] = ncnn::Mat(3);
+    inputs[1] = ncnn::Mat(3, (size_t)2);
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    inputs[0] = ncnn::Mat(3, (size_t)2);
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+    layer.support_bf16_storage = true;
+    opt.use_bf16_storage = true;
+    if (layer.validate_inputs(inputs, opt) != 0) return -1;
+    inputs[1] = ncnn::Mat(3);
+    if (layer.validate_inputs(inputs, opt) != 0) return -1;
+    layer.bias_data = ncnn::Mat(3, (size_t)2);
+    if (layer.validate_inputs(inputs, opt) != -1) return -1;
+
+    return 0;
+}
+#endif // NCNN_VALIDATION
 
 static int test_scale(const ncnn::Mat& a, int bias, int flag = 0)
 {
@@ -136,6 +296,9 @@ int main()
     SRAND(7767517);
 
     return 0
+#if NCNN_VALIDATION
+           || test_scale_validation()
+#endif
            || test_scale_6()
            || test_scale_0()
            || test_scale_1()

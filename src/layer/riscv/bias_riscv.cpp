@@ -32,6 +32,12 @@ Bias_riscv::Bias_riscv()
 
 int Bias_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if NCNN_VALIDATION
+    // bias_ptr[q] is read for every channel q
+    if (bias_data.w < bottom_top_blob.c * bottom_top_blob.elempack)
+        return -1;
+#endif // NCNN_VALIDATION
+
 #if NCNN_ZFH || NCNN_BF16
     int elembits = bottom_top_blob.elembits();
 #endif

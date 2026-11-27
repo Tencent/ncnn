@@ -83,6 +83,13 @@ Mat ModelBinFromDataReader::load(int w, int type) const
 {
     Mat m;
 
+    // a negative element count or a count whose byte size wraps size_t must be rejected before any byte-size arithmetic
+    if (w < 0 || (size_t)w > ((~(size_t)0) - 64) / sizeof(float))
+    {
+        NCNN_LOGE("ModelBin load invalid element count %d", w);
+        return Mat();
+    }
+
     if (type == 0)
     {
         size_t nread;
