@@ -41,10 +41,7 @@ pnnx.Output             output      1 0 out
             p = 2.f;
 
         if (p != 1.f && p != 2.f)
-        {
-            fprintf(stderr, "unsupported norm p=%f\n", p);
-            return;
-        }
+            fprintf(stderr, "unsupported torch.norm p=%f\n", p);
 
         op->params["0"] = (p == 1.f) ? 7 : 8;
 
