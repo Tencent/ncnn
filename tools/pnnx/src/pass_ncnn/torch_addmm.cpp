@@ -159,8 +159,11 @@ pnnx.Output             output      1 0 out
             beta = captured_params.at("beta").f;
         }
 
+        if (alpha == 0.f)
+            fprintf(stderr, "unsupported torch.addmm alpha=0\n");
+
         op->params["0"] = alpha;
-        op->params["1"] = beta / alpha;
+        op->params["1"] = alpha == 0.f ? beta : beta / alpha;
     }
 };
 
