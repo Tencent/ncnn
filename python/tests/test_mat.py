@@ -778,3 +778,36 @@ def test_substract_mean_normalize():
     assert (
         np.abs((pixels[0, 0, 0] - 127.5) * 0.007843 - mat.channel(0).row(0)[0]) < 1e-5
     )
+
+
+def test_from_pixels_strided_views():
+    # BGR to RGB through a numpy view and a cropped region are common inputs; they are not packed rows
+    img = (np.arange(4 * 6 * 3) % 251).astype(np.uint8).reshape(4, 6, 3)
+
+    ref = np.array(ncnn.Mat.from_pixels(img, ncnn.Mat.PixelType.PIXEL_BGR2RGB, 6, 4))
+    mat = ncnn.Mat.from_pixels(img[:, :, ::-1], ncnn.Mat.PixelType.PIXEL_RGB, 6, 4)
+    assert np.array_equal(np.array(mat), ref)
+
+    roi = img[1:3, 2:5]
+    ref = np.array(ncnn.Mat.from_pixels(np.ascontiguousarray(roi), ncnn.Mat.PixelType.PIXEL_BGR, 3, 2))
+    mat = ncnn.Mat.from_pixels(roi, ncnn.Mat.PixelType.PIXEL_BGR, 3, 2)
+    assert np.array_equal(np.array(mat), ref)
+
+
+def test_from_pixels_checks_buffer():
+    img = np.zeros((4, 6, 3), dtype=np.uint8)
+    with pytest.raises(RuntimeError, match="buffer too small"):
+        ncnn.Mat.from_pixels(img, ncnn.Mat.PixelType.PIXEL_BGR, 600, 400)
+    with pytest.raises(RuntimeError, match="buffer too small"):
+        ncnn.Mat.from_pixels_resize(img, ncnn.Mat.PixelType.PIXEL_BGR, 6, 5, 3, 3)
+    with pytest.raises(RuntimeError, match="buffer too small"):
+        ncnn.Mat.from_pixels(img, ncnn.Mat.PixelType.PIXEL_BGR, 6, 4, 20)
+    with pytest.raises(RuntimeError, match="8-bit"):
+        ncnn.Mat.from_pixels(img.astype(np.float32), ncnn.Mat.PixelType.PIXEL_BGR, 6, 4)
+    with pytest.raises(RuntimeError, match="stride"):
+        ncnn.Mat.from_pixels(img, ncnn.Mat.PixelType.PIXEL_BGR, 6, 4, 10)
+    with pytest.raises(RuntimeError, match="contiguous"):
+        ncnn.Mat.from_pixels(img[:, :, ::-1], ncnn.Mat.PixelType.PIXEL_RGB, 6, 4, 18)
+    # an exact fit with an explicit stride still works
+    mat = ncnn.Mat.from_pixels(img, ncnn.Mat.PixelType.PIXEL_BGR, 6, 4, 18)
+    assert mat.w == 6 and mat.h == 4 and mat.c == 3
