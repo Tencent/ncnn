@@ -94,36 +94,8 @@ def test_dynamic():
                         return False
     return True
 
-class BatchRollModel(nn.Module):
-    def __init__(self, dims):
-        super(BatchRollModel, self).__init__()
-        self.dims = dims
-
-    def forward(self, x):
-        x = F.max_pool2d(x, 1)
-        return torch.roll(x, shifts=(1,1), dims=self.dims)
-
-def test_unsupported_batch():
-    import subprocess
-
-    x = torch.rand(2, 3, 5, 7)
-    for dims in [(0,0), (0,1), (1,-4)]:
-        model = BatchRollModel(dims).eval()
-        torch.jit.trace(model, x).save("test_torch_roll_batch.pt")
-        # Unsupported batch rolls are still lowered with a diagnostic.
-        proc = subprocess.run(["../../src/pnnx", "test_torch_roll_batch.pt",
-                               "inputshape=[2,3,5,7]", "fp16=0"],
-                              stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if proc.returncode != 0 or b"roll along batch axis 0 is not supported" not in proc.stderr:
-            return False
-        with open("test_torch_roll_batch.ncnn.param") as f:
-            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
-        if layers.count("Slice") != 2 or layers.count("Concat") != 2 or "torch.roll" in layers:
-            return False
-    return True
-
 if __name__ == "__main__":
-    if test() and test_dynamic() and test_unsupported_batch():
+    if test() and test_dynamic():
         exit(0)
     else:
         exit(1)

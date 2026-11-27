@@ -71,7 +71,7 @@ pnnx.Output             output      1 0 out
         bool axis_is_batch = false;
         if (axis == ncnn_batch_axis)
         {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
+            fprintf(stderr, "unsupported torch.roll along batch axis %d\n", ncnn_batch_axis);
             axis_is_batch = true;
         }
 
@@ -172,7 +172,7 @@ pnnx.Output             output      1 0 out
         bool axis1_is_batch = false;
         if (axis0 == ncnn_batch_axis || axis1 == ncnn_batch_axis)
         {
-            fprintf(stderr, "roll along batch axis %d is not supported\n", ncnn_batch_axis);
+            fprintf(stderr, "unsupported torch.roll along batch axis %d\n", ncnn_batch_axis);
             axis0_is_batch = axis0 == ncnn_batch_axis;
             axis1_is_batch = axis1 == ncnn_batch_axis;
         }
