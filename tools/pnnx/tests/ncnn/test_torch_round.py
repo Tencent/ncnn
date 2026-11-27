@@ -80,7 +80,7 @@ def test_round_decimals():
     mod.save(name + ".pt")
     proc = subprocess.run(["../../src/pnnx", name + ".pt", "inputshape=[2,3]", "fp16=0"],
                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if proc.returncode != 0 or b"round with non-constant decimals" not in proc.stderr:
+    if proc.returncode != 0 or b"unsupported torch.round non-constant decimals" not in proc.stderr:
         return False
     with open(name + ".pnnx.param", encoding="utf-8") as f:
         graph = f.read()

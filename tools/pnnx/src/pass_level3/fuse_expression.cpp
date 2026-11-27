@@ -4,6 +4,7 @@
 #include "fuse_expression.h"
 
 #include <algorithm>
+#include <limits>
 
 #include "storezip.h"
 #include "utils.h"
@@ -760,10 +761,16 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     {
         if (op->type == "aten::round")
         {
+            const int max_scale_exponent = std::numeric_limits<float>::max_exponent10;
             int decimals = 0;
             if (!get_round_decimals(op, decimals))
             {
-                fprintf(stderr, "round with non-constant decimals is not supported yet, ignoring decimals\n");
+                fprintf(stderr, "unsupported torch.round non-constant decimals, ignoring decimals\n");
+            }
+            else if (decimals < -max_scale_exponent || decimals > max_scale_exponent)
+            {
+                // Expression scale literals are parsed as floats.
+                fprintf(stderr, "unsupported torch.round decimals=%d outside expression scale range, ignoring decimals\n", decimals);
             }
             else if (decimals != 0)
             {
