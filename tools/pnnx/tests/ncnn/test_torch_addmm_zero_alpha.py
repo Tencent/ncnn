@@ -31,7 +31,7 @@ def test():
         proc = subprocess.run(
             ["../../src/pnnx", name + ".pt", "inputshape=%s,[2,3],[3,4]" % str(shape).replace(" ", "")],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if proc.returncode != 0 or b"addmm with alpha=0 is not supported yet" not in proc.stderr:
+        if proc.returncode != 0 or b"unsupported torch.addmm alpha=0" not in proc.stderr:
             return False
         with open(name + ".ncnn.param", "r") as f:
             layers = [line.split() for line in f.readlines()[2:] if line.strip()]

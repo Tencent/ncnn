@@ -160,7 +160,7 @@ pnnx.Output             output      1 0 out
         }
 
         if (alpha == 0.f)
-            fprintf(stderr, "addmm with alpha=0 is not supported yet\n");
+            fprintf(stderr, "unsupported torch.addmm alpha=0\n");
 
         op->params["0"] = alpha;
         op->params["1"] = alpha == 0.f ? beta : beta / alpha;
