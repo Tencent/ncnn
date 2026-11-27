@@ -839,6 +839,26 @@ static inline float16x8_t elu_ps_f16(float16x8_t x, float16x8_t alpha)
     return vaddq_f16(_pos, vmulq_f16(alpha, _neg));
 }
 
+static inline float16x4_t celu_ps_f16(float16x4_t x, float16x4_t alpha, float16x4_t inv_alpha)
+{
+    float16x4_t _zero = vdup_n_f16(0.f);
+    float16x4_t _one = vdup_n_f16(1.f);
+    float16x4_t _pos = vmax_f16(x, _zero);
+    float16x4_t _neg = vmin_f16(x, _zero);
+    _neg = vsub_f16(exp_ps_f16(vmul_f16(_neg, inv_alpha)), _one);
+    return vfma_f16(_pos, alpha, _neg);
+}
+
+static inline float16x8_t celu_ps_f16(float16x8_t x, float16x8_t alpha, float16x8_t inv_alpha)
+{
+    float16x8_t _zero = vdupq_n_f16(0.f);
+    float16x8_t _one = vdupq_n_f16(1.f);
+    float16x8_t _pos = vmaxq_f16(x, _zero);
+    float16x8_t _neg = vminq_f16(x, _zero);
+    _neg = vsubq_f16(exp_ps_f16(vmulq_f16(_neg, inv_alpha)), _one);
+    return vfmaq_f16(_pos, alpha, _neg);
+}
+
 static inline float16x4_t gelu_ps_f16(float16x4_t x)
 {
     float16x4_t _half = vdup_n_f16(0.5f);

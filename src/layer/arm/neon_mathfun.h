@@ -681,6 +681,16 @@ static inline float32x4_t elu_ps(float32x4_t x, float32x4_t alpha)
     return vaddq_f32(_pos, vmulq_f32(alpha, _neg));
 }
 
+static inline float32x4_t celu_ps(float32x4_t x, float32x4_t alpha, float32x4_t inv_alpha)
+{
+    float32x4_t _zero = vdupq_n_f32(0.f);
+    float32x4_t _one = vdupq_n_f32(1.f);
+    float32x4_t _pos = vmaxq_f32(x, _zero);
+    float32x4_t _neg = vminq_f32(x, _zero);
+    _neg = vsubq_f32(exp_ps(vmulq_f32(_neg, inv_alpha)), _one);
+    return VFMAQ_F32(_pos, alpha, _neg);
+}
+
 static inline float32x4_t gelu_ps(float32x4_t x)
 {
     float32x4_t _half = vdupq_n_f32(0.5f);
