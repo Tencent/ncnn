@@ -164,8 +164,21 @@ void main()
     const uint wgmm = (psc(GM) + M * UNROLL_SG_M * UNROLL_WG_M - 1) / (M * UNROLL_SG_M * UNROLL_WG_M);
     const uint wgnn = (psc(GN) + N * UNROLL_SG_N * UNROLL_WG_N - 1) / (N * UNROLL_SG_N * UNROLL_WG_N);
 
-    const uint wgmi = wgi / wgnn;
-    const uint wgni = wgi % wgnn;
+    uint wgmi = wgi / wgnn;
+    uint wgni = wgi % wgnn;
+    if (wgmi >= wgmm)
+        return;
+
+    // Visit neighboring M tiles together to reuse the same B tile.
+    const uint group_m = 4u;
+    if (wgmm >= group_m && wgnn > 1u)
+    {
+        const uint first_m = wgmi / group_m * group_m;
+        const uint count_m = min(group_m, wgmm - first_m);
+        const uint index = (wgmi - first_m) * wgnn + wgni;
+        wgmi = first_m + index % count_m;
+        wgni = index / count_m;
+    }
 
     const uint sgmi = sgi / UNROLL_WG_N;
     const uint sgni = sgi % UNROLL_WG_N;
@@ -173,9 +186,6 @@ void main()
     //     const uint mm = (psc(GM) + M - 1) / M;
     //     const uint nn = (psc(GN) + N - 1) / N;
     const uint kk = (psc(GK) + K - 1) / K;
-
-    if (wgmi >= wgmm)
-        return;
 
     const uint li = gl_LocalInvocationID.x;
 #if ncnn_vendorID == 0x5143

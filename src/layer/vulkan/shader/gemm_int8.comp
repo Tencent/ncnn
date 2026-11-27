@@ -42,8 +42,25 @@ shared ivec4 tmp_b[8][LOCAL_MEMORY_UNROLL_K4 + PAD];
 
 void main()
 {
-    const int gx = int(gl_GlobalInvocationID.x);
-    const int gy = int(gl_GlobalInvocationID.y);
+    const uint wgmm = gl_NumWorkGroups.y;
+    const uint wgnn = gl_NumWorkGroups.x;
+    uint wgmi = gl_WorkGroupID.y;
+    uint wgni = gl_WorkGroupID.x;
+
+    // Visit neighboring M tiles together to reuse the same B tile.
+    const uint group_m = 4u;
+    if (wgmm >= group_m && wgnn > 1u)
+    {
+        const uint first_m = wgmi / group_m * group_m;
+        const uint count_m = min(group_m, wgmm - first_m);
+        const uint index = (wgmi - first_m) * wgnn + wgni;
+        wgmi = first_m + index % count_m;
+        wgni = index / count_m;
+    }
+
+    // The INT8 GEMM pipeline uses 8 x 8 workgroups.
+    const int gx = int(wgni * 8u + gl_LocalInvocationID.x);
+    const int gy = int(wgmi * 8u + gl_LocalInvocationID.y);
     const int gz = int(gl_GlobalInvocationID.z);
 
 #if !NCNN_shader_local_memory
