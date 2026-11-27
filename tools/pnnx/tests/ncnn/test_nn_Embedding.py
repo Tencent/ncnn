@@ -43,8 +43,40 @@ def test():
             return False
     return True
 
+
+class RenormModel(nn.Module):
+    def __init__(self, norm_type):
+        super(RenormModel, self).__init__()
+        self.embed = nn.Embedding(6, 3, max_norm=1.0, norm_type=norm_type)
+        with torch.no_grad():
+            self.embed.weight.copy_(torch.arange(1, 19, dtype=torch.float32).reshape(6, 3))
+
+    def forward(self, x):
+        return self.embed(x)
+
+def test_renorm():
+    import subprocess
+    x = torch.tensor([0, 0], dtype=torch.int)
+    for i, norm_type in enumerate([1.0, 2.0, 0.5]):
+        net = RenormModel(norm_type).eval()
+        mod = torch.jit.trace(net, x)
+        name = "test_nn_Embedding_renorm_" + str(i)
+        mod.save(name + ".pt")
+        proc = subprocess.run(["../../src/pnnx", name + ".pt", "inputshape=[2]i32", "fp16=0"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if proc.returncode != 0:
+            return False
+        if "unsupported nn.Embedding max_norm" not in proc.stderr.decode():
+            return False
+        with open(name + ".ncnn.param") as f:
+            layers = [line.split()[0] for line in f.readlines()[2:] if line.strip()]
+        # Native renormalization is unsupported; check conversion and its warning,
+        # not numerical equivalence for these outputs.
+        if "nn.Embedding" in layers or "Embed" not in layers:
+            return False
+    return True
+
 if __name__ == "__main__":
-    if test():
+    if test() and test_renorm():
         exit(0)
     else:
         exit(1)
