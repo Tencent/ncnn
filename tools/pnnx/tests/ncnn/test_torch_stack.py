@@ -20,13 +20,15 @@ class Model(nn.Module):
         out3 = torch.stack((z, w), dim=-1)
         out4 = torch.stack((q, r), dim=1)
         out5 = torch.stack((q, r), dim=-1)
+        out6 = torch.stack((x, y), dim=1)
         out0.relu_()
         out1.relu_()
         out2.relu_()
         out3.relu_()
         out4.relu_()
         out5.relu_()
-        return out0, out1, out2, out3, out4, out5
+        out6.relu_()
+        return out0, out1, out2, out3, out4, out5, out6
 
 def test():
     net = Model()
@@ -48,7 +50,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_stack.pt inputshape=[3,16],[3,16],[1,5,10,4],[1,5,10,4],[2,3,5,7],[2,3,5,7]")
+    os.system("../../src/pnnx test_torch_stack.pt inputshape=[3,16],[3,16],[1,5,10,4],[1,5,10,4],[2,3,5,7],[2,3,5,7] inputshape2=[4,17],[4,17],[1,5,10,4],[1,5,10,4],[2,3,5,7],[2,3,5,7]")
 
     # ncnn inference
     import test_torch_stack_ncnn
