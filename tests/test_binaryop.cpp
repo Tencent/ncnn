@@ -417,6 +417,44 @@ static int test_binaryop_packing_tails()
     return 0;
 }
 
+static int test_binaryop_remainder()
+{
+    const int ops[] = {17, 18};
+    for (int t = 0; t < 2; t++)
+    {
+        op_type = ops[t];
+        ncnn::Mat a = RandomMat(4, 3);
+        ncnn::Mat b = RandomMat(4, 3);
+        ncnn::Mat row = RandomMat(4);
+        for (int i = 0; i < (int)a.total(); i++)
+        {
+            a[i] = a[i] < 0.f ? floorf(a[i]) - 1.f : ceilf(a[i]) + 1.f;
+            b[i] = b[i] < 0.f ? floorf(b[i]) - 1.f : ceilf(b[i]) + 1.f;
+        }
+        for (int i = 0; i < (int)row.total(); i++)
+            row[i] = row[i] < 0.f ? floorf(row[i]) - 1.f : ceilf(row[i]) + 1.f;
+
+        ncnn::Mat exact_a = RandomMat(6);
+        ncnn::Mat exact_b = RandomMat(6);
+        const float numerators[] = {5.f, -5.f, 5.f, -5.f, -6.f, 6.f};
+        const float divisors[] = {3.f, 3.f, -3.f, -3.f, 3.f, -3.f};
+        for (int i = 0; i < 6; i++)
+        {
+            exact_a[i] = numerators[i];
+            exact_b[i] = divisors[i];
+        }
+
+        int ret = test_binaryop(a, b)
+                  || test_binaryop(a, row)
+                  || test_binaryop(a, 2.f)
+                  || test_binaryop(a, -2.f)
+                  || test_binaryop(exact_a, exact_b);
+        if (ret != 0)
+            return ret;
+    }
+    return 0;
+}
+
 int main()
 {
     SRAND(7767517);
@@ -443,5 +481,5 @@ int main()
 #if NCNN_VALIDATION
            || test_binaryop_load_param()
 #endif // NCNN_VALIDATION
-           ;
+           || test_binaryop_remainder();
 }

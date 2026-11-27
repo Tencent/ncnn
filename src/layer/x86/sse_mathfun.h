@@ -1332,9 +1332,11 @@ static NCNN_FORCEINLINE __m128 floor_divide_ps(const __m128& x, const __m128& y)
 
 static NCNN_FORCEINLINE __m128 remainder_ps(const __m128& x, const __m128& y)
 {
-    __m128 q = _mm_div_ps(x, y);
-    __m128 rq = round_ps(q);
-    return _mm_sub_ps(x, _mm_mul_ps(rq, y));
+    const __m128 zero = _mm_setzero_ps();
+    const __m128 r = fmod_ps(x, y);
+    const __m128 sign_diff = _mm_xor_ps(_mm_cmplt_ps(r, zero), _mm_cmplt_ps(y, zero));
+    const __m128 mask = _mm_and_ps(_mm_cmpneq_ps(r, zero), sign_diff);
+    return _mm_or_ps(_mm_and_ps(mask, _mm_add_ps(r, y)), _mm_andnot_ps(mask, r));
 }
 
 #endif // SSE_MATHFUN_H

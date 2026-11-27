@@ -449,7 +449,7 @@ struct binary_op_remainder
 {
     NCNN_FORCEINLINE float func(const float& x, const float& y) const
     {
-        return (float)remainderf(x, y);
+        return (float)binaryop_remainder_scalar(x, y);
     }
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const
@@ -475,7 +475,7 @@ struct binary_op_rremainder
 {
     NCNN_FORCEINLINE float func(const float& x, const float& y) const
     {
-        return (float)remainderf(y, x);
+        return (float)binaryop_remainder_scalar(y, x);
     }
 #if __SSE2__
     NCNN_FORCEINLINE __m128 func_pack4(const __m128& x, const __m128& y) const

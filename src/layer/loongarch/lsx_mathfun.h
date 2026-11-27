@@ -779,9 +779,11 @@ static NCNN_FORCEINLINE __m128 floor_divide_ps(__m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m128 remainder_ps(__m128 a, __m128 b)
 {
-    __m128 q = __lsx_vfdiv_s(a, b);
-    __m128 rq = round_ps(q);
-    return __lsx_vfsub_s(a, __lsx_vfmul_s(rq, b));
+    const __m128 zero = (__m128)__lsx_vreplgr2vr_w(0);
+    const __m128 r = fmod_ps(a, b);
+    const __m128i sign_diff = __lsx_vfcmp_clt_s(r, zero) ^ __lsx_vfcmp_clt_s(b, zero);
+    const __m128i mask = ~__lsx_vfcmp_ceq_s(r, zero) & sign_diff;
+    return (__m128)__lsx_vbitsel_v((__m128i)r, (__m128i)__lsx_vfadd_s(r, b), mask);
 }
 
 #endif // LSX_MATHFUN_H

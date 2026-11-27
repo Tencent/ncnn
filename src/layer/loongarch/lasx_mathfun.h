@@ -754,9 +754,11 @@ static NCNN_FORCEINLINE __m256 floor_divide256_ps(__m256 a, __m256 b)
 
 static NCNN_FORCEINLINE __m256 remainder256_ps(__m256 a, __m256 b)
 {
-    __m256 q = __lasx_xvfdiv_s(a, b);
-    __m256 rq = round256_ps(q);
-    return __lasx_xvfsub_s(a, __lasx_xvfmul_s(rq, b));
+    const __m256 zero = (__m256)__lasx_xvreplgr2vr_w(0);
+    const __m256 r = fmod256_ps(a, b);
+    const __m256i sign_diff = __lasx_xvfcmp_clt_s(r, zero) ^ __lasx_xvfcmp_clt_s(b, zero);
+    const __m256i mask = ~__lasx_xvfcmp_ceq_s(r, zero) & sign_diff;
+    return (__m256)__lasx_xvbitsel_v((__m256i)r, (__m256i)__lasx_xvfadd_s(r, b), mask);
 }
 
 #endif // LASX_MATHFUN_H

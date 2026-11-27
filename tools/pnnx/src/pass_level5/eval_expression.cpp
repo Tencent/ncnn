@@ -627,7 +627,7 @@ static std::string eval_expression(const Operator* op)
                 if (t == "remainder")
                 {
                     r = fmod(af, bf);
-                    if (af * bf < 0)
+                    if (r != 0.f && (r < 0.f) != (bf < 0.f))
                         r += bf;
                 }
                 exprstack.push(r);

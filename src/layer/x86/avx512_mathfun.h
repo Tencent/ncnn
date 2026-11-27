@@ -996,9 +996,11 @@ static NCNN_FORCEINLINE __m512 floor_divide512_ps(const __m512& x, const __m512&
 
 static NCNN_FORCEINLINE __m512 remainder512_ps(const __m512& x, const __m512& y)
 {
-    __m512 q = _mm512_div_ps(x, y);
-    __m512 rq = round512_ps(q);
-    return _mm512_sub_ps(x, _mm512_mul_ps(rq, y));
+    const __m512 zero = _mm512_setzero_ps();
+    const __m512 r = fmod512_ps(x, y);
+    const __mmask16 sign_diff = _mm512_cmp_ps_mask(r, zero, _CMP_LT_OQ) ^ _mm512_cmp_ps_mask(y, zero, _CMP_LT_OQ);
+    const __mmask16 mask = _mm512_cmp_ps_mask(r, zero, _CMP_NEQ_OQ) & sign_diff;
+    return _mm512_mask_add_ps(r, mask, r, y);
 }
 
 #endif // AVX512_MATHFUN_H

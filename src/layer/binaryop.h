@@ -6,6 +6,10 @@
 
 #include "layer.h"
 
+#if !NCNN_SIMPLEMATH
+#include <math.h>
+#endif
+
 namespace ncnn {
 
 class BinaryOp : public Layer
@@ -50,6 +54,14 @@ public:
     int with_scalar;
     float b;
 };
+
+static inline float binaryop_remainder_scalar(float a, float b)
+{
+    float r = fmodf(a, b);
+    if (r != 0.f && (r < 0.f) != (b < 0.f))
+        r += b;
+    return r;
+}
 
 } // namespace ncnn
 

@@ -1242,9 +1242,11 @@ static NCNN_FORCEINLINE __m256 floor_divide256_ps(const __m256& x, const __m256&
 
 static NCNN_FORCEINLINE __m256 remainder256_ps(const __m256& x, const __m256& y)
 {
-    __m256 q = _mm256_div_ps(x, y);
-    __m256 rq = round256_ps(q);
-    return _mm256_sub_ps(x, _mm256_mul_ps(rq, y));
+    const __m256 zero = _mm256_setzero_ps();
+    const __m256 r = fmod256_ps(x, y);
+    const __m256 sign_diff = _mm256_xor_ps(_mm256_cmp_ps(r, zero, _CMP_LT_OQ), _mm256_cmp_ps(y, zero, _CMP_LT_OQ));
+    const __m256 mask = _mm256_and_ps(_mm256_cmp_ps(r, zero, _CMP_NEQ_OQ), sign_diff);
+    return _mm256_or_ps(_mm256_and_ps(mask, _mm256_add_ps(r, y)), _mm256_andnot_ps(mask, r));
 }
 
 #endif // AVX_MATHFUN_H

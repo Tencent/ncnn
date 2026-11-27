@@ -261,7 +261,7 @@ struct binary_op_remainder
 {
     float operator()(const float& x, const float& y) const
     {
-        return (float)remainderf(x, y);
+        return (float)binaryop_remainder_scalar(x, y);
     }
 };
 
@@ -285,7 +285,7 @@ struct binary_op_rremainder
 {
     float operator()(const float& x, const float& y) const
     {
-        return (float)remainderf(y, x);
+        return (float)binaryop_remainder_scalar(y, x);
     }
 };
 
