@@ -100,6 +100,7 @@
 #include "layer/shufflechannel.h"
 #include "layer/slice.h"
 #include "layer/softmax.h"
+#include "layer/softplus.h"
 #include "layer/split.h"
 #include "layer/squeeze.h"
 #include "layer/swiglu.h"
@@ -2761,6 +2762,13 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int fixbug0 = 1;
                 fprintf(pp, " 1=%d", fixbug0);
             }
+        }
+        else if (layer->type == "Softplus")
+        {
+            ncnn::Softplus* op = (ncnn::Softplus*)layer;
+            ncnn::Softplus* op_default = (ncnn::Softplus*)layer_default;
+
+            fprintf_param_value(" 0=%.8e", threshold)
         }
         else if (layer->type == "Squeeze")
         {

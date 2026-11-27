@@ -74,9 +74,11 @@ int Softplus_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             size_t vl = __riscv_vsetvl_e32m8(n);
 
             vfloat32m8_t _p = __riscv_vle32_v_f32m8(ptr, vl);
+            const vfloat32m8_t _x = _p;
             _p = exp_ps(_p, vl);
             _p = __riscv_vfadd_vf_f32m8(_p, 1.f, vl);
             _p = log_ps(_p, vl);
+            _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, threshold, vl), vl);
             __riscv_vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
@@ -85,7 +87,7 @@ int Softplus_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #else  // __riscv_vector
         for (int i = 0; i < size; i++)
         {
-            *ptr = logf(expf(*ptr) + 1.0f);
+            *ptr = *ptr > threshold ? *ptr : logf(expf(*ptr) + 1.0f);
             ptr++;
         }
 #endif // __riscv_vector

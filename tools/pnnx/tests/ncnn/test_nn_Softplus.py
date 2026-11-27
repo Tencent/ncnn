@@ -11,15 +11,21 @@ class Model(nn.Module):
 
         self.softplus_0 = nn.Softplus()
         self.softplus_1 = nn.Softplus(threshold=12)
+        self.softplus_2 = nn.Softplus(threshold=0)
+        self.softplus_3 = nn.Softplus(threshold=-2)
+        self.softplus_4 = nn.Softplus(threshold=0.5)
 
     def forward(self, x, y, z, w, q):
+        a = self.softplus_2(x)
+        b = self.softplus_3(x - 2)
+        c = self.softplus_4(x)
         x = self.softplus_0(x)
         y = self.softplus_1(y)
         z = self.softplus_0(z)
         w = self.softplus_0(w)
         q = F.max_pool2d(q, 1)
         q = self.softplus_0(q)
-        return x, y, z, w, q
+        return x, y, z, a, b, c, w, q
 
 def test():
     net = Model()

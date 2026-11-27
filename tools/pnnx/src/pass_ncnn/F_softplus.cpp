@@ -15,7 +15,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.softplus              op_0        1 1 input out beta=1 threshold=*
+F.softplus              op_0        1 1 input out beta=1 threshold=%threshold
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -28,6 +28,11 @@ pnnx.Output             output      1 0 out
     const char* name_str() const
     {
         return "softplus";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["0"] = captured_params.at("threshold");
     }
 };
 

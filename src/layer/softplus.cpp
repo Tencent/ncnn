@@ -3,12 +3,21 @@
 
 #include "softplus.h"
 
+#include <float.h>
+
 namespace ncnn {
 
 Softplus::Softplus()
 {
     one_blob_only = true;
     support_inplace = true;
+}
+
+int Softplus::load_param(const ParamDict& pd)
+{
+    threshold = pd.get(0, FLT_MAX);
+
+    return 0;
 }
 
 int Softplus::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -25,7 +34,7 @@ int Softplus::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         for (int i = 0; i < size; i++)
         {
-            ptr[i] = logf(expf(ptr[i]) + 1.0f);
+            ptr[i] = ptr[i] > threshold ? ptr[i] : logf(expf(ptr[i]) + 1.0f);
         }
     }
 

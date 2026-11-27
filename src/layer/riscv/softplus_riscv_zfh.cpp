@@ -35,9 +35,11 @@ int Softplus_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& op
             size_t vl = __riscv_vsetvl_e16m4(n);
 
             vfloat32m8_t _p = __riscv_vfwcvt_f_f_v_f32m8(__riscv_vle16_v_f16m4(ptr, vl), vl);
+            const vfloat32m8_t _x = _p;
             _p = exp_ps(_p, vl);
             _p = __riscv_vfadd_vf_f32m8(_p, 1.f, vl);
             _p = log_ps(_p, vl);
+            _p = __riscv_vmerge_vvm_f32m8(_p, _x, __riscv_vmfgt_vf_f32m8_b4(_x, threshold, vl), vl);
             __riscv_vse16_v_f16m4(ptr, __riscv_vfncvt_f_f_w_f16m4(_p, vl), vl);
 
             ptr += vl;
@@ -47,7 +49,7 @@ int Softplus_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& op
         for (int i = 0; i < size; i++)
         {
             float v = (float)*ptr;
-            *ptr = (__fp16)logf(expf(v) + 1.f);
+            *ptr = (__fp16)(v > threshold ? v : logf(expf(v) + 1.f));
             ptr++;
         }
 #endif // __riscv_zvfh
@@ -74,13 +76,17 @@ int Softplus_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& o
         int n = size;
         while (n > 0)
         {
-            size_t vl = __riscv_vsetvl_e16m8(n);
+            size_t vl = __riscv_vsetvl_e16m4(n);
 
-            vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-            _p = exp_ps(_p, vl);
-            _p = __riscv_vfadd_vf_f16m8(_p, (__fp16)1.f, vl);
-            _p = log_ps(_p, vl);
-            __riscv_vse16_v_f16m8(ptr, _p, vl);
+            vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+            const vfloat16m4_t _x = _p;
+            const vfloat32m8_t _x32 = __riscv_vfwcvt_f_f_v_f32m8(_x, vl);
+            const vbool4_t _mask = __riscv_vmfgt_vf_f32m8_b4(_x32, threshold, vl);
+            // max(x, 0) + log1p(exp(-abs(x))) keeps the half exponential in range.
+            _p = exp_ps(__riscv_vfneg_v_f16m4(abs_ps(_x, vl), vl), vl);
+            _p = __riscv_vfadd_vv_f16m4(__riscv_vfmax_vf_f16m4(_x, (__fp16)0.f, vl), log1p_ps(_p, vl), vl);
+            _p = __riscv_vmerge_vvm_f16m4(_p, _x, _mask, vl);
+            __riscv_vse16_v_f16m4(ptr, _p, vl);
 
             ptr += vl;
             n -= vl;
@@ -89,7 +95,7 @@ int Softplus_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& o
         for (int i = 0; i < size; i++)
         {
             float v = (float)*ptr;
-            *ptr = (__fp16)logf(expf(v) + 1.f);
+            *ptr = (__fp16)(v > threshold ? v : logf(expf(v) + 1.f));
             ptr++;
         }
 #endif // __riscv_zvfh
