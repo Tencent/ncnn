@@ -71,7 +71,7 @@ def test_unsupported():
         proc = subprocess.run(
             ["../../src/pnnx", name + ".pt", "inputshape=[2,3]", "fp16=0"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if proc.returncode != 0 or b"unsupported norm p=" not in proc.stderr:
+        if proc.returncode != 0 or b"unsupported torch.norm p=" not in proc.stderr:
             return False
         with open(name + ".ncnn.param") as f:
             layers = [line.split() for line in f.readlines()[2:] if line.strip()]
