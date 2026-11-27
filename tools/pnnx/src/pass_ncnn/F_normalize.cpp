@@ -61,6 +61,8 @@ pnnx.Output             output      1 0 out
             p = captured_params.at("p").i;
         if (captured_params.at("p").type == 3)
             p = captured_params.at("p").f;
+        if (captured_params.at("p").type == 4 && captured_params.at("p").s == "fro")
+            p = 2.f;
 
         if (p != 2.f)
         {
