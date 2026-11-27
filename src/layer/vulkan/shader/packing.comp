@@ -28,18 +28,24 @@ void main()
     const uint gx = gl_GlobalInvocationID.x;
     const uint gy = gl_GlobalInvocationID.y;
 
-    if (gx >= psc(n) || gy >= psc(c))
+    if (gx >= min(psc(n), psc(stride)) || gy >= psc(c))
         return;
 
     const uint gi = gy * psc(n) + gx;
+    const uint gi2 = gy * psc(stride) + gx;
 
     if (cast_type_from == cast_type_to)
     {
-        buffer_cp4(top_blob_data, gi, bottom_blob_data, gi);
+        if (cast_type_from == 1)
+        {
+            buffer_cp4(top_blob_data, gi2, bottom_blob_data, gi);
+        }
+        else
+        {
+            buffer_cp4(top_blob_data, gi, bottom_blob_data, gi2);
+        }
         return;
     }
-
-    const uint gi2 = gy * psc(stride) + gx;
 
     afpvec4 v;
     if (cast_type_from == 1)
