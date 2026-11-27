@@ -169,21 +169,16 @@ void main()
     if (wgmi >= wgmm)
         return;
 
-#if NCNN_bf16_storage
-    // Visit four M tiles for a given N tile to improve reuse of B.
-    // Restrict this to large, K-aligned shapes with at least 64 MiB of B data.
-    const uint group_m = 4;
-    const uint min_b_elements = 32u * 1024u * 1024u;
-    if (psc(GM) >= 256 && psc(GN) >= 4096 && psc(GK) % 32 == 0
-        && uint(psc(GK)) > (min_b_elements - 1u) / uint(psc(GN)))
+    // Visit neighboring M tiles together to reuse the same B tile.
+    const uint group_m = 4u;
+    if (wgmm >= group_m && wgnn > 1u)
     {
-        const uint first_m = (wgmi / group_m) * group_m;
+        const uint first_m = wgmi / group_m * group_m;
         const uint count_m = min(group_m, wgmm - first_m);
         const uint index = (wgmi - first_m) * wgnn + wgni;
         wgmi = first_m + index % count_m;
         wgni = index / count_m;
     }
-#endif
 
     const uint sgmi = sgi / UNROLL_WG_N;
     const uint sgni = sgi % UNROLL_WG_N;
