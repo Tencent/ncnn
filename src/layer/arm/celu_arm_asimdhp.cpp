@@ -74,11 +74,11 @@ int CELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         }
         for (; i < size; i++)
         {
-            __fp16 v = ptr[0];
-            if (v < (__fp16)0.f)
-                ptr[0] = (__fp16)((expf((float)v * inv_alpha) - 1.f) * alpha);
+            float v = (float)*ptr;
+            if (v < 0.f)
+                *ptr = (__fp16)((expf(v * inv_alpha) - 1.f) * alpha);
 
-            ptr += 1;
+            ptr++;
         }
     }
 
@@ -87,8 +87,8 @@ int CELU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 
 int CELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
 {
-    // fallback to fp32 compute when alpha or 1/alpha risks fp16 overflow or cancellation
-    if (fabsf(alpha) < 1e-4f || fabsf(alpha) > 32.f)
+    // fallback to fp32 compute for non-positive, NaN, or out-of-range alpha
+    if (!(alpha >= 1e-4f && alpha <= 1024.f))
         return forward_inplace_fp16s(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
@@ -152,11 +152,11 @@ int CELU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) co
         }
         for (; i < size; i++)
         {
-            __fp16 v = ptr[0];
-            if (v < (__fp16)0.f)
-                ptr[0] = (__fp16)((expf((float)v * inv_alpha) - 1.f) * alpha);
+            float v = (float)*ptr;
+            if (v < 0.f)
+                *ptr = (__fp16)((expf(v * inv_alpha) - 1.f) * alpha);
 
-            ptr += 1;
+            ptr++;
         }
     }
 

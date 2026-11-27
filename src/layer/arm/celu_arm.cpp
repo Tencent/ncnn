@@ -101,7 +101,6 @@ int CELU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float32x4_t _p = vld1q_f32(ptr);
             _p = celu_ps(_p, _alpha, _inv_alpha);
             vst1q_f32(ptr, _p);
-
             ptr += 4;
         }
 #endif // __ARM_NEON
@@ -142,16 +141,16 @@ int CELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #if __aarch64__
         for (; i + 15 < size; i += 16)
         {
-            uint16x8_t _p = vld1q_u16(ptr);
-            uint16x8_t _q = vld1q_u16(ptr + 8);
-            float32x4_t _p0 = celu_ps(bfloat2float(vget_low_u16(_p)), _alpha, _inv_alpha);
-            float32x4_t _p1 = celu_ps(bfloat2float(vget_high_u16(_p)), _alpha, _inv_alpha);
-            float32x4_t _p2 = celu_ps(bfloat2float(vget_low_u16(_q)), _alpha, _inv_alpha);
-            float32x4_t _p3 = celu_ps(bfloat2float(vget_high_u16(_q)), _alpha, _inv_alpha);
-            _p = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
-            _q = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
-            vst1q_u16(ptr, _p);
-            vst1q_u16(ptr + 8, _q);
+            uint16x8_t _p01 = vld1q_u16(ptr);
+            uint16x8_t _p23 = vld1q_u16(ptr + 8);
+            float32x4_t _p0 = celu_ps(bfloat2float(vget_low_u16(_p01)), _alpha, _inv_alpha);
+            float32x4_t _p1 = celu_ps(bfloat2float(vget_high_u16(_p01)), _alpha, _inv_alpha);
+            float32x4_t _p2 = celu_ps(bfloat2float(vget_low_u16(_p23)), _alpha, _inv_alpha);
+            float32x4_t _p3 = celu_ps(bfloat2float(vget_high_u16(_p23)), _alpha, _inv_alpha);
+            _p01 = vcombine_u16(float2bfloat(_p0), float2bfloat(_p1));
+            _p23 = vcombine_u16(float2bfloat(_p2), float2bfloat(_p3));
+            vst1q_u16(ptr, _p01);
+            vst1q_u16(ptr + 8, _p23);
             ptr += 16;
         }
         for (; i + 7 < size; i += 8)
@@ -173,10 +172,10 @@ int CELU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #endif // __ARM_NEON
         for (; i < size; i++)
         {
-            float v = bfloat16_to_float32(ptr[0]);
+            float v = bfloat16_to_float32(*ptr);
             if (v < 0.f)
                 v = (expf(v * inv_alpha) - 1.f) * alpha;
-            ptr[0] = float32_to_bfloat16(v);
+            *ptr = float32_to_bfloat16(v);
             ptr++;
         }
     }
