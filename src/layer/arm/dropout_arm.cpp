@@ -3,8 +3,11 @@
 
 #include "dropout_arm.h"
 
+#include "cpu.h"
+
 #if __ARM_NEON
 #include <arm_neon.h>
+#include "arm_usability.h"
 #endif // __ARM_NEON
 
 namespace ncnn {
@@ -13,7 +16,13 @@ Dropout_arm::Dropout_arm()
 {
 #if __ARM_NEON
     support_packing = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
+#endif
 #endif // __ARM_NEON
+#if NCNN_BF16
+    support_bf16_storage = true;
+#endif
 }
 
 int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -22,6 +31,18 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         return 0;
     }
+
+    const int elembits = bottom_top_blob.elembits();
+
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
+        return forward_inplace_fp16s(bottom_top_blob, opt);
+#endif
+
+#if NCNN_BF16
+    if (opt.use_bf16_storage && elembits == 16)
+        return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -112,5 +133,49 @@ int Dropout_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
+
+#if NCNN_BF16
+int Dropout_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
+{
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int d = bottom_top_blob.d;
+    const int channels = bottom_top_blob.c;
+    const int elempack = bottom_top_blob.elempack;
+    const int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        unsigned short* ptr = bottom_top_blob.channel(q);
+
+        int i = 0;
+#if __ARM_NEON
+        float32x4_t _scale = vdupq_n_f32(scale);
+        for (; i + 7 < size; i += 8)
+        {
+            uint16x8_t _p = vld1q_u16(ptr);
+            float32x4_t _p0 = bfloat2float(vget_low_u16(_p));
+            float32x4_t _p1 = bfloat2float(vget_high_u16(_p));
+            vst1q_u16(ptr, vcombine_u16(float2bfloat(vmulq_f32(_p0, _scale)), float2bfloat(vmulq_f32(_p1, _scale))));
+            ptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            float32x4_t _p = bfloat2float(vld1_u16(ptr));
+            vst1_u16(ptr, float2bfloat(vmulq_f32(_p, _scale)));
+            ptr += 4;
+        }
+#endif // __ARM_NEON
+        for (; i < size; i++)
+        {
+            *ptr = float32_to_bfloat16(bfloat16_to_float32(*ptr) * scale);
+            ptr++;
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_BF16
 
 } // namespace ncnn
