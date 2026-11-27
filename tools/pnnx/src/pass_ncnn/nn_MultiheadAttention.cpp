@@ -40,12 +40,12 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("add_bias_kv").b)
         {
-            fprintf(stderr, "MultiheadAttention add_bias_kv=True not supported\n");
+            fprintf(stderr, "unsupported nn.MultiheadAttention add_bias_kv=True\n");
         }
 
         if (captured_params.at("add_zero_attn").b)
         {
-            fprintf(stderr, "MultiheadAttention add_zero_attn=True not supported\n");
+            fprintf(stderr, "unsupported nn.MultiheadAttention add_zero_attn=True\n");
         }
 
         const int embed_dim = captured_params.at("embed_dim").i;
@@ -228,12 +228,12 @@ pnnx.Output             output      1 0 out
 
         if (captured_params.at("add_bias_kv").b)
         {
-            fprintf(stderr, "MultiheadAttention add_bias_kv=True not supported\n");
+            fprintf(stderr, "unsupported nn.MultiheadAttention add_bias_kv=True\n");
         }
 
         if (captured_params.at("add_zero_attn").b)
         {
-            fprintf(stderr, "MultiheadAttention add_zero_attn=True not supported\n");
+            fprintf(stderr, "unsupported nn.MultiheadAttention add_zero_attn=True\n");
         }
 
         const int embed_dim = captured_params.at("embed_dim").i;
