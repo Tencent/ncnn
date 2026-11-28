@@ -298,6 +298,124 @@ int RotaryEmbed_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::v
 
     return 0;
 }
+
+/* fp16sa for the fused layout (input_hc_swapped=1): the input is [w=embed_dim,
+ * h=num_heads, c=seqlen] (having absorbed Permute(order_type=2)), the output is
+ * standard [embed_dim, seqlen, num_heads]. The indexing matches the generic
+ * implementation's fused path, the arithmetic stays in fp16 (mul/FMA in the
+ * fp16 domain), equivalent to forward_fp16sa on the normal path. */
+int RotaryEmbed_arm::forward_fp16sa_swapped(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& cos_cache = bottom_blobs[1];
+    const Mat& sin_cache = bottom_blobs[2];
+
+    const int embed_dim = bottom_blob.w;
+    const int seqlen = bottom_blob.c;    /* fused layout: the sequence is on the c axis */
+    const int num_heads = bottom_blob.h; /* heads on the h axis */
+    const int half = embed_dim / 2;
+
+    Mat& top_blob = top_blobs[0];
+    /* in fusion mode the output returns to the standard layout (the absorbed Permute's work is done by this layer) */
+    top_blob.create(embed_dim, seqlen, num_heads, bottom_blob.elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < num_heads; q++)
+    {
+        Mat out_head = top_blob.channel(q);
+
+        for (int i = 0; i < seqlen; i++)
+        {
+            /* in the swapped layout, element (head q, sequence i) lives at channel(i).row(q) */
+            const Mat seq_ch = bottom_blob.channel(i);
+            const __fp16* cos_ptr = cos_cache.row<const __fp16>(i);
+            const __fp16* sin_ptr = sin_cache.row<const __fp16>(i);
+
+            if (interleaved)
+            {
+                const __fp16* ptr = seq_ch.row<const __fp16>(q);
+                __fp16* outptr = out_head.row<__fp16>(i);
+
+                int j = 0;
+                for (; j + 7 < half; j += 8)
+                {
+                    float16x8x2_t _p = vld2q_f16(ptr); // _p.val[0]=x0 lanes, _p.val[1]=x1 lanes
+                    float16x8_t _c = vld1q_f16(cos_ptr);
+                    float16x8_t _s = vld1q_f16(sin_ptr);
+
+                    float16x8x2_t _out;
+                    _out.val[0] = vfmsq_f16(vmulq_f16(_p.val[0], _c), _p.val[1], _s); // x0*c - x1*s
+                    _out.val[1] = vfmaq_f16(vmulq_f16(_p.val[1], _c), _p.val[0], _s); // x0*s + x1*c
+                    vst2q_f16(outptr, _out);
+
+                    ptr += 16;
+                    outptr += 16;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
+                }
+                for (; j < half; j++)
+                {
+                    const float x0 = (float)ptr[0];
+                    const float x1 = (float)ptr[1];
+                    const float cos_val = (float)*cos_ptr++;
+                    const float sin_val = (float)*sin_ptr++;
+                    outptr[0] = (__fp16)(x0 * cos_val - x1 * sin_val);
+                    outptr[1] = (__fp16)(x0 * sin_val + x1 * cos_val);
+                    ptr += 2;
+                    outptr += 2;
+                }
+            }
+            else
+            {
+                // full-width cache => independent cos/sin per half (2D rope); half-width => reuse.
+                const int cw = cos_cache.w == embed_dim ? half : 0;
+                const __fp16* ptr0 = seq_ch.row<const __fp16>(q);
+                const __fp16* ptr1 = ptr0 + half;
+                const __fp16* cos_ptr1 = cos_ptr + cw;
+                const __fp16* sin_ptr1 = sin_ptr + cw;
+                __fp16* outptr0 = out_head.row<__fp16>(i);
+                __fp16* outptr1 = outptr0 + half;
+
+                int j = 0;
+                for (; j + 7 < half; j += 8)
+                {
+                    float16x8_t _x0 = vld1q_f16(ptr0);
+                    float16x8_t _x1 = vld1q_f16(ptr1);
+                    float16x8_t _c0 = vld1q_f16(cos_ptr);
+                    float16x8_t _s0 = vld1q_f16(sin_ptr);
+                    float16x8_t _c1 = vld1q_f16(cos_ptr1);
+                    float16x8_t _s1 = vld1q_f16(sin_ptr1);
+
+                    float16x8_t _y0 = vfmsq_f16(vmulq_f16(_x0, _c0), _x1, _s0); // x0*c0 - x1*s0
+                    float16x8_t _y1 = vfmaq_f16(vmulq_f16(_x1, _c1), _x0, _s1); // x1*c1 + x0*s1
+
+                    vst1q_f16(outptr0, _y0);
+                    vst1q_f16(outptr1, _y1);
+
+                    ptr0 += 8;
+                    ptr1 += 8;
+                    cos_ptr += 8;
+                    sin_ptr += 8;
+                    cos_ptr1 += 8;
+                    sin_ptr1 += 8;
+                    outptr0 += 8;
+                    outptr1 += 8;
+                }
+                for (; j < half; j++)
+                {
+                    const float x0 = (float)*ptr0++;
+                    const float x1 = (float)*ptr1++;
+                    *outptr0++ = (__fp16)(x0 * (float)*cos_ptr++ - x1 * (float)*sin_ptr++);
+                    *outptr1++ = (__fp16)(x0 * (float)*sin_ptr1++ + x1 * (float)*cos_ptr1++);
+                }
+            }
+        }
+    }
+
+    return 0;
+}
 #endif // NCNN_ARM82
 
 } // namespace ncnn

@@ -19,6 +19,12 @@ public:
 
 public:
     int interleaved;
+    /* for graph-level fusion (default 0, behavior completely unchanged): the
+     * input tensor is interpreted as [w, c, h], i.e. the preceding
+     * Permute(order_type=2, [w,h,c]->[w,c,h]) is absorbed into this layer.
+     * Values and operation order are exactly the same, only the read indices
+     * differ => the output is bit-identical. */
+    int input_hc_swapped;
 };
 
 } // namespace ncnn
