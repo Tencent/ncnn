@@ -489,6 +489,13 @@ Layer* create_layer_cpu(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_XTHEADVECTOR
+#if NCNN_RUNTIME_CPU && NCNN_MXU2
+    if (ncnn::cpu_support_mips_mxu2())
+    {
+        layer_creator = layer_registry_mxu2[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_MXU2
 #if NCNN_RUNTIME_CPU && NCNN_RVV
     if (ncnn::cpu_support_riscv_v())
     {
