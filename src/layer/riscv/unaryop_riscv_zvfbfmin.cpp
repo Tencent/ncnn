@@ -109,19 +109,19 @@ int unaryop_bf16s_zvfbfmin(Mat& bottom_top_blob, int op_type, const Option& opt)
         return unary_op_inplace_bf16s<unary_op_expm1>(bottom_top_blob, opt);
 
     if (op_type == UnaryOp::Operation_SINH)
-        return unary_op_inplace_bf16s<unary_op_sinh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_sinh>(bottom_top_blob, opt);
 
     if (op_type == UnaryOp::Operation_ASINH)
-        return unary_op_inplace_bf16s<unary_op_asinh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_asinh>(bottom_top_blob, opt);
 
     if (op_type == UnaryOp::Operation_COSH)
         return unary_op_inplace_bf16s<unary_op_cosh>(bottom_top_blob, opt);
 
     if (op_type == UnaryOp::Operation_ACOSH)
-        return unary_op_inplace_bf16s<unary_op_acosh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_acosh>(bottom_top_blob, opt);
 
     if (op_type == UnaryOp::Operation_ATANH)
-        return unary_op_inplace_bf16s<unary_op_atanh>(bottom_top_blob, opt);
+        return unary_op_inplace_bf16s_m4<unary_op_atanh>(bottom_top_blob, opt);
 
     if (op_type == UnaryOp::Operation_LOG1P)
         return unary_op_inplace_bf16s<unary_op_log1p>(bottom_top_blob, opt);

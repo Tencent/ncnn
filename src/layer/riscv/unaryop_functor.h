@@ -150,6 +150,11 @@ struct unary_op_sin
     {
         return sin_ps(x, vl);
     }
+
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
+    {
+        return sin_ps(x, vl);
+    }
 #else  // __riscv_vector
     NCNN_FORCEINLINE float operator()(const float& x) const
     {
@@ -162,6 +167,11 @@ struct unary_op_cos
 {
 #if __riscv_vector
     NCNN_FORCEINLINE vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return cos_ps(x, vl);
+    }
+
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
     {
         return cos_ps(x, vl);
     }
@@ -190,6 +200,23 @@ struct unary_op_tan
         vfloat32m8_t sin_x, cos_x;
         sincos_ps(x, &sin_x, &cos_x, vl);
         return __riscv_vfdiv_vv_f32m8(sin_x, cos_x, vl);
+#endif
+    }
+
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
+    {
+#if __riscv_xtheadvector
+        std::vector<float> tmp(vl);
+        __riscv_vse32_v_f32m4(tmp.data(), x, vl);
+        for (size_t i = 0; i < vl; i++)
+        {
+            tmp[i] = tanf(tmp[i]);
+        }
+        return __riscv_vle32_v_f32m4(tmp.data(), vl);
+#else
+        vfloat32m4_t sin_x, cos_x;
+        sincos_ps(x, &sin_x, &cos_x, vl);
+        return __riscv_vfdiv_vv_f32m4(sin_x, cos_x, vl);
 #endif
     }
 #else  // __riscv_vector
@@ -372,9 +399,8 @@ struct unary_op_sign
         vbool4_t pos = __riscv_vmfgt_vf_f32m8_b4(x, 0.f, vl);
         vbool4_t neg = __riscv_vmflt_vf_f32m8_b4(x, 0.f, vl);
         vfloat32m8_t zero = __riscv_vfmv_v_f_f32m8(0.f, vl);
-        vfloat32m8_t one = __riscv_vfmv_v_f_f32m8(1.f, vl);
-        vfloat32m8_t negone = __riscv_vfmv_v_f_f32m8(-1.f, vl);
-        return __riscv_vmerge_vvm_f32m8(__riscv_vmerge_vvm_f32m8(zero, one, pos, vl), negone, neg, vl);
+        zero = __riscv_vfmerge_vfm_f32m8(zero, 1.f, pos, vl);
+        return __riscv_vfmerge_vfm_f32m8(zero, -1.f, neg, vl);
     }
 #else  // __riscv_vector
     NCNN_FORCEINLINE float operator()(const float& x) const
@@ -391,6 +417,11 @@ struct unary_op_expm1
     {
         return expm1_ps(x, vl);
     }
+
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
+    {
+        return expm1_ps(x, vl);
+    }
 #else  // __riscv_vector
     NCNN_FORCEINLINE float operator()(const float& x) const
     {
@@ -402,7 +433,7 @@ struct unary_op_expm1
 struct unary_op_sinh
 {
 #if __riscv_vector
-    NCNN_FORCEINLINE vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
     {
         return sinh_ps(x, vl);
     }
@@ -417,7 +448,7 @@ struct unary_op_sinh
 struct unary_op_asinh
 {
 #if __riscv_vector
-    NCNN_FORCEINLINE vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
     {
         return asinh_ps(x, vl);
     }
@@ -436,6 +467,11 @@ struct unary_op_cosh
     {
         return cosh_ps(x, vl);
     }
+
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
+    {
+        return cosh_ps(x, vl);
+    }
 #else  // __riscv_vector
     NCNN_FORCEINLINE float operator()(const float& x) const
     {
@@ -447,7 +483,7 @@ struct unary_op_cosh
 struct unary_op_acosh
 {
 #if __riscv_vector
-    NCNN_FORCEINLINE vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
     {
         return acosh_ps(x, vl);
     }
@@ -462,7 +498,7 @@ struct unary_op_acosh
 struct unary_op_atanh
 {
 #if __riscv_vector
-    NCNN_FORCEINLINE vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
     {
         return atanh_ps(x, vl);
     }
@@ -478,6 +514,11 @@ struct unary_op_log1p
 {
 #if __riscv_vector
     NCNN_FORCEINLINE vfloat32m8_t operator()(const vfloat32m8_t& x, const size_t& vl) const
+    {
+        return log1p_ps(x, vl);
+    }
+
+    NCNN_FORCEINLINE vfloat32m4_t operator()(const vfloat32m4_t& x, const size_t& vl) const
     {
         return log1p_ps(x, vl);
     }

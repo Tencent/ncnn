@@ -115,13 +115,13 @@ int Log_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e16m8(n);
+                size_t vl = __riscv_vsetvl_e16m4(n);
 
-                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                _p = __riscv_vfmul_vf_f16m8(_p, _scale, vl);
-                _p = __riscv_vfadd_vf_f16m8(_p, _shift, vl);
+                vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+                _p = __riscv_vfmul_vf_f16m4(_p, _scale, vl);
+                _p = __riscv_vfadd_vf_f16m4(_p, _shift, vl);
                 _p = log_ps(_p, vl);
-                __riscv_vse16_v_f16m8(ptr, _p, vl);
+                __riscv_vse16_v_f16m4(ptr, _p, vl);
 
                 ptr += vl;
                 n -= vl;
@@ -147,14 +147,14 @@ int Log_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             int n = size;
             while (n > 0)
             {
-                size_t vl = __riscv_vsetvl_e16m8(n);
+                size_t vl = __riscv_vsetvl_e16m4(n);
 
-                vfloat16m8_t _p = __riscv_vle16_v_f16m8(ptr, vl);
-                _p = __riscv_vfmul_vf_f16m8(_p, _scale, vl);
-                _p = __riscv_vfadd_vf_f16m8(_p, _shift, vl);
+                vfloat16m4_t _p = __riscv_vle16_v_f16m4(ptr, vl);
+                _p = __riscv_vfmul_vf_f16m4(_p, _scale, vl);
+                _p = __riscv_vfadd_vf_f16m4(_p, _shift, vl);
                 _p = log_ps(_p, vl);
-                _p = __riscv_vfmul_vf_f16m8(_p, _log_base_inv, vl);
-                __riscv_vse16_v_f16m8(ptr, _p, vl);
+                _p = __riscv_vfmul_vf_f16m4(_p, _log_base_inv, vl);
+                __riscv_vse16_v_f16m4(ptr, _p, vl);
 
                 ptr += vl;
                 n -= vl;
