@@ -27,6 +27,11 @@ public:
     int normalized; // 0=disabled 1=sqrt(n_fft) 2=window-l2-energy
 
     Mat window_data;
+
+    // power-of-two fast path tables (fft_is_fast(n_fft)), see spectrogram_fft.h
+    Mat fft_rev;     // n_fft/2-point bit-reversal permutation
+    Mat fft_tw;      // n_fft/2-point twiddles, n_fft/4 (re, im) pairs
+    Mat fft_tw_real; // n-point twiddles, n_fft/2+1 (re, im) pairs
 };
 
 } // namespace ncnn
