@@ -1,0 +1,36 @@
+// Copyright 2026 Futz12 <pchar.cn>
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+layout(binding = 0) readonly buffer src_blob { sfp src_data[]; };
+layout(binding = 1) writeonly buffer dst_blob { sfp dst_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int len;
+    int src_offset;
+    int dst_offset;
+    int mode;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+
+    if (gx >= p.len)
+        return;
+
+    int di = p.dst_offset + gx;
+
+    if (p.mode == 0)
+    {
+        buffer_st1(dst_data, di, afp(0.f));
+    }
+    else
+    {
+        int si = p.src_offset + gx;
+        afp v = buffer_ld1(src_data, si);
+        buffer_st1(dst_data, di, v);
+    }
+}
