@@ -217,6 +217,10 @@ static int test_gemm_block_quant(const ncnn::Mat& A, const ncnn::Mat& B, const n
     opt.use_fp16_arithmetic = false;
     opt.use_bf16_storage = false;
 
+    // vulkan needs packing enabled to be exercised, keep fp32 storage so the values are exact
+    ncnn::Option opt_gpu = opt;
+    opt_gpu.use_packing_layout = true;
+
     if (bits != 8)
     {
         std::vector<ncnn::Mat> ref_weights;
@@ -238,10 +242,15 @@ static int test_gemm_block_quant(const ncnn::Mat& A, const ncnn::Mat& B, const n
                 return -1;
         }
 
+        // 4 and 6 bit block quantization has no vulkan kernel
         return 0;
     }
 
-    return test_layer("Gemm", pd, weights, a, 1, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
+    const int ret = test_layer("Gemm", pd, weights, a, 1, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
+    if (ret != 0)
+        return ret;
+
+    return test_layer_opt("Gemm", pd, weights, opt_gpu, a, 1, 0.001f, 0);
 }
 
 static int test_gemm(int M, int N, int K, int bits, int block_size, int has_input_scale = 0, int transA = 0, int output_transpose = 0, int output_N1M = 0, int dims3 = 0)
@@ -436,10 +445,20 @@ static int test_gemm_wq_int8_exact_weight_tail(int K)
 
     const ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size));
     const int ret = test_layer("Gemm", pd, weights, A, 0.001f, TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING);
-    if (ret != 0)
+
+    ncnn::Option opt_gpu;
+    opt_gpu.use_packing_layout = true;
+    opt_gpu.use_fp16_packed = false;
+    opt_gpu.use_fp16_storage = false;
+    opt_gpu.use_fp16_arithmetic = false;
+    opt_gpu.use_bf16_storage = false;
+
+    const int gpu_ret = test_layer_opt("Gemm", pd, weights, opt_gpu, A, 0.001f, 0);
+
+    if (ret != 0 || gpu_ret != 0)
         fprintf(stderr, "test_gemm_wq_int8_exact_weight_tail failed K=%d\n", K);
 
-    return ret;
+    return ret != 0 ? ret : gpu_ret;
 }
 
 static int test_gemm_wq_int8_input_scale_equivalence(int transA, int output_transpose)
@@ -608,6 +627,46 @@ static int test_gemm_wq_int8_pipeline()
     return test_ret;
 }
 
+// fp16 storage is the default on vulkan, verify the int8 block quant kernel there too
+static int test_gemm_wq_int8_fp16_storage()
+{
+    const int M = 16;
+    const int N = 16;
+    const int K = 68;
+    const int block_size = 64;
+
+    ncnn::Mat A(K, M);
+    ncnn::Mat B(K, N);
+    RandomizeA(A, 0, block_size, ncnn::Mat());
+    RandomizeB(B, block_size, ncnn::Mat());
+
+    ncnn::Mat B_quantized;
+    ncnn::Mat B_quantize_scales;
+    ncnn::Mat B_dequantized;
+    quantize_weight(B, 8, block_size, B_quantized, B_quantize_scales, B_dequantized);
+
+    std::vector<ncnn::Mat> weights(2);
+    weights[0] = B_quantized;
+    weights[1] = B_quantize_scales;
+
+    const ncnn::ParamDict pd = make_gemm_param(M, N, K, weight_block_quantize_term(8, block_size));
+
+    ncnn::Option opt;
+    opt.use_packing_layout = true;
+    opt.use_fp16_packed = true;
+    opt.use_fp16_storage = true;
+    opt.use_fp16_arithmetic = true;
+    opt.use_bf16_storage = false;
+
+    std::vector<ncnn::Mat> a(1, A);
+
+    const int ret = test_layer_opt("Gemm", pd, weights, opt, a, 1, 0.1f, 0);
+    if (ret != 0)
+        fprintf(stderr, "test_gemm_wq_int8_fp16_storage failed\n");
+
+    return ret;
+}
+
 static int test_gemm_0()
 {
     return 0
@@ -670,6 +729,11 @@ static int test_gemm_3()
            || test_gemm(7, 9, 67, 8, 64, 1, 1, 1)
            || test_gemm(8, 7, 34, 8, 32, 1)
            || test_gemm(7, 9, 34, 8, 32, 1, 1, 1)
+           || test_gemm(24, 24, 80, 8, 32, 0, 1)
+           || test_gemm(24, 24, 80, 8, 32, 0, 0)
+           || test_gemm(70, 24, 80, 8, 32, 0, 0)
+           || test_gemm(70, 64, 80, 8, 32, 0, 0)
+           || test_gemm(128, 24, 80, 8, 32, 0, 0)
            || test_gemm_wq_int8_tile(1, 17, 33, 32, 1, 4, 32)
            || test_gemm_wq_int8_tile(17, 19, 35, 32, 9, 4, 32, 1, 0, 1)
            || test_gemm(15, 15, 68, 8, 64, 0, 1)
@@ -729,6 +793,7 @@ int main()
               || test_gemm_wq_int8_input_scale_equivalence(0, 0)
               || test_gemm_wq_int8_input_scale_equivalence(1, 1)
               || test_gemm_wq_int8_pipeline()
+              || test_gemm_wq_int8_fp16_storage()
               || test_gemm_0()
               || test_gemm_2()
               || test_gemm_3();

@@ -1,0 +1,120 @@
+// Copyright 2026 Tencent
+// SPDX-License-Identifier: BSD-3-Clause
+
+#version 450
+
+// quantize the activations of a gemm block quant layer to int8 with one descale per K block
+// one invocation handles one (block, m) pair, mirroring the cpu activation quantization
+//
+// A_int8 word k4 of row m holds the quantized values 4*k4 .. 4*k4+3
+// A_descales holds one fp32 descale per (block, m), block major
+
+layout(constant_id = 0) const int transA = 0;
+layout(constant_id = 1) const int block_size = 32;
+layout(constant_id = 2) const int has_input_scale = 0;
+layout(constant_id = 3) const int block_count = 0;
+layout(constant_id = 4) const int A_k4 = 0;
+
+layout(binding = 0) readonly buffer A_blob { sfp A_data[]; };
+layout(binding = 1) writeonly buffer A_int8_blob { sint8vec4 A_int8_data[]; };
+layout(binding = 2) writeonly buffer A_descales_blob { float A_descales_data[]; };
+layout(binding = 3) readonly buffer input_scales_blob { vec4 input_scales_data[]; };
+
+layout(push_constant) uniform parameter
+{
+    int M;
+    int K;
+    int A_hstep;
+    int A_descale_pitch;
+} p;
+
+float block_quant_activation(int m, int k)
+{
+    const int ai = transA == 1 ? k * p.A_hstep + m : m * p.A_hstep + k;
+    float v = float(buffer_ld1(A_data, ai));
+
+    if (has_input_scale == 1)
+        v *= input_scales_data[k >> 2][k & 3];
+
+    return v;
+}
+
+void main()
+{
+    const int g = int(gl_GlobalInvocationID.x);
+    const int m = int(gl_GlobalInvocationID.y);
+
+    if (g >= block_count || m >= p.A_descale_pitch)
+        return;
+
+    if (m >= p.M)
+    {
+        // pad the m lanes the tile shader may still read, one block clears the whole
+        // row the others only record the zero descale
+        if (g == 0)
+        {
+            for (int k4 = 0; k4 < A_k4; k4++)
+            {
+                i8buffer_st4(A_int8_data, m * A_k4 + k4, ivec4(0));
+            }
+        }
+
+        A_descales_data[g * p.A_descale_pitch + m] = 0.f;
+        return;
+    }
+
+    const int k0 = g * block_size;
+    const int kend = min(k0 + block_size, p.K);
+
+    float absmax = 0.f;
+    for (int k = k0; k < kend; k++)
+    {
+        absmax = max(absmax, abs(block_quant_activation(m, k)));
+    }
+
+    if (absmax == 0.f)
+    {
+        A_descales_data[g * p.A_descale_pitch + m] = 0.f;
+
+        for (int k4 = k0 / 4; k4 < (kend + 3) / 4; k4++)
+        {
+            i8buffer_st4(A_int8_data, m * A_k4 + k4, ivec4(0));
+        }
+
+        if (g == block_count - 1)
+        {
+            for (int k4 = (kend + 3) / 4; k4 < A_k4; k4++)
+            {
+                i8buffer_st4(A_int8_data, m * A_k4 + k4, ivec4(0));
+            }
+        }
+
+        return;
+    }
+
+    const float scale = 127.f / absmax;
+    A_descales_data[g * p.A_descale_pitch + m] = absmax * (1.f / 127.f);
+
+    for (int k4 = k0 / 4; k4 < (kend + 3) / 4; k4++)
+    {
+        ivec4 q = ivec4(0);
+
+        for (int l = 0; l < 4; l++)
+        {
+            const int k = k4 * 4 + l;
+            if (k < kend)
+                q[l] = float2int8(block_quant_activation(m, k) * scale);
+        }
+
+        i8buffer_st4(A_int8_data, m * A_k4 + k4, q);
+    }
+
+    if (g == block_count - 1)
+    {
+        // the tile shader loads 4 words at once, keep the row padding inert
+        for (int k4 = (kend + 3) / 4; k4 < A_k4; k4++)
+        {
+            i8buffer_st4(A_int8_data, m * A_k4 + k4, ivec4(0));
+        }
+    }
+}
