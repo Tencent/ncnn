@@ -4,6 +4,7 @@
 #include "mat.h"
 
 #include <limits.h>
+#include <stdint.h>
 
 #if __ARM_NEON
 #include <arm_neon.h>
@@ -1949,8 +1950,13 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
 
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* yptr = yuv420sp;
-    const unsigned char* vuptr = yuv420sp + w * h;
+    const unsigned char* vuptr = yuv420sp + (size_t)w * (size_t)h;
 
 #if __ARM_NEON
     uint8x8_t _v128 = vdup_n_u8(128);
@@ -2140,8 +2146,13 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
 
 void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
     const unsigned char* yptr = yuv420sp;
-    const unsigned char* uvptr = yuv420sp + w * h;
+    const unsigned char* uvptr = yuv420sp + (size_t)w * (size_t)h;
 
 #if __ARM_NEON
     uint8x8_t _v128 = vdup_n_u8(128);
@@ -2331,7 +2342,12 @@ void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned cha
 
 void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rgb)
 {
-    const unsigned char* puv = yuv + w * h;
+    if (w <= 0 || h <= 0 || w % 2 != 0 || h % 2 != 0)
+        return;
+    if ((int64_t)w * (int64_t)h > (int64_t)INT_MAX / 4)
+        return;
+
+    const unsigned char* puv = yuv + (size_t)w * (size_t)h;
     const unsigned char *py0 = yuv, *py1 = yuv + w;
     const int hstep = h / 2;
 #if __ARM_NEON
