@@ -46,6 +46,7 @@ ncnn_add_layer_perf(RMSNorm)
 ncnn_add_layer_perf(LayerNorm)
 ncnn_add_layer_perf(Normalize)
 ncnn_add_layer_perf(Permute)
+ncnn_add_layer_perf(BNLL)
 
 # SDPA perf tests (decode and prefill phases)
 if(WITH_LAYER_sdpa)
