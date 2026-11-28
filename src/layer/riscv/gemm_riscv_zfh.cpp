@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gemm_riscv.h"
+#include <cstdio>
+#include <cstdlib>
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -10,6 +12,7 @@
 #include "riscv_usability.h"
 
 #include "cpu.h"
+#include <stdlib.h>
 
 namespace ncnn {
 
@@ -1773,6 +1776,292 @@ int Gemm_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<
     }
 
     return ret;
+}
+#endif // NCNN_ZFH
+
+// ================== SpacemiT K3 A100 IME2 (smt.vfwmadot) ==================
+#if NCNN_ZFH && NCNN_RISCV_SPACEMIT_IME2
+#if __riscv_v
+#include "gemm_riscv_ime2.h"
+#endif
+
+int Gemm_riscv::create_pipeline_ime2(const Option& opt)
+{
+#if !__riscv_v
+    (void)opt;
+    return -99;
+#else
+    // Probe first: can the current core execute smt.vfwmadot (SIGILL on the X100).
+    // Probe failure -> return non-zero; the caller falls back to the fp16s path.
+    // Probe the workers with the same team size as forward: forward's parallel regions all carry
+    // num_threads(opt.num_threads); a larger team would dispatch unprobed workers.
+    if (!ncnn_ime2::ime2_probe(opt.num_threads))
+        return -99;
+
+    /* weight range pre-check: a finite |w| > 65504 would be packed to ±inf, distorting the
+     * whole IME2 path (including the VLEN-agnostic fallback, which also reads the tiles). Do not
+     * arm IME2; return -99 so the caller builds the upstream pipeline (fp16s/fp32 semantics
+     * unchanged). */
+    if (!ncnn_ime2::ime2_weights_fit_fp16(B_data))
+        return -99;
+
+    // Pack constant B (the [N,K] weights) into IME2's 8x8 contiguous tile layout.
+    // A thread-count-agnostic layout: forward may use any num_threads.
+    const int N = constantN;
+    const int K = constantK;
+
+    int ret = ncnn_ime2::ime2_pack_B(B_data, BT_data_ime2, N, K);
+    if (ret != 0)
+        return ret;
+
+    /* int8 weight mode (optional precision mode, NCNN_IME2_INT8=1): a column-major int8 panel plus
+     * one fp16 scale per column, quantized directly from the original weights. Decoding uses an
+     * integer-domain dot product (vwadd widening + vwmacc accumulation), measured +28~31% on decode.
+     * The first "tile-layout int8 + convert every 8 elements to float" implementation was removed
+     * (600x slower in microbenchmarks, see REPORT 7.40/7.41). */
+    /* Explicitly require "1": a deployment materializing the disabled boolean as
+     * NCNN_IME2_INT8=0 leaves getenv non-null, and the fp16 IME2 decode would
+     * silently switch to the lossy int8 path. */
+    const char* i8env = getenv("NCNN_IME2_INT8");
+    if (i8env && i8env[0] == '1' && i8env[1] == '\0')
+    {
+        ncnn_ime2::ime2_quantize_B_int8_col(B_data, BT_i8c_ime2, BT_wscale_ime2, N, K);
+    }
+
+    use_ime2_path = 1;
+    nT = opt.num_threads;
+
+    return 0;
+#endif
+}
+
+int Gemm_riscv::forward_ime2_fallback(const Mat& A, int M, int N, int K, float alpha, int out_elempack, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+#if !__riscv_v
+    (void)A;
+    (void)M;
+    (void)N;
+    (void)K;
+    (void)alpha;
+    (void)out_elempack;
+    (void)top_blobs;
+    (void)opt;
+    return -1;
+#else
+
+    const bool c_never_exists = (constantC && constant_broadcast_type_C == -1);
+    /* Previously the non-takeover case returned -99 here to let the dispatcher drop to fp16s —
+     * but that was wrong: precisely the case that needs this fallback is when the team has left
+     * the cluster it was on at pipeline-build time (the fp16s panel was packed with the vlenb of
+     * that moment, and under a new vlenb both the generic and fp16s kernels would misindex).
+     * Every call that reaches here has already been confirmed to have no C term (has_C checked at
+     * dispatch), so the fixed-layout naive fallback is correct for them too. */
+    (void)c_never_exists;
+
+    /* full-takeover: the only VLEN-agnostic weight representation is BT_data_ime2 (fixed 8x8
+         * tile layout with constant row padding). The naive fp32 accumulation computes directly
+         * from it and is correct on any core. This is degraded mode: correctness first, speed
+         * second. */
+    Option opt_tmp = opt;
+    opt_tmp.blob_allocator = opt.workspace_allocator;
+
+    Mat A32;
+    if (A.elembits() == 16)
+        cast_float16_to_float32(A, A32, opt_tmp);
+    else
+        A32 = A; /* fp32 shared, zero copy */
+    if (A32.empty())
+        return -100;
+    /* any packing (fp16 packn or fp32 packn) is invalid for the per-row indexing here: unpack to pack1 */
+    if (A32.elempack != 1)
+    {
+        Mat A32_p1;
+        convert_packing(A32, A32_p1, 1, opt_tmp);
+        if (A32_p1.empty())
+            return -100;
+        A32 = A32_p1;
+    }
+
+    /* BT_data_ime2 layout: tile (i,j) at (size_t)i*ldt + j*64, element (r,c) at
+     * t[r*8+c] = B[n=i*8+r][k=j*8+c]; ldt = kt*64 + IME2_TILE_PAD. */
+    /* fp32 input deserves fp32 weights: the fp16-packed BT_data_ime2 rounds any
+     * weight not exactly representable in fp16, so merely entering this fallback
+     * would change the result. For bare fp32 A, read the original fp32 B_data
+     * (row-major [w=K, h=N], VLEN-agnostic) instead of the packed fp16 tiles. */
+    /* lightmode released B_data: use the retained fp32 reference when present */
+    const Mat& Borig = !B_data_fp32_fallback.empty() ? B_data_fp32_fallback : B_data;
+    const int wfp32 = (A.elembits() == 32 && !Borig.empty() && Borig.elembits() == 32 && Borig.elempack == 1);
+    const float* Bp = wfp32 ? (const float*)Borig.data : 0;
+    const int kt = (K + 7) / 8;
+    const size_t ldt = IME2_TILE_LD(kt);
+    const __fp16* bt = (const __fp16*)BT_data_ime2;
+
+    Mat C32(N, M, 4u, opt_tmp.blob_allocator); /* [w=N, h=M] fp32 pack1 */
+    if (C32.empty())
+        return -100;
+
+    /* one K row buffer per thread (the B row is unpacked from the tile layout), then an RVV fp32 dot product. */
+    Mat kbuf_mat(K, opt.num_threads, 4u, opt_tmp.blob_allocator);
+    if (kbuf_mat.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int m = 0; m < M; m++)
+    {
+        const float* arow = A32.dims == 3 ? A32.channel(m).row(0) : (A32.dims == 2 ? A32.row(m) : (const float*)A32);
+        float* crow = C32.row(m);
+        float* kbuf = kbuf_mat.row(get_omp_thread_num());
+        for (int n = 0; n < N; n++)
+        {
+            const __fp16* btile = bt + (size_t)(n / 8) * ldt + (n % 8) * 8;
+            for (int k = 0; k < K; k++)
+                kbuf[k] = wfp32 ? (float)Bp[(size_t)n * K + k] : (float)btile[(k / 8) * 64 + (k % 8)];
+
+            float acc = 0.f;
+#if __riscv_vector
+            /* zero across the full VLmax width, reduce across the full VLmax width (accumulate
+                 * per block with _tu; reducing the last block's remainder vl would drop the high
+                 * lanes' contributions) */
+            const size_t vlmax = __riscv_vsetvlmax_e32m1();
+            vfloat32m1_t vacc = __riscv_vfmv_v_f_f32m1(0.f, vlmax);
+            int k = 0;
+            while (k < K)
+            {
+                const size_t vl = __riscv_vsetvl_e32m1(K - k);
+                vacc = __riscv_vfmacc_vv_f32m1_tu(vacc, __riscv_vle32_v_f32m1(arow + k, vl), __riscv_vle32_v_f32m1(kbuf + k, vl), vl);
+                k += vl;
+            }
+            acc = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m1_f32m1(vacc, __riscv_vfmv_s_f_f32m1(0.f, vlmax), vlmax));
+#else
+            for (int k = 0; k < K; k++)
+                acc += arow[k] * kbuf[k];
+#endif
+            crow[n] = alpha * acc;
+        }
+    }
+
+    Mat& top_blob = top_blobs[0];
+    if (A.elembits() == 16)
+    {
+        /* fp16 input -> cast back to fp16 storage and repack to this layer's normal layout */
+        if (out_elempack == 1)
+        {
+            /* pack1: no repacking needed, write it out directly (blob allocator); only one copy exists at any time. */
+            cast_float32_to_float16(C32, top_blob, opt);
+            if (top_blob.empty())
+                return -100;
+            return 0;
+        }
+        /* when repacking is needed, keep the pack1 fp16 intermediate in workspace (sharing the
+             * blob pool with the final output would momentarily hold two copies of the same size;
+             * the blob pool is sized for one returned output and would report -100). */
+        /* The compute loop above has finished: release the scratch (A32 is roughly
+         * 4*M*K bytes, kbuf_mat K*num_threads floats) before allocating the output
+         * repack buffer -- on a constrained workspace allocator, holding the dead
+         * scratch can make this 2*M*N allocation fail with -100 while releasing
+         * it first leaves enough room. */
+        A32.release();
+        kbuf_mat.release();
+        Mat top16_tmp;
+        cast_float32_to_float16(C32, top16_tmp, opt_tmp);
+        if (top16_tmp.empty())
+            return -100;
+        convert_packing(top16_tmp, top_blob, out_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+        return 0;
+    }
+    /* fp32 input -> fp32 output (the generic path's output layout: follow its own packing
+         * decision; C32 is already pack1, repack to the elempack the fp32 path should have). */
+    int out32_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 4;
+        out32_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    /* output_elempack is an **element count**, not a byte count; the generic fp32 path uses it
+         * as-is (gemm_riscv.cpp does not scale it): keep it the same here, do not halve it. */
+    if (output_elempack)
+        out32_elempack = output_elempack;
+    if (out32_elempack != 1)
+    {
+        /* the final output must use the blob allocator (C32 is a workspace temporary; assigning
+             * it to top_blob would carry workspace memory out of this layer, and later layers
+             * would overwrite it). */
+        convert_packing(C32, top_blob, out32_elempack, opt);
+        if (top_blob.empty())
+            return -100;
+        return 0;
+    }
+    /* pack1: same as above, copy to the blob allocator before handing it out. */
+    top_blob.create(N, M, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+    memcpy(top_blob.data, C32.data, (size_t)N * M * 4u);
+    return 0;
+    return 0;
+#endif
+}
+
+int Gemm_riscv::forward_ime2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+#if !__riscv_v
+    (void)bottom_blobs;
+    (void)top_blobs;
+    (void)opt;
+    return -1;
+#else
+    const Mat& A = bottom_blobs[0];
+
+    const int M = (A.dims == 3 ? A.c : A.h) * A.elempack;
+    const int N = constantN;
+    const int K = constantK;
+
+    /* the kernel actually starts the team with _nT (the nT saved at pipeline-build time takes
+     * priority): the check must cover it, not forward's opt.num_threads (the two differ once the
+     * caller reduces the thread count). */
+    int _nT = nT ? nT : opt.num_threads;
+
+    // Same output packing decision as forward_fp16s (fp16: packn = vlenb/2).
+    // Compute it before the team check: both the fp16 fallback branch and the IME2 main path use it.
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        const int packn = csrr_vlenb() / 2;
+        out_elempack = (M % packn == 0) ? packn : 1;
+    }
+#endif
+    if (output_elempack)
+        out_elempack = output_elempack;
+
+    /* the team check applies to all bit widths, fp32 input included — the generic fp32 panel's
+     * tiles were packed with the vlenb of pipeline-build time, and after the team leaves the A100
+     * the generic path would recompute tiles with the new vlenb to index the old panel ->
+     * mismatch. So check the team first, then split by bit width. */
+    /* team-head check: on failure take the VLEN-agnostic fallback (accepts both fp16 and fp32 input). */
+    if (!ncnn_ime2::ime2_team_ok(_nT))
+        return forward_ime2_fallback(A, M, N, K, alpha, out_elempack, top_blobs, opt);
+
+    if (A.elembits() != 16)
+        /* team on the A100 with fp32 input: dispatch should not send fp32 here; defensive. */
+        return -1;
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(N, M / out_elempack, (size_t)2u * out_elempack, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    /* -99 = team-level check failed inside the kernel execution region (the guard and the kernel
+     * are two omp regions and the runtime may swap workers between them): take the same fallback
+     * as a team-head failure. top_blob is already created; the fallback recreates it. */
+    const int ret = ncnn_ime2::gemm_ime2_fp16(A, BT_data_ime2, top_blob, M, N, K, alpha, out_elempack, _nT, opt, BT_i8c_ime2, BT_wscale_ime2);
+    if (ret == -99)
+        return forward_ime2_fallback(A, M, N, K, alpha, out_elempack, top_blobs, opt);
+    return ret;
+#endif
 }
 #endif // NCNN_ZFH
 
