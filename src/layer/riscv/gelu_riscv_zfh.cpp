@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gelu_riscv.h"
+#include "constants.h"
 
 #if __riscv_vector
 #include <riscv_vector.h>
@@ -38,9 +39,9 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 // fast gelu: y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
                 vfloat16m4_t _p2 = __riscv_vfmul_vv_f16m4(_p, _p, vl);
                 vfloat16m4_t _p3 = __riscv_vfmul_vv_f16m4(_p2, _p, vl);
-                vfloat16m4_t _arg = __riscv_vfmul_vf_f16m4(_p3, (__fp16)0.044715f, vl);
+                vfloat16m4_t _arg = __riscv_vfmul_vf_f16m4(_p3, (__fp16)constants::GELU_TANH_CUBIC_COEFF, vl);
                 _arg = __riscv_vfadd_vv_f16m4(_p, _arg, vl);
-                _arg = __riscv_vfmul_vf_f16m4(_arg, (__fp16)0.79788452f, vl);
+                _arg = __riscv_vfmul_vf_f16m4(_arg, (__fp16)constants::SQRT_2_OVER_PI, vl);
 
                 // for tanh, convert to float32
                 vfloat32m8_t _arg_f32 = __riscv_vfwcvt_f_f_v_f32m8(_arg, vl);
@@ -61,7 +62,7 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             {
                 __fp16 v = ptr[i];
                 // fast gelu: y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
-                ptr[i] = (__fp16)(0.5f * (float)v * (1.0f + tanhf(0.79788452f * ((float)v + 0.044715f * (float)v * (float)v * (float)v))));
+                ptr[i] = (__fp16)(0.5f * (float)v * (1.0f + tanhf(constants::SQRT_2_OVER_PI * ((float)v + constants::GELU_TANH_CUBIC_COEFF * (float)v * (float)v * (float)v))));
             }
 #endif // __riscv_zvfh
         }
@@ -83,7 +84,7 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 // y = 0.5 * x * erfc(-x / sqrt(2))
                 // convert to float32 for erfc
                 vfloat32m4_t _p_f32 = __riscv_vfwcvt_f_f_v_f32m4(_p, vl);
-                vfloat32m4_t _perfc_f32 = __riscv_vfmul_vf_f32m4(_p_f32, -0.70710678f, vl);
+                vfloat32m4_t _perfc_f32 = __riscv_vfmul_vf_f32m4(_p_f32, -constants::INV_SQRT2, vl);
                 _p_f32 = __riscv_vfmul_vf_f32m4(_p_f32, 0.5f, vl);
 
                 _perfc_f32 = erfc_ps(_perfc_f32, vl);
@@ -99,7 +100,7 @@ int GELU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
             for (int i = 0; i < size; i++)
             {
                 // y = 0.5 * x * erfc(-x / sqrt(2))
-                ptr[i] = (__fp16)(0.5f * (float)ptr[i] * erfcf(-0.70710678f * (float)ptr[i]));
+                ptr[i] = (__fp16)(0.5f * (float)ptr[i] * erfcf(-constants::INV_SQRT2 * (float)ptr[i]));
             }
 #endif // __riscv_zvfh
         }

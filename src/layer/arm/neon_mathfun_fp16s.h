@@ -32,6 +32,7 @@
 #define NEON_MATHFUN_FP16S_H
 
 #include <arm_neon.h>
+#include "constants.h"
 
 #define c_inv_mant_mask_f16 -31745 // ~0x7c00u
 #define c_cephes_SQRTHF     0.707106781186547524
@@ -842,7 +843,7 @@ static inline float16x8_t elu_ps_f16(float16x8_t x, float16x8_t alpha)
 static inline float16x4_t gelu_ps_f16(float16x4_t x)
 {
     float16x4_t _half = vdup_n_f16(0.5f);
-    float16x4_t _blob = vmul_f16(vdup_n_f16(-0.70710678f), x);
+    float16x4_t _blob = vmul_f16(vdup_n_f16(-ncnn::constants::INV_SQRT2), x);
     _blob = erfc_ps_f16(_blob);
     return vmul_f16(vmul_f16(_half, _blob), x);
 }
@@ -850,7 +851,7 @@ static inline float16x4_t gelu_ps_f16(float16x4_t x)
 static inline float16x8_t gelu_ps_f16(float16x8_t x)
 {
     float16x8_t _half = vdupq_n_f16(0.5f);
-    float16x8_t _blob = vmulq_f16(vdupq_n_f16(-0.70710678f), x);
+    float16x8_t _blob = vmulq_f16(vdupq_n_f16(-ncnn::constants::INV_SQRT2), x);
     _blob = erfc_ps_f16(_blob);
     return vmulq_f16(vmulq_f16(_half, _blob), x);
 }
@@ -861,8 +862,8 @@ static inline float16x4_t fast_gelu_ps_f16(float16x4_t x)
     float16x4_t _one = vdup_n_f16(1.f);
     float16x4_t _blob = vmul_f16(x, x);
     _blob = vmul_f16(x, _blob);
-    _blob = vmul_f16(vdup_n_f16(0.044715f * 0.79788452f), _blob);
-    _blob = vfma_f16(_blob, vdup_n_f16(0.79788452f), x);
+    _blob = vmul_f16(vdup_n_f16(ncnn::constants::GELU_TANH_CUBIC_COEFF * ncnn::constants::SQRT_2_OVER_PI), _blob);
+    _blob = vfma_f16(_blob, vdup_n_f16(ncnn::constants::SQRT_2_OVER_PI), x);
     _blob = tanh_ps_f16(_blob);
     _blob = vadd_f16(_one, _blob);
     return vmul_f16(vmul_f16(_half, _blob), x);
@@ -874,8 +875,8 @@ static inline float16x8_t fast_gelu_ps_f16(float16x8_t x)
     float16x8_t _one = vdupq_n_f16(1.f);
     float16x8_t _blob = vmulq_f16(x, x);
     _blob = vmulq_f16(x, _blob);
-    _blob = vmulq_f16(vdupq_n_f16(0.044715f * 0.79788452f), _blob);
-    _blob = vfmaq_f16(_blob, vdupq_n_f16(0.79788452f), x);
+    _blob = vmulq_f16(vdupq_n_f16(ncnn::constants::GELU_TANH_CUBIC_COEFF * ncnn::constants::SQRT_2_OVER_PI), _blob);
+    _blob = vfmaq_f16(_blob, vdupq_n_f16(ncnn::constants::SQRT_2_OVER_PI), x);
     _blob = tanh_ps_f16(_blob);
     _blob = vaddq_f16(_one, _blob);
     return vmulq_f16(vmulq_f16(_half, _blob), x);

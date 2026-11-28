@@ -18,6 +18,7 @@
 #include "x86_usability.h"
 
 #include "cpu.h"
+#include "constants.h"
 
 namespace ncnn {
 
