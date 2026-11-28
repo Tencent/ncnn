@@ -111,7 +111,8 @@ void fuse_constant_as_attribute(onnx::ModelProto& model)
                 numel *= tensor.dims(k);
             }
 
-            if (numel == 1)
+            const bool reduction_axes = op_type.compare(0, 6, "Reduce") == 0 && j == 1 && tensor.dims_size() == 1;
+            if (numel == 1 && !reduction_axes)
             {
                 // int or float scalar
                 if (tensor.data_type() == onnx::TensorProto::INT32)
