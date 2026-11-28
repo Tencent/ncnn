@@ -530,6 +530,13 @@ void convert_batch_layout(Graph& graph)
             for (Operand* r : op->outputs)
                 set_ncnn_batch_axis(r, batch_axis);
         }
+        else if (op->type == "caffe.Proposal")
+        {
+            // proposal changes [N,C,H,W] into an explicit ROI dimension
+            // its native coordinates are [R,1,4], not Torch's [R,5]
+            for (Operand* r : op->outputs)
+                set_ncnn_batch_axis(r, default_ncnn_batch_axis(get_batch_index(batch_indices, r)));
+        }
         else if (is_recurrent_op(op))
         {
             const int batch_axis = op->inputs.empty() ? default_ncnn_batch_axis(get_batch_index(batch_indices, op->outputs[0])) : get_ncnn_batch_axis(op->inputs[0]);

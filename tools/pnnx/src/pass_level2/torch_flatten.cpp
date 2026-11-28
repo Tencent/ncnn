@@ -267,4 +267,20 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_flatten_tnn, 60)
 
+class torch_flatten_caffe : public torch_flatten
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+caffe.Flatten           op_0        1 1 input out axis=%start_dim end_axis=%end_dim
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_flatten_caffe, 60)
+
 } // namespace pnnx

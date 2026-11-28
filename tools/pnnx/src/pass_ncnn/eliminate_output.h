@@ -7,7 +7,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-void eliminate_output(Graph& graph);
+void eliminate_output(Graph& graph, bool preserve_output_set = false);
 
 } // namespace ncnn
 
