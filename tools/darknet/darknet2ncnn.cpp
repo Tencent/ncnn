@@ -224,7 +224,7 @@ void load_cfg(const char* filename, std::deque<Section*>& dnet)
             section->original_layer_count = section_count++;
             dnet.push_back(section);
         }
-        else if ((pos = line.find_first_of('=')) != std::string::npos)
+        else if (section && (pos = line.find_first_of('=')) != std::string::npos)
         {
             std::string key = line.substr(0, pos);
             std::string value = line.substr(pos + 1, line.length() - 1);
@@ -949,6 +949,12 @@ int main(int argc, char** argv)
     if (letter_box_enabled)
         printf("NOTE: Make sure your pre-processing and post-processing support letter_box.\n");
     printf("NOTE: Remember to use ncnnoptimize for better performance.\n");
+
+    for (auto it = dnet.begin(); it != dnet.end(); it++)
+    {
+        auto s = *it;
+        delete s;
+    }
 
     return 0;
 }
