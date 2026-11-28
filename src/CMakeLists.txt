@@ -799,6 +799,7 @@ if(NCNN_INSTALL_SDK)
         blob.h
         c_api.h
         command.h
+        constants.h
         cpu.h
         datareader.h
         expression.h

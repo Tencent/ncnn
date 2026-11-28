@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gelu_mips.h"
+#include "constants.h"
 
 #if __mips_msa
 #include <msa.h>
@@ -47,8 +48,8 @@ int GELU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
             v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-            v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
-            v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f * 0.79788452f);
+            v4f32 _fast1c = (v4f32)__msa_fill_w_f32(constants::SQRT_2_OVER_PI);
+            v4f32 _fast2c = (v4f32)__msa_fill_w_f32(constants::GELU_TANH_CUBIC_COEFF * constants::SQRT_2_OVER_PI);
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
@@ -70,7 +71,7 @@ int GELU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
             v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-            v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+            v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(constants::INV_SQRT2);
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
@@ -90,11 +91,11 @@ int GELU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             if (fast_gelu)
             {
-                *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+                *ptr = 0.5f * *ptr * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (*ptr + constants::GELU_TANH_CUBIC_COEFF * *ptr * *ptr * *ptr)));
             }
             else
             {
-                *ptr = 0.5f * *ptr * (1.0f + erff(0.70710678f * *ptr));
+                *ptr = 0.5f * *ptr * (1.0f + erff(constants::INV_SQRT2 * *ptr));
             }
 
             ptr++;
@@ -125,8 +126,8 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         {
             v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
             v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-            v4f32 _fast1c = (v4f32)__msa_fill_w_f32(0.79788452f);
-            v4f32 _fast2c = (v4f32)__msa_fill_w_f32(0.044715f * 0.79788452f);
+            v4f32 _fast1c = (v4f32)__msa_fill_w_f32(constants::SQRT_2_OVER_PI);
+            v4f32 _fast2c = (v4f32)__msa_fill_w_f32(constants::GELU_TANH_CUBIC_COEFF * constants::SQRT_2_OVER_PI);
             v8i16 _zero = __msa_fill_h(0);
             for (; i + 7 < size; i += 8)
             {
@@ -168,7 +169,7 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         {
             v4f32 _half = (v4f32)__msa_fill_w_f32(0.5f);
             v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-            v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(0.70710678f);
+            v4f32 _inv_sqrt2 = (v4f32)__msa_fill_w_f32(constants::INV_SQRT2);
             v8i16 _zero = __msa_fill_h(0);
             for (; i + 7 < size; i += 8)
             {
@@ -203,11 +204,11 @@ int GELU_mips::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             float v = bfloat16_to_float32(*ptr);
             if (fast_gelu)
             {
-                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+                v = 0.5f * v * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (v + constants::GELU_TANH_CUBIC_COEFF * v * v * v)));
             }
             else
             {
-                v = 0.5f * v * (1.0f + erff(0.70710678f * v));
+                v = 0.5f * v * (1.0f + erff(constants::INV_SQRT2 * v));
             }
             *ptr = float32_to_bfloat16(v);
             ptr++;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: BSD-3-Clause
 
 #include "gelu_loongarch.h"
+#include "constants.h"
 
 #if __loongarch_sx
 #include <lsxintrin.h>
@@ -53,8 +54,8 @@ int GELU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #if __loongarch_asx
             __m256 _half8 = (__m256)__lasx_xvreplfr2vr_s(0.5f);
             __m256 _one8 = (__m256)__lasx_xvreplfr2vr_s(1.f);
-            __m256 _fast1c8 = (__m256)__lasx_xvreplfr2vr_s(0.79788452f);
-            __m256 _fast2c8 = (__m256)__lasx_xvreplfr2vr_s(0.044715f);
+            __m256 _fast1c8 = (__m256)__lasx_xvreplfr2vr_s(constants::SQRT_2_OVER_PI);
+            __m256 _fast2c8 = (__m256)__lasx_xvreplfr2vr_s(constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + 32);
@@ -75,8 +76,8 @@ int GELU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #endif
             __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);
             __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
-            __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
-            __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+            __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(constants::SQRT_2_OVER_PI);
+            __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
@@ -97,7 +98,7 @@ int GELU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #endif
             for (; i < size; i++)
             {
-                *ptr = 0.5f * *ptr * (1.0f + tanhf(0.79788452f * (*ptr + 0.044715f * *ptr * *ptr * *ptr)));
+                *ptr = 0.5f * *ptr * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (*ptr + constants::GELU_TANH_CUBIC_COEFF * *ptr * *ptr * *ptr)));
                 ptr++;
             }
         }
@@ -105,7 +106,7 @@ int GELU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         {
             for (; i < size; i++)
             {
-                *ptr = 0.5f * *ptr * erfcf(-0.70710678f * *ptr);
+                *ptr = 0.5f * *ptr * erfcf(-constants::INV_SQRT2 * *ptr);
                 ptr++;
             }
         }
@@ -137,8 +138,8 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #if __loongarch_asx
             __m256 _half8 = (__m256)__lasx_xvreplfr2vr_s(0.5f);
             __m256 _one8 = (__m256)__lasx_xvreplfr2vr_s(1.f);
-            __m256 _fast1c8 = (__m256)__lasx_xvreplfr2vr_s(0.79788452f);
-            __m256 _fast2c8 = (__m256)__lasx_xvreplfr2vr_s(0.044715f);
+            __m256 _fast1c8 = (__m256)__lasx_xvreplfr2vr_s(constants::SQRT_2_OVER_PI);
+            __m256 _fast2c8 = (__m256)__lasx_xvreplfr2vr_s(constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 7 < size; i += 8)
             {
                 __m256 _p = bfloat2float_lasx((__m128i*)ptr);
@@ -159,8 +160,8 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
                 __m128i _zero = __lsx_vreplgr2vr_w(0);
                 __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);
                 __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
-                __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
-                __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+                __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(constants::SQRT_2_OVER_PI);
+                __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(constants::GELU_TANH_CUBIC_COEFF);
                 for (; i + 7 < size; i += 8)
                 {
                     __m128i _p01 = __lsx_vld(ptr, 0);
@@ -190,8 +191,8 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
 #endif
             __m128 _half4 = (__m128)__lsx_vreplfr2vr_s(0.5f);
             __m128 _one4 = (__m128)__lsx_vreplfr2vr_s(1.f);
-            __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(0.79788452f);
-            __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(0.044715f);
+            __m128 _fast1c4 = (__m128)__lsx_vreplfr2vr_s(constants::SQRT_2_OVER_PI);
+            __m128 _fast2c4 = (__m128)__lsx_vreplfr2vr_s(constants::GELU_TANH_CUBIC_COEFF);
             for (; i + 3 < size; i += 4)
             {
                 __m128 _p = bfloat2float_lsx(__lsx_vldrepl_d(ptr, 0));
@@ -211,7 +212,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             for (; i < size; i++)
             {
                 float v = bfloat16_to_float32(*ptr);
-                v = 0.5f * v * (1.0f + tanhf(0.79788452f * (v + 0.044715f * v * v * v)));
+                v = 0.5f * v * (1.0f + tanhf(constants::SQRT_2_OVER_PI * (v + constants::GELU_TANH_CUBIC_COEFF * v * v * v)));
                 *ptr = float32_to_bfloat16(v);
                 ptr++;
             }
@@ -221,7 +222,7 @@ int GELU_loongarch::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& op
             for (; i < size; i++)
             {
                 float v = bfloat16_to_float32(*ptr);
-                v = 0.5f * v * erfcf(-0.70710678f * v);
+                v = 0.5f * v * erfcf(-constants::INV_SQRT2 * v);
                 *ptr = float32_to_bfloat16(v);
                 ptr++;
             }

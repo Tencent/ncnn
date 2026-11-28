@@ -29,6 +29,7 @@
 #define NEON_MATHFUN_H
 
 #include <arm_neon.h>
+#include "constants.h"
 
 // Portable FMA macros: use hardware FMA on AArch64, fall back to MLA on AArch32
 #if defined(__aarch64__)
@@ -684,7 +685,7 @@ static inline float32x4_t elu_ps(float32x4_t x, float32x4_t alpha)
 static inline float32x4_t gelu_ps(float32x4_t x)
 {
     float32x4_t _half = vdupq_n_f32(0.5f);
-    float32x4_t _blob = vmulq_f32(vdupq_n_f32(-0.70710678f), x);
+    float32x4_t _blob = vmulq_f32(vdupq_n_f32(-ncnn::constants::INV_SQRT2), x);
     _blob = erfc_ps(_blob);
     return vmulq_f32(_half, vmulq_f32(_blob, x));
 }
@@ -695,8 +696,8 @@ static inline float32x4_t fast_gelu_ps(float32x4_t x)
     float32x4_t _one = vdupq_n_f32(1.f);
     float32x4_t _blob = vmulq_f32(x, x);
     _blob = vmulq_f32(x, _blob);
-    _blob = vmulq_f32(vdupq_n_f32(0.044715f * 0.79788452f), _blob);
-    _blob = vmlaq_f32(_blob, vdupq_n_f32(0.79788452f), x);
+    _blob = vmulq_f32(vdupq_n_f32(ncnn::constants::GELU_TANH_CUBIC_COEFF * ncnn::constants::SQRT_2_OVER_PI), _blob);
+    _blob = vmlaq_f32(_blob, vdupq_n_f32(ncnn::constants::SQRT_2_OVER_PI), x);
     _blob = tanh_ps(_blob);
     _blob = vaddq_f32(_one, _blob);
     return vmulq_f32(_half, vmulq_f32(_blob, x));

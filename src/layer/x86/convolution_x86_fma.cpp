@@ -5,6 +5,7 @@
 
 #include <immintrin.h>
 
+#include "constants.h"
 #include "cpu.h"
 #include "x86_activation.h"
 #include "x86_usability.h"
