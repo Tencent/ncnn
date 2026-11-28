@@ -80,7 +80,8 @@ def nms(boxes, scores, iou_threshold, top_k=-1, candidate_size=200):
     """
 
     Args:
-        box_scores (N, 5): boxes in corner-form(x1, y1, x2, y2) and probabilities.
+        boxes (N, 4): boxes in corner-form (x1, y1, x2, y2).
+        scores (N,): the probability of each box.
         iou_threshold: intersection over union threshold.
         top_k: keep top_k results. If k <= 0, keep all the results.
         candidate_size: only consider the candidates with the highest scores.
