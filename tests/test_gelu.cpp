@@ -107,6 +107,20 @@ static int test_gelu_5()
            || test_gelu(b, true);
 }
 
+static int test_gelu_6()
+{
+    // row-major transformer activations and low-channel tensors exercise row parallelism
+    const int flag = TEST_LAYER_DISABLE_GPU_TESTING | TEST_LAYER_ENABLE_THREADING;
+
+    return 0
+           || test_gelu(RandomMat(3072, 145), false, flag)
+           || test_gelu(RandomMat(3072, 145), true, flag)
+           || test_gelu(RandomMat(31, 5, 3), false, flag)
+           || test_gelu(RandomMat(31, 5, 3), true, flag)
+           || test_gelu(RandomMat(17, 3, 4, 2), false, flag)
+           || test_gelu(RandomMat(17, 3, 4, 2), true, flag);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -117,5 +131,6 @@ int main()
            || test_gelu_2()
            || test_gelu_3()
            || test_gelu_4()
-           || test_gelu_5();
+           || test_gelu_5()
+           || test_gelu_6();
 }
