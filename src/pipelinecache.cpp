@@ -22,10 +22,12 @@ namespace ncnn {
 
 #if NCNN_VULKAN
 #define NCNN_PIPELINE_CACHE_FILE_MAGIC 0x5a545546
+// version 4: cached spirv compiled for simd32 on intel integrated gpus with mesa,
+// which now default to subgroup size 16, and the header gains subgroup_size
 #if NCNN_COVERAGE
-#define NCNN_PIPELINE_CACHE_FILE_VERSION 0x00010003
+#define NCNN_PIPELINE_CACHE_FILE_VERSION 0x00010004
 #else
-#define NCNN_PIPELINE_CACHE_FILE_VERSION 3
+#define NCNN_PIPELINE_CACHE_FILE_VERSION 4
 #endif
 #define NCNN_PIPELINE_CACHE_FILE_ENDIAN  0x12345678
 #define NCNN_PIPELINE_CACHE_NCNN_VERSION NCNN_VERSION_NUMBER
@@ -159,6 +161,9 @@ public:
 
         uint32_t reserved0;
 
+        // ncnn_subgroupSize is compiled into the cached spirv
+        uint32_t subgroup_size;
+
         uint32_t spirv_entry_count;
         uint32_t spirv_cache_size;
         uint32_t spirv_cache_hash;
@@ -166,7 +171,7 @@ public:
         uint32_t pipeline_cache_size;
         uint32_t pipeline_cache_hash;
 
-        uint32_t reserved[8];
+        uint32_t reserved[7];
     };
 
     struct spirv_cache_entry_header
@@ -300,6 +305,8 @@ static void fill_cache_file_header(PipelineCachePrivate::cache_file_header& head
     memcpy(header.pipeline_cache_uuid, vkdev->info.pipeline_cache_uuid(), VK_UUID_SIZE);
 
     header.reserved0 = 0;
+
+    header.subgroup_size = vkdev->info.subgroup_size();
 }
 
 static bool validate_cache_file_header(const PipelineCachePrivate::cache_file_header& header, const VulkanDevice* vkdev)
@@ -332,6 +339,8 @@ static bool validate_cache_file_header(const PipelineCachePrivate::cache_file_he
     if (header.driver_name_hash != hash_string(vkdev->info.driver_name()))
         return false;
     if (memcmp(header.pipeline_cache_uuid, vkdev->info.pipeline_cache_uuid(), VK_UUID_SIZE) != 0)
+        return false;
+    if (header.subgroup_size != vkdev->info.subgroup_size())
         return false;
 
     return true;
@@ -949,6 +958,29 @@ int PipelineCache::load_cache(const wchar_t* path) const
 #endif // defined(_WIN32)
 #endif // NCNN_STDIO
 
+// a required subgroup size bounds the workgroup to
+// requiredSubgroupSize * maxComputeWorkgroupSubgroups invocations
+// drop the requirement for a shader that does not depend on the subgroup size,
+// reject the pipeline for one that does rather than run it at another width
+static int resolve_required_subgroup_size(const GpuInfo& info, const ShaderInfo& shader_info, uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t& subgroup_size)
+{
+    if (subgroup_size == 0 || !info.support_subgroup_size_control())
+        return 0;
+
+    const uint32_t max_invocations = subgroup_size * info.max_compute_workgroup_subgroups();
+    if (local_size_x * local_size_y * local_size_z <= max_invocations)
+        return 0;
+
+    if (!shader_info.subgroup_ops)
+    {
+        subgroup_size = 0;
+        return 0;
+    }
+
+    NCNN_LOGE("workgroup %u x %u x %u exceeds %u invocations allowed at required subgroup size %u, use a smaller workgroup or set_subgroup_size()", local_size_x, local_size_y, local_size_z, max_invocations, subgroup_size);
+    return -1;
+}
+
 int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, const std::vector<vk_specialization_type>& specializations,
                                 uint32_t local_size_x, uint32_t local_size_y, uint32_t local_size_z, uint32_t subgroup_size,
                                 VkShaderModule* _shader_module,
@@ -999,6 +1031,13 @@ int PipelineCache::get_pipeline(const uint32_t* spv_data, size_t spv_data_size, 
     if (!shader_module)
     {
         NCNN_LOGE("create_shader_module failed");
+        return -1;
+    }
+
+    ret = resolve_required_subgroup_size(vkdev->info, shader_info, local_size_x, local_size_y, local_size_z, subgroup_size);
+    if (ret != 0)
+    {
+        vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
         return -1;
     }
 
@@ -1077,6 +1116,13 @@ int PipelineCache::get_pipeline(int shader_type_index, const Option& opt, const 
     if (ret != 0)
     {
         NCNN_LOGE("create_shader_module failed");
+        return -1;
+    }
+
+    ret = resolve_required_subgroup_size(vkdev->info, shader_info, local_size_x, local_size_y, local_size_z, subgroup_size);
+    if (ret != 0)
+    {
+        vkDestroyShaderModule(vkdev->vkdevice(), shader_module, 0);
         return -1;
     }
 
@@ -1197,6 +1243,14 @@ int PipelineCache::create_shader_module(int shader_type_index, const Option& opt
     return 0;
 }
 
+static bool prefer_driver_subgroup_size(const GpuInfo& info)
+{
+    // requiring a fixed subgroup size makes most shaders slower on intel integrated gpu
+    // let the driver choose the width for shaders that do not depend on it
+    return info.vendor_id() == 0x8086 && info.type() == 1 && info.driver_id() == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA
+           && info.support_subgroup_size_control() && !info.support_cooperative_matrix();
+}
+
 int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& shader_info,
                                 const std::vector<vk_specialization_type>& specializations, uint32_t subgroup_size,
                                 VkDescriptorSetLayout* _descriptorset_layout,
@@ -1227,6 +1281,12 @@ int PipelineCache::new_pipeline(VkShaderModule shader_module, const ShaderInfo& 
         goto ERROR_PipelineCache;
 
     ensure_vk_pipeline_cache(vkdev, d);
+
+    if (!shader_info.subgroup_ops && prefer_driver_subgroup_size(vkdev->info))
+    {
+        // 0 = no required subgroup size
+        subgroup_size = 0;
+    }
 
     ret = vkdev->create_pipeline(shader_module, pipeline_layout, specializations, subgroup_size, d->vk_pipeline_cache, &pipeline);
     if (ret != 0)
