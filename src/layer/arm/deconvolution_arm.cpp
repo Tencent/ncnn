@@ -898,6 +898,83 @@ int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)
     }
 #endif
 
+    if (opt.use_sgemm_convolution)
+    {
+        // bf16 storage and bf16 gemm keep the activation, weight and intermediate
+        // footprint at half precision
+        gemm = ncnn::create_layer_cpu(ncnn::LayerType::Gemm);
+        if (!gemm)
+            return -100;
+
+        ncnn::ParamDict pd;
+        pd.set(2, 1);                 // transA
+        pd.set(3, 0);                 // transB
+        pd.set(4, 1);                 // constantA
+        pd.set(5, 0);                 // constantB
+        pd.set(6, 1);                 // constantC
+        pd.set(7, maxk * num_output); // M = maxk*num_output
+        pd.set(8, 0);                 // N = size
+        pd.set(9, num_input);         // K = inch
+        pd.set(10, -1);               // constant_broadcast_type_C = null
+        pd.set(11, 0);                // output_N1M
+        pd.set(12, out_elempack);
+
+        int ret = gemm->load_param(pd);
+        if (ret != 0)
+        {
+            delete gemm;
+            gemm = 0;
+            return ret;
+        }
+
+        Mat tmp;
+        {
+            Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+            tmp.create(maxk * num_output, num_input);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                float* g00 = tmp.row(p);
+
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const float* k00 = weight_data_r2.channel(q + i).row(p);
+                            *g00++ = k00[k];
+                        }
+                    }
+                }
+            }
+        }
+
+        ncnn::Mat weights[1];
+        weights[0] = tmp;
+
+        ret = gemm->load_model(ModelBinFromMatArray(weights));
+        if (ret != 0)
+        {
+            delete gemm;
+            gemm = 0;
+            return ret;
+        }
+
+        ret = gemm->create_pipeline(opt);
+        if (ret != 0)
+        {
+            delete gemm;
+            gemm = 0;
+            return ret;
+        }
+
+        if (opt.lightmode)
+            weight_data.release();
+
+        return 0;
+    }
+
     Mat weight_data_transposed(weight_data.w);
     {
         float* pt = weight_data_transposed;
@@ -993,6 +1070,137 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
         return -100;
 
     const int maxk = kernel_w * kernel_h;
+
+    if (gemm)
+    {
+        // sgemm
+        Mat bottom_blob_2 = bottom_blob;
+        {
+            bottom_blob_2.w = bottom_blob.w * bottom_blob.h;
+            bottom_blob_2.h = 1;
+        }
+        Mat top_col2im;
+        Option opt_b = opt;
+        opt_b.blob_allocator = top_blob_bordered.allocator;
+        int ret = gemm->forward(bottom_blob_2, top_col2im, opt_b);
+        if (ret != 0)
+            return ret;
+
+        {
+            // col2im accumulates all kernel contributions in fp32 for one output group
+            const int gap = (outw * stride_h - w * stride_w) * out_elempack;
+
+            if (out_elempack == 4)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output / out_elempack; p++)
+                {
+                    Mat out_fp32;
+                    out_fp32.create(outw, outh, (size_t)16u, 4, opt.workspace_allocator);
+                    if (out_fp32.empty())
+                        continue;
+
+                    if (bias_data.empty())
+                    {
+                        out_fp32.fill(vdupq_n_f32(0.f));
+                    }
+                    else
+                    {
+                        float bias[4];
+                        for (int i = 0; i < 4; i++)
+                            bias[i] = bias_data[p * 4 + i];
+                        out_fp32.fill(vld1q_f32(bias));
+                    }
+
+                    const unsigned short* sptr = top_col2im.row<const unsigned short>(p * maxk);
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = out_fp32.row<float>(dilation_h * u) + dilation_w * v * 4;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    float32x4_t _val = vld1q_f32(ptr);
+                                    float32x4_t _s = bfloat2float(vld1_u16(sptr));
+                                    vst1q_f32(ptr, vaddq_f32(_val, _s));
+
+                                    ptr += stride_w * 4;
+                                    sptr += 4;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+
+                    unsigned short* outptr = top_blob_bordered.channel(p);
+                    const float* out_fp32_ptr = out_fp32;
+                    for (int i = 0; i < outw * outh; i++)
+                    {
+                        vst1_u16(outptr + i * 4, float2bfloat(vld1q_f32(out_fp32_ptr + i * 4)));
+                    }
+                }
+            }
+
+            if (out_elempack == 1)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int p = 0; p < num_output; p++)
+                {
+                    Mat out_fp32;
+                    out_fp32.create(outw, outh, (size_t)4u, 1, opt.workspace_allocator);
+                    if (out_fp32.empty())
+                        continue;
+
+                    const float bias = bias_data.empty() ? 0.f : bias_data[p];
+                    out_fp32.fill(bias);
+
+                    const unsigned short* sptr = top_col2im.row<const unsigned short>(p * maxk);
+
+                    for (int u = 0; u < kernel_h; u++)
+                    {
+                        for (int v = 0; v < kernel_w; v++)
+                        {
+                            float* ptr = out_fp32.row<float>(dilation_h * u) + dilation_w * v;
+
+                            for (int i = 0; i < h; i++)
+                            {
+                                for (int j = 0; j < w; j++)
+                                {
+                                    ptr[0] += bfloat16_to_float32(sptr[0]);
+
+                                    ptr += stride_w;
+                                    sptr += 1;
+                                }
+
+                                ptr += gap;
+                            }
+                        }
+                    }
+
+                    unsigned short* outptr = top_blob_bordered.channel(p);
+                    const float* out_fp32_ptr = out_fp32;
+                    for (int i = 0; i < outw * outh; i++)
+                    {
+                        outptr[i] = float32_to_bfloat16(out_fp32_ptr[i]);
+                    }
+                }
+            }
+        }
+
+        if (activation)
+            activation->forward_inplace(top_blob_bordered, opt);
+
+        cut_padding(top_blob_bordered, top_blob, opt);
+        if (top_blob.empty())
+            return -100;
+
+        return 0;
+    }
 
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
