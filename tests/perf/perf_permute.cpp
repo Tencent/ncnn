@@ -14,8 +14,12 @@
 #include <stdio.h>
 #include <string.h>
 
-static int permute_max_elempack()
+static int permute_max_elempack(int bits)
 {
+#if __ARM_NEON && __aarch64__ && NCNN_ARM82
+    if (bits == 16 && ncnn::cpu_support_arm_asimdhp())
+        return 8;
+#endif
 #if NCNN_AVX512
     if (ncnn::cpu_support_x86_avx512())
         return 16;
@@ -104,7 +108,8 @@ static int perf_permute_packing(int dims, int w, int elempack, int bits, int ord
         const double time = (ncnn::get_current_time() - start) / iterations;
         time_min = std::min(time_min, time);
     }
-    fprintf(stderr, "Permute%s dims=%d w=%d h=%d d=%d c=%d bits=%d pack=%d->%d order=%d threads=%d buffers=%d min=%.6f ms\n", naive ? " naive" : "", dims, w, h, d, c, bits, elempack, outputs[0].elempack, order_type, threads, buffers, time_min);
+    fprintf(stderr, "Permute%s dims=%d w=%d h=%d d=%d c=%d bits=%d pack=%d->%d order=%d threads=%d buffers=%d min=%.6f ms\n", naive ? " naive" : "", dims, w, h, d, c, bits, elempack, outputs[0].elempack,
+            order_type, threads, buffers, time_min);
     op->destroy_pipeline(opt);
     delete op;
     return 0;
@@ -160,9 +165,10 @@ int main(int argc, char** argv)
         const int packing = atoi(argv[11]);
         const int buffers = argc == 13 ? atoi(argv[12]) : 1;
         if (dims < 2 || dims > 4 || w <= 0 || h <= 0 || d <= 0 || c <= 0 || threads <= 0 || buffers <= 0
-                || (pack != 1 && pack != 4 && pack != 8 && pack != 16) || pack > permute_max_elempack()
-                || (bits != 16 && bits != 32) || order < 0 || order >= (dims == 2 ? 2 : dims == 3 ? 6 : 24)
-                || (packing != 0 && packing != 1))
+            || (pack != 1 && pack != 4 && pack != 8 && pack != 16) || pack > permute_max_elempack(bits)
+            || (bits != 16 && bits != 32) || order < 0 || order >= (dims == 2 ? 2 : dims == 3 ? 6
+                                                                    : 24)
+            || (packing != 0 && packing != 1))
             return -1;
         return perf_permute_packing(dims, w, pack, bits, order, threads, h, packing != 0, d, c, buffers, strcmp(argv[1], "--naive-case") == 0);
     }
@@ -171,7 +177,7 @@ int main(int argc, char** argv)
         const int sizes[] = {7, 32, 64, 257, 1024};
         for (int bits = 16; bits <= 32; bits *= 2)
         {
-            for (int pack = 4; pack <= permute_max_elempack(); pack *= 2)
+            for (int pack = 4; pack <= permute_max_elempack(bits); pack *= 2)
             {
                 for (int i = 0; i < 5; i++)
                 {
@@ -202,7 +208,7 @@ int main(int argc, char** argv)
     {
         for (int bits = 16; bits <= 32; bits *= 2)
         {
-            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(); p++)
+            for (int p = 0; p < 4 && packs[p] <= permute_max_elempack(bits); p++)
             {
                 const int widths[] = {12, 24, 32};
                 for (int i = 0; i < 3; i++)
