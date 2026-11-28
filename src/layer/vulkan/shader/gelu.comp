@@ -3,8 +3,10 @@
 
 #version 450
 
-#define shape_constant_id_offset 0
-layout(constant_id = 0) const uint n = 0;
+layout(constant_id = 0) const int fast_gelu = 0;
+
+#define shape_constant_id_offset 1
+layout(constant_id = shape_constant_id_offset + 0) const uint n = 0;
 
 layout(binding = 0) buffer bottom_top_blob { sfpvec4 bottom_top_blob_data[]; };
 
@@ -12,6 +14,21 @@ layout(push_constant) uniform parameter
 {
     uint n;
 } p;
+
+afpvec4 gelu_erf(afpvec4 x)
+{
+    afpvec4 a1 = afpvec4(0.254829592f);
+    afpvec4 a2 = afpvec4(-0.284496736f);
+    afpvec4 a3 = afpvec4(1.421413741f);
+    afpvec4 a4 = afpvec4(-1.453152027f);
+    afpvec4 a5 = afpvec4(1.061405429f);
+    afpvec4 p = afpvec4(0.3275911f);
+    afpvec4 s = sign(x);
+    afpvec4 x_abs = abs(x);
+    afpvec4 t = afpvec4(1.0f) / (afpvec4(1.0f) + p * x_abs);
+    afpvec4 y = afpvec4(1.0f) - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x_abs * x_abs);
+    return s * y;
+}
 
 void main()
 {
@@ -22,18 +39,25 @@ void main()
 
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 
-    // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+    if (fast_gelu)
+    {
+        // y = 0.5x * (1 + tanh(sqrt(2/Pi) * (x + 0.044715x^3)))
+        afpvec4 x = afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v);
 
-    afpvec4 x = afpvec4(0.79788452f) * (v + afpvec4(0.044715f) * v * v * v);
-
-    // avoid overflow in tanh implementations based on exp(x) and exp(-x)
-    x = clamp(x, afpvec4(-10.f), afpvec4(10.f));
+        // avoid overflow in tanh implementations based on exp(x) and exp(-x)
+        x = clamp(x, afpvec4(-10.f), afpvec4(10.f));
 
 #if NCNN_moltenvk
-    v = afpvec4(0.5f) * v * (afpvec4(1.0f) + afpvec4(tanh(vec4(x))));
+        v = afpvec4(0.5f) * v * (afpvec4(1.0f) + afpvec4(tanh(vec4(x))));
 #else
-    v = afpvec4(0.5f) * v * (afpvec4(1.0f) + tanh(x));
+        v = afpvec4(0.5f) * v * (afpvec4(1.0f) + tanh(x));
 #endif
+    }
+    else
+    {
+        // y = x * P(X <= x) where X ~ N(0, 1)
+        v = afpvec4(0.5f) * v * (afpvec4(1.0f) + gelu_erf(afpvec4(-0.70710678f) * v));
+    }
 
     buffer_st4(bottom_top_blob_data, gi, v);
 }
