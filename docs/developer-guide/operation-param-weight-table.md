@@ -64,6 +64,9 @@
 ||9|starts|[ ]|
 ||10|ends|[ ]|
 ||11|axes|[ ]|
+||13|doffset|0|
+||14|outd|0|
+||15|doffset2|0|
 |Deconvolution|0|num_output|0|weight bias|
 ||1|kernel_w|0|
 ||2|dilation_w|1|

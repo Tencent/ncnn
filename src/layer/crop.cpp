@@ -85,6 +85,15 @@ int Crop::load_param(const ParamDict& pd)
     if (!starts_expr.empty() && !ends_expr.empty())
         numpy_style_slice = true;
 
+    // Crop output sizes default to 0. An output size of 0 - written or omitted,
+    // the two cannot be told apart after load_param - means "keep the remaining
+    // extent", which the numpy-style slice path spells -233.
+    //
+    // The all-zero form is also how the two-input reference crop is encoded:
+    // crop to the shape of bottom_blobs[1]. A single-input model that omits
+    // every output size writes exactly the same parameters, so the two forms
+    // are told apart by the bottom count in forward(), which falls back to the
+    // single-input path when there is no reference blob.
     if (outw == 0 && outh == 0 && outd == 0 && outc == 0 && woffset2 == 0 && hoffset2 == 0 && doffset2 == 0 && coffset2 == 0 && !numpy_style_slice)
     {
         one_blob_only = false;
@@ -279,6 +288,12 @@ int Crop::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
 int Crop::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    // load_param flags the all-zero form as the reference encoding, which a
+    // single-input model that omits every output size shares. Without a
+    // reference blob there is nothing to crop to, so keep the remaining extent.
+    if (bottom_blobs.size() < 2)
+        return forward(bottom_blobs[0], top_blobs[0], opt);
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
 
@@ -571,49 +586,49 @@ void Crop::resolve_crop_roi(const Mat& bottom_blob, int& _woffset, int& _hoffset
         if (dims == 1)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233)
+            if (outw != -233 && outw != 0)
                 _outw = std::min(outw, _outw);
         }
         if (dims == 2)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233)
+            if (outw != -233 && outw != 0)
                 _outw = std::min(outw, _outw);
 
             _outh = h - hoffset - hoffset2;
-            if (outh != -233)
+            if (outh != -233 && outh != 0)
                 _outh = std::min(outh, _outh);
         }
         if (dims == 3)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233)
+            if (outw != -233 && outw != 0)
                 _outw = std::min(outw, _outw);
 
             _outh = h - hoffset - hoffset2;
-            if (outh != -233)
+            if (outh != -233 && outh != 0)
                 _outh = std::min(outh, _outh);
 
             _outc = channels - coffset - coffset2;
-            if (outc != -233)
+            if (outc != -233 && outc != 0)
                 _outc = std::min(outc, _outc);
         }
         if (dims == 4)
         {
             _outw = w - woffset - woffset2;
-            if (outw != -233)
+            if (outw != -233 && outw != 0)
                 _outw = std::min(outw, _outw);
 
             _outh = h - hoffset - hoffset2;
-            if (outh != -233)
+            if (outh != -233 && outh != 0)
                 _outh = std::min(outh, _outh);
 
             _outd = d - doffset - doffset2;
-            if (outd != -233)
+            if (outd != -233 && outd != 0)
                 _outd = std::min(outd, _outd);
 
             _outc = channels - coffset - coffset2;
-            if (outc != -233)
+            if (outc != -233 && outc != 0)
                 _outc = std::min(outc, _outc);
         }
     }

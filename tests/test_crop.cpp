@@ -151,7 +151,11 @@ static int test_crop_6(const ncnn::Mat& a, int flag = 0)
 
            || test_crop(a, 5, 2, 0, 11, -233, -233, 0, -233, 4, 3, 0, 16, flag)
            || test_crop(a, 6, 3, 0, 12, -233, -233, 0, -233, 5, 4, 0, 7, flag)
-           || test_crop(a, 4, 4, 0, 8, -233, -233, 0, -233, 6, 2, 0, 12, flag);
+           || test_crop(a, 4, 4, 0, 8, -233, -233, 0, -233, 6, 2, 0, 12, flag)
+
+           // outw/outh set but outc left unset must crop w/h and keep all channels
+           || test_crop(a, 0, 0, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, flag)
+           || test_crop(a, 3, 2, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, flag);
 }
 
 static int test_crop_9(const ncnn::Mat& a, int flag = 0)
@@ -249,7 +253,11 @@ static int test_crop_9(const ncnn::Mat& a, int flag = 0)
 
            || test_crop(a, 1, 1, 1, 11, -233, -233, -233, -233, 1, 1, 1, 16, flag)
            || test_crop(a, 2, 2, 2, 12, -233, -233, -233, -233, 2, 2, 2, 7, flag)
-           || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12, flag);
+           || test_crop(a, 3, 3, 3, 8, -233, -233, -233, -233, 3, 3, 3, 12, flag)
+
+           // outw/outh/outd set but outc left unset must crop w/h/d and keep all channels
+           || test_crop(a, 0, 0, 0, 0, 2, 1, 3, 0, 0, 0, 0, flag)
+           || test_crop(a, 3, 2, 4, 0, 2, 1, 3, 0, 0, 0, 0, flag);
 }
 
 static ncnn::Mat param_int_array(int size, int value)
@@ -298,6 +306,282 @@ static int test_crop_load_param()
 }
 #endif // NCNN_VALIDATION
 
+// test_layer() above decides the single/multi blob mode itself and drops a non-zero
+// forward() return as "configuration not supported by this layer", so an empty crop
+// compared against an empty reference crop still reports success. Assert the
+// single-blob result directly here: -100 or an empty blob has to fail the test.
+static float crop_pixel(const ncnn::Mat& m, int x, int y, int z, int q)
+{
+    const float* p = m.channel(q);
+    if (m.dims == 3)
+        return p[y * m.w + x];
+    return p[(z * m.h + y) * m.w + x];
+}
+
+// Call the layer the way the net does: a layer flagged one_blob_only gets the
+// single-blob overload, everything else gets the vector overload with however
+// many bottoms the network declared.
+static int crop_single_input(const ncnn::ParamDict& pd, const ncnn::Mat& a, ncnn::Mat& out)
+{
+    ncnn::Layer* op = ncnn::create_layer("Crop");
+    if (op->load_param(pd) != 0)
+    {
+        delete op;
+        return -2;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    op->create_pipeline(opt);
+    int ret;
+    if (op->one_blob_only)
+    {
+        ret = op->forward(a, out, opt);
+    }
+    else
+    {
+        std::vector<ncnn::Mat> bottoms(1);
+        bottoms[0] = a;
+        std::vector<ncnn::Mat> tops(1);
+        ret = op->forward(bottoms, tops, opt);
+        if (ret == 0)
+            out = tops[0];
+    }
+    op->destroy_pipeline(opt);
+    delete op;
+
+    return ret;
+}
+
+// The two-input reference crop: crop to the shape of the second blob.
+static int crop_two_inputs(const ncnn::ParamDict& pd, const ncnn::Mat& a, const ncnn::Mat& reference, ncnn::Mat& out)
+{
+    ncnn::Layer* op = ncnn::create_layer("Crop");
+    if (op->load_param(pd) != 0)
+    {
+        delete op;
+        return -2;
+    }
+
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
+    op->create_pipeline(opt);
+    std::vector<ncnn::Mat> bottoms(2);
+    bottoms[0] = a;
+    bottoms[1] = reference;
+    std::vector<ncnn::Mat> tops(1);
+    const int ret = op->forward(bottoms, tops, opt);
+    if (ret == 0) out = tops[0];
+    op->destroy_pipeline(opt);
+    delete op;
+
+    return ret;
+}
+
+// Load a Crop and report one_blob_only: the net loader uses this flag to decide
+// whether to call the single-blob or the vector forward(). A single-input crop
+// whose output sizes are all omitted must NOT be mistaken for the two-input
+// reference encoding (all zeros), otherwise the vector overload reads a
+// non-existent bottom_blobs[1].
+static int crop_load_one_blob_only(const ncnn::ParamDict& pd)
+{
+    ncnn::Layer* op = ncnn::create_layer("Crop");
+    if (op->load_param(pd) != 0)
+    {
+        delete op;
+        return -2;
+    }
+    const int one_blob_only = op->one_blob_only;
+    delete op;
+    return one_blob_only;
+}
+
+// A single-input Crop keeps the remaining extent for every output size key that is
+// omitted (#7285), keeps the historical "explicitly written 0 means empty output"
+// reading, and honours the documented -233 "keep the remaining extent" value.
+static int test_crop_output_size_sentinels()
+{
+    const ncnn::Mat a3 = RandomMat(4, 3, 2);
+    const ncnn::Mat a4 = RandomMat(4, 3, 3, 2);
+
+    {
+        // outc omitted, 3d blob: keep all channels instead of clamping to zero
+        ncnn::ParamDict pd;
+        pd.set(3, 2); // outw
+        pd.set(4, 1); // outh
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != 1 || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels omitted outc: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
+            return -1;
+        }
+
+        for (int q = 0; q < a3.c; q++)
+        {
+            for (int x = 0; x < out.w; x++)
+            {
+                if (crop_pixel(out, x, 0, 0, q) != crop_pixel(a3, x, 0, 0, q))
+                {
+                    fprintf(stderr, "test_crop_output_size_sentinels omitted outc: value mismatch q=%d x=%d\n", q, x);
+                    return -1;
+                }
+            }
+        }
+    }
+
+    {
+        // outd and outc omitted, 4d blob: keep the remaining depth and channels
+        ncnn::ParamDict pd;
+        pd.set(3, 2); // outw
+        pd.set(4, 1); // outh
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a4, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != 1 || out.d != a4.d || out.c != a4.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels omitted outd: ret=%d out=(%d %d %d %d)\n", ret, out.w, out.h, out.d, out.c);
+            return -1;
+        }
+    }
+
+    {
+        // an explicitly written 0 reads the same as an omitted key (load_param
+        // cannot tell them apart), so it keeps the remaining channels too
+        ncnn::ParamDict pd;
+        pd.set(3, 2); // outw
+        pd.set(4, 1); // outh
+        pd.set(5, 0); // outc
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != 1 || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels explicit outc=0: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
+            return -1;
+        }
+    }
+
+    {
+        // -233 is the documented "keep the remaining extent" value
+        ncnn::ParamDict pd;
+        pd.set(3, 2);    // outw
+        pd.set(4, -233); // outh
+        pd.set(5, -233); // outc
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != 2 || out.h != a3.h || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels outh=-233: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
+            return -1;
+        }
+
+        for (int q = 0; q < a3.c; q++)
+        {
+            for (int y = 0; y < out.h; y++)
+            {
+                for (int x = 0; x < out.w; x++)
+                {
+                    if (crop_pixel(out, x, y, 0, q) != crop_pixel(a3, x, y, 0, q))
+                    {
+                        fprintf(stderr, "test_crop_output_size_sentinels outh=-233: value mismatch q=%d y=%d x=%d\n", q, y, x);
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        // A single-input crop that omits EVERY output size key (specified only by
+        // offsets) writes the same parameters as the two-input reference encoding,
+        // so load_param cannot tell them apart and must not guess. The layer is
+        // flagged for the reference form; forward() sees only one bottom and falls
+        // back to the single-input path, keeping the remaining extent.
+        ncnn::ParamDict pd;
+        pd.set(0, 1); // woffset — a crop specified purely by its offset
+
+        const int one_blob_only = crop_load_one_blob_only(pd);
+        if (one_blob_only != 0)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels all omitted: one_blob_only=%d, expected 0\n", one_blob_only);
+            return -1;
+        }
+
+        ncnn::Mat out;
+        const int ret = crop_single_input(pd, a3, out);
+        if (ret != 0 || out.empty() || out.w != a3.w - 1 || out.h != a3.h || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels all omitted: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
+            return -1;
+        }
+
+        for (int q = 0; q < a3.c; q++)
+        {
+            for (int y = 0; y < out.h; y++)
+            {
+                for (int x = 0; x < out.w; x++)
+                {
+                    if (crop_pixel(out, x, y, 0, q) != crop_pixel(a3, x + 1, y, 0, q))
+                    {
+                        fprintf(stderr, "test_crop_output_size_sentinels all omitted: value mismatch q=%d y=%d x=%d\n", q, y, x);
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    {
+        // The two-input reference encoding (explicitly written zeros for every
+        // output size) must still crop to the shape of the second blob.
+        ncnn::ParamDict pd;
+        pd.set(3, 0);  // outw
+        pd.set(4, 0);  // outh
+        pd.set(14, 0); // outd
+        pd.set(5, 0);  // outc
+
+        const int one_blob_only = crop_load_one_blob_only(pd);
+        if (one_blob_only != 0)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels explicit all-zero: one_blob_only=%d, expected 0\n", one_blob_only);
+            return -1;
+        }
+
+        ncnn::Mat reference(2, 1, a3.c);
+        reference.fill(0.f);
+
+        ncnn::Mat out;
+        const int ret = crop_two_inputs(pd, a3, reference, out);
+        if (ret != 0 || out.w != 2 || out.h != 1 || out.c != a3.c)
+        {
+            fprintf(stderr, "test_crop_output_size_sentinels reference crop: ret=%d out=(%d %d %d)\n", ret, out.w, out.h, out.c);
+            return -1;
+        }
+
+        for (int q = 0; q < a3.c; q++)
+        {
+            for (int y = 0; y < out.h; y++)
+            {
+                for (int x = 0; x < out.w; x++)
+                {
+                    if (crop_pixel(out, x, y, 0, q) != crop_pixel(a3, x, y, 0, q))
+                    {
+                        fprintf(stderr, "test_crop_output_size_sentinels reference crop: value mismatch q=%d y=%d x=%d\n", q, y, x);
+                        return -1;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 // the 36-channel cases retain Vulkan pack4 crops; keep all 1d packing cases
 int main()
 {
@@ -316,6 +600,7 @@ int main()
            || test_crop_9(RandomMat(20, 20, 20, 48), TEST_LAYER_DISABLE_GPU_TESTING)
            || test_crop_9(RandomMat(15, 15, 15, 36))
            || test_crop_9(RandomMat(16, 16, 16, 33))
+           || test_crop_output_size_sentinels()
 #if NCNN_VALIDATION
            || test_crop_load_param()
 #endif // NCNN_VALIDATION
